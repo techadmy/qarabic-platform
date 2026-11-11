@@ -77,7 +77,7 @@ import { cityOf } from '@/lib/time';
  * `TeacherTimetablePage`): the weekly times by day in the teacher's zone or the viewer's, then
  * the work hours (edited as a set) and the blocked times (add / remove, confirmed).
  */
-export function TimetableView({ id }: { id: number }) {
+export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
   const t = useTranslations('timetable');
   const locale = useUiLocale();
   const viewerTz = useViewerTz();
@@ -111,8 +111,8 @@ export function TimetableView({ id }: { id: number }) {
   return (
     <>
       <PageHeader
-        back={{ href: `/teachers/${id}`, label: t('back') }}
-        title={t('title', { name: data.teacher.name })}
+        back={mine ? undefined : { href: `/teachers/${id}`, label: t('back') }}
+        title={mine ? t('mineTitle') : t('title', { name: data.teacher.name })}
         meta={t('zoneNote', { city: cityOf(tz, locale) })}
         actions={
           data.teacher.timezone !== viewerTz ? (
@@ -214,7 +214,7 @@ export function TimetableView({ id }: { id: number }) {
           teacherId={id}
           hours={data.workHours}
           timezone={data.teacher.timezone}
-          editable={canManage}
+          editable={canManage || !!mine}
         />
         <BlocksCard
           teacherId={id}

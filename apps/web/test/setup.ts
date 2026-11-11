@@ -20,7 +20,19 @@ vi.mock('next/navigation', () => ({
 // Server action: in tests only the cookie write is skipped.
 vi.mock('@/i18n/actions', () => ({ setLocale: vi.fn(async () => undefined) }));
 
+/**
+ * The mocks build "today" from the clock (past classes taken, one running, one late, the rest to
+ * come). Unit tests pin the clock to 12:00 Cairo of the real date, so they pass at any hour (just
+ * after midnight no class has finished yet). Only `Date` is faked; timers stay real.
+ */
+export const PINNED_NOW = new Date(
+  `${new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date())}T10:00:00Z`,
+);
+vi.useFakeTimers({ toFake: ['Date'] });
+vi.setSystemTime(PINNED_NOW);
+
 beforeAll(() => {
+  resetMockState();
   server.listen({ onUnhandledRequest: 'error' });
   // jsdom's AbortSignal is not the one Node's fetch/Request accept; drop it in tests only.
   const patched = globalThis.fetch;

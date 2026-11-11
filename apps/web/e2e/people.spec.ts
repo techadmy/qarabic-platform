@@ -97,7 +97,14 @@ test('roles: edit a preset role and save after the confirmation', async ({ page 
 test('a teacher gets «طلابي» with only their students', async ({ page }) => {
   await signIn(page, 'teacher@qarabic.test');
   const menu = page.locator('[data-sidebar="content"]');
-  await expect(menu.getByRole('link')).toHaveText(['الرئيسية', 'حصصي', 'طلباتي', 'طلابي']);
+  await expect(menu.getByRole('link')).toHaveText([
+    'الرئيسية',
+    'حصصي',
+    'طلابي',
+    'جدولي',
+    'الاختبارات',
+    'طلباتي',
+  ]);
   await menu.getByRole('link', { name: 'طلابي' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'طلابي' })).toBeVisible();
   const table = page.getByRole('table', { name: 'طلابي' });

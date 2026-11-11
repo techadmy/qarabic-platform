@@ -6,6 +6,8 @@ import {
   CalendarDaysIcon,
   CalendarOffIcon,
   CalendarRangeIcon,
+  ClipboardCheckIcon,
+  ClipboardListIcon,
   GraduationCapIcon,
   LayoutDashboardIcon,
   SlidersHorizontalIcon,
@@ -33,6 +35,10 @@ export type NavKey =
   | 'myClasses'
   | 'childrenClasses'
   | 'myRequests'
+  | 'lessonReports'
+  | 'tests'
+  | 'myTests'
+  | 'mySchedule'
   | 'account';
 
 export type NavItem = {
@@ -44,6 +50,8 @@ export type NavItem = {
   permission?: string;
   /** A live count beside the item (K3: badge counts in the sidebar items). */
   badge?: 'pendingRequests';
+  /** Other paths that belong to this item (a teacher's student profile under «طلابي»). */
+  also?: string[];
 };
 
 export type NavGroup = {
@@ -76,6 +84,13 @@ export const STAFF_NAV: NavEntry[] = [
     badge: 'pendingRequests',
   },
   {
+    key: 'lessonReports',
+    href: '/lesson-reports',
+    icon: ClipboardCheckIcon,
+    permission: 'sessions.view',
+  },
+  { key: 'tests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
+  {
     group: 'users',
     icon: UsersIcon,
     items: [
@@ -101,10 +116,27 @@ export const STAFF_NAV: NavEntry[] = [
   },
 ];
 
-/** Teacher portal (D138): own classes, own requests, own students. */
+/**
+ * Teacher portal (D71, D138): «حصصي» (the week), «طلابي», «جدولي» (own timetable and work hours),
+ * «الاختبارات» (tests they examine), own requests.
+ */
 export const TEACHER_NAV: NavEntry[] = [
   HOME,
   { key: 'myClasses', href: '/my-classes', icon: CalendarDaysIcon, permission: 'sessions.conduct' },
+  {
+    key: 'myStudents',
+    href: '/my-students',
+    icon: GraduationCapIcon,
+    permission: 'sessions.conduct',
+    also: ['/students'],
+  },
+  {
+    key: 'mySchedule',
+    href: '/my-schedule',
+    icon: CalendarRangeIcon,
+    permission: 'sessions.conduct',
+  },
+  { key: 'myTests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
   {
     key: 'myRequests',
     href: '/requests',
@@ -112,7 +144,6 @@ export const TEACHER_NAV: NavEntry[] = [
     permission: 'session_requests.view',
     badge: 'pendingRequests',
   },
-  { key: 'myStudents', href: '/students', icon: GraduationCapIcon, permission: 'sessions.conduct' },
 ];
 
 /** Parent portal: the children's classes, own requests, own family. */
@@ -157,10 +188,11 @@ export function navItemsFor(me: Pick<Me, 'permissions' | 'role'>): NavItem[] {
   return navFor(me).flatMap((e) => (isGroup(e) ? e.items : [e]));
 }
 
-export function isActive(item: Pick<NavItem, 'href'>, pathname: string): boolean {
-  return item.href === '/'
-    ? pathname === '/'
-    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+export function isActive(item: Pick<NavItem, 'href' | 'also'>, pathname: string): boolean {
+  if (item.href === '/') return pathname === '/';
+  return [item.href, ...(item.also ?? [])].some(
+    (href) => pathname === href || pathname.startsWith(`${href}/`),
+  );
 }
 
 /** The page the top bar names: the sidebar item (or account) matching the path. */

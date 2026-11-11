@@ -45,6 +45,7 @@ export function toMe(user: AuthUser): Me {
       : null,
     roles: user.role ? [user.role.name] : [],
     permissions: [...user.permissions].sort(),
+    teacherId: user.teacherId,
   };
 }
 

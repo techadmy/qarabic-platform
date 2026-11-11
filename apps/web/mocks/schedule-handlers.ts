@@ -63,6 +63,7 @@ import {
   type SlotRow,
 } from './schedule-db';
 import { apiError, guard, guardAny, notFound, validationFailed } from './session';
+import { editableUntil, presentReport, reportMissing, reportOf } from './teaching-present';
 
 /**
  * MSW handlers for the N2 schedule and class endpoints, same contract as apps/api/README.md (N2):
@@ -76,14 +77,14 @@ const nowMs = () => Date.now();
 const iso = (ms: number) => new Date(ms).toISOString().replace('.000Z', 'Z');
 const settings = () => sdb.settings;
 
-async function body(request: Request): Promise<unknown> {
+export async function body(request: Request): Promise<unknown> {
   try {
     return await request.json();
   } catch {
     return {};
   }
 }
-function queryOf(request: Request) {
+export function queryOf(request: Request) {
   const params = new URL(request.url).searchParams;
   const out: Record<string, string> = {};
   for (const [k, v] of params) out[k] = out[k] ? `${out[k]},${v}` : v;
@@ -92,17 +93,18 @@ function queryOf(request: Request) {
 
 // ------------------------------------------------------------------ viewer scope
 
-const isTeacher = (me: MockUser) => me.role?.kind === 'teacher';
-const isParent = (me: MockUser) => me.role?.kind === 'parent';
-const ownTeacherId = (me: MockUser) => people.teachers.find((t) => t.userId === me.id)?.id ?? null;
-const ownFamilyId = (me: MockUser) =>
+export const isTeacher = (me: MockUser) => me.role?.kind === 'teacher';
+export const isParent = (me: MockUser) => me.role?.kind === 'parent';
+export const ownTeacherId = (me: MockUser) =>
+  people.teachers.find((t) => t.userId === me.id)?.id ?? null;
+export const ownFamilyId = (me: MockUser) =>
   people.families.find((f) => f.parentUserId === me.id)?.id ?? null;
 const studentOf = (id: number) => people.students.find((s) => s.id === id);
 const teacherOf = (id: number) => people.teachers.find((t) => t.id === id);
 const familyTz = (studentId: number) =>
   people.families.find((f) => f.id === studentOf(studentId)?.familyId)?.timezone ?? 'UTC';
 
-function seesSession(me: MockUser, s: Pick<SessionRow, 'teacherId' | 'studentId'>) {
+export function seesSession(me: MockUser, s: Pick<SessionRow, 'teacherId' | 'studentId'>) {
   if (isTeacher(me)) return s.teacherId === ownTeacherId(me);
   if (isParent(me)) return studentOf(s.studentId)?.familyId === ownFamilyId(me);
   return true;
@@ -133,7 +135,7 @@ function attention(s: SessionRow): string[] {
     Date.parse(s.activatedAt) - start > settings()['sessions.late_teacher_min'] * MIN
   )
     out.push('late_activation');
-  if (s.stage === 'ended') out.push('report_missing');
+  if (reportMissing(s, now)) out.push('report_missing');
   if (s.zoomStatus === 'failed') out.push('zoom_failed');
   if (s.needsReview) out.push('needs_review');
   if (pendingOf(s).length) out.push('pending_request');
@@ -341,6 +343,10 @@ function allowedActions(s: SessionRow, me: MockUser): string[] {
   }
   const conduct = canManage(me) || isOwnTeacher(me, s);
   if (s.stage === 'ended' && conduct) out.push('submit_report');
+  if (s.stage === 'taken' && conduct) {
+    const until = editableUntil(s);
+    if (canManage(me) || (until && nowMs() <= Date.parse(until))) out.push('submit_report');
+  }
   return out;
 }
 
@@ -417,7 +423,7 @@ export function presentSession(s: SessionRow, me: MockUser): SessionDto {
       teacherJoinedAt: s.teacherJoinedAt,
       studentJoinedAt: s.studentJoinedAt,
     },
-    report: { submitted: false, editableUntil: null },
+    report: { submitted: !!reportOf(s.id), editableUntil: editableUntil(s) },
     attention: attention(s),
     pendingRequests: pendingOf(s).map((r) => ({ id: r.id, type: r.type })),
     allowedActions: allowedActions(s, me),
@@ -429,7 +435,7 @@ export function presentSession(s: SessionRow, me: MockUser): SessionDto {
   };
 }
 
-function touch(s: SessionRow) {
+export function touch(s: SessionRow) {
   s.lockVersion += 1;
   s.updatedAt = iso(nowMs());
 }
@@ -834,14 +840,19 @@ const enrollmentOr404 = (id: string, me: MockUser) => {
   const e = sdb.enrollments.find((x) => x.id === Number(id));
   return e && seesEnrollment(me, e) ? e : null;
 };
-const sessionOr404 = (id: string, me: MockUser) => {
+export const sessionOr404 = (id: string, me: MockUser) => {
   const s = sdb.sessions.find((x) => x.id === Number(id) && !x.deleted);
   return s && seesSession(me, s) ? s : null;
 };
 const teacherAllowed = (me: MockUser, teacherId: number) =>
   !isParent(me) && (!isTeacher(me) || ownTeacherId(me) === teacherId);
 
-function paginate<T>(rows: T[], page: number, perPage: number, counts: Record<string, number>) {
+export function paginate<T>(
+  rows: T[],
+  page: number,
+  perPage: number,
+  counts: Record<string, number>,
+) {
   const total = rows.length;
   return {
     data: rows.slice((page - 1) * perPage, page * perPage),
@@ -1628,7 +1639,7 @@ export const scheduleHandlers: HttpHandler[] = [
       data: {
         ...presentSession(s, g.me),
         events: eventsOf(s.id),
-        lessonReport: null,
+        lessonReport: presentReport(s, g.me),
         requests: sdb.requests
           .filter(
             (r) => r.sessionId === s.id && (!parentView || r.requestedBy.id === g.me.id || true),

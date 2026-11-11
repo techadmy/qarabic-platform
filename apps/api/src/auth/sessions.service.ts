@@ -45,6 +45,7 @@ export class SessionsService {
             role: {
               include: { permissions: { include: { permission: { select: { name: true } } } } },
             },
+            teacher: { select: { id: true } },
           },
         },
       },
@@ -89,6 +90,7 @@ export class SessionsService {
             }
           : null,
         permissions,
+        teacherId: user.teacher?.id ?? null,
       },
     };
   }

@@ -20,7 +20,11 @@ import {
   createZoomHostSchema,
   type GenerateResultDto,
   generateSessionsSchema,
+  type LessonReportDto,
+  lessonReportInputSchema,
   type Paginated,
+  type ReportListItemDto,
+  reportListQuerySchema,
   type RequestCountsDto,
   rejectSessionRequestSchema,
   SESSION_SETTING_RULES,
@@ -62,6 +66,7 @@ import { SessionsService } from './sessions.service.js';
 import { Actor, SessionStateMachine, StaleSessionError } from './state-machine.js';
 import { ZoomDriver, ZoomMeetings } from './zoom.js';
 import { recordEvent } from './events.js';
+import { LessonReportsService } from './lesson-reports.js';
 
 type Out<S extends z.ZodType> = z.output<S>;
 
@@ -88,6 +93,7 @@ export class SessionsController {
     private readonly zoom: ZoomDriver,
     private readonly meetings: ZoomMeetings,
     private readonly crypto: Crypto,
+    private readonly reports: LessonReportsService,
   ) {}
 
   @Can('sessions.view')
@@ -230,6 +236,35 @@ export class SessionsController {
     return { data: await this.reads.dto(id, actor) };
   }
 
+  /**
+   * The lesson report (D45, D70): on an `ended` class it moves the class to `taken`; on a `taken`
+   * one it edits the report (the class's teacher inside `sessions.report_edit_hours`, staff with
+   * `sessions.manage` always). Idempotent; answers the updated class.
+   */
+  @CanAny('sessions.conduct', 'sessions.manage')
+  @Put(':id/report')
+  @ApiBody({ schema: jsonSchema(lessonReportInputSchema) })
+  async report(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(lessonReportInputSchema) body: Out<typeof lessonReportInputSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: SessionDto }> {
+    await this.reads.find(id, actor);
+    await this.stale(id, actor, () => this.reports.submit(id, body, actor));
+    return { data: await this.reads.dto(id, actor) };
+  }
+
+  /** The class's lesson report (`data` null when it has none); parents without internal notes. */
+  @Can('sessions.view')
+  @Get(':id/report')
+  async showReport(
+    @Param('id', IdPipe) id: number,
+    @CurrentUser() viewer: AuthUser,
+  ): Promise<{ data: LessonReportDto | null }> {
+    const s = await this.reads.find(id, viewer);
+    return { data: await this.reports.forSession(s, viewer) };
+  }
+
   /** The teacher's start link: own teacher only, fresh, never stored or logged. */
   @Can('sessions.conduct')
   @Get(':id/zoom/start')
@@ -328,6 +363,26 @@ export class SessionsController {
       }
       throw error;
     }
+  }
+}
+
+/**
+ * `GET /lesson-reports`: ended and taken classes with where their report stands (pending, missing
+ * = «بلا تقرير», on time, late). Staff all; a teacher their own classes; parents 403.
+ */
+@ApiTags('sessions')
+@Controller('lesson-reports')
+export class LessonReportsController {
+  constructor(private readonly reports: LessonReportsService) {}
+
+  @Can('sessions.view')
+  @RateLimit('search')
+  @Get()
+  list(
+    @ZodQuery(reportListQuerySchema) q: Out<typeof reportListQuerySchema>,
+    @CurrentUser() viewer: AuthUser,
+  ): Promise<Paginated<ReportListItemDto>> {
+    return this.reports.list(q, viewer);
   }
 }
 

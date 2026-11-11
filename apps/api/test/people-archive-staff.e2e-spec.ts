@@ -250,6 +250,7 @@ describe('staff', () => {
         labelEn: '',
       },
       permissions: new Set(),
+      teacherId: null,
     };
 
     await expect(

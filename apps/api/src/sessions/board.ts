@@ -21,6 +21,7 @@ import { sessionScopeWhere, viewerScope } from '../schedule/scope.js';
 import { addDays, isoZ, localDate, startOfLocalDay } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { SessionGenerator } from './generator.js';
+import { LessonReportsService } from './lesson-reports.js';
 import { SessionPresenter, sessionInclude, type SessionRow } from './presenter.js';
 
 type ListQuery = z.output<typeof sessionListQuerySchema>;
@@ -38,6 +39,7 @@ export class SessionReads {
     private readonly clock: Clock,
     private readonly presenter: SessionPresenter,
     private readonly generator: SessionGenerator,
+    private readonly reports: LessonReportsService,
   ) {}
 
   async find(id: number, viewer: AuthUser): Promise<SessionRow> {
@@ -105,10 +107,10 @@ export class SessionReads {
     };
   }
 
-  /** `GET /sessions/:id`: the class + its timeline + its requests (`lessonReport` comes in N3). */
+  /** `GET /sessions/:id`: the class + its timeline + its lesson report + its requests. */
   async detail(id: number, viewer: AuthUser): Promise<SessionDetailDto> {
     const row = await this.find(id, viewer);
-    const [base, events, requests] = await Promise.all([
+    const [base, events, requests, lessonReport] = await Promise.all([
       this.presenter.one(row, viewer),
       this.prisma.sessionEvent.findMany({
         where: { sessionId: id },
@@ -120,6 +122,7 @@ export class SessionReads {
         include: { requestedBy: { select: { id: true, name: true } } },
         orderBy: { id: 'asc' },
       }),
+      this.reports.forSession(row, viewer),
     ]);
     return {
       ...base,
@@ -134,7 +137,7 @@ export class SessionReads {
         payload: (e.payload as Record<string, unknown> | null) ?? null,
         occurredAt: isoZ(e.occurredAt)!,
       })),
-      lessonReport: null,
+      lessonReport,
       requests: requests.map((r) => ({
         id: r.id,
         type: r.type,

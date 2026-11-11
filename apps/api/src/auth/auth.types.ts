@@ -16,6 +16,8 @@ export interface AuthUser {
     labelEn: string | null;
   } | null;
   permissions: ReadonlySet<string>;
+  /** The user's own teacher record (a teacher login), else null. */
+  teacherId: number | null;
 }
 
 export interface AuthedRequest extends Request {

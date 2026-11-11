@@ -34,6 +34,11 @@ export const meSchema = z.object({
     .nullable(),
   roles: z.array(z.string()),
   permissions: z.array(z.string()),
+  /**
+   * The user's own teacher record (a teacher login), else null: the web app opens
+   * `/teachers/:teacherId/timetable` and `/work-hours` with it.
+   */
+  teacherId: z.number().int().nullable(),
 });
 export type Me = z.infer<typeof meSchema>;
 

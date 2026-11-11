@@ -93,7 +93,11 @@
     "myClasses": "حصصي",
     "childrenClasses": "حصص أبنائي",
     "myRequests": "طلباتي",
-    "pendingSuffix": "طلبات قيد المراجعة"
+    "pendingSuffix": "طلبات قيد المراجعة",
+    "lessonReports": "تقارير الحصص",
+    "tests": "الاختبارات والنتائج",
+    "myTests": "الاختبارات",
+    "mySchedule": "جدولي"
   },
   "home": {
     "title": "الرئيسية",
@@ -659,7 +663,8 @@
       "endEarlyTitle": "إنهاء الحصة قبل {min} دقيقة",
       "endEarlyBody": "الحصة أقصر من الحد الأدنى، فتُعلَّم للمراجعة. اكتب السبب.",
       "overrideTitle": "تفعيل حصة {name} خارج الوقت المسموح",
-      "overrideBody": "الوقت خارج نافذة التفعيل. يمكنك التفعيل مع ذكر السبب، ويُحفظ في السجل."
+      "overrideBody": "الوقت خارج نافذة التفعيل. يمكنك التفعيل مع ذكر السبب، ويُحفظ في السجل.",
+      "textMin": "{count, plural, zero {اكتب # حرف على الأقل} one {اكتب حرفًا واحدًا على الأقل} two {اكتب حرفين على الأقل} few {اكتب # أحرف على الأقل} many {اكتب # حرفًا على الأقل} other {اكتب # حرف على الأقل}}"
     },
     "detail": {
       "title": "تفاصيل الحصة",
@@ -765,7 +770,8 @@
       "runningNow": "جارية الآن",
       "allStatuses": "كل الحالات",
       "hideStatuses": "إخفاء الحالات",
-      "attention": "تحتاج متابعة"
+      "attention": "تحتاج متابعة",
+      "allMissingReports": "كل الحصص بلا تقرير"
     },
     "sync": {
       "action": "مزامنة حصص اليوم",
@@ -1099,7 +1105,8 @@
     "blockRemoved": "أُلغي الحجز",
     "removeBlock": "احذف الحجز {block}",
     "removeBlockTitle": "إلغاء الوقت المحجوز",
-    "removeBlockConfirm": "ألغِ الحجز"
+    "removeBlockConfirm": "ألغِ الحجز",
+    "mineTitle": "جدولي"
   },
   "holidays": {
     "title": "العطلات الرسمية",
@@ -1210,6 +1217,10 @@
       "zoom__create_lead_hours": {
         "label": "يُنشأ اجتماع Zoom قبل الحصة بـ",
         "help": "يُنشأ الرابط مسبقًا ليصل إلى الطرفين."
+      },
+      "reports__parent_sees_rating": {
+        "label": "يرى ولي الأمر تقييم الحصة",
+        "help": "التقييم من 1 إلى 5 في تقرير الحصة. الملاحظات الداخلية لا يراها ولي الأمر أبدًا."
       }
     },
     "zoom": {
@@ -1231,6 +1242,265 @@
       "failed": "تعذّر الحفظ. حاول مرة أخرى.",
       "empty": "لا توجد حسابات Zoom",
       "emptyHint": "أضف حسابًا لتُنشأ منه اجتماعات الحصص."
+    }
+  },
+  "reports": {
+    "title": "تقرير الحصة",
+    "notSent": "لم يُرسَل تقرير هذه الحصة بعد.",
+    "write": "اكتب التقرير",
+    "edit": "تعديل التقرير",
+    "locked": "انتهت مدة تعديل التقرير. تواصل مع المتابعة.",
+    "ratingValue": "{value} من 5",
+    "mistakesCount": "{count, plural, zero {بلا أخطاء} one {خطأ واحد} two {خطآن} few {# أخطاء} many {# خطأً} other {# خطأ}}",
+    "pagesCount": "{count} صفحة",
+    "ayahsCount": "{count, plural, zero {لا آيات} one {آية واحدة} two {آيتان} few {# آيات} many {# آية} other {# آية}}",
+    "sentBy": "أرسله {name} {ago}",
+    "editedBy": "عدّله {name} {ago}",
+    "someone": "النظام",
+    "lateBadge": "سُلّم متأخرًا",
+    "noHifz": "لم يُسجَّل حفظ في هذه الحصة.",
+    "internalHint": "لا يطّلع عليها ولي الأمر",
+    "form": {
+      "editTitle": "تعديل تقرير الحصة",
+      "intro": "يطّلع ولي الأمر على الملخص والحفظ والواجب، ولا يطّلع على الملاحظات الداخلية.",
+      "editableUntil": "يمكنك تعديل التقرير حتى {time}",
+      "editableLeft": "تنتهي مدة التعديل {ago}.",
+      "staffEdit": "تعديلك على تقرير مُرسَل يُحفظ في سجل الحصة.",
+      "hifzHint": "اترك الصف فارغًا إذا لم يُتناول في الحصة.",
+      "optional": "اختياري",
+      "saving": "جارٍ الحفظ…",
+      "cancel": "إلغاء",
+      "saved": "حُفظ تقرير حصة {name}",
+      "updated": "حُفظت تعديلات التقرير",
+      "staleTitle": "تغيّرت حالة الحصة",
+      "stale": "عدّل شخص آخر هذه الحصة. حُدّثت البيانات؛ راجعها ثم احفظ مرة أخرى.",
+      "lockedTitle": "لا يمكن حفظ التعديل",
+      "chooseSurah": "اختر السورة",
+      "searchSurah": "ابحث باسم السورة أو رقمها",
+      "ayahRangeHint": "من 1 إلى {max}",
+      "continueFromLast": "تابع من آخر موضع",
+      "sameAsLast": "مثل المرة السابقة",
+      "clearRow": "مسح الصف",
+      "lessMistakes": "إنقاص الأخطاء",
+      "moreMistakes": "زيادة الأخطاء",
+      "tajweedShort": "التجويد",
+      "homeworkShort": "الواجب",
+      "errors": {
+        "summaryRequired": "اكتب ملخص الحصة",
+        "surahRequired": "اختر السورة",
+        "ayahRequired": "اكتب رقم الآية",
+        "ayahRange": "عدد آيات هذه السورة {max}؛ اكتب رقمًا من 1 إلى {max}",
+        "ayahOrder": "في السورة الواحدة تأتي آية النهاية بعد آية البداية",
+        "pages": "اكتب الصفحات بأرباع الصفحة (مثل 0.5 أو 1.25)",
+        "mistakes": "اكتب عددًا صحيحًا من 0 إلى 999",
+        "tooLong": "النص أطول من المسموح",
+        "invalid": "القيمة غير صحيحة"
+      }
+    },
+    "list": {
+      "title": "تقارير الحصص",
+      "description": "الحصص المنتهية والمنعقدة وحالة تقرير كل منها.",
+      "count": "{count, plural, zero {لا حصص} one {حصة واحدة} two {حصتان} few {# حصص} many {# حصة} other {# حصة}}",
+      "columns": {
+        "time": "موعد الحصة",
+        "student": "الطالب",
+        "teacher": "المعلم",
+        "course": "الدورة",
+        "state": "حالة التقرير",
+        "submitted": "الإرسال",
+        "rating": "التقييم"
+      },
+      "teacher": "المعلم",
+      "allTeachers": "كل المعلمين",
+      "searchTeacher": "ابحث باسم المعلم",
+      "from": "من تاريخ",
+      "to": "إلى تاريخ",
+      "stateFilter": "تصفية حسب حالة التقرير",
+      "all": "الكل",
+      "noneMissing": "لا توجد حصص بلا تقرير",
+      "noneMissingHint": "أرسل المعلمون تقارير كل الحصص المستحقة.",
+      "noResults": "لا نتائج مطابقة",
+      "noResultsHint": "غيّر التاريخ أو المعلم، أو امسح عوامل التصفية.",
+      "clearAll": "مسح الكل",
+      "empty": "لا توجد حصص منتهية بعد",
+      "emptyHint": "تظهر هنا الحصص بعد انتهائها مع حالة تقاريرها.",
+      "dueWas": "كان مستحقًا {ago}",
+      "dueIn": "مستحق {ago}"
+    }
+  },
+  "progress": {
+    "readOnly": "للاطلاع فقط",
+    "emptyHint": "يظهر التقدم بعد أول تقرير حصة فيه حفظ.",
+    "ayahsOf": "{count} من {total} آية",
+    "surahsStarted": "{count, plural, zero {لا سور} one {سورة واحدة بدأ حفظها} two {سورتان بدأ حفظهما} few {# سور بدأ حفظها} many {# سورة بدأ حفظها} other {# سورة بدأ حفظها}}",
+    "showSurahs": "عرض السور",
+    "hideSurahs": "إخفاء السور",
+    "newAyahs": "آيات جديدة",
+    "lessons": "{count, plural, zero {لا دروس} one {درس واحد} two {درسان} few {# دروس} many {# درسًا} other {# درس}}",
+    "filter": "تصفية حسب نوع الحفظ",
+    "all": "الكل",
+    "showMore": "عرض المزيد",
+    "teacher": "المعلم",
+    "internalNote": "ملاحظة داخلية",
+    "openClass": "فتح الحصة"
+  },
+  "tests": {
+    "title": "الاختبارات والنتائج",
+    "titleTeacher": "الاختبارات",
+    "pageTitle": "الاختبار",
+    "description": "اختبارات الطلاب في الشهر ونتائجها.",
+    "scheduleAction": "جدولة اختبار",
+    "prevMonth": "الشهر السابق",
+    "nextMonth": "الشهر التالي",
+    "thisMonth": "هذا الشهر",
+    "tilesLabel": "عدادات الشهر",
+    "statusFilter": "تصفية حسب الحالة",
+    "tabs": {
+      "all": "الكل",
+      "byTeacher": "حسب المعلم"
+    },
+    "track": "المسار",
+    "allTracks": "كل المسارات",
+    "noResults": "لا نتائج مطابقة",
+    "noResultsHint": "غيّر المسار أو امسح عوامل التصفية.",
+    "clearAll": "مسح الكل",
+    "empty": "لا توجد اختبارات في هذا الشهر",
+    "emptyTeacher": "لا توجد اختبارات لك في هذا الشهر",
+    "emptyHint": "جدول اختبارًا أو تنقّل إلى شهر آخر.",
+    "columns": {
+      "time": "الموعد",
+      "student": "الطالب",
+      "examiner": "الممتحِن",
+      "track": "المسار",
+      "status": "الحالة",
+      "overall": "الدرجة"
+    },
+    "sectionsCount": "{count, plural, zero {لا أقسام} one {قسم واحد} two {قسمان} few {# أقسام} many {# قسمًا} other {# قسم}}",
+    "minutes": "{count, plural, zero {# دقيقة} one {دقيقة واحدة} two {دقيقتان} few {# دقائق} many {# دقيقة} other {# دقيقة}}",
+    "trackHint": {
+      "qaida": "التجويد فقط.",
+      "nazra": "التجويد والتلاوة.",
+      "hifz": "التجويد والتلاوة والحفظ."
+    },
+    "back": "العودة إلى الاختبارات",
+    "notFoundTitle": "لم يُعثر على الاختبار",
+    "notFound": "ربما حُذف أو ليس لديك صلاحية عرضه.",
+    "detailTitle": "اختبار {name}",
+    "examinerIs": "الممتحِن: {name}",
+    "studentTitle": "الاختبارات",
+    "studentNone": "لا توجد اختبارات لهذا الطالب.",
+    "upcoming": "اختبار قادم ({track})",
+    "detail": {
+      "section": "بيانات الاختبار",
+      "when": "الموعد",
+      "duration": "المدة",
+      "examiner": "الممتحِن",
+      "sections": "أقسام التجويد",
+      "course": "الدورة",
+      "notes": "ملاحظات",
+      "reason": "السبب"
+    },
+    "act": {
+      "refuse": "تسجيل رفض أو غياب",
+      "cancel": "إلغاء الاختبار",
+      "reopen": "إعادة فتح الاختبار",
+      "reason": "السبب",
+      "refuseTitle": "تسجيل رفض الاختبار أو الغياب عنه — {name}",
+      "cancelTitle": "إلغاء اختبار {name}",
+      "reopenTitle": "إعادة فتح اختبار {name}",
+      "refuseBody": "يُسجَّل أن الطالب رفض الاختبار أو غاب عنه. اكتب ما حدث.",
+      "cancelBody": "يُلغى الاختبار ولا يُحسب في عدادات الشهر. اكتب السبب.",
+      "reopenBody": "يعود الاختبار مجدولًا في موعده. اكتب السبب، فهو يُحفظ في السجل.",
+      "done": {
+        "refuse": "سُجّل الرفض أو الغياب",
+        "cancel": "أُلغي الاختبار",
+        "reopen": "أُعيد فتح الاختبار"
+      }
+    },
+    "result": {
+      "record": "تسجيل النتيجة",
+      "title": "النتيجة",
+      "edit": "تصحيح النتيجة",
+      "editableUntil": "يمكنك تصحيح النتيجة حتى {time} (تنتهي المدة {ago}).",
+      "opensAt": "يُتاح تسجيل النتيجة بدءًا من {time}.",
+      "pending": "لم تُسجَّل النتيجة بعد.",
+      "scores": "الدرجات",
+      "overall": "الدرجة الكلية",
+      "tajweed": "التجويد",
+      "reading": "التلاوة",
+      "hifz": "الحفظ",
+      "mistakes": "الأخطاء",
+      "noMistakes": "لا أخطاء.",
+      "mistakesCount": "{count, plural, zero {لا أخطاء محددة} one {خطأ واحد محدد} two {خطآن محددان} few {# أخطاء محددة} many {# خطأً محددًا} other {# خطأ محدد}}",
+      "remarks": "ملاحظات لولي الأمر",
+      "remarksHelp": "يطّلع عليها ولي الأمر مع النتيجة.",
+      "internalNotes": "ملاحظات داخلية",
+      "internalHelp": "للإدارة والمعلمين فقط.",
+      "teacherRating": "تقييم الممتحِن",
+      "teacherRatingHelp": "من 0 إلى 100، للإدارة فقط.",
+      "ratingRange": "اكتب عددًا صحيحًا من 0 إلى 100",
+      "pickScore": "اختر الدرجة",
+      "reason": "سبب التصحيح",
+      "reasonHelp": "يُحفظ في سجل الاختبار.",
+      "reasonRequired": "اكتب سبب التصحيح (3 أحرف على الأقل)",
+      "save": "حفظ النتيجة",
+      "saveCorrection": "حفظ التصحيح",
+      "cancel": "إلغاء",
+      "saved": "حُفظت النتيجة",
+      "corrected": "حُفظ تصحيح النتيجة"
+    },
+    "schedule": {
+      "title": "جدولة اختبار",
+      "descriptionStaff": "الممتحِن هو معلم الطالب الحالي ما لم تختر غيره.",
+      "descriptionTeacher": "تمتحن طلابك بنفسك.",
+      "student": "الطالب",
+      "chooseStudent": "اختر الطالب",
+      "searchStudent": "ابحث باسم الطالب",
+      "studentZone": "توقيت الطالب: {city}",
+      "currentTeacher": "المعلم: {name}",
+      "pickStudent": "اختر الطالب",
+      "track": "المسار",
+      "sections": "أقسام التجويد",
+      "pickSections": "اختر قسمًا واحدًا على الأقل",
+      "date": "التاريخ",
+      "time": "الوقت",
+      "pickTime": "اختر الوقت",
+      "duration": "المدة",
+      "yourTime": "الموعد بتوقيتك ({city})",
+      "examiner": "الممتحِن",
+      "examinerDefault": "معلم الطالب الحالي",
+      "searchTeacher": "ابحث باسم المعلم",
+      "examinerHint": "اتركه فارغًا ليمتحن معلم الطالب الحالي.",
+      "notes": "ملاحظات",
+      "optional": "اختياري",
+      "back": "رجوع",
+      "submit": "جدولة الاختبار",
+      "done": "جُدول اختبار {name}"
+    }
+  },
+  "teacherPortal": {
+    "pickDay": "اختر يومًا من الأسبوع",
+    "reportsDue": "{count, plural, one {حصة واحدة تنتظر تقريرك.} two {حصتان تنتظران تقريرك.} few {# حصص تنتظر تقريرك.} many {# حصة تنتظر تقريرك.} other {# حصة تنتظر تقريرك.}}",
+    "writeFirst": "اكتب تقرير {name}",
+    "mySchedule": "جدولي",
+    "noTeacherTitle": "لا يوجد ملف معلم لحسابك",
+    "noTeacher": "تواصل مع الإدارة لربط حسابك بملف المعلم.",
+    "students": {
+      "title": "طلابي",
+      "count": "{count, plural, zero {لا طلاب} one {طالب واحد} two {طالبان} few {# طلاب} many {# طالبًا} other {# طالب}}",
+      "columns": {
+        "name": "الطالب",
+        "course": "الدورة",
+        "position": "آخر موضع"
+      },
+      "age": "{count} سنة",
+      "missing": "{count, plural, one {حصة بلا تقرير} two {حصتان بلا تقرير} few {# حصص بلا تقرير} many {# حصة بلا تقرير} other {# حصة بلا تقرير}}",
+      "search": "البحث",
+      "searchPlaceholder": "ابحث باسم الطالب",
+      "empty": "لا يوجد طلاب مسندون إليك",
+      "emptyHint": "يظهر الطلاب هنا حين تسندهم الإدارة إليك.",
+      "noResults": "لا نتائج مطابقة",
+      "noResultsHint": "جرّب اسمًا آخر."
     }
   }
 }

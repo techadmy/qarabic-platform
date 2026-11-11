@@ -50,6 +50,7 @@ export function ReasonDialog({
   destructive,
   textLabel,
   textRequired,
+  textMin,
   choices,
   choiceLabel,
   defaultChoice,
@@ -66,6 +67,8 @@ export function ReasonDialog({
   destructive?: boolean;
   textLabel?: string;
   textRequired?: boolean;
+  /** Fewest characters the reason needs (the shared `reason` rules use 3). */
+  textMin?: number;
   choices?: { value: string; label: string }[];
   choiceLabel?: string;
   defaultChoice?: string;
@@ -81,6 +84,7 @@ export function ReasonDialog({
   const [choice, setChoice] = useState(defaultChoice ?? '');
   const [touched, setTouched] = useState(false);
   const textMissing = !!textRequired && text.trim().length === 0;
+  const textShort = !textMissing && !!textMin && text.trim().length < textMin;
   const choiceMissing = !!choices && !choice;
 
   function change(next: boolean) {
@@ -95,7 +99,7 @@ export function ReasonDialog({
   function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
-    if (textMissing || choiceMissing) return;
+    if (textMissing || textShort || choiceMissing) return;
     onConfirm({ text: text.trim(), choice });
   }
 
@@ -130,7 +134,7 @@ export function ReasonDialog({
       )}
       {extra}
       {textLabel && (
-        <Field data-invalid={touched && textMissing}>
+        <Field data-invalid={touched && (textMissing || textShort)}>
           <FieldLabel htmlFor={textId}>
             {textLabel}
             {textRequired ? (
@@ -147,9 +151,10 @@ export function ReasonDialog({
             value={text}
             onChange={(e) => setText(e.target.value)}
             aria-required={textRequired}
-            aria-invalid={touched && textMissing}
+            aria-invalid={touched && (textMissing || textShort)}
           />
           {touched && textMissing && <FieldError>{t('textRequired')}</FieldError>}
+          {touched && textShort && <FieldError>{t('textMin', { count: textMin! })}</FieldError>}
         </Field>
       )}
       {error && (

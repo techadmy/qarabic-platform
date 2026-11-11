@@ -14,7 +14,7 @@ import type { ClassSession, Prisma } from '../generated/prisma/client.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
-import { isoZ, MINUTE } from '../schedule/time.js';
+import { HOUR, isoZ, MINUTE } from '../schedule/time.js';
 import { forbiddenAction, invalidTransition, outsideWindow, required } from './errors.js';
 import { recordEvent } from './events.js';
 import { ZoomMeetings } from './zoom.js';
@@ -80,7 +80,8 @@ export interface TransitionInput {
   requestId?: number;
 }
 
-type Action = SessionAction | 'move';
+/** `move` (system) and `submit_report` (the lesson report, `PUT /sessions/:id/report`) are internal. */
+type Action = SessionAction | 'move' | 'submit_report';
 
 /** Fixed target stage of an action (null = depends on history). */
 const TARGET: Record<Action, SessionStage | null> = {
@@ -95,6 +96,7 @@ const TARGET: Record<Action, SessionStage | null> = {
   move: 'moved_out',
   revert: 'scheduled',
   undo_mark: null,
+  submit_report: 'taken',
 };
 
 const FROM: Record<Action, SessionStage[]> = {
@@ -109,6 +111,7 @@ const FROM: Record<Action, SessionStage[]> = {
   move: ['scheduled'],
   undo_mark: ['absent', 'declined', 'leave', 'taken'],
   revert: ['ended', 'taken', 'absent', 'declined', 'leave', 'cancelled', 'moved_out'],
+  submit_report: ['ended'],
 };
 
 const EVENT: Record<Action, string> = {
@@ -123,6 +126,7 @@ const EVENT: Record<Action, string> = {
   move: 'moved_out',
   undo_mark: 'reverted',
   revert: 'reverted',
+  submit_report: 'report_submitted',
 };
 
 /** The marker may undo a mark for this long (the Undo toast). */
@@ -146,8 +150,22 @@ export interface GuardContext {
 
 type Row = Pick<
   ClassSession,
-  'id' | 'teacherId' | 'stage' | 'startsAt' | 'endsAt' | 'activatedAt' | 'lockVersion'
->;
+  'id' | 'teacherId' | 'stage' | 'startsAt' | 'endsAt' | 'activatedAt' | 'lockVersion' | 'markedAt'
+> & { report?: { submittedAt: Date } | null };
+
+/**
+ * Until when the class's teacher may still edit the report of a taken class (D70): the first
+ * submission (or the mark, for a class taken without a report) + `sessions.report_edit_hours`.
+ * Null when the class is not taken. Staff with `sessions.manage` edit at any time.
+ */
+export function reportEditableUntil(
+  s: Pick<Row, 'stage' | 'markedAt' | 'report'>,
+  settings: SettingsMap,
+): Date | null {
+  if (s.stage !== 'taken') return null;
+  const from = s.report?.submittedAt ?? s.markedAt;
+  return from ? new Date(from.getTime() + settings['sessions.report_edit_hours'] * HOUR) : null;
+}
 
 const isTerminal = (stage: string) => (TERMINAL_STAGES as readonly string[]).includes(stage);
 
@@ -230,11 +248,13 @@ export class SessionStateMachine {
         // not allowed now
       }
     }
-    // The report is sent with the lesson report (N3), not as a transition: an ended class always
-    // offers it; a taken one to staff with sessions.manage (the teacher's edit window comes in N3).
+    // The report is sent with PUT /sessions/:id/report, not as a transition: an ended class always
+    // offers it; a taken one while the teacher's edit window is open, always for sessions.manage.
     if (s.stage === 'ended' && actor.canConduct(s)) allowed.push('submit_report');
-    if (s.stage === 'taken' && actor.canConduct(s) && actor.canManage())
-      allowed.push('submit_report');
+    if (s.stage === 'taken' && actor.canConduct(s)) {
+      const until = reportEditableUntil(s, ctx.settings);
+      if (actor.canManage() || (until && ctx.now <= until.getTime())) allowed.push('submit_report');
+    }
     return allowed;
   }
 
@@ -359,6 +379,9 @@ export class SessionStateMachine {
         break;
       case 'move':
         if (!actor.isSystem()) throw forbiddenAction();
+        break;
+      case 'submit_report':
+        this.requireConduct(s, actor);
         break;
       case 'undo_mark': {
         const last = await ctx.lastStageEvent();

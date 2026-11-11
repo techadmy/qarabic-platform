@@ -17,12 +17,15 @@ import {
   SheetTitle,
 } from '@qarabic/ui/components/sheet';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
+import { cn } from '@qarabic/ui/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { CalendarRangeIcon } from 'lucide-react';
+import { CalendarRangeIcon, FilePenLineIcon, LockIcon, PencilIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import { ReportForm } from '@/components/reports/report-form';
+import { ReportView } from '@/components/reports/report-view';
 import { ErrorState } from '@/components/states';
 import { fetchSession, sessionKeys } from '@/lib/api/sessions';
 import { can } from '@/lib/auth/use-me';
@@ -39,14 +42,22 @@ import {
 import { RowActions } from './row-actions';
 import { BothClassTimes, OtherTime, useNow, useUiLocale, useViewerTz } from './times';
 
-/** The class open in the sheet lives in the URL (`?session=12`), so Back and links work. */
+/**
+ * The class open in the sheet lives in the URL (`?session=12`, `&report=1` for its report form),
+ * so Back and links work.
+ */
 export function useOpenSession() {
   const params = useListParams();
   const id = Number(params.get('session')) || null;
   return {
     id,
-    open: (sessionId: number) => params.set({ session: sessionId }, { resetPage: false }),
-    close: () => params.set({ session: null }, { resetPage: false }),
+    reportMode: params.get('report') === '1',
+    open: (sessionId: number) =>
+      params.set({ session: sessionId, report: null }, { resetPage: false }),
+    openReport: (sessionId: number) =>
+      params.set({ session: sessionId, report: 1 }, { resetPage: false }),
+    closeReport: () => params.set({ report: null }, { resetPage: false }),
+    close: () => params.set({ session: null, report: null }, { resetPage: false }),
   };
 }
 
@@ -66,7 +77,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
  */
 export function SessionSheet() {
   const t = useTranslations('classes');
-  const { id, close } = useOpenSession();
+  const { id, close, reportMode } = useOpenSession();
   const dir = useDirection();
   const query = useQuery({
     queryKey: sessionKeys.detail(id ?? 0),
@@ -77,7 +88,7 @@ export function SessionSheet() {
     <Sheet open={!!id} onOpenChange={(open) => !open && close()}>
       <SheetContent
         side={dir === 'rtl' ? 'left' : 'right'}
-        className="w-full gap-0 overflow-y-auto sm:max-w-md"
+        className={cn('w-full gap-0 overflow-y-auto', reportMode ? 'sm:max-w-2xl' : 'sm:max-w-md')}
       >
         <SheetHeader className="border-b">
           <SheetTitle>{t('detail.title')}</SheetTitle>
@@ -102,12 +113,39 @@ export function SessionSheet() {
 }
 
 function SessionDetail({ session: s }: { session: SessionDetailDto }) {
+  const { reportMode, openReport, closeReport } = useOpenSession();
+  const canReport = s.allowedActions.includes('submit_report');
+  if (reportMode && canReport) {
+    return (
+      <ReportForm
+        key={`${s.id}-${s.lockVersion}`}
+        session={s}
+        report={s.lessonReport}
+        onDone={closeReport}
+        onCancel={closeReport}
+      />
+    );
+  }
+  return <SessionInfo session={s} canReport={canReport} onReport={() => openReport(s.id)} />;
+}
+
+function SessionInfo({
+  session: s,
+  canReport,
+  onReport,
+}: {
+  session: SessionDetailDto;
+  canReport: boolean;
+  onReport: () => void;
+}) {
   const t = useTranslations('classes');
+  const trep = useTranslations('reports');
   const tr = useTranslations('requests');
   const locale = useUiLocale();
   const tz = useViewerTz();
   const me = useCurrentUser();
   const now = useNow();
+  const ownTeacher = can(me, 'sessions.conduct') && !can(me, 'sessions.manage');
   const course = locale === 'ar' ? s.course.nameAr : s.course.nameEn;
   const stageName = (stage: string | null) =>
     stage ? (SESSION_STAGE_LABELS[stage as SessionStage]?.[locale] ?? stage) : '';
@@ -164,6 +202,36 @@ function SessionDetail({ session: s }: { session: SessionDetailDto }) {
             </li>
           ))}
         </ul>
+      )}
+      {(s.stage === 'ended' || s.stage === 'taken' || s.lessonReport) && (
+        <>
+          <Separator />
+          <Section title={trep('title')}>
+            {s.lessonReport ? (
+              <ReportView report={s.lessonReport} />
+            ) : (
+              <p className="text-sm text-muted-foreground">{trep('notSent')}</p>
+            )}
+            {canReport ? (
+              <Button
+                variant={s.lessonReport ? 'outline' : 'default'}
+                className="self-start"
+                onClick={onReport}
+              >
+                {s.lessonReport ? <PencilIcon /> : <FilePenLineIcon />}
+                {s.lessonReport ? trep('edit') : trep('write')}
+              </Button>
+            ) : (
+              s.stage === 'taken' &&
+              ownTeacher && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <LockIcon aria-hidden className="size-3.5" />
+                  {trep('locked')}
+                </p>
+              )
+            )}
+          </Section>
+        </>
       )}
       <Separator />
       <Section title={t('detail.evidence')}>

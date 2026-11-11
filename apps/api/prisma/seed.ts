@@ -4,6 +4,7 @@ import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
 import { seedDemoSchedule } from './seed-schedule.js';
+import { seedDemoTeaching } from './seed-teaching.js';
 
 /**
  * `pnpm --filter @qarabic/api db:seed` — idempotent.
@@ -51,6 +52,12 @@ async function main(): Promise<void> {
         scheduled
           ? 'Demo enrollments, weekly times and two weeks of classes added (fake data).'
           : 'Demo schedule already there (or no demo people).',
+      );
+      const taught = await seedDemoTeaching(prisma);
+      console.log(
+        taught
+          ? 'Demo lesson reports, hifz progress and three tests added (fake data).'
+          : 'Demo lesson reports already there (or no demo classes).',
       );
     }
   } finally {

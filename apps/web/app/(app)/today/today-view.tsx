@@ -261,6 +261,7 @@ export function TodayView() {
         onSelect={(k) => params.set({ tile: k })}
         loading={board.isPending}
         showAll={showAll}
+        reportsHref={me.role?.kind === 'parent' ? undefined : '/lesson-reports?state=missing'}
         onToggleAll={() =>
           params.set({
             statuses: showAll ? null : '1',

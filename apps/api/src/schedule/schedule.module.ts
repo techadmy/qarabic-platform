@@ -3,10 +3,12 @@ import { AuthModule } from '../auth/auth.module.js';
 import { SessionReads } from '../sessions/board.js';
 import { SessionGenerator } from '../sessions/generator.js';
 import { SessionJobs } from '../sessions/jobs.js';
+import { LessonReportsService } from '../sessions/lesson-reports.js';
 import { SessionPresenter } from '../sessions/presenter.js';
 import { SessionRequestsService } from '../sessions/requests.service.js';
 import { ResyncService } from '../sessions/resync.js';
 import {
+  LessonReportsController,
   SessionRequestsController,
   SessionSettingsController,
   SessionsController,
@@ -30,7 +32,7 @@ import {
 /**
  * Schedule and classes (N2): enrollments, weekly slots, holidays, teacher calendar, availability,
  * conflicts, the class generator and state machine, the Today board, class requests and meeting
- * links (docs/14, docs/04, docs/10). One module: the schedule and the classes depend on each
+ * links (docs/14, docs/04, docs/10), and the lesson report that closes a class (N3). One module: the schedule and the classes depend on each
  * other (a schedule change re-syncs classes; a class check reads the schedule).
  */
 @Module({
@@ -45,6 +47,7 @@ import {
     SessionRequestsController,
     SessionSettingsController,
     ZoomHostsController,
+    LessonReportsController,
   ],
   providers: [
     ConflictChecker,
@@ -61,7 +64,15 @@ import {
     SessionReads,
     SessionRequestsService,
     SessionJobs,
+    LessonReportsService,
   ],
-  exports: [EnrollmentsService, ZoomDriver, SessionJobs, SessionGenerator],
+  exports: [
+    EnrollmentsService,
+    ZoomDriver,
+    SessionJobs,
+    SessionGenerator,
+    SessionPresenter,
+    LessonReportsService,
+  ],
 })
 export class ScheduleModule {}

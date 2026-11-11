@@ -42,12 +42,14 @@ describe('route permission coverage', () => {
     expect(unprotected).toEqual([]);
   });
 
-  it('only the allow-listed routes are public; only own-account routes skip a permission', () => {
+  it('only the allow-listed routes are public; only own-account routes and reference data skip a permission', () => {
     const routes = auditRoutes(ctx.app);
     expect(routes.filter((r) => r.access === 'public').map((r) => r.route)).toEqual(PUBLIC_ROUTES);
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
       'GET me',
+      // The Quran reference (Laravel: any signed-in user).
+      'GET quran/surahs',
       'PATCH me',
       'POST auth/logout',
     ]);
@@ -172,6 +174,30 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every N3 route needs the permission of the Laravel M3 routes (api_v1.php, api_v1_tests.php)', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expect(byRoute).toMatchObject({
+      'PUT sessions/:id/report': 'any:sessions.conduct|sessions.manage',
+      'GET sessions/:id/report': 'all:sessions.view',
+      'GET lesson-reports': 'all:sessions.view',
+      'GET students/:id/progress': 'any:families.view|sessions.conduct',
+      'GET quran/surahs': ':',
+      'GET tests': 'all:tests.view',
+      'GET tests/summary': 'all:tests.view',
+      'POST tests': 'any:tests.manage|tests.conduct',
+      'GET tests/:id': 'all:tests.view',
+      'PATCH tests/:id': 'any:tests.manage|tests.conduct',
+      'PUT tests/:id/result': 'any:tests.manage|tests.conduct',
+      'POST tests/:id/refuse': 'any:tests.manage|tests.conduct',
+      'POST tests/:id/cancel': 'any:tests.manage|tests.conduct',
+      'POST tests/:id/reopen': 'all:tests.manage',
+      'GET teacher-portal/week': 'all:sessions.conduct',
+      'GET teacher-portal/students': 'all:sessions.conduct',
+    });
+  });
+
   it('answers 403 to a signed-in user with no role on every permission route', async () => {
     const { client } = await signedIn(ctx, null);
     for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
@@ -255,6 +281,10 @@ describe('platform', () => {
         '/api/v1/enrollments',
         '/api/v1/sessions/board',
         '/api/v1/session-requests/{id}/approve',
+        '/api/v1/sessions/{id}/report',
+        '/api/v1/students/{id}/progress',
+        '/api/v1/tests/{id}/result',
+        '/api/v1/teacher-portal/week',
       ]),
     );
   });

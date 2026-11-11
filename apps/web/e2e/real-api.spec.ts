@@ -1,6 +1,8 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { expect, test } from '@playwright/test';
+import { expect, test, type BrowserContext } from '@playwright/test';
 
 /**
  * Integration check against the real API and its dev database (opt-in: `pnpm test:e2e:real`).
@@ -22,6 +24,8 @@ function seedAdmin(): { email: string; password: string } {
   );
   return { email: vars.SEED_ADMIN_EMAIL, password: vars.SEED_ADMIN_PASSWORD };
 }
+
+const SESSION_FILE = join(tmpdir(), 'qarabic-e2e-real-session.json');
 
 test('real API: login → home → roles → logout', async ({ page }) => {
   const admin = seedAdmin();
@@ -158,4 +162,57 @@ test('real API: the N2 pages load real data (the shared schemas parse every answ
     await expect(check).toBeVisible();
     await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
   }
+  // The login budget is 5 a minute per email: the next test reuses this session.
+  await page.context().storageState({ path: SESSION_FILE });
+});
+
+test('real API: open a class with a lesson report; tests and progress load (N3)', async ({
+  page,
+}) => {
+  const admin = seedAdmin();
+  if (existsSync(SESSION_FILE)) {
+    const saved = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as {
+      cookies: Parameters<BrowserContext['addCookies']>[0];
+    };
+    await page.context().addCookies(saved.cookies);
+  }
+  await page.goto('/lesson-reports');
+  if (/\/login/.test(page.url())) {
+    await page.getByLabel('البريد الإلكتروني').fill(admin.email);
+    await page.locator('#password').fill(admin.password);
+    await page.getByRole('button', { name: 'دخول' }).click();
+  }
+  await expect(page).toHaveURL(/\/lesson-reports$/);
+
+  // The seed's reports: a class whose report was sent (on time or late).
+  const table = page.getByRole('table', { name: 'تقارير الحصص' });
+  await expect(page.getByRole('radio', { name: /^الكل/ })).toHaveText(/\(\d+\)/);
+  let state = 'سُلّم في موعده';
+  await page.getByRole('radio', { name: /^سُلّم في موعده/ }).click();
+  await expect(page).toHaveURL(/state=on_time/);
+  const sent = table.locator('tbody tr').filter({ hasText: state });
+  await expect(sent.first().or(page.getByText('لا نتائج مطابقة'))).toBeVisible();
+  if (!(await sent.count())) {
+    state = 'سُلّم متأخرًا';
+    await page.getByRole('radio', { name: /^سُلّم متأخرًا/ }).click();
+  }
+  const row = table.locator('tbody tr').filter({ hasText: state }).first();
+  await expect(row).toBeVisible();
+  const name = (await row.getByRole('button').first().textContent())!.trim();
+  await row.getByRole('button', { name }).first().click();
+  const sheet = page.getByRole('dialog', { name: 'تفاصيل الحصة' });
+  await expect(sheet.getByText(name).first()).toBeVisible();
+  const report = sheet.getByRole('region', { name: 'تقرير الحصة' });
+  await expect(report).toBeVisible();
+  await expect(report.getByText('ملخص الحصة')).toBeVisible();
+  await expect(report.getByText(/أرسله /)).toBeVisible();
+
+  // Tests and the student's progress parse with the shared schemas.
+  await page.goto('/tests');
+  await expect(page.getByRole('navigation', { name: 'عدادات الشهر' })).toBeVisible();
+  await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
+  await page.goto('/students');
+  await page.getByRole('table', { name: 'الطلاب' }).locator('tbody tr a').first().click();
+  await expect(page.getByRole('region', { name: /التقدم وسجل الدروس/ })).toBeVisible();
+  await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
 });
