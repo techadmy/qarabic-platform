@@ -32,6 +32,21 @@ describe('Class settings', () => {
     server.events.removeAllListeners();
   });
 
+  it('switches whether parents see the class rating (reports.parent_sees_rating)', async () => {
+    const user = userEvent.setup();
+    let body: Record<string, unknown> | null = null;
+    server.events.on('request:start', async ({ request }) => {
+      if (request.method === 'PUT') body = await request.clone().json();
+    });
+    renderPage(<SessionSettingsView />, { path: '/settings/sessions' });
+    const toggle = await screen.findByRole('switch', { name: 'يرى ولي الأمر تقييم الحصة' });
+    expect(toggle).toBeChecked();
+    await user.click(toggle);
+    await user.click(screen.getByRole('button', { name: 'احفظ التغييرات' }));
+    await waitFor(() => expect(body).toEqual({ 'reports.parent_sees_rating': false }));
+    server.events.removeAllListeners();
+  });
+
   it('shows no access without settings.view', async () => {
     renderPage(<SessionSettingsView />, {
       as: 'supervisor@qarabic.test',

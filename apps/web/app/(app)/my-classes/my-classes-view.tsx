@@ -27,6 +27,7 @@ import {
   zonedInstant,
 } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
+import { TeacherWeekView } from './teacher-week-view';
 
 /**
  * «حصصي» (teacher) and «حصص أبنائي» (parent) — the own week (docs/15 §6.2; the current app's
@@ -35,6 +36,12 @@ import { cityOf } from '@/lib/time';
  * rows carry «ابدأ الحصة» / «إنهاء الحصة»; every row opens the class sheet.
  */
 export function MyClassesView() {
+  const me = useCurrentUser();
+  // A teacher's «حصصي» is the teacher portal's week (N3); parents keep the classes list.
+  return me.role?.kind === 'teacher' ? <TeacherWeekView /> : <ChildrenClassesView />;
+}
+
+function ChildrenClassesView() {
   const t = useTranslations('myClasses');
   const locale = useUiLocale();
   const tz = useViewerTz();

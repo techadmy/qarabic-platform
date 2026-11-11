@@ -6,9 +6,10 @@ import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { Toggle } from '@qarabic/ui/components/toggle';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@qarabic/ui/components/tooltip';
 import { cn } from '@qarabic/ui/lib/utils';
-import { ChevronDownIcon, TriangleAlertIcon } from 'lucide-react';
+import { ChevronDownIcon, ListChecksIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId } from 'react';
+import Link from 'next/link';
+import { Fragment, useId } from 'react';
 import { useUiLocale } from '@/components/sessions/times';
 import {
   ATTENTION_TILES,
@@ -48,6 +49,7 @@ export function BoardTiles({
   loading,
   showAll,
   onToggleAll,
+  reportsHref,
 }: {
   counters: Partial<Record<BoardCounter, number>> | undefined;
   rows: SessionDto[];
@@ -56,6 +58,8 @@ export function BoardTiles({
   loading?: boolean;
   showAll: boolean;
   onToggleAll: () => void;
+  /** «بلا تقرير» also links to every class without a report (`/lesson-reports?state=missing`). */
+  reportsHref?: string;
 }) {
   const t = useTranslations('today');
   const locale = useUiLocale();
@@ -136,15 +140,33 @@ export function BoardTiles({
             <TriangleAlertIcon aria-hidden className="size-4" />
             <span className="text-sm font-semibold whitespace-nowrap">{t('tiles.attention')}:</span>
             {attention.map((k) => (
-              <Toggle
-                key={k}
-                size="sm"
-                pressed={selected === k}
-                onPressedChange={(on) => onSelect(on ? k : null)}
-                className="h-8 text-sm hover:bg-amber-100 data-[state=on]:bg-amber-200 data-[state=on]:underline dark:hover:bg-amber-900 dark:data-[state=on]:bg-amber-900"
-              >
-                <bdi className="font-bold">{value(k)}</bdi> {label(k)}
-              </Toggle>
+              <Fragment key={k}>
+                <Toggle
+                  size="sm"
+                  pressed={selected === k}
+                  onPressedChange={(on) => onSelect(on ? k : null)}
+                  className="h-8 text-sm hover:bg-amber-100 data-[state=on]:bg-amber-200 data-[state=on]:underline dark:hover:bg-amber-900 dark:data-[state=on]:bg-amber-900"
+                >
+                  <bdi className="font-bold">{value(k)}</bdi> {label(k)}
+                </Toggle>
+                {k === 'ended' && reportsHref && (
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        asChild
+                        variant="ghost"
+                        size="icon-sm"
+                        className="hover:bg-amber-100 dark:hover:bg-amber-900"
+                      >
+                        <Link href={reportsHref} aria-label={t('tiles.allMissingReports')}>
+                          <ListChecksIcon />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{t('tiles.allMissingReports')}</TooltipContent>
+                  </Tooltip>
+                )}
+              </Fragment>
             ))}
           </div>
         )}

@@ -23,6 +23,7 @@ import { cn } from '@qarabic/ui/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   EllipsisVerticalIcon,
+  FilePenLineIcon,
   MessageCircleIcon,
   PhoneIcon,
   PlayIcon,
@@ -40,6 +41,7 @@ import { useDirection } from '@/lib/use-direction';
 import { upsertSession } from '@/lib/sessions/cache';
 import { useClassError } from '@/lib/sessions/errors';
 import { RescheduleDialog } from './reschedule-dialog';
+import { useOpenSession } from './session-sheet';
 import { useUiLocale } from './times';
 import { useSessionActions } from './use-session-actions';
 
@@ -76,9 +78,11 @@ export function RowActions({
   className?: string;
 }) {
   const t = useTranslations('classes');
+  const tr = useTranslations('reports');
   const locale = useUiLocale();
   const dir = useDirection();
   const me = useCurrentUser();
+  const { openReport } = useOpenSession();
   const queryClient = useQueryClient();
   const message = useClassError();
   const actions = useSessionActions(session);
@@ -92,6 +96,11 @@ export function RowActions({
   const menu = MENU_ORDER.filter(
     (a) => allowed.includes(a) && !(primaryActions as readonly string[]).includes(a),
   );
+  // The lesson report (N3): «اكتب التقرير» on an ended class (a button for its own teacher),
+  // «تعديل التقرير» on a taken one inside the edit window (always for staff).
+  const canReport = allowed.includes('submit_report');
+  const reportButton = canReport && primary && ownTeacher && session.stage === 'ended';
+  const reportLabel = session.stage === 'taken' ? tr('edit') : tr('write');
   const canShift = can(me, 'sessions.manage') && session.stage === 'scheduled';
   const mayRequest =
     (can(me, 'session_requests.request') || can(me, 'session_requests.manage')) &&
@@ -113,7 +122,12 @@ export function RowActions({
   const phone = session.teacher.phone;
   const stop = (e: SyntheticEvent) => e.stopPropagation();
   const name = session.student.name;
-  const hasMenu = menu.length > 0 || canShift || requestTypes.length > 0 || canRetry;
+  const hasMenu =
+    menu.length > 0 ||
+    canShift ||
+    requestTypes.length > 0 ||
+    canRetry ||
+    (canReport && !reportButton);
 
   return (
     <div
@@ -121,6 +135,13 @@ export function RowActions({
       onClick={stop}
       onKeyDown={stop}
     >
+      {reportButton && (
+        <Button size="sm" className="me-1" onClick={() => openReport(session.id)}>
+          <FilePenLineIcon />
+          {reportLabel}
+          <span className="sr-only">: {name}</span>
+        </Button>
+      )}
       {primaryActions.map((a) => (
         <Button
           key={a}
@@ -200,6 +221,15 @@ export function RowActions({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="min-w-52">
+            {canReport && !reportButton && (
+              <>
+                <DropdownMenuItem onSelect={() => openReport(session.id)}>
+                  <FilePenLineIcon />
+                  {reportLabel}
+                </DropdownMenuItem>
+                {menu.length > 0 && <DropdownMenuSeparator />}
+              </>
+            )}
             {menu.length > 0 && (
               <DropdownMenuGroup>
                 {menu.map((a, i) => (

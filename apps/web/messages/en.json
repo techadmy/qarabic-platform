@@ -93,7 +93,11 @@
     "myClasses": "My classes",
     "childrenClasses": "My children's classes",
     "myRequests": "My requests",
-    "pendingSuffix": "pending requests"
+    "pendingSuffix": "pending requests",
+    "lessonReports": "Lesson reports",
+    "tests": "Tests and results",
+    "myTests": "Tests",
+    "mySchedule": "My schedule"
   },
   "home": {
     "title": "Home",
@@ -659,7 +663,8 @@
       "endEarlyTitle": "End before {min} minutes",
       "endEarlyBody": "The class is shorter than the minimum, so it is flagged for review. Give the reason.",
       "overrideTitle": "Activate {name}'s class outside the window",
-      "overrideBody": "The time is outside the activation window. You can activate with a reason; it is logged."
+      "overrideBody": "The time is outside the activation window. You can activate with a reason; it is logged.",
+      "textMin": "{count, plural, one {Write at least # character} other {Write at least # characters}}"
     },
     "detail": {
       "title": "Class details",
@@ -765,7 +770,8 @@
       "runningNow": "Running now",
       "allStatuses": "All statuses",
       "hideStatuses": "Hide statuses",
-      "attention": "Follow up"
+      "attention": "Follow up",
+      "allMissingReports": "All classes without a report"
     },
     "sync": {
       "action": "Sync today's classes",
@@ -1099,7 +1105,8 @@
     "blockRemoved": "Block removed",
     "removeBlock": "Remove block {block}",
     "removeBlockTitle": "Remove the blocked time",
-    "removeBlockConfirm": "Remove block"
+    "removeBlockConfirm": "Remove block",
+    "mineTitle": "My schedule"
   },
   "holidays": {
     "title": "Public holidays",
@@ -1210,6 +1217,10 @@
       "zoom__create_lead_hours": {
         "label": "The Zoom meeting is created before the class by",
         "help": "So both sides get the link in time."
+      },
+      "reports__parent_sees_rating": {
+        "label": "Parents see the class rating",
+        "help": "The 1–5 rating of the lesson report. Parents never see the internal notes."
       }
     },
     "zoom": {
@@ -1231,6 +1242,265 @@
       "failed": "Could not save. Try again.",
       "empty": "No Zoom accounts",
       "emptyHint": "Add an account to create class meetings from it."
+    }
+  },
+  "reports": {
+    "title": "Lesson report",
+    "notSent": "No report has been sent for this class yet.",
+    "write": "Write the report",
+    "edit": "Edit the report",
+    "locked": "The edit time has passed. Contact the monitors.",
+    "ratingValue": "{value} of 5",
+    "mistakesCount": "{count, plural, =0 {no mistakes} one {# mistake} other {# mistakes}}",
+    "pagesCount": "{count} pages",
+    "ayahsCount": "{count, plural, one {# ayah} other {# ayahs}}",
+    "sentBy": "Sent by {name} {ago}",
+    "editedBy": "edited by {name} {ago}",
+    "someone": "the system",
+    "lateBadge": "Sent late",
+    "noHifz": "No hifz recorded in this class.",
+    "internalHint": "parents do not see this",
+    "form": {
+      "editTitle": "Edit the lesson report",
+      "intro": "Parents see the summary, the hifz and the homework, not the internal notes.",
+      "editableUntil": "You can edit the report until {time}",
+      "editableLeft": "The edit time ends {ago}.",
+      "staffEdit": "Your change to a sent report is logged in the class history.",
+      "hifzHint": "Leave a row empty if it was not covered.",
+      "optional": "optional",
+      "saving": "Saving…",
+      "cancel": "Cancel",
+      "saved": "Report for {name} saved",
+      "updated": "Report changes saved",
+      "staleTitle": "The class has changed",
+      "stale": "Someone else changed this class. The data was refreshed; check it and save again.",
+      "lockedTitle": "The change cannot be saved",
+      "chooseSurah": "Choose the surah",
+      "searchSurah": "Search by surah name or number",
+      "ayahRangeHint": "From 1 to {max}",
+      "continueFromLast": "Continue from last",
+      "sameAsLast": "Same as last time",
+      "clearRow": "Clear row",
+      "lessMistakes": "Fewer mistakes",
+      "moreMistakes": "More mistakes",
+      "tajweedShort": "Tajweed",
+      "homeworkShort": "Homework",
+      "errors": {
+        "summaryRequired": "Write the class summary",
+        "surahRequired": "Choose the surah",
+        "ayahRequired": "Write the ayah number",
+        "ayahRange": "This surah has {max} ayahs; write a number from 1 to {max}",
+        "ayahOrder": "Within one surah the last ayah comes after the first",
+        "pages": "Use quarter pages (e.g. 0.5 or 1.25)",
+        "mistakes": "Write a whole number from 0 to 999",
+        "tooLong": "The text is too long",
+        "invalid": "The value is not valid"
+      }
+    },
+    "list": {
+      "title": "Lesson reports",
+      "description": "Ended and taken classes and where each report stands.",
+      "count": "{count, plural, =0 {no classes} one {# class} other {# classes}}",
+      "columns": {
+        "time": "Class time",
+        "student": "Student",
+        "teacher": "Teacher",
+        "course": "Course",
+        "state": "Report",
+        "submitted": "Sent",
+        "rating": "Rating"
+      },
+      "teacher": "Teacher",
+      "allTeachers": "All teachers",
+      "searchTeacher": "Search by teacher name",
+      "from": "From",
+      "to": "To",
+      "stateFilter": "Filter by report state",
+      "all": "All",
+      "noneMissing": "No classes without a report",
+      "noneMissingHint": "Teachers sent every report that is due.",
+      "noResults": "No matching results",
+      "noResultsHint": "Change the dates or the teacher, or clear the filters.",
+      "clearAll": "Clear all",
+      "empty": "No ended classes yet",
+      "emptyHint": "Classes appear here once they end, with their report state.",
+      "dueWas": "was due {ago}",
+      "dueIn": "due {ago}"
+    }
+  },
+  "progress": {
+    "readOnly": "Read only",
+    "emptyHint": "Progress shows after the first lesson report with hifz.",
+    "ayahsOf": "{count} of {total} ayahs",
+    "surahsStarted": "{count, plural, one {# surah started} other {# surahs started}}",
+    "showSurahs": "Show the surahs",
+    "hideSurahs": "Hide the surahs",
+    "newAyahs": "New ayahs",
+    "lessons": "{count, plural, one {# lesson} other {# lessons}}",
+    "filter": "Filter by hifz type",
+    "all": "All",
+    "showMore": "Show more",
+    "teacher": "Teacher",
+    "internalNote": "Internal note",
+    "openClass": "Open the class"
+  },
+  "tests": {
+    "title": "Tests and results",
+    "titleTeacher": "Tests",
+    "pageTitle": "Test",
+    "description": "Student tests of the month and their results.",
+    "scheduleAction": "Schedule a test",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "thisMonth": "This month",
+    "tilesLabel": "Month counters",
+    "statusFilter": "Filter by status",
+    "tabs": {
+      "all": "All",
+      "byTeacher": "By teacher"
+    },
+    "track": "Track",
+    "allTracks": "All tracks",
+    "noResults": "No matching results",
+    "noResultsHint": "Change the track or clear the filters.",
+    "clearAll": "Clear all",
+    "empty": "No tests this month",
+    "emptyTeacher": "You have no tests this month",
+    "emptyHint": "Schedule a test or go to another month.",
+    "columns": {
+      "time": "Time",
+      "student": "Student",
+      "examiner": "Examiner",
+      "track": "Track",
+      "status": "Status",
+      "overall": "Score"
+    },
+    "sectionsCount": "{count, plural, one {# section} other {# sections}}",
+    "minutes": "{count, plural, one {# minute} other {# minutes}}",
+    "trackHint": {
+      "qaida": "Tajweed only.",
+      "nazra": "Tajweed and reading.",
+      "hifz": "Tajweed, reading and memorisation."
+    },
+    "back": "Back to tests",
+    "notFoundTitle": "Test not found",
+    "notFound": "It may have been removed, or you may not have access.",
+    "detailTitle": "{name}'s test",
+    "examinerIs": "Examiner: {name}",
+    "studentTitle": "Tests",
+    "studentNone": "No tests for this student.",
+    "upcoming": "Upcoming test ({track})",
+    "detail": {
+      "section": "Test details",
+      "when": "Time",
+      "duration": "Duration",
+      "examiner": "Examiner",
+      "sections": "Tajweed sections",
+      "course": "Course",
+      "notes": "Notes",
+      "reason": "Reason"
+    },
+    "act": {
+      "refuse": "Mark refused or absent",
+      "cancel": "Cancel the test",
+      "reopen": "Reopen the test",
+      "reason": "Reason",
+      "refuseTitle": "Mark the test refused or missed — {name}",
+      "cancelTitle": "Cancel {name}'s test",
+      "reopenTitle": "Reopen {name}'s test",
+      "refuseBody": "Records that the student refused or missed the test. Write what happened.",
+      "cancelBody": "The test is cancelled and left out of the month's counters. Write the reason.",
+      "reopenBody": "The test is scheduled again at its time. Write the reason; it is logged.",
+      "done": {
+        "refuse": "Marked refused or absent",
+        "cancel": "Test cancelled",
+        "reopen": "Test reopened"
+      }
+    },
+    "result": {
+      "record": "Record the result",
+      "title": "Result",
+      "edit": "Correct the result",
+      "editableUntil": "You can correct the result until {time} (ends {ago}).",
+      "opensAt": "The result can be recorded from {time}.",
+      "pending": "No result yet.",
+      "scores": "Scores",
+      "overall": "Overall",
+      "tajweed": "Tajweed",
+      "reading": "Reading",
+      "hifz": "Memorisation",
+      "mistakes": "Mistakes",
+      "noMistakes": "No mistakes.",
+      "mistakesCount": "{count, plural, =0 {no mistakes ticked} one {# mistake ticked} other {# mistakes ticked}}",
+      "remarks": "Remarks for the parent",
+      "remarksHelp": "The parent reads these with the result.",
+      "internalNotes": "Internal notes",
+      "internalHelp": "Staff and teachers only.",
+      "teacherRating": "Examiner rating",
+      "teacherRatingHelp": "0 to 100, staff only.",
+      "ratingRange": "Write a whole number from 0 to 100",
+      "pickScore": "Choose the score",
+      "reason": "Reason for the correction",
+      "reasonHelp": "Logged with the test.",
+      "reasonRequired": "Write the reason (at least 3 characters)",
+      "save": "Save the result",
+      "saveCorrection": "Save the correction",
+      "cancel": "Cancel",
+      "saved": "Result saved",
+      "corrected": "Correction saved"
+    },
+    "schedule": {
+      "title": "Schedule a test",
+      "descriptionStaff": "The examiner is the student's current teacher unless you choose another.",
+      "descriptionTeacher": "You examine your own students.",
+      "student": "Student",
+      "chooseStudent": "Choose the student",
+      "searchStudent": "Search by student name",
+      "studentZone": "Student's time zone: {city}",
+      "currentTeacher": "Teacher: {name}",
+      "pickStudent": "Choose the student",
+      "track": "Track",
+      "sections": "Tajweed sections",
+      "pickSections": "Choose at least one section",
+      "date": "Date",
+      "time": "Time",
+      "pickTime": "Choose the time",
+      "duration": "Duration",
+      "yourTime": "Time in your zone ({city})",
+      "examiner": "Examiner",
+      "examinerDefault": "The student's current teacher",
+      "searchTeacher": "Search by teacher name",
+      "examinerHint": "Leave empty for the student's current teacher.",
+      "notes": "Notes",
+      "optional": "optional",
+      "back": "Back",
+      "submit": "Schedule the test",
+      "done": "Test scheduled for {name}"
+    }
+  },
+  "teacherPortal": {
+    "pickDay": "Pick a day of the week",
+    "reportsDue": "{count, plural, one {# class is waiting for your report.} other {# classes are waiting for your report.}}",
+    "writeFirst": "Write {name}'s report",
+    "mySchedule": "My schedule",
+    "noTeacherTitle": "No teacher record for your account",
+    "noTeacher": "Ask the office to link your account to your teacher record.",
+    "students": {
+      "title": "My students",
+      "count": "{count, plural, =0 {no students} one {# student} other {# students}}",
+      "columns": {
+        "name": "Student",
+        "course": "Course",
+        "position": "Last position"
+      },
+      "age": "{count} years",
+      "missing": "{count, plural, one {# class without a report} other {# classes without a report}}",
+      "search": "Search",
+      "searchPlaceholder": "Search by student name",
+      "empty": "No students assigned to you",
+      "emptyHint": "Students appear here when the office assigns them to you.",
+      "noResults": "No matching results",
+      "noResultsHint": "Try another name."
     }
   }
 }

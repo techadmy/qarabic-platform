@@ -19,6 +19,9 @@ import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatDate, zoneLabel } from '@/lib/time';
 import { ProfileSchedule } from '@/components/schedule/profile-schedule';
+import { StudentProgress } from '@/components/progress/student-progress';
+import { SessionSheet } from '@/components/sessions/session-sheet';
+import { StudentTests } from '@/components/tests/student-tests';
 
 /** Student profile: Student · Study plan · Family · Remarks (docs/28 §5). */
 export function StudentProfile({ id }: { id: number }) {
@@ -153,7 +156,13 @@ export function StudentProfile({ id }: { id: number }) {
               />
               {staffView && <StatusHistory kind="students" entries={s.statusHistory} />}
               {!s.archive && <ProfileSchedule studentId={s.id} />}
+              {can(me, 'tests.view') && <StudentTests studentId={s.id} studentName={s.name} />}
+              <StudentProgress studentId={s.id} />
             </div>
+            {/* ProfileSchedule mounts the class sheet; otherwise the lesson log needs its own. */}
+            {(s.archive || !(can(me, 'schedule.view') || can(me, 'sessions.conduct'))) && (
+              <SessionSheet />
+            )}
           </>
         )
       }

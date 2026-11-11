@@ -41,6 +41,8 @@ describe('AppShell', () => {
       'حصص اليوم',
       'الجدول',
       'طلبات الحصص',
+      'تقارير الحصص',
+      'الاختبارات والنتائج',
       'العائلات',
       'الطلاب',
       'المعلمون',
@@ -58,7 +60,7 @@ describe('AppShell', () => {
 
   it('gives a teacher and a parent their own classes, requests and people, nothing company-wide', async () => {
     for (const [email, items] of [
-      ['teacher@qarabic.test', ['حصصي', 'طلباتي', 'طلابي']],
+      ['teacher@qarabic.test', ['حصصي', 'طلابي', 'جدولي', 'الاختبارات', 'طلباتي']],
       ['parent@qarabic.test', ['حصص أبنائي', 'طلباتي', 'عائلتي']],
     ] as const) {
       mockSignIn(email);

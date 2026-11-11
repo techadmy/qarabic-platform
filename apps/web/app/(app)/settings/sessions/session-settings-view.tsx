@@ -61,8 +61,10 @@ function unitOf(key: string): 'minutes' | 'hours' | 'days' {
   if (key.endsWith('_hours')) return 'hours';
   return 'days';
 }
+/** On / off rules (shadcn `Switch`). */
+const BOOLEAN_KEYS: SessionSettingKey[] = ['reports.parent_sees_rating'];
 const NUMBER_KEYS = (Object.keys(SESSION_SETTING_RULES) as SessionSettingKey[]).filter(
-  (k) => k !== 'academy.timezone',
+  (k) => k !== 'academy.timezone' && !BOOLEAN_KEYS.includes(k),
 );
 /** The flat key as a form field name (dots would nest in react-hook-form). */
 const field = (key: string) => key.replace(/\./g, '__');
@@ -117,7 +119,7 @@ export function SessionSettingsView() {
   );
 }
 
-type Values = Record<string, number | string>;
+type Values = Record<string, number | string | boolean>;
 
 function RulesForm({ settings, editable }: { settings: SessionSettingsDto; editable: boolean }) {
   const t = useTranslations('sessionSettings');
@@ -236,6 +238,34 @@ function RulesForm({ settings, editable }: { settings: SessionSettingsDto; edita
                         </InputGroup>
                         {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                       </div>
+                    </Field>
+                  )}
+                />
+              );
+            })}
+            {BOOLEAN_KEYS.map((key) => {
+              const name = field(key);
+              return (
+                <Controller
+                  key={key}
+                  name={name}
+                  control={form.control}
+                  render={({ field: f }) => (
+                    <Field
+                      orientation="horizontal"
+                      className="items-start justify-between gap-4 py-3"
+                    >
+                      <div className="flex flex-col gap-1">
+                        <FieldLabel htmlFor={name}>{t(`rules.${name}.label`)}</FieldLabel>
+                        <FieldDescription>{t(`rules.${name}.help`)}</FieldDescription>
+                      </div>
+                      <Switch
+                        id={name}
+                        ref={f.ref}
+                        checked={!!f.value}
+                        onCheckedChange={f.onChange}
+                        disabled={!editable}
+                      />
                     </Field>
                   )}
                 />

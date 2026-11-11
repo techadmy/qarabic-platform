@@ -8,6 +8,7 @@ import { server } from '@/mocks/node';
 import { lastReplacedUrl, renderPage } from '@/test/people';
 
 const tomorrow = () => addDays(dateKeyIn('Africa/Cairo'), 1);
+const yesterday = () => addDays(dateKeyIn('Africa/Cairo'), -1);
 
 async function board() {
   const table = await screen.findByRole('table', { name: 'حصص اليوم' });
@@ -55,7 +56,8 @@ describe('Today board', () => {
     expect(lastReplacedUrl().searchParams.get('statuses')).toBe('1');
     unmount();
 
-    renderPage(<TodayView />, { path: '/today?tile=taken&statuses=1' });
+    // Yesterday always has taken classes (just after midnight today has none yet).
+    renderPage(<TodayView />, { path: `/today?date=${yesterday()}&tile=taken&statuses=1` });
     const table = await board();
     expect(screen.getByRole('button', { name: /منعقدة$/ })).toHaveAttribute('aria-pressed', 'true');
     for (const row of rows(table)) expect(within(row).getByText('منعقدة')).toBeInTheDocument();

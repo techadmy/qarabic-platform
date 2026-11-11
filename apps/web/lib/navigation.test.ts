@@ -17,6 +17,8 @@ describe('navFor', () => {
       'today',
       'schedule',
       'requests',
+      'lessonReports',
+      'tests',
       'users',
       'settings',
     ]);
@@ -25,6 +27,8 @@ describe('navFor', () => {
       'today',
       'schedule',
       'requests',
+      'lessonReports',
+      'tests',
       'families',
       'students',
       'teachers',
@@ -36,12 +40,15 @@ describe('navFor', () => {
   });
 
   it('filters by permission and drops empty groups', () => {
-    // Monitor: classes, schedule, requests, families, teachers and holidays; no users, settings or roles.
+    // Monitor: classes, schedule, requests, reports, tests, families, teachers and holidays; no
+    // users, settings or roles.
     expect(navItemsFor(as('monitor')).map((i) => i.key)).toEqual([
       'home',
       'today',
       'schedule',
       'requests',
+      'lessonReports',
+      'tests',
       'families',
       'students',
       'teachers',
@@ -51,11 +58,14 @@ describe('navFor', () => {
   });
 
   it('gives a teacher and a parent their own classes, requests and people only', () => {
+    // N3 teacher portal: «حصصي», «طلابي», «جدولي», «الاختبارات», then the requests.
     expect(navItemsFor(as('teacher')).map((i) => i.key)).toEqual([
       'home',
       'myClasses',
-      'myRequests',
       'myStudents',
+      'mySchedule',
+      'myTests',
+      'myRequests',
     ]);
     expect(navItemsFor(as('parent')).map((i) => i.key)).toEqual([
       'home',
@@ -70,6 +80,8 @@ describe('navFor', () => {
     expect(currentPage(as('admin'), '/teachers/3/timetable')?.key).toBe('teachers');
     expect(currentPage(as('admin'), '/settings/sessions')?.key).toBe('sessionSettings');
     expect(currentPage(as('teacher'), '/my-classes')?.key).toBe('myClasses');
+    expect(currentPage(as('teacher'), '/tests/3')?.key).toBe('myTests');
+    expect(currentPage(as('admin'), '/lesson-reports')?.key).toBe('lessonReports');
     expect(currentPage(as('parent'), '/requests')?.key).toBe('myRequests');
   });
 });
