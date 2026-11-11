@@ -4,13 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { forgotPasswordSchema } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@qarabic/ui/components/card';
+import { Card, CardContent } from '@qarabic/ui/components/card';
 import {
   Field,
   FieldDescription,
@@ -29,6 +23,7 @@ import type { z } from 'zod';
 import { forgotPassword } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/client';
 import { useValidationMessages } from '@/lib/forms/validation-messages';
+import { AUTH_CARD_CLASS, AuthCardHeader } from './auth-page';
 
 const forgotSchema = forgotPasswordSchema;
 type ForgotInput = z.input<typeof forgotSchema>;
@@ -49,13 +44,8 @@ export function ForgotPasswordForm() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h1>{t('forgotTitle')}</h1>
-          </CardTitle>
-          <CardDescription>{t('forgotHint')}</CardDescription>
-        </CardHeader>
+      <Card className={AUTH_CARD_CLASS}>
+        <AuthCardHeader title={t('forgotTitle')} description={t('forgotHint')} />
         <CardContent>
           {mutation.isSuccess ? (
             <FieldGroup>
@@ -93,6 +83,7 @@ export function ForgotPasswordForm() {
                         autoComplete="email"
                         autoFocus
                         placeholder="name@example.com"
+                        className="h-10 md:text-[0.9375rem]"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -100,7 +91,11 @@ export function ForgotPasswordForm() {
                   )}
                 />
                 <Field>
-                  <Button type="submit" disabled={mutation.isPending}>
+                  <Button
+                    type="submit"
+                    className="h-11 text-[0.9375rem] font-semibold"
+                    disabled={mutation.isPending}
+                  >
                     {mutation.isPending && <Spinner />}
                     {mutation.isPending ? t('sending') : t('sendLink')}
                   </Button>

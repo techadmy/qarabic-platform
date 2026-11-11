@@ -19,7 +19,6 @@
   },
   "auth": {
     "loginTitle": "Sign in to your account",
-    "loginDescription": "Enter your email and password to continue.",
     "email": "Email",
     "password": "Password",
     "showPassword": "Show password",

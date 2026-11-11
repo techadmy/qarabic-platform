@@ -46,7 +46,9 @@ Source: ui.shadcn.com/docs/rtl and /docs/rtl/next (checked 2026-11-11, shadcn CL
    the right in Arabic.
 2. **Physical `side` props in our own code.** Radix `side` values are physical. Where a block
    hard-codes one, we pick it from the direction:
-   - `nav-user` dropdown: block uses `side="right"` → `dir === 'rtl' ? 'left' : 'right'` (desktop).
+   - Account menu: the block's `nav-user` (sidebar footer, `side="right"`) moved to the top bar as
+     `UserMenu` (current app layout); it opens below the avatar with `align="end"`, which is logical,
+     so no physical side is needed.
    - Sidebar menu tooltips (icon-collapsed mode): `SidebarMenuButton` defaults to `side="right"`;
      we pass `tooltip={{ children, side }}` with `left` in RTL. No component change needed.
    - Sheets that should open at the inline end: `side={dir === 'rtl' ? 'left' : 'right'}`.

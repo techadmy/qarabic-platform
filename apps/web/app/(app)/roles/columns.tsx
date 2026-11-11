@@ -40,11 +40,13 @@ export function useRoleColumns(): ColumnDef<RoleDto>[] {
         header: t('columns.status'),
         cell: ({ row }) =>
           row.original.customizedAt ? (
-            <Badge variant="secondary" title={t('customizedHint')}>
+            <Badge variant="secondary" className="rounded-sm" title={t('customizedHint')}>
               {t('customized')}
             </Badge>
           ) : (
-            <Badge variant="outline">{t('default')}</Badge>
+            <Badge variant="outline" className="rounded-sm">
+              {t('default')}
+            </Badge>
           ),
       },
     ],

@@ -52,12 +52,11 @@ test('language switch on the login page flips to English LTR', async ({ page }) 
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 });
 
-test('language switch in the user menu flips the app shell', async ({ page }) => {
+test('language switch in the top bar flips the app shell', async ({ page }) => {
   await page.goto('/login');
   await login(page);
-  await page.getByRole('button', { name: 'حسابي' }).click();
-  await page.getByRole('menuitem', { name: 'اللغة' }).click();
-  await page.getByRole('menuitemradio', { name: 'English' }).click();
+  await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await expect(page.getByRole('heading', { name: 'Welcome, مدير النظام' })).toBeVisible();
   await expect(page.locator('[data-slot="sidebar"][data-side="left"]')).toBeAttached();
@@ -67,6 +66,7 @@ test('logout returns to the login page', async ({ page }) => {
   await page.goto('/login');
   await login(page);
   await page.getByRole('button', { name: 'حسابي' }).click();
+  await expect(page.getByRole('menu')).toContainText('admin@qarabic.test');
   await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/');
