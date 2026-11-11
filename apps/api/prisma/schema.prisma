@@ -89,6 +89,11 @@ model User {
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // N4 support centre
+  ticketsReported Ticket[]        @relation("TicketReporter")
+  ticketsAssigned Ticket[]        @relation("TicketAssignee")
+  ticketComments  TicketComment[]
+
   role                Role?                @relation(fields: [roleId], references: [id], onDelete: Restrict)
   statusChangedBy     User?                @relation("UserStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
   archivedBy          User?                @relation("UserArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
@@ -242,6 +247,9 @@ model Family {
   createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // N4 support centre
+  tickets Ticket[]
+
   user            User      @relation("FamilyParent", fields: [userId], references: [id], onDelete: Restrict)
   manager         User?     @relation("FamilyManager", fields: [managerId], references: [id], onDelete: SetNull)
   statusChangedBy User?     @relation("FamilyStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
@@ -329,6 +337,9 @@ model Teacher {
   archiveReason      String?      @map("archive_reason") @db.VarChar(500)
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  // N4 support centre
+  tickets Ticket[]
 
   user            User              @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
   statusChangedBy User?             @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
@@ -925,4 +936,214 @@ model StudentTest {
   @@index([teacherId, scheduledAt])
   @@index([studentId, scheduledAt])
   @@map("student_tests")
+}
+
+// ====================================================================== N4: support centre
+// «تواصل معنا» tickets, their timeline and files, and the WhatsApp intake log (docs/22, docs/32,
+// D99, D102, D135). Ported from the Laravel Feedback module (`feedback_tickets` …). Queues, their
+// member roles, SLA targets and the working week are settings (`support.*` in app_settings).
+
+enum TicketType {
+  bug
+  feature
+}
+
+enum TicketCategory {
+  classes
+  teacher
+  billing
+  technical
+  suggestion
+  other
+}
+
+enum TicketChannel {
+  in_app
+  whatsapp
+  staff
+  phone
+}
+
+enum TicketPriority {
+  p0
+  p1
+  p2
+  p3
+}
+
+enum TicketStatus {
+  new
+  triaged
+  in_progress
+  needs_info
+  fixed
+  verified
+  wont_fix
+}
+
+enum TicketSubjectType {
+  session
+  invoice
+  student
+}
+
+enum TicketQueue {
+  scheduling
+  billing
+  complaints
+  tech
+  product
+  general
+}
+
+enum TicketVisibility {
+  normal
+  restricted
+}
+
+enum TicketCommentKind {
+  comment
+  status
+  priority
+  assignment
+  system
+}
+
+enum TicketAttachmentSource {
+  screenshot
+  upload
+  whatsapp
+}
+
+/// A «تواصل معنا» ticket (docs/22 §2, docs/32 §4). Shown to people as `#id`.
+model Ticket {
+  id                  Int                @id @default(autoincrement())
+  channel             TicketChannel      @default(in_app)
+  type                TicketType
+  category            TicketCategory
+  /// Fixed allow-list per category (`TICKET_SUBCATEGORIES`).
+  subcategory         String?            @db.VarChar(40)
+  subjectType         TicketSubjectType? @map("subject_type")
+  subjectId           Int?               @map("subject_id")
+  queue               TicketQueue
+  /// restricted = complaints: the reporter and support.view_restricted only, never the teacher concerned.
+  visibility          TicketVisibility   @default(normal)
+  familyId            Int?               @map("family_id")
+  teacherId           Int?               @map("teacher_id")
+  /// First-response deadline in working hours, capped by the class start (docs/32 §5).
+  slaDueAt            DateTime?          @map("sla_due_at") @db.Timestamptz(6)
+  firstResponseAt     DateTime?          @map("first_response_at") @db.Timestamptz(6)
+  slaBreachNotifiedAt DateTime?          @map("sla_breach_notified_at") @db.Timestamptz(6)
+  priority            TicketPriority?
+  status              TicketStatus       @default(new)
+  title               String             @db.VarChar(160)
+  description         String
+  reporterId          Int?               @map("reporter_id")
+  reporterRole        String?            @map("reporter_role") @db.VarChar(100)
+  /// WhatsApp sender, encrypted at rest (AES-256-GCM); never sent to any client.
+  contactPhone        String?            @map("contact_phone")
+  /// HMAC of the sender's digits: groups an unknown sender's messages without storing the number in clear.
+  contactHash         String?            @map("contact_hash") @db.Char(64)
+  area                String?            @db.VarChar(40)
+  /// Sanitised client context (page, app version, zone, recent API errors): no form values or tokens.
+  context             Json?
+  prUrl               String?            @map("pr_url") @db.VarChar(300)
+  resolution          String?
+  duplicateOfId       Int?               @map("duplicate_of_id")
+  assigneeId          Int?               @map("assignee_id")
+  triagedAt           DateTime?          @map("triaged_at") @db.Timestamptz(6)
+  fixedAt             DateTime?          @map("fixed_at") @db.Timestamptz(6)
+  verifiedAt          DateTime?          @map("verified_at") @db.Timestamptz(6)
+  closedAt            DateTime?          @map("closed_at") @db.Timestamptz(6)
+  /// Last change the reporter can see; `reporter_seen_at` older = "has an update".
+  lastPublicAt        DateTime?          @map("last_public_at") @db.Timestamptz(6)
+  reporterSeenAt      DateTime?          @map("reporter_seen_at") @db.Timestamptz(6)
+  whatsappWindowUntil DateTime?          @map("whatsapp_window_until") @db.Timestamptz(6)
+  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Written from the app clock on every change.
+  updatedAt           DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  reporter    User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  family      Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  teacher     Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  duplicateOf Ticket?            @relation("TicketDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates  Ticket[]           @relation("TicketDuplicate")
+  comments    TicketComment[]
+  attachments TicketAttachment[]
+
+  @@index([status, priority])
+  @@index([queue, status])
+  @@index([reporterId, status])
+  @@index([assigneeId])
+  @@index([familyId])
+  @@index([teacherId])
+  @@index([slaDueAt])
+  @@index([contactHash])
+  @@map("tickets")
+}
+
+/// One timeline row: a comment or a status / priority / assignment / system change.
+model TicketComment {
+  id          Int               @id @default(autoincrement())
+  ticketId    Int               @map("ticket_id")
+  authorId    Int?              @map("author_id")
+  /// "Claude" (CLI) or the WhatsApp sender when there is no user.
+  authorLabel String?           @map("author_label") @db.VarChar(60)
+  kind        TicketCommentKind @default(comment)
+  body        String?
+  /// Staff only (internal notes, assignment / priority changes).
+  internal    Boolean           @default(false)
+  meta        Json?
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket      Ticket             @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author      User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  attachments TicketAttachment[]
+
+  @@index([ticketId, id])
+  @@map("ticket_comments")
+}
+
+/// A private file (screenshot, upload, WhatsApp media) in the file storage (local disk / S3 later).
+model TicketAttachment {
+  id           Int                    @id @default(autoincrement())
+  ticketId     Int                    @map("ticket_id")
+  commentId    Int?                   @map("comment_id")
+  source       TicketAttachmentSource
+  /// Storage key: `tickets/{ticket}/{uuid}.{ext}` (random, never the client's name).
+  storageKey   String                 @map("storage_key") @db.VarChar(255)
+  mime         String                 @db.VarChar(100)
+  size         Int
+  sha256       String                 @db.Char(64)
+  originalName String?                @map("original_name") @db.VarChar(150)
+  prunedAt     DateTime?              @map("pruned_at") @db.Timestamptz(6)
+  createdAt    DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  ticket  Ticket         @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  comment TicketComment? @relation(fields: [commentId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@map("ticket_attachments")
+}
+
+/// WhatsApp Cloud API intake log (docs/22 §5.2): one row per message id (Meta retries are ignored).
+model WhatsAppInboundMessage {
+  id          Int      @id @default(autoincrement())
+  waMessageId String   @unique @map("wa_message_id") @db.VarChar(191)
+  /// HMAC of the sender's digits, never the number itself.
+  fromHash    String   @map("from_hash") @db.Char(64)
+  /// text | image | audio | document | other
+  type        String   @db.VarChar(16)
+  /// received | ticket_created | appended | ignored_unknown | ignored_type
+  status      String   @db.VarChar(32)
+  userId      Int?     @map("user_id")
+  ticketId    Int?     @map("ticket_id")
+  error       String?  @db.VarChar(200)
+  receivedAt  DateTime @map("received_at") @db.Timestamptz(6)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status])
+  @@map("whatsapp_inbound_messages")
 }

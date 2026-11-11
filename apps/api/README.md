@@ -203,3 +203,72 @@ future untouched generated classes right after it is saved (no queue), then fill
   `lesson_at`; rewritten with the report), `student_tests` (partial unique index: one `scheduled`
   test per student + track; score CHECKs), `quran_surahs` (seeded by the migration; kept by the
   e2e table reset). Progress (last positions, coverage, monthly ayahs) is computed on read.
+
+## Endpoints (N4: support centre «تواصل معنا» and the parent home)
+
+Ported from the Laravel feedback / support routes (`api_v1_feedback.php`, docs/22, docs/32 S1–S2,
+D99, D102, D135) with the same permissions. Contract in `@qarabic/shared` (`tickets.ts`,
+`support.ts`, `portal.ts`). Visibility: a reporter sees their own tickets; `feedback.review` sees
+all; queue members (`support.view` + their role in `support.queue_members`) see their queues;
+`restricted` tickets (complaints) need `support.view_restricted` and are **never** shown to the
+teacher they are about. A ticket the viewer may not see answers 404; an action they may not take
+on one they see answers 403. `ANY` = any of `feedback.view|request|review|manage`,
+`support.view|handle`.
+
+| Method     | Path                             | Permission                                            | Notes                                                                                                                                                                                       |
+| ---------- | -------------------------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET        | `/feedback/summary`              | ANY                                                   | `{ mineUpdates, triageNew }` (`triageNew` null without `feedback.review`)                                                                                                                   |
+| GET        | `/feedback/assignees`            | `feedback.manage`                                     | holders of `feedback.manage`                                                                                                                                                                |
+| GET        | `/feedback/tickets`              | ANY                                                   | `ticketListQuerySchema`: `scope=mine\|all` (all = `feedback.review`, else 403), `status` (+ `open`/`closed`), `priority` (+ `none`), `type`, `category`, `queue`, `assigneeId`, `q`, `sort` |
+| POST       | `/feedback/tickets`              | `feedback.request`                                    | JSON or multipart (`screenshot` + ≤ 3 `attachments`, PNG/JPEG/WebP ≤ 5 MB, sniffed); `createTicketSchema`; 10/h + 30/day per user (429)                                                     |
+| GET        | `/feedback/tickets/:id`          | ANY                                                   | `TicketDetailDto` (timeline, files, `can`); internal rows / staff fields for staff only                                                                                                     |
+| PATCH      | `/feedback/tickets/:id`          | any of `feedback.manage`, `support.handle`            | `updateTicketSchema`; lifecycle refusals are 422 on `status`, `note`, `priority`, `prUrl`, `assigneeId`, `duplicateOfId`                                                                    |
+| POST       | `/feedback/tickets/:id/comments` | ANY                                                   | `createTicketCommentSchema` (+ multipart `attachments`); `internal` for managers only; closed → 422 `body` for the reporter; ≤ 10 files a ticket; 30/h                                      |
+| POST       | `/feedback/tickets/:id/confirm`  | `feedback.request`                                    | reporter, on `fixed`: `resolved` → verified, else triaged with `body`                                                                                                                       |
+| POST       | `/feedback/tickets/:id/seen`     | `feedback.request`                                    | 204; clears the «طلباتي» dot                                                                                                                                                                |
+| GET        | `/feedback/attachments/:id`      | ANY                                                   | streams the file after the ticket policy; internal-note files staff only; 410 when pruned; `nosniff`, sandbox CSP, `private` cache                                                          |
+| GET        | `/support/inbox`                 | `support.view`                                        | `inboxQuerySchema`; tickets of my queues + pending class requests («الجدولة»), breached first; `meta.queues`, `meta.counts` per queue                                                       |
+| GET        | `/support/summary`               | `support.view`                                        | open / breached / unassigned totals + per queue                                                                                                                                             |
+| GET        | `/support/assignees?queue=`      | any of `support.handle`, `support.manage`             | who may handle the queue; 422 for a queue I do not see                                                                                                                                      |
+| GET        | `/support/people`                | `support.view`                                        | side panel (`familyId`, `teacherId`); family details need `families.view`                                                                                                                   |
+| POST       | `/support/tickets/:id/take`      | any of `support.handle`, `support.manage`             | assign to me                                                                                                                                                                                |
+| GET        | `/support/mine`                  | any of `feedback.request`, `session_requests.request` | «طلباتي»: my tickets + my class requests (a parent: also those on their children), open first; `meta.open`                                                                                  |
+| GET · PUT  | `/settings/support`              | `settings.view` · `settings.manage`                   | `support.queue_by_category`, `support.queue_members`, `support.restricted_queues`, `support.sla_hours`, `support.working_hours`; unknown key = 422 on it                                    |
+| GET · POST | `/webhooks/whatsapp`             | public (signed)                                       | 404 while `FEEDBACK_WHATSAPP_ENABLED=false` (default); GET = verify token; POST = `X-Hub-Signature-256` HMAC of the raw body (401)                                                          |
+| GET        | `/parent/home`                   | `families.view`, parent only (else 403)               | `ParentHomeDto`: family, children (teacher, next class), next 7 days of classes, counters; `recentReports: null` until N3                                                                   |
+
+Lifecycle (docs/22 §3, D97): `new → triaged | in_progress | needs_info | wont_fix`, `triaged →
+in_progress | needs_info | fixed | wont_fix`, `in_progress → triaged | needs_info | fixed |
+wont_fix`, `needs_info → triaged | in_progress | wont_fix`, `fixed → verified | triaged |
+in_progress`, closed → `triaged`. needs_info / wont_fix need a `note`; triaged / in_progress / fixed
+need a priority; a technical fix needs its `prUrl` (`github.com/qarabicacademy/…/pull/N`). A
+reporter's reply on needs_info moves it back to triaged. Routing: category (or
+`category.subcategory`) → queue from the settings; a teacher complaint goes to the restricted
+`complaints` queue. SLA: first response within `support.sla_hours[queue]` working hours
+(Saturday–Thursday 10:00–22:00 Cairo), capped by the class start; the first public staff answer
+stops it. Non-technical tickets start at P2, a complaint or a class within 24 h at P1.
+
+Files: private storage behind `FileStorage` (`STORAGE_DRIVER=local`, `STORAGE_LOCAL_DIR`; S3 /
+Spaces later), random keys `tickets/{id}/{uuid}.{ext}`, sha256 recorded.
+
+## Ticket CLI (N4)
+
+Claude works the queue from the server (docs/22 §7); writes go through the same service as the API
+and are recorded as "Claude" (or `--as=`):
+
+```sh
+pnpm --filter @qarabic/api cli tickets:list [--status=open|closed|all|<status>,…] [--priority=p0,…,none] [--category=] [--queue=] [--json]
+pnpm --filter @qarabic/api cli tickets:show <id> [--json] [--attachments=/tmp/ticket-<id>]
+pnpm --filter @qarabic/api cli tickets:status <id> [--status=] [--priority=] [--note=] [--pr=] [--resolution=] [--assign=email|none]
+pnpm --filter @qarabic/api cli tickets:reply <id> --body="…" [--internal]
+```
+
+## Data model notes (N4)
+
+- `tickets` (category, subcategory, subject type + id, queue, visibility, family / teacher it
+  concerns, SLA due / first response, priority, status + lifecycle dates, reporter, assignee, PR,
+  sanitised context, WhatsApp contact encrypted + HMAC), `ticket_comments` (timeline rows:
+  comment / status / priority / assignment / system, `internal`), `ticket_attachments`,
+  `whatsapp_inbound_messages` (one row per Meta message id).
+- Queues, their member roles, restricted queues, SLA targets and the working week are settings
+  (`support.*` in `app_settings`), as in Laravel.

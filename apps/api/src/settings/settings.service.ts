@@ -1,12 +1,15 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { SUPPORT_SETTING_DEFAULTS } from '../support/settings-defaults.js';
 
 /**
  * Typed settings with defaults (port of Laravel `Settings::DEFAULTS`, docs/14 §2.9). Only the keys
  * N1 needs are ported; later milestones add theirs here. A stored row overrides the default.
  */
 export const SETTING_DEFAULTS = {
+  // N4 support centre (`GET/PUT /settings/support`).
+  ...SUPPORT_SETTING_DEFAULTS,
   /** The academy's own zone (staff are in Egypt, D131). */
   'academy.timezone': 'Africa/Cairo',
   /** Teachers are paid in this currency (Laravel `config/payroll.php` default_currency). */

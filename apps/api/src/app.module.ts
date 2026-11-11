@@ -16,6 +16,8 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { PeopleModule } from './people/people.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { ScheduleModule } from './schedule/schedule.module.js';
+import { PortalModule } from './portal/parent-home.controller.js';
+import { SupportModule } from './support/support.module.js';
 import { SettingsModule } from './settings/settings.service.js';
 import { TeachingModule } from './teaching/teaching.module.js';
 
@@ -59,6 +61,8 @@ export const REDACT = [
     PeopleModule,
     ScheduleModule,
     TeachingModule,
+    SupportModule,
+    PortalModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

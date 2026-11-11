@@ -1,6 +1,11 @@
 import { z } from 'zod';
 
 const url = z.url();
+/** Empty in `.env` = not set. */
+const optionalSecret = z.preprocess(
+  (v) => (v === '' ? undefined : v),
+  z.string().min(1).optional(),
+);
 
 export const envSchema = z
   .object({
@@ -41,6 +46,27 @@ export const envSchema = z
       .enum(['true', 'false', '1', '0'])
       .default('true')
       .transform((v) => v === 'true' || v === '1'),
+    /** Private files (ticket screenshots, N4): `local` disk now; S3 / Spaces later. */
+    STORAGE_DRIVER: z.enum(['local']).default('local'),
+    /** Folder of the `local` storage driver (outside the web root; not committed). */
+    STORAGE_LOCAL_DIR: z.string().min(1).default('storage/private'),
+    /**
+     * WhatsApp Cloud API intake of support tickets (docs/22 §5.2, D102). Off by default: the
+     * webhook answers 404 until Ahmed sets the Meta values (B50).
+     */
+    FEEDBACK_WHATSAPP_ENABLED: z
+      .enum(['true', 'false', '1', '0'])
+      .default('false')
+      .transform((v) => v === 'true' || v === '1'),
+    /** B52: messages from numbers that match no user are ignored unless this is on. */
+    FEEDBACK_WHATSAPP_ALLOW_UNKNOWN: z
+      .enum(['true', 'false', '1', '0'])
+      .default('false')
+      .transform((v) => v === 'true' || v === '1'),
+    /** Meta app secret: signs every webhook POST (X-Hub-Signature-256). */
+    WHATSAPP_APP_SECRET: optionalSecret,
+    /** The token Meta echoes on the GET subscription check. */
+    WHATSAPP_VERIFY_TOKEN: optionalSecret,
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
