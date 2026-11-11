@@ -10,7 +10,8 @@ import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
 
 async function openSheet(name: string) {
-  const user = userEvent.setup();
+  // No delay between keys: each key otherwise waits a macrotask, which a loaded runner stretches.
+  const user = userEvent.setup({ delay: null });
   await user.click(await screen.findByRole('button', { name }));
   const sheet = await screen.findByRole('dialog');
   // The form shows once the lookups (managers, courses, teachers) are in.
@@ -39,20 +40,20 @@ describe('Add / edit sheet', () => {
 
   it('creates a family (phone with the dial code → E.164, searchable time zone) and opens it', async () => {
     let body: Record<string, unknown> | null = null;
-    server.events.on('request:start', async ({ request }) => {
-      if (request.method === 'POST' && request.url.endsWith('/families'))
-        body = await request.clone().json();
-    });
+    // A handler wrapper, not `server.events`: no listener can leak into the next test if this fails.
+    server.use(
+      http.post('*/api/v1/families', async ({ request }) => {
+        body = (await request.clone().json()) as Record<string, unknown>;
+        return undefined;
+      }),
+    );
     renderPage(<FamiliesView />, { path: '/families' });
     const { user, sheet } = await openSheet('أضف عائلة');
     await user.type(within(sheet).getByLabelText(/اسم ولي الأمر/), 'Test Parent');
     await user.type(within(sheet).getByLabelText(/البريد الإلكتروني/), 'Test.Parent@Example.com');
     // Country code picker (combobox), then the national number with its leading 0.
     await user.click(within(sheet).getByRole('combobox', { name: 'رمز الدولة' }));
-    await user.type(
-      await screen.findByPlaceholderText('ابحث باسم الدولة أو رمزها'),
-      'المملكة المتحدة',
-    );
+    await user.type(await screen.findByPlaceholderText('ابحث باسم الدولة أو رمزها'), 'المملكة');
     await user.click(await screen.findByRole('option', { name: /المملكة المتحدة \(\+44\)/ }));
     await user.type(within(sheet).getByLabelText(/^الهاتف/), '07700 900555');
     await user.click(within(sheet).getByRole('combobox', { name: /المنطقة الزمنية/ }));
@@ -68,7 +69,6 @@ describe('Add / edit sheet', () => {
       status: 'regular',
     });
     expect(await screen.findByText('أُنشئ السجل')).toBeInTheDocument();
-    server.events.removeAllListeners();
   });
 
   it('maps a 422 from the server onto the field and focuses it', async () => {

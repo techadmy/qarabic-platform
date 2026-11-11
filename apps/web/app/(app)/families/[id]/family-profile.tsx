@@ -23,6 +23,7 @@ import { fetchPerson } from '@/lib/api/people';
 import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatDate, formatInstant, zoneLabel } from '@/lib/time';
+import { ProfileSchedule } from '@/components/schedule/profile-schedule';
 
 /** Family profile (K6, docs/28 §5): header + key facts + titled sections + children + history. */
 export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean }) {
@@ -173,6 +174,7 @@ export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean
                 ]}
               />
               {!mine && <StatusHistory kind="families" entries={f.statusHistory} />}
+              {!f.archive && <ProfileSchedule studentIds={f.students.map((c) => c.id)} />}
             </div>
           </>
         )

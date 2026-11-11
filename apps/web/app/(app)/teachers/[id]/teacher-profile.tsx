@@ -13,6 +13,7 @@ import { fetchPerson } from '@/lib/api/people';
 import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatInstant, zoneLabel } from '@/lib/time';
+import { ProfileSchedule } from '@/components/schedule/profile-schedule';
 
 /** Teacher profile: Contact · Work · Background (docs/28 §5). */
 export function TeacherProfile({ id }: { id: number }) {
@@ -154,6 +155,7 @@ export function TeacherProfile({ id }: { id: number }) {
                 ]}
               />
               <StatusHistory kind="teachers" entries={x.statusHistory} />
+              {!x.archive && <ProfileSchedule teacherId={x.id} />}
             </div>
           </>
         )

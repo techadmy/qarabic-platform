@@ -19,6 +19,8 @@ import {
 } from './data';
 import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
+import { scheduleHandlers } from './schedule-handlers';
+import { resetScheduleDb } from './schedule-db';
 import {
   apiError,
   CSRF_TOKEN,
@@ -50,6 +52,7 @@ export function resetMockState() {
   failedLogins = 0;
   resetMockData();
   resetPeopleDb();
+  resetScheduleDb();
 }
 
 /** Signs a mock user in without going through the login form (tests). */
@@ -285,6 +288,7 @@ export const handlers: HttpHandler[] = [
   }),
 
   ...peopleHandlers,
+  ...scheduleHandlers,
 ];
 
 export { MOCK_PASSWORD };

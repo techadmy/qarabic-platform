@@ -10,15 +10,36 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@qarabic/ui/components/sidebar';
+import { useQuery } from '@tanstack/react-query';
 import { ChevronDownIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { fetchRequestCounts, requestKeys } from '@/lib/api/requests';
 import { isActive, isGroup, type NavEntry, type NavItem } from '@/lib/navigation';
+
+/** «طلبات الحصص (4)»: pending requests, refreshed every minute (K3). */
+function PendingBadge() {
+  const t = useTranslations('nav');
+  const counts = useQuery({
+    queryKey: requestKeys.counts,
+    queryFn: ({ signal }) => fetchRequestCounts(signal),
+    refetchInterval: 60_000,
+  });
+  const n = counts.data?.pending ?? 0;
+  if (!n) return null;
+  return (
+    <SidebarMenuBadge className="top-3! rounded-full bg-accent text-accent-foreground peer-hover/menu-button:text-accent-foreground peer-data-active/menu-button:text-accent-foreground">
+      {n}
+      <span className="sr-only"> {t('pendingSuffix')}</span>
+    </SidebarMenuBadge>
+  );
+}
 
 /**
  * `nav-main` of the shadcn `sidebar-07` block, with the documented collapsible `SidebarGroup`
@@ -61,6 +82,7 @@ function Items({ items, tooltipSide }: { items: NavItem[]; tooltipSide: 'left' |
                 <span>{t(item.key)}</span>
               </Link>
             </SidebarMenuButton>
+            {item.badge === 'pendingRequests' && <PendingBadge />}
           </SidebarMenuItem>
         );
       })}

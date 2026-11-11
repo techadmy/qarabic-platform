@@ -35,29 +35,37 @@ describe('AppShell', () => {
     // Grouped like the current app: «المستخدمون» and «الإعدادات».
     expect(menu.getByRole('button', { name: 'المستخدمون' })).toBeInTheDocument();
     expect(menu.getByRole('button', { name: 'الإعدادات' })).toBeInTheDocument();
+    // Link names only (the requests item carries a pending-count badge beside it).
     expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual([
       'الرئيسية',
+      'حصص اليوم',
+      'الجدول',
+      'طلبات الحصص',
       'العائلات',
       'الطلاب',
       'المعلمون',
       'الموظفون',
+      'العطلات الرسمية',
+      'إعدادات الحصص',
       'الأدوار والصلاحيات',
     ]);
+    // «طلبات الحصص» shows the pending count (K3).
+    expect(await menu.findByText('طلبات قيد المراجعة')).toBeInTheDocument();
     // Account menu in the top bar (current app layout): the avatar shows the name's first letter.
     expect(screen.getByRole('button', { name: 'حسابي' })).toHaveTextContent('م');
     expect(screen.getByRole('button', { name: 'Switch to English' })).toBeInTheDocument();
   });
 
-  it('gives a teacher «طلابي» and a parent «عائلتي», nothing company-wide', async () => {
-    for (const [email, item] of [
-      ['teacher@qarabic.test', 'طلابي'],
-      ['parent@qarabic.test', 'عائلتي'],
+  it('gives a teacher and a parent their own classes, requests and people, nothing company-wide', async () => {
+    for (const [email, items] of [
+      ['teacher@qarabic.test', ['حصصي', 'طلباتي', 'طلابي']],
+      ['parent@qarabic.test', ['حصص أبنائي', 'طلباتي', 'عائلتي']],
     ] as const) {
       mockSignIn(email);
       const { unmount } = renderShell();
       const menu = await sidebarMenu();
       await waitFor(() =>
-        expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual(['الرئيسية', item]),
+        expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual(['الرئيسية', ...items]),
       );
       unmount();
     }
