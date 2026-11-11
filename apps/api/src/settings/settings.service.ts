@@ -1,4 +1,5 @@
 import { Global, Injectable, Module } from '@nestjs/common';
+import { CRM_SETTING_DEFAULTS } from '../crm/settings-defaults.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SUPPORT_SETTING_DEFAULTS } from '../support/settings-defaults.js';
@@ -16,6 +17,8 @@ export const SETTING_DEFAULTS = {
   'payroll.default_currency': 'EGP',
   /** Currencies a salary profile may use (N7); People only offers the default one. */
   'payroll.currencies': ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'AED', 'PKR', 'EGP', 'SAR'],
+  // N5 CRM (`GET/PUT /settings/crm`).
+  ...CRM_SETTING_DEFAULTS,
   // N2 class rules (Laravel `Settings::DEFAULTS`, docs/14 §2.9; `GET/PUT /settings/sessions`).
   /** Days ahead the generator keeps classes for. */
   'sessions.horizon_days': 14,

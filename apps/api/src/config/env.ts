@@ -70,6 +70,54 @@ export const envSchema = z
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
+    // ---- N5 CRM: public intake (docs/33 §3.1). Empty = not set.
+    /**
+     * Shared secret of the website's WPForms snippet (`X-Qarabic-Signature`). Not set = the
+     * webhook answers 503 `webhook_disabled`.
+     */
+    WEB_LEADS_WEBHOOK_SECRET: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().min(16).optional(),
+    ),
+    /** WPForms forms accepted (comma-separated ids); the free-trial form is 4823. */
+    WEB_LEADS_WPFORMS_FORM_IDS: z
+      .string()
+      .default('4823')
+      .transform((v) =>
+        v
+          .split(',')
+          .map((n) => Number(n.trim()))
+          .filter((n) => Number.isInteger(n) && n > 0),
+      ),
+    /** WPForms course label (any case) → course id, as JSON: `{"quran for kids": 3}`. */
+    WEB_LEADS_COURSE_MAP: z
+      .string()
+      .default('{}')
+      .transform((v, ctx) => {
+        try {
+          const parsed: unknown = JSON.parse(v || '{}');
+          if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error();
+          return Object.fromEntries(
+            Object.entries(parsed).map(([k, id]) => [k.trim().toLowerCase(), Number(id)]),
+          );
+        } catch {
+          ctx.addIssue({ code: 'custom', message: 'Use a JSON object of label → course id.' });
+          return z.NEVER;
+        }
+      }),
+    /** Hidden field humans leave empty on the public forms. */
+    FORMS_HONEYPOT_FIELD: z.string().min(1).default('website'),
+    /** Captcha of the public forms: `none` (off) or Cloudflare `turnstile`. */
+    FORMS_CAPTCHA_DRIVER: z.enum(['none', 'turnstile']).default('none'),
+    FORMS_CAPTCHA_FIELD: z.string().min(1).default('cf-turnstile-response'),
+    TURNSTILE_SECRET_KEY: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.string().min(1).optional(),
+    ),
+    /** Public trial form (and the old class-request form): submissions per minute per IP. */
+    FORMS_CLASS_REQUEST_PER_MINUTE: z.coerce.number().int().min(1).default(5),
+    /** Signed website-lead webhook calls per minute per IP (the WordPress server). */
+    FORMS_WEB_LEADS_PER_MINUTE: z.coerce.number().int().min(1).default(30),
   })
   .transform((env) => ({ ...env, APP_URL: env.APP_URL ?? env.WEB_ORIGIN[0]! }))
   .superRefine((env, ctx) => {
@@ -85,6 +133,13 @@ export const envSchema = z
         code: 'custom',
         path: ['APP_ENCRYPTION_KEY'],
         message: 'Use a real random key.',
+      });
+    }
+    if (env.FORMS_CAPTCHA_DRIVER === 'turnstile' && !env.TURNSTILE_SECRET_KEY) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TURNSTILE_SECRET_KEY'],
+        message: 'Required with FORMS_CAPTCHA_DRIVER=turnstile.',
       });
     }
   });

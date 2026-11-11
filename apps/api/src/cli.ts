@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { LeadAlerts } from './crm/alerts.js';
 import { SessionJobs } from './sessions/jobs.js';
 import { TicketCli } from './support/ticket-cli.js';
 
@@ -11,6 +12,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *                                                    [--enrollment=ID] [--dry-run]
  *   pnpm --filter @qarabic/api cli session-requests:expire
  *   pnpm --filter @qarabic/api cli zoom:ensure-upcoming
+ *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
  *
  * The support ticket queue (docs/22 §7, Laravel `tickets:*`), writes recorded as "Claude":
@@ -89,6 +91,11 @@ async function main(): Promise<number> {
       case 'zoom:ensure-upcoming':
         console.log(`Checked ${await jobs.ensureZoom()} class(es) for meetings.`);
         return 0;
+      case 'leads:notify': {
+        const sent = await app.get(LeadAlerts).run();
+        console.log(`Follow-ups due: ${sent.followUps}; SLA breaches: ${sent.sla}.`);
+        return 0;
+      }
       case 'sessions:audit-overlaps': {
         const overlaps = await jobs.auditOverlaps(Number(option(args, 'days') ?? 30));
         if (!overlaps.length) {
@@ -101,7 +108,7 @@ async function main(): Promise<number> {
       }
       default:
         console.error(
-          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, ' +
+          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, ' +
             'tickets:list, tickets:show, tickets:status, tickets:reply',
         );
         return 2;

@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import { type INestApplication, RequestMethod } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
@@ -15,7 +15,10 @@ export function configureApp(app: NestExpressApplication): INestApplication {
   app.useLogger(app.get(Logger));
   app.set('trust proxy', env.TRUST_PROXY);
   app.disable('x-powered-by');
-  app.setGlobalPrefix(API_PREFIX);
+  // The old public form endpoint keeps its URL (`POST /api/class-request`, D105).
+  app.setGlobalPrefix(API_PREFIX, {
+    exclude: [{ path: 'api/class-request', method: RequestMethod.POST }],
+  });
   // same-site: the web app (app.qarabic.com) and the API (api.qarabic.com) share the site.
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }));
   app.use(cookieParser());

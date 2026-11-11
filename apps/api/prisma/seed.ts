@@ -2,6 +2,7 @@ import { PasswordsService } from '../src/auth/passwords.service.js';
 import { loadEnv } from '../src/config/env.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
+import { seedDemoCrm } from './seed-crm.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
 import { seedDemoSchedule } from './seed-schedule.js';
 import { seedDemoSupport } from './seed-support.js';
@@ -66,6 +67,8 @@ async function main(): Promise<void> {
           ? 'Demo «تواصل معنا» tickets added (fake data).'
           : 'Demo tickets already there (or no demo people).',
       );
+      const leads = await seedDemoCrm(prisma);
+      console.log(leads ? 'Demo leads added (fake data).' : 'Leads already there.');
     }
   } finally {
     await prisma.$disconnect();
