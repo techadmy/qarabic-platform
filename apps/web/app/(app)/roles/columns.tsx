@@ -17,7 +17,9 @@ export function useRoleColumns(): ColumnDef<RoleDto>[] {
         header: t('columns.role'),
         cell: ({ row }) => (
           <span className="font-medium">
-            {locale === 'ar' ? row.original.labelAr : row.original.labelEn}
+            {locale === 'ar'
+              ? row.original.labelAr
+              : (row.original.labelEn ?? row.original.labelAr)}
           </span>
         ),
       },

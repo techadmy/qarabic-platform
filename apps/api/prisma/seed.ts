@@ -2,10 +2,12 @@ import { PasswordsService } from '../src/auth/passwords.service.js';
 import { loadEnv } from '../src/config/env.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
+import { seedCourses, seedDemoPeople } from './seed-people.js';
 
 /**
  * `pnpm --filter @qarabic/api db:seed` — idempotent.
- * Roles + permissions always; the dev admin only outside production and only from env vars.
+ * Roles, permissions and the reference courses always; the dev admin (from env vars) and the
+ * made-up demo people (see seed-people.ts; `SEED_DEMO=0` skips them) only outside production.
  */
 async function main(): Promise<void> {
   const env = loadEnv();
@@ -13,6 +15,8 @@ async function main(): Promise<void> {
   try {
     await syncRolesAndPermissions(prisma);
     console.log('Roles and permissions synced.');
+    await seedCourses(prisma);
+    console.log('Courses seeded.');
 
     const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
     const password = process.env.SEED_ADMIN_PASSWORD;
@@ -36,6 +40,11 @@ async function main(): Promise<void> {
       }
     } else {
       console.log('SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set: no dev admin.');
+    }
+
+    if (env.NODE_ENV !== 'production' && process.env.SEED_DEMO !== '0') {
+      const added = await seedDemoPeople(prisma);
+      console.log(added ? 'Demo people added (fake data).' : 'Demo people already there.');
     }
   } finally {
     await prisma.$disconnect();

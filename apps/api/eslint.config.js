@@ -24,6 +24,8 @@ export default tseslint.config(
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-assignment': 'off',
       '@typescript-eslint/no-unsafe-argument': 'off',
+      // supertest bodies are `any`: `res.body.data.map(...)`.
+      '@typescript-eslint/no-unsafe-call': 'off',
     },
   },
   { files: ['eslint.config.js'], ...tseslint.configs.disableTypeChecked },

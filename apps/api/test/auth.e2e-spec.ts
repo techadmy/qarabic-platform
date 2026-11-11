@@ -183,9 +183,14 @@ describe('sessions', () => {
     const res = await client.get('/auth/me');
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
-      ['email', 'id', 'locale', 'name', 'permissions', 'roles', 'timezone'].sort(),
+      ['email', 'id', 'locale', 'name', 'permissions', 'phone', 'role', 'roles', 'timezone'].sort(),
     );
-    expect(res.body).toMatchObject({ id: user.id, roles: ['monitor'], locale: 'ar' });
+    expect(res.body).toMatchObject({
+      id: user.id,
+      roles: ['monitor'],
+      role: { name: 'monitor', kind: 'staff' },
+      locale: 'ar',
+    });
     expect(res.body.permissions).toEqual(
       expect.arrayContaining(['schedule.view', 'schedule.manage']),
     );

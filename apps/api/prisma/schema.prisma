@@ -25,31 +25,102 @@ enum RoleKind {
   parent
 }
 
+/// Family account status (docs/06 §4, docs/28 §4.1).
+enum FamilyStatus {
+  regular
+  trial
+  on_leave
+  suspended
+  deactivated
+}
+
+/// Students, teachers and staff.
+enum ActiveStatus {
+  active
+  inactive
+}
+
+enum Gender {
+  male
+  female
+}
+
+enum StudentLanguage {
+  english
+  urdu
+  english_urdu
+  pashto
+  arabic
+}
+
+enum CourseCategory {
+  regular
+  additional
+}
+
+/// The record a status_changes row belongs to.
+enum PersonType {
+  family
+  student
+  teacher
+  staff
+}
+
 model User {
-  id           Int      @id @default(autoincrement())
-  name         String   @db.VarChar(255)
-  email        String   @unique @db.VarChar(255)
-  passwordHash String   @map("password_hash") @db.VarChar(255)
-  locale       Locale   @default(ar)
-  timezone     String   @default("Africa/Cairo") @db.VarChar(64)
-  isActive     Boolean  @default(true) @map("is_active")
-  roleId       Int?     @map("role_id")
-  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(255)
+  email             String    @unique @db.VarChar(255)
+  passwordHash      String    @map("password_hash") @db.VarChar(255)
+  /// E.164 (`+447700900123`). A parent's phone is the family's contact number; a teacher's is theirs.
+  phone             String?   @db.VarChar(16)
+  locale            Locale    @default(ar)
+  timezone          String    @default("Africa/Cairo") @db.VarChar(64)
+  isActive          Boolean   @default(true) @map("is_active")
+  roleId            Int?      @map("role_id")
+  /// Staff status change (D130): why and by whom the login was (de)activated.
+  statusReason      String?   @map("status_reason") @db.VarChar(500)
+  statusChangedAt   DateTime? @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById Int?      @map("status_changed_by")
+  /// Archive ("delete", D128) of a staff member.
+  archivedAt        DateTime? @map("archived_at") @db.Timestamptz(6)
+  archivedById      Int?      @map("archived_by")
+  archiveReason     String?   @map("archive_reason") @db.VarChar(500)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   role                Role?                @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  statusChangedBy     User?                @relation("UserStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy          User?                @relation("UserArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
   sessions            Session[]
   passwordResetTokens PasswordResetToken[]
+  family              Family?              @relation("FamilyParent")
+  teacher             Teacher?             @relation("TeacherUser")
+
+  usersStatusChanged    User[]         @relation("UserStatusChangedBy")
+  usersArchived         User[]         @relation("UserArchivedBy")
+  managedFamilies       Family[]       @relation("FamilyManager")
+  familiesStatusChanged Family[]       @relation("FamilyStatusChangedBy")
+  familiesArchived      Family[]       @relation("FamilyArchivedBy")
+  studentsStatusChanged Student[]      @relation("StudentStatusChangedBy")
+  studentsArchived      Student[]      @relation("StudentArchivedBy")
+  teachersStatusChanged Teacher[]      @relation("TeacherStatusChangedBy")
+  teachersArchived      Teacher[]      @relation("TeacherArchivedBy")
+  statusChanges         StatusChange[]
+  auditLogs             AuditLog[]
+  settingsUpdated       AppSetting[]
 
   @@index([roleId])
+  @@index([archivedAt])
   @@map("users")
 }
 
 model Role {
   id           Int       @id @default(autoincrement())
+  /// Stable slug: system names, or `custom_<id>` for roles made in the app (docs/29).
   name         String    @unique @db.VarChar(100)
-  labelAr      String    @map("label_ar") @db.VarChar(255)
-  labelEn      String    @map("label_en") @db.VarChar(255)
+  labelAr      String    @unique @map("label_ar") @db.VarChar(255)
+  labelEn      String?   @unique @map("label_en") @db.VarChar(255)
+  description  String?   @db.VarChar(500)
   kind         RoleKind  @default(staff)
   isSystem     Boolean   @default(false) @map("is_system")
   customizedAt DateTime? @map("customized_at") @db.Timestamptz(6)
@@ -114,4 +185,201 @@ model PasswordResetToken {
 
   @@index([userId])
   @@map("password_reset_tokens")
+}
+
+/// Courses (minimal for N1: the People forms pick them). Lessons, materials and pricing come later.
+model Course {
+  id        Int            @id @default(autoincrement())
+  nameAr    String         @map("name_ar") @db.VarChar(120)
+  nameEn    String         @unique @map("name_en") @db.VarChar(120)
+  category  CourseCategory @default(regular)
+  isActive  Boolean        @default(true) @map("is_active")
+  createdAt DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  regularStudents    Student[]       @relation("StudentRegularCourse")
+  additionalStudents Student[]       @relation("StudentAdditionalCourse")
+  teachers           TeacherCourse[]
+
+  @@map("courses")
+}
+
+/// A family = one parent login (`user_id`) and its children (docs/28 §2).
+model Family {
+  id                Int          @id @default(autoincrement())
+  userId            Int          @unique @map("user_id")
+  /// ISO 3166-1 alpha-2.
+  countryCode       String?      @map("country_code") @db.Char(2)
+  /// IANA zone of the family (classes are shown in it).
+  timezone          String       @db.VarChar(64)
+  managerId         Int?         @map("manager_id")
+  startDate         DateTime?    @map("start_date") @db.Date
+  trialDate         DateTime?    @map("trial_date") @db.Date
+  zoomId            String?      @map("zoom_id") @db.VarChar(100)
+  whatsappGroupId   String?      @map("whatsapp_group_id") @db.VarChar(100)
+  comment           String?
+  status            FamilyStatus @default(regular)
+  statusReason      String?      @map("status_reason") @db.VarChar(500)
+  statusChangedAt   DateTime?    @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById Int?         @map("status_changed_by")
+  archivedAt        DateTime?    @map("archived_at") @db.Timestamptz(6)
+  archivedById      Int?         @map("archived_by")
+  archiveReason     String?      @map("archive_reason") @db.VarChar(500)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            User      @relation("FamilyParent", fields: [userId], references: [id], onDelete: Restrict)
+  manager         User?     @relation("FamilyManager", fields: [managerId], references: [id], onDelete: SetNull)
+  statusChangedBy User?     @relation("FamilyStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy      User?     @relation("FamilyArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  students        Student[]
+
+  @@index([status])
+  @@index([managerId])
+  @@index([archivedAt])
+  @@map("families")
+}
+
+/// A child of a family. No login of its own (the legacy store made a fake one).
+model Student {
+  id                 Int              @id @default(autoincrement())
+  familyId           Int              @map("family_id")
+  name               String           @db.VarChar(120)
+  email              String?          @db.VarChar(191)
+  gender             Gender?
+  age                Int?             @db.SmallInt
+  language           StudentLanguage?
+  regularCourseId    Int?             @map("regular_course_id")
+  additionalCourseId Int?             @map("additional_course_id")
+  teacherId          Int?             @map("teacher_id")
+  startDate          DateTime?        @map("start_date") @db.Date
+  zoomId             String?          @map("zoom_id") @db.VarChar(100)
+  remarkParent       String?          @map("remark_parent")
+  remarkTeacher      String?          @map("remark_teacher")
+  status             ActiveStatus     @default(active)
+  statusReason       String?          @map("status_reason") @db.VarChar(500)
+  statusChangedAt    DateTime?        @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById  Int?             @map("status_changed_by")
+  archivedAt         DateTime?        @map("archived_at") @db.Timestamptz(6)
+  archivedById       Int?             @map("archived_by")
+  archiveReason      String?          @map("archive_reason") @db.VarChar(500)
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  family           Family   @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  regularCourse    Course?  @relation("StudentRegularCourse", fields: [regularCourseId], references: [id], onDelete: SetNull)
+  additionalCourse Course?  @relation("StudentAdditionalCourse", fields: [additionalCourseId], references: [id], onDelete: SetNull)
+  teacher          Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  statusChangedBy  User?    @relation("StudentStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy       User?    @relation("StudentArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+
+  @@index([familyId])
+  @@index([teacherId])
+  @@index([status])
+  @@index([archivedAt])
+  @@map("students")
+}
+
+/// A teacher = one teacher login (`user_id`) + profile. Email and phone live on the user.
+model Teacher {
+  id                 Int          @id @default(autoincrement())
+  userId             Int          @unique @map("user_id")
+  firstName          String       @map("first_name") @db.VarChar(60)
+  lastName           String?      @map("last_name") @db.VarChar(60)
+  altPhone           String?      @map("alt_phone") @db.VarChar(16)
+  gender             Gender?
+  nationality        String?      @db.VarChar(60)
+  countryCode        String?      @map("country_code") @db.Char(2)
+  timezone           String       @db.VarChar(64)
+  age                Int?         @db.SmallInt
+  /// Hourly pay rate shown on the profile; payroll (N7) will own it through pay profiles (D89).
+  hourlyRate         Decimal?     @map("hourly_rate") @db.Decimal(12, 2)
+  hourlyRateCurrency String       @default("EGP") @map("hourly_rate_currency") @db.Char(3)
+  qualification      String?
+  experience         String?
+  address            String?      @db.VarChar(500)
+  skypeId            String?      @map("skype_id") @db.VarChar(100)
+  description        String?
+  status             ActiveStatus @default(active)
+  statusReason       String?      @map("status_reason") @db.VarChar(500)
+  statusChangedAt    DateTime?    @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById  Int?         @map("status_changed_by")
+  archivedAt         DateTime?    @map("archived_at") @db.Timestamptz(6)
+  archivedById       Int?         @map("archived_by")
+  archiveReason      String?      @map("archive_reason") @db.VarChar(500)
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user            User            @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
+  statusChangedBy User?           @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy      User?           @relation("TeacherArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  courses         TeacherCourse[]
+  students        Student[]
+
+  @@index([status])
+  @@index([archivedAt])
+  @@map("teachers")
+}
+
+model TeacherCourse {
+  teacherId Int @map("teacher_id")
+  courseId  Int @map("course_id")
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  course  Course  @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, courseId])
+  @@index([courseId])
+  @@map("teacher_courses")
+}
+
+/// Status history of families, students, teachers and staff (who, when, why; docs/06 §5).
+model StatusChange {
+  id          Int        @id @default(autoincrement())
+  subjectType PersonType @map("subject_type")
+  subjectId   Int        @map("subject_id")
+  fromStatus  String?    @map("from_status") @db.VarChar(32)
+  toStatus    String     @map("to_status") @db.VarChar(32)
+  reason      String?    @db.VarChar(500)
+  changedById Int?       @map("changed_by")
+  createdAt   DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  changedBy User? @relation(fields: [changedById], references: [id], onDelete: SetNull)
+
+  @@index([subjectType, subjectId])
+  @@map("status_changes")
+}
+
+/// Who did what to which record, with the values before and after (docs/29, docs/28).
+model AuditLog {
+  id          Int      @id @default(autoincrement())
+  actorId     Int?     @map("actor_id")
+  /// e.g. `created`, `updated`, `status_changed`, `archived`, `unarchived`, `role_created`.
+  action      String   @db.VarChar(64)
+  subjectType String   @map("subject_type") @db.VarChar(64)
+  subjectId   Int?     @map("subject_id")
+  before      Json?
+  after       Json?
+  reason      String?  @db.VarChar(500)
+  ip          String?  @db.VarChar(45)
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  actor User? @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([subjectType, subjectId])
+  @@index([actorId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Typed key/value settings with defaults in code (port of Laravel `Settings::DEFAULTS`).
+model AppSetting {
+  key         String   @id @db.VarChar(100)
+  value       Json
+  updatedById Int?     @map("updated_by")
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("app_settings")
 }

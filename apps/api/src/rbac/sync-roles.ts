@@ -1,5 +1,5 @@
 import { allPermissions, permissionsFor, ROLES, SYSTEM_ROLES } from '@qarabic/shared';
-import type { PrismaClient } from '../generated/prisma/client.js';
+import type { Prisma, PrismaClient } from '../generated/prisma/client.js';
 
 /** Only staff presets are editable (docs/29 §1); owner = everything, portal roles follow the matrix. */
 export function isEditableKind(kind: string): boolean {
@@ -38,8 +38,9 @@ export async function syncRolesAndPermissions(prisma: PrismaClient): Promise<voi
   }
 }
 
+/** Replaces a role's permissions (pass a transaction client to make it part of a bigger write). */
 export async function setRolePermissions(
-  prisma: PrismaClient,
+  prisma: PrismaClient | Prisma.TransactionClient,
   roleId: number,
   names: readonly string[],
   ids?: Map<string, number>,
@@ -57,11 +58,12 @@ export async function setRolePermissions(
     if (id === undefined) throw new Error(`Unknown permission ${n}`);
     return id;
   });
-  await prisma.$transaction([
-    prisma.rolePermission.deleteMany({ where: { roleId, permissionId: { notIn: wanted } } }),
-    prisma.rolePermission.createMany({
-      data: wanted.map((permissionId) => ({ roleId, permissionId })),
-      skipDuplicates: true,
-    }),
-  ]);
+  const remove = { where: { roleId, permissionId: { notIn: wanted } } };
+  const add = {
+    data: wanted.map((permissionId) => ({ roleId, permissionId })),
+    skipDuplicates: true,
+  };
+  // Removal first: a crash in between can only leave a role with fewer permissions, never more.
+  await prisma.rolePermission.deleteMany(remove);
+  await prisma.rolePermission.createMany(add);
 }

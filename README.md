@@ -37,7 +37,7 @@ createdb -h localhost -p 5433 -U postgres qarabic_test
 
 cp apps/api/.env.example apps/api/.env      # then edit
 pnpm --filter @qarabic/api db:migrate       # prisma migrate dev
-pnpm --filter @qarabic/api db:seed          # roles + permissions (+ dev admin from SEED_ADMIN_*)
+pnpm --filter @qarabic/api db:seed          # roles, permissions, courses (+ dev admin, fake demo people)
 pnpm --filter @qarabic/api dev              # http://localhost:3001/api/v1/health
 pnpm --filter @qarabic/api test:e2e         # against TEST_DATABASE_URL (must end in _test)
 ```
