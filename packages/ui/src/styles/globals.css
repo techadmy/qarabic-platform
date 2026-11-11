@@ -49,73 +49,78 @@
   --font-sans: var(--font-sans);
 }
 
+/*
+ * Qarabic brand tokens (from the current app's theme/tokens.ts, docs/15 §8.2) mapped onto the
+ * shadcn variables: brand maroon primary, warm-grey canvas, white surfaces, 1px warm hairlines,
+ * blue focus ring, brand-soft active nav item. Card radius ≈ 10px (radius-xl), controls ≈ 7px.
+ */
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.346 0.105 23);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.455 0.01 44.8);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #f3f2f1; /* canvas */
+  --foreground: #1f1c1b; /* ink */
+  --card: #ffffff; /* surface */
+  --card-foreground: #1f1c1b;
+  --popover: #ffffff;
+  --popover-foreground: #1f1c1b;
+  --primary: #651c1e; /* brand */
+  --primary-foreground: #ffffff;
+  --secondary: #efedeb;
+  --secondary-foreground: #1f1c1b;
+  --muted: #efedeb;
+  --muted-foreground: #5c5552; /* ink3, 7:1 */
+  --accent: #f6e9e9; /* brand-soft */
+  --accent-foreground: #4e1517; /* brand hover */
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.346 0.105 23 / 60%);
+  --border: #e4e1de; /* line */
+  --input: #e4e1de;
+  --ring: #2f6fde; /* focus */
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --radius: 0.5rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.346 0.105 23);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.346 0.105 23 / 60%);
+  --radius: 0.4375rem;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #1f1c1b;
+  --sidebar-primary: #651c1e;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f6e9e9; /* active nav item */
+  --sidebar-accent-foreground: #651c1e;
+  --sidebar-border: #e4e1de;
+  --sidebar-ring: #2f6fde;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.76 0.07 22);
-  --primary-foreground: oklch(0.229 0.04 23);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
+  --background: #161413;
+  --foreground: #f3f2f1;
+  --card: #1f1c1b;
+  --card-foreground: #f3f2f1;
+  --popover: #1f1c1b;
+  --popover-foreground: #f3f2f1;
+  --primary: #d9a3a4; /* brand, lightened for dark backgrounds */
+  --primary-foreground: #2a0d0e;
+  --secondary: #2c2827;
+  --secondary-foreground: #f3f2f1;
+  --muted: #2c2827;
+  --muted-foreground: #b5aeab;
+  --accent: #3a2223;
+  --accent-foreground: #f6e9e9;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.76 0.07 22 / 60%);
+  --border: rgb(255 255 255 / 10%);
+  --input: rgb(255 255 255 / 15%);
+  --ring: #6b9cf0;
   --chart-1: oklch(0.87 0 0);
   --chart-2: oklch(0.556 0 0);
   --chart-3: oklch(0.439 0 0);
   --chart-4: oklch(0.371 0 0);
   --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.76 0.07 22);
-  --sidebar-primary-foreground: oklch(0.229 0.04 23);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.76 0.07 22 / 60%);
+  --sidebar: #1f1c1b;
+  --sidebar-foreground: #f3f2f1;
+  --sidebar-primary: #d9a3a4;
+  --sidebar-primary-foreground: #2a0d0e;
+  --sidebar-accent: #3a2223;
+  --sidebar-accent-foreground: #f6e9e9;
+  --sidebar-border: rgb(255 255 255 / 10%);
+  --sidebar-ring: #6b9cf0;
 }
 
 /*

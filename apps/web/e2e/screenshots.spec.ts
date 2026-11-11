@@ -40,6 +40,10 @@ for (const scheme of ['light', 'dark'] as const) {
         await page.getByRole('button', { name: 'حسابي' }).click();
         await expect(page.getByRole('menu')).toBeVisible();
         await shot(page, `user-menu-${size}-${scheme}`);
+        await page.keyboard.press('Escape');
+        await page.getByRole('button', { name: 'إظهار القائمة الجانبية أو إخفاؤها' }).click();
+        await expect(page.locator('[data-collapsible="icon"]')).toBeAttached();
+        await shot(page, `sidebar-collapsed-${size}-${scheme}`);
       }
     });
   }
