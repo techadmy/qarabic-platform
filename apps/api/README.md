@@ -235,7 +235,7 @@ on one they see answers 403. `ANY` = any of `feedback.view|request|review|manage
 | GET        | `/support/mine`                  | any of `feedback.request`, `session_requests.request` | «طلباتي»: my tickets + my class requests (a parent: also those on their children), open first; `meta.open`                                                                                  |
 | GET · PUT  | `/settings/support`              | `settings.view` · `settings.manage`                   | `support.queue_by_category`, `support.queue_members`, `support.restricted_queues`, `support.sla_hours`, `support.working_hours`; unknown key = 422 on it                                    |
 | GET · POST | `/webhooks/whatsapp`             | public (signed)                                       | 404 while `FEEDBACK_WHATSAPP_ENABLED=false` (default); GET = verify token; POST = `X-Hub-Signature-256` HMAC of the raw body (401)                                                          |
-| GET        | `/parent/home`                   | `families.view`, parent only (else 403)               | `ParentHomeDto`: family, children (teacher, next class), next 7 days of classes, counters; `recentReports: null` until N3                                                                   |
+| GET        | `/parent/home`                   | `families.view`, parent only (else 403)               | `ParentHomeDto`: family, children (teacher, next class), next 7 days of classes, counters; `recentReports`: last 3 lesson reports per child (no internal note; rating per B30)              |
 
 Lifecycle (docs/22 §3, D97): `new → triaged | in_progress | needs_info | wont_fix`, `triaged →
 in_progress | needs_info | fixed | wont_fix`, `in_progress → triaged | needs_info | fixed |

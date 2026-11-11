@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { SettingsService } from '../src/settings/settings.service.js';
 import {
   clock,
   createTestApp,
@@ -18,9 +19,45 @@ import { fbTicket } from './n4-helpers.js';
 /*
  * Port of Laravel tests/Feature/M4/ParentPortalTest.php (D138): a parent sees and acts on their
  * own children only, server-side; every cross-family attempt answers 404 (never confirms the other
- * child exists). Plus the new `GET /parent/home`. The lesson-report cases (progress, internal
- * notes) wait for N3; the phone case is covered by me.e2e-spec.
+ * child exists). Plus the new `GET /parent/home` with its recent lesson reports (N3). The phone
+ * case is covered by me.e2e-spec.
  */
+
+/** A submitted lesson report on a class (as the N3 report service stores it). */
+async function report(
+  sessionId: number,
+  studentId: number,
+  o: { summary?: string; teacherNotes?: string; rating?: number } = {},
+) {
+  return ctx.prisma.lessonReport.create({
+    data: {
+      sessionId,
+      studentId,
+      teacherId: teacher.id,
+      summary: o.summary ?? 'Read Al-Fatiha well',
+      homework: 'Revise',
+      teacherNotes: o.teacherNotes ?? 'INTERNAL: talk to the monitor',
+      rating: o.rating ?? 4,
+      dueAt: new Date('2026-11-11T16:00:00Z'),
+      submittedAt: new Date('2026-11-10T09:00:00Z'),
+      hifz: {
+        create: [
+          {
+            studentId,
+            sessionId,
+            type: 'sabaq',
+            fromSurah: 1,
+            fromAyah: 1,
+            toSurah: 1,
+            toAyah: 7,
+            ayahs: 7,
+            lessonAt: new Date('2026-11-09T16:00:00Z'),
+          },
+        ],
+      },
+    },
+  });
+}
 
 let ctx: TestContext;
 
@@ -69,8 +106,10 @@ describe('parent portal scope (ParentPortalTest)', () => {
     expect((await parent.get(`/sessions?studentId=${otherChild.id}`)).body.data).toEqual([]);
   });
 
-  it("returns 404 for another family's class, meeting link, student and family records", async () => {
+  it("returns 404 for another family's class, meeting link, progress, student and family records", async () => {
     expect((await parent.get(`/sessions/${theirs.id}`)).status).toBe(404);
+    expect((await parent.get(`/students/${otherChild.id}/progress`)).status).toBe(404);
+    expect((await parent.get(`/students/${child.id}/progress`)).status).toBe(200);
     expect((await parent.get(`/sessions/${theirs.id}/zoom/join`)).status).toBe(404);
     expect((await parent.get(`/students/${otherChild.id}`)).status).toBe(404);
     expect((await parent.get(`/families/${otherFamily.id}`)).status).toBe(404);
@@ -150,13 +189,33 @@ describe('parent portal scope (ParentPortalTest)', () => {
     expect(cancelled.body.data.status).toBe('cancelled');
   });
 
-  it('cannot run or move a class', async () => {
+  it('cannot run, mark or report a class', async () => {
     expect(
       (await parent.post(`/sessions/${mine.id}/transitions`, { action: 'activate' })).status,
     ).toBe(403);
+    expect((await parent.put(`/sessions/${mine.id}/report`, { summary: 'x' })).status).toBe(403);
     expect(
       (await parent.patch(`/sessions/${mine.id}`, { startsAt: '2026-11-10T18:00:00Z' })).status,
     ).toBe(403);
+  });
+
+  it("shows the lesson report read-only, without the teacher's internal notes", async () => {
+    await ctx.prisma.classSession.update({
+      where: { id: mine.id },
+      data: {
+        startsAt: new Date('2026-11-09T16:00:00Z'),
+        endsAt: new Date('2026-11-09T17:00:00Z'),
+        stage: 'taken',
+      },
+    });
+    await report(mine.id, child.id);
+    const progress = JSON.stringify((await parent.get(`/students/${child.id}/progress`)).body);
+    expect(progress).toContain('Read Al-Fatiha well');
+    expect(progress).not.toContain('INTERNAL');
+    const detail = await parent.get(`/sessions/${mine.id}`);
+    expect(detail.status).toBe(200);
+    expect(JSON.stringify(detail.body)).not.toContain('INTERNAL');
+    expect(JSON.stringify((await parent.get('/parent/home')).body)).not.toContain('INTERNAL');
   });
 });
 
@@ -203,7 +262,61 @@ describe('GET /parent/home', () => {
     expect(data.upcomingClasses.map((s: { id: number }) => s.id)).toEqual([mine.id, tomorrow.id]);
     expect(JSON.stringify(data)).not.toContain('Other');
     expect(data.requests).toEqual({ pendingClassRequests: 1, openTickets: 1, ticketUpdates: 1 });
-    expect(data.recentReports).toBeNull();
+    expect(data.recentReports).toEqual([]);
+  });
+
+  it('lists the latest lesson reports of each child, parent-safe, newest first', async () => {
+    const enrollment = await ctx.prisma.enrollment.findFirstOrThrow({
+      where: { studentId: child.id },
+    });
+    const past = [];
+    for (const day of ['05', '06', '07', '08']) {
+      past.push(await m2Session(ctx, enrollment, `2026-11-${day}T16:00:00Z`, { stage: 'taken' }));
+    }
+    for (const [i, s] of past.entries()) await report(s.id, child.id, { summary: `Lesson ${i}` });
+    const sibling = await m2Student(ctx, 'Europe/London', family, 'Yusuf');
+    const siblingClass = await m2Session(
+      ctx,
+      await m2Enrollment(ctx, sibling, teacher),
+      '2026-11-07T18:00:00Z',
+      { stage: 'taken' },
+    );
+    await report(siblingClass.id, sibling.id, { summary: 'Yusuf lesson' });
+    const strangerClass = await m2Session(
+      ctx,
+      await ctx.prisma.enrollment.findFirstOrThrow({ where: { studentId: otherChild.id } }),
+      '2026-11-08T17:00:00Z',
+      { stage: 'taken' },
+    );
+    await report(strangerClass.id, otherChild.id, { summary: 'Other lesson' });
+
+    const res = await parent.get('/parent/home');
+    const reports = res.body.data.recentReports as Array<Record<string, unknown>>;
+    // Three per child at most, newest class first; never another family's.
+    expect(reports.map((r) => r.summary)).toEqual([
+      'Lesson 3',
+      'Yusuf lesson',
+      'Lesson 2',
+      'Lesson 1',
+    ]);
+    expect(reports[0]).toMatchObject({
+      sessionId: past[3]!.id,
+      student: { id: child.id, name: 'Maryam' },
+      startsAt: '2026-11-08T16:00:00Z',
+      teacher: { id: teacher.id },
+      homework: 'Revise',
+      rating: 4,
+      hifz: [{ type: 'sabaq', from: { surah: 1, ayah: 1 }, to: { surah: 1, ayah: 7 } }],
+    });
+    for (const r of reports) {
+      expect(r).not.toHaveProperty('teacherNotes');
+      expect(r).not.toHaveProperty('late');
+    }
+
+    // B30 off: the parent no longer sees the rating.
+    await ctx.app.get(SettingsService).set('reports.parent_sees_rating', false, null);
+    const off = await parent.get('/parent/home');
+    expect(off.body.data.recentReports[0]).not.toHaveProperty('rating');
   });
 
   it('is for parents only', async () => {

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import {
+  allPermissions,
   TICKET_CATEGORIES,
   TICKET_QUEUES,
   type TicketCategory,
@@ -163,18 +164,17 @@ export class SupportContext {
   }
 
   async viewer(user: AuthUser, config?: SupportConfig): Promise<SupportViewer> {
-    const teacher = await this.prisma.teacher.findUnique({
-      where: { userId: user.id },
-      select: { id: true },
-    });
-    return { user, teacherId: teacher?.id ?? null, config: config ?? (await this.config()) };
+    return { user, teacherId: user.teacherId, config: config ?? (await this.config()) };
   }
 
   /** Another user as the services see them (role + permissions), or null. */
   async loadUser(id: number): Promise<(AuthUser & { isActive: boolean }) | null> {
     const row = await this.prisma.user.findUnique({
       where: { id },
-      include: { role: { include: { permissions: { include: { permission: true } } } } },
+      include: {
+        role: { include: { permissions: { include: { permission: true } } } },
+        teacher: { select: { id: true } },
+      },
     });
     if (!row) return null;
     return {
@@ -194,7 +194,12 @@ export class SupportContext {
             labelEn: row.role.labelEn,
           }
         : null,
-      permissions: new Set(row.role?.permissions.map((p) => p.permission.name) ?? []),
+      permissions: new Set(
+        row.role?.kind === 'owner'
+          ? allPermissions()
+          : (row.role?.permissions.map((p) => p.permission.name) ?? []),
+      ),
+      teacherId: row.teacher?.id ?? null,
     };
   }
 }

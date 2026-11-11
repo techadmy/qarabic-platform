@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { courseRefSchema } from './people.js';
+import { progressTimelineItemSchema } from './progress.js';
 import { sessionSchema } from './sessions.js';
 
 /**
@@ -28,6 +29,19 @@ export const parentHomeChildSchema = z.object({
 });
 export type ParentHomeChildDto = z.infer<typeof parentHomeChildSchema>;
 
+/**
+ * A lesson report as the parent reads it on the home screen (N3 report, parent-safe): never the
+ * teacher's internal note or the late flag; `rating` only when `reports.parent_sees_rating` is on.
+ */
+export const parentHomeReportSchema = progressTimelineItemSchema
+  .omit({ teacherNotes: true, late: true })
+  .extend({ student: z.object({ id: z.number().int(), name: z.string() }) })
+  .strict();
+export type ParentHomeReportDto = z.infer<typeof parentHomeReportSchema>;
+
+/** How many recent reports per child the home shows. */
+export const PARENT_HOME_REPORTS_PER_CHILD = 3;
+
 export const parentHomeSchema = z.object({
   family: z.object({
     id: z.number().int(),
@@ -46,9 +60,9 @@ export const parentHomeSchema = z.object({
     ticketUpdates: z.number().int(),
   }),
   /**
-   * Latest lesson reports per child. `null` until N3 (lesson reports) is merged, then filled
-   * without the teacher's internal notes.
+   * The latest lesson reports of each child (at most `PARENT_HOME_REPORTS_PER_CHILD` each), newest
+   * class first, parent-safe (see `parentHomeReportSchema`).
    */
-  recentReports: z.null(),
+  recentReports: z.array(parentHomeReportSchema),
 });
 export type ParentHomeDto = z.infer<typeof parentHomeSchema>;
