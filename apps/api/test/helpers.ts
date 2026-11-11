@@ -7,6 +7,10 @@ import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PasswordsService } from '../src/auth/passwords.service.js';
 import { RateLimiterService } from '../src/auth/rate-limiter.service.js';
+import type { AuthUser } from '../src/auth/auth.types.js';
+import { Clock } from '../src/common/clock.js';
+import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
+import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
 import { MemoryMailer } from '../src/mail/mailer.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
@@ -45,6 +49,8 @@ export async function resetState(ctx: TestContext): Promise<void> {
   await syncRolesAndPermissions(ctx.prisma);
   ctx.limiter.reset();
   ctx.mailer.clear();
+  ctx.app.get(Clock).set(null);
+  ctx.app.get(ZoomDriver).use(new NoneZoomClient());
 }
 
 let seq = 0;
@@ -273,3 +279,169 @@ export async function makeCustomRole(ctx: TestContext, permissions: string[], la
 
 export const roleId = async (ctx: TestContext, name: string) =>
   (await ctx.prisma.role.findUniqueOrThrow({ where: { name } })).id;
+
+// ------------------------------------------------------------------ N2 factories (Laravel m2* helpers)
+
+/** The app clock (Laravel `Carbon::setTestNow`). Reset it in `beforeEach`. */
+export const clock = (ctx: TestContext) => ctx.app.get(Clock);
+
+/** A signed-in user as the services see it (role + permissions), for direct service calls. */
+export async function authUser(ctx: TestContext, user: { id: number }): Promise<AuthUser> {
+  const row = await ctx.prisma.user.findUniqueOrThrow({
+    where: { id: user.id },
+    include: { role: { include: { permissions: { include: { permission: true } } } } },
+  });
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    locale: row.locale,
+    timezone: row.timezone,
+    phone: row.phone,
+    role: row.role
+      ? {
+          id: row.role.id,
+          name: row.role.name,
+          kind: row.role.kind,
+          labelAr: row.role.labelAr,
+          labelEn: row.role.labelEn,
+        }
+      : null,
+    permissions: new Set(row.role?.permissions.map((p) => p.permission.name) ?? []),
+  };
+}
+
+/** A teacher in `zone` (Laravel `m2Teacher`). */
+export const m2Teacher = (ctx: TestContext, zone = 'Africa/Cairo', firstName?: string) =>
+  makeTeacher(ctx, { timezone: zone, ...(firstName ? { firstName } : {}) });
+
+/** A student of a (new) family in `zone`, with a regular course (Laravel `m2Student`). */
+export async function m2Student(
+  ctx: TestContext,
+  zone = 'Europe/London',
+  family?: { id: number },
+  name?: string,
+) {
+  const fam = family ?? (await makeFamily(ctx, { timezone: zone }));
+  const course = await makeCourse(ctx);
+  const student = await makeStudent(ctx, fam, null, name ? { name } : {});
+  return ctx.prisma.student.update({
+    where: { id: student.id },
+    data: { regularCourseId: course.id },
+    include: { family: { include: { user: true } } },
+  });
+}
+
+export async function m2Enrollment(
+  ctx: TestContext,
+  student: { id: number; regularCourseId: number | null; family: { timezone: string } },
+  teacher: { id: number },
+  overrides: {
+    status?: 'active' | 'paused' | 'ended';
+    pausedReason?: string;
+    startsOn?: string;
+    endsOn?: string | null;
+    timezone?: string;
+    courseId?: number;
+    meetingMode?: 'zoom' | 'external';
+    externalMeetingUrl?: string | null;
+    kind?: 'regular' | 'trial';
+  } = {},
+) {
+  return ctx.prisma.enrollment.create({
+    data: {
+      studentId: student.id,
+      courseId: overrides.courseId ?? student.regularCourseId ?? (await makeCourse(ctx)).id,
+      teacherId: teacher.id,
+      kind: overrides.kind ?? 'regular',
+      status: overrides.status ?? 'active',
+      pausedReason: overrides.pausedReason ?? null,
+      startsOn: new Date(`${overrides.startsOn ?? '2026-01-01'}T00:00:00Z`),
+      endsOn: overrides.endsOn ? new Date(`${overrides.endsOn}T00:00:00Z`) : null,
+      sessionMinutes: 30,
+      timezone: overrides.timezone ?? student.family.timezone,
+      meetingMode: overrides.meetingMode ?? 'zoom',
+      externalMeetingUrl: overrides.externalMeetingUrl ?? null,
+    },
+  });
+}
+
+export function m2Slot(
+  ctx: TestContext,
+  enrollment: { id: number; teacherId: number; timezone: string },
+  weekday: number,
+  time: string,
+  overrides: { validFrom?: string; validTo?: string | null; durationMinutes?: number } = {},
+) {
+  return ctx.prisma.scheduleSlot.create({
+    data: {
+      enrollmentId: enrollment.id,
+      teacherId: enrollment.teacherId,
+      weekday,
+      localStartTime: time,
+      durationMinutes: overrides.durationMinutes ?? 30,
+      timezone: enrollment.timezone,
+      validFrom: new Date(`${overrides.validFrom ?? '2026-01-01'}T00:00:00Z`),
+      validTo: overrides.validTo ? new Date(`${overrides.validTo}T00:00:00Z`) : null,
+    },
+  });
+}
+
+export function m2Session(
+  ctx: TestContext,
+  enrollment: { id: number; studentId: number; teacherId: number; courseId: number },
+  startsAtUtc: string,
+  overrides: Partial<{
+    stage: SessionStage;
+    stageReason: string | null;
+    kind: SessionKind;
+    activatedAt: string | null;
+    endedAt: string | null;
+    durationMinutes: number;
+    scheduleSlotId: number;
+    occurrenceDate: string;
+    source: 'generated' | 'manual' | 'request';
+    zoomStatus: ZoomStatus;
+    zoomJoinUrl: string | null;
+    needsReview: boolean;
+    isDetached: boolean;
+    courseId: number | null;
+  }> = {},
+) {
+  const starts = new Date(startsAtUtc);
+  const minutes = overrides.durationMinutes ?? 30;
+  return ctx.prisma.classSession.create({
+    data: {
+      enrollmentId: enrollment.id,
+      studentId: enrollment.studentId,
+      teacherId: enrollment.teacherId,
+      courseId: overrides.courseId === undefined ? enrollment.courseId : overrides.courseId,
+      startsAt: starts,
+      endsAt: new Date(starts.getTime() + minutes * 60_000),
+      durationMinutes: minutes,
+      kind: overrides.kind ?? 'regular',
+      stage: overrides.stage ?? 'scheduled',
+      stageReason: overrides.stageReason ?? null,
+      source: overrides.source ?? 'manual',
+      activatedAt: overrides.activatedAt ? new Date(overrides.activatedAt) : null,
+      endedAt: overrides.endedAt ? new Date(overrides.endedAt) : null,
+      scheduleSlotId: overrides.scheduleSlotId ?? null,
+      occurrenceDate: overrides.occurrenceDate
+        ? new Date(`${overrides.occurrenceDate}T00:00:00Z`)
+        : null,
+      zoomStatus: overrides.zoomStatus ?? 'none',
+      zoomJoinUrl: overrides.zoomJoinUrl ?? null,
+      needsReview: overrides.needsReview ?? false,
+      isDetached: overrides.isDetached ?? false,
+      updatedAt: clock(ctx).now(),
+      createdAt: clock(ctx).now(),
+    },
+  });
+}
+
+/** Swaps the Zoom driver (Laravel `config(['services.zoom.driver' => …])`). */
+export function zoomDriver(ctx: TestContext, driver: 'none' | 'fake'): FakeZoomClient | null {
+  const client = driver === 'fake' ? new FakeZoomClient() : new NoneZoomClient();
+  ctx.app.get(ZoomDriver).use(client);
+  return client instanceof FakeZoomClient ? client : null;
+}

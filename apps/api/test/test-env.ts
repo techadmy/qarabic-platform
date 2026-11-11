@@ -19,6 +19,9 @@ export function applyTestEnv(): void {
     WEB_ORIGIN: 'http://localhost:3000',
     APP_URL: 'http://localhost:3000',
     SESSION_SECRET: 'test-only-secret-0123456789abcdef0123456789',
+    // No timers in tests: jobs are called directly. Zoom tests swap in the fake driver.
+    SCHEDULER_ENABLED: 'false',
+    ZOOM_DRIVER: 'none',
   });
   delete process.env.COOKIE_DOMAIN;
 }

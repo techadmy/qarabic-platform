@@ -64,6 +64,7 @@ enum PersonType {
   student
   teacher
   staff
+  enrollment
 }
 
 model User {
@@ -96,18 +97,23 @@ model User {
   family              Family?              @relation("FamilyParent")
   teacher             Teacher?             @relation("TeacherUser")
 
-  usersStatusChanged    User[]         @relation("UserStatusChangedBy")
-  usersArchived         User[]         @relation("UserArchivedBy")
-  managedFamilies       Family[]       @relation("FamilyManager")
-  familiesStatusChanged Family[]       @relation("FamilyStatusChangedBy")
-  familiesArchived      Family[]       @relation("FamilyArchivedBy")
-  studentsStatusChanged Student[]      @relation("StudentStatusChangedBy")
-  studentsArchived      Student[]      @relation("StudentArchivedBy")
-  teachersStatusChanged Teacher[]      @relation("TeacherStatusChangedBy")
-  teachersArchived      Teacher[]      @relation("TeacherArchivedBy")
+  usersStatusChanged    User[]           @relation("UserStatusChangedBy")
+  usersArchived         User[]           @relation("UserArchivedBy")
+  managedFamilies       Family[]         @relation("FamilyManager")
+  familiesStatusChanged Family[]         @relation("FamilyStatusChangedBy")
+  familiesArchived      Family[]         @relation("FamilyArchivedBy")
+  studentsStatusChanged Student[]        @relation("StudentStatusChangedBy")
+  studentsArchived      Student[]        @relation("StudentArchivedBy")
+  teachersStatusChanged Teacher[]        @relation("TeacherStatusChangedBy")
+  teachersArchived      Teacher[]        @relation("TeacherArchivedBy")
   statusChanges         StatusChange[]
   auditLogs             AuditLog[]
   settingsUpdated       AppSetting[]
+  enrollmentsCreated    Enrollment[]     @relation("EnrollmentCreatedBy")
+  sessionEvents         SessionEvent[]
+  sessionsMarked        ClassSession[]   @relation("SessionMarkedBy")
+  sessionRequests       SessionRequest[] @relation("SessionRequestRequester")
+  sessionDecisions      SessionRequest[] @relation("SessionRequestDecider")
 
   @@index([roleId])
   @@index([archivedAt])
@@ -200,6 +206,8 @@ model Course {
   regularStudents    Student[]       @relation("StudentRegularCourse")
   additionalStudents Student[]       @relation("StudentAdditionalCourse")
   teachers           TeacherCourse[]
+  enrollments        Enrollment[]
+  sessions           ClassSession[]
 
   @@map("courses")
 }
@@ -266,12 +274,15 @@ model Student {
   createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  family           Family   @relation(fields: [familyId], references: [id], onDelete: Restrict)
-  regularCourse    Course?  @relation("StudentRegularCourse", fields: [regularCourseId], references: [id], onDelete: SetNull)
-  additionalCourse Course?  @relation("StudentAdditionalCourse", fields: [additionalCourseId], references: [id], onDelete: SetNull)
-  teacher          Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  statusChangedBy  User?    @relation("StudentStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
-  archivedBy       User?    @relation("StudentArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  family           Family           @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  regularCourse    Course?          @relation("StudentRegularCourse", fields: [regularCourseId], references: [id], onDelete: SetNull)
+  additionalCourse Course?          @relation("StudentAdditionalCourse", fields: [additionalCourseId], references: [id], onDelete: SetNull)
+  teacher          Teacher?         @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  statusChangedBy  User?            @relation("StudentStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy       User?            @relation("StudentArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  enrollments      Enrollment[]
+  sessions         ClassSession[]
+  sessionRequests  SessionRequest[]
 
   @@index([familyId])
   @@index([teacherId])
@@ -310,11 +321,17 @@ model Teacher {
   createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user            User            @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
-  statusChangedBy User?           @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
-  archivedBy      User?           @relation("TeacherArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  user            User              @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
+  statusChangedBy User?             @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy      User?             @relation("TeacherArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
   courses         TeacherCourse[]
   students        Student[]
+  enrollments     Enrollment[]
+  slots           ScheduleSlot[]
+  sessions        ClassSession[]
+  blocks          TeacherBlock[]
+  workHours       TeacherWorkHour[]
+  zoomHosts       ZoomHost[]
 
   @@index([status])
   @@index([archivedAt])
@@ -382,4 +399,349 @@ model AppSetting {
   updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: SetNull)
 
   @@map("app_settings")
+}
+
+// ====================================================================== N2: schedule and classes
+// Ported from the Laravel M2 module (docs/14, docs/04, docs/10). Times are UTC instants
+// (`timestamptz`); weekly slots keep the local wall time + IANA zone (D38) so DST is exact.
+
+enum EnrollmentStatus {
+  active
+  paused
+  ended
+}
+
+/// What a class is (docs/14 §3.1). Set at creation, never changes. Enrollments use regular / trial.
+enum SessionKind {
+  regular
+  trial
+  rescheduled
+  advance
+  extra
+}
+
+/// What happened to a class (docs/14 §3.1, docs/04 status codes).
+enum SessionStage {
+  scheduled
+  activated
+  in_progress
+  ended
+  taken
+  absent
+  declined
+  leave
+  cancelled
+  moved_out
+}
+
+enum SessionSource {
+  generated
+  manual
+  request
+  migrated
+}
+
+enum MeetingMode {
+  zoom
+  external
+}
+
+enum ZoomStatus {
+  none
+  pending
+  ready
+  failed
+  external
+  deleted
+}
+
+enum SessionRequestType {
+  leave
+  reschedule
+  advance
+  extra
+}
+
+enum SessionRequestStatus {
+  pending
+  approved
+  auto_approved
+  rejected
+  cancelled
+  expired
+}
+
+enum TeacherBlockKind {
+  recurring
+  one_off
+}
+
+/// One student studying one course with one teacher (docs/14 §2.2). At most one live (active or
+/// paused) enrollment per student and course: a partial unique index in the migration.
+model Enrollment {
+  id                 Int              @id @default(autoincrement())
+  studentId          Int              @map("student_id")
+  courseId           Int              @map("course_id")
+  teacherId          Int              @map("teacher_id")
+  kind               SessionKind      @default(regular)
+  status             EnrollmentStatus @default(active)
+  /// family_suspended | family_on_leave | admin (while paused).
+  pausedReason       String?          @map("paused_reason") @db.VarChar(32)
+  startsOn           DateTime         @map("starts_on") @db.Date
+  endsOn             DateTime?        @map("ends_on") @db.Date
+  sessionMinutes     Int              @default(30) @map("session_minutes") @db.SmallInt
+  /// The student's (family's) zone when the enrollment was made; new slots use it.
+  timezone           String           @db.VarChar(64)
+  meetingMode        MeetingMode      @default(zoom) @map("meeting_mode")
+  externalMeetingUrl String?          @map("external_meeting_url") @db.VarChar(500)
+  notes              String?
+  statusChangedAt    DateTime?        @map("status_changed_at") @db.Timestamptz(6)
+  createdById        Int?             @map("created_by")
+  createdAt          DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student   Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course    Course           @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  teacher   Teacher          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  createdBy User?            @relation("EnrollmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  slots     ScheduleSlot[]
+  sessions  ClassSession[]
+  requests  SessionRequest[]
+
+  @@index([studentId, status])
+  @@index([teacherId, status])
+  @@index([courseId])
+  @@map("enrollments")
+}
+
+/// A weekly recurring class: ISO weekday (1 = Monday) + local wall time in `timezone` (D38).
+/// Never edited in place: a change closes this row (`valid_to`) and opens a new one (docs/14 §2.3).
+model ScheduleSlot {
+  id              Int       @id @default(autoincrement())
+  enrollmentId    Int       @map("enrollment_id")
+  teacherId       Int       @map("teacher_id")
+  weekday         Int       @db.SmallInt
+  /// `HH:MM`, local wall time in `timezone`.
+  localStartTime  String    @map("local_start_time") @db.Char(5)
+  durationMinutes Int       @map("duration_minutes") @db.SmallInt
+  timezone        String    @db.VarChar(64)
+  validFrom       DateTime  @map("valid_from") @db.Date
+  validTo         DateTime? @map("valid_to") @db.Date
+  createdById     Int?      @map("created_by")
+  createdAt       DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  enrollment Enrollment     @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  teacher    Teacher        @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  sessions   ClassSession[]
+
+  @@index([teacherId, weekday])
+  @@index([enrollmentId, validTo])
+  @@map("schedule_slots")
+}
+
+/// Academy holidays: academy-local dates (`date` .. `ends_on`). Classes on them are cancelled.
+model Holiday {
+  id        Int       @id @default(autoincrement())
+  name      String    @db.VarChar(255)
+  date      DateTime  @db.Date
+  endsOn    DateTime? @map("ends_on") @db.Date
+  paid      Boolean   @default(true)
+  appliesTo String    @default("all") @map("applies_to") @db.VarChar(16)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([date])
+  @@map("holidays")
+}
+
+/// Recurring ("block schedule") or one-off teacher unavailability (docs/14 §2.7).
+model TeacherBlock {
+  id              Int              @id @default(autoincrement())
+  teacherId       Int              @map("teacher_id")
+  kind            TeacherBlockKind
+  /// break | other_job | leave | admin_hold | other
+  reason          String           @default("other") @db.VarChar(16)
+  weekday         Int?             @db.SmallInt
+  localStartTime  String?          @map("local_start_time") @db.Char(5)
+  durationMinutes Int?             @map("duration_minutes") @db.SmallInt
+  timezone        String?          @db.VarChar(64)
+  validFrom       DateTime?        @map("valid_from") @db.Date
+  validTo         DateTime?        @map("valid_to") @db.Date
+  startsAt        DateTime?        @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime?        @map("ends_at") @db.Timestamptz(6)
+  note            String?          @db.VarChar(500)
+  createdById     Int?             @map("created_by")
+  createdAt       DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, kind])
+  @@map("teacher_blocks")
+}
+
+/// The teacher's published weekly working hours (docs/14 §2.7). No rows = not set.
+model TeacherWorkHour {
+  id             Int      @id @default(autoincrement())
+  teacherId      Int      @map("teacher_id")
+  weekday        Int      @db.SmallInt
+  localStartTime String   @map("local_start_time") @db.Char(5)
+  localEndTime   String   @map("local_end_time") @db.Char(5)
+  timezone       String   @db.VarChar(64)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@index([teacherId, weekday])
+  @@map("teacher_work_hours")
+}
+
+/// A licensed Zoom user that may host class meetings (D43). No real Zoom calls until B7.
+model ZoomHost {
+  id         Int      @id @default(autoincrement())
+  zoomUserId String   @unique @map("zoom_user_id") @db.VarChar(64)
+  email      String   @db.VarChar(255)
+  label      String?  @db.VarChar(100)
+  /// A teacher's dedicated host; null = pool host.
+  teacherId  Int?     @map("teacher_id")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  teacher  Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  sessions ClassSession[]
+
+  @@map("zoom_hosts")
+}
+
+/// One class occurrence (D37, docs/14 §2.4). Time = `starts_at` + `duration_minutes` (UTC);
+/// state = `kind` + `stage`. The generator's key (schedule_slot_id, occurrence_date) is unique,
+/// soft-deleted rows included, so a removed class is never generated again.
+model ClassSession {
+  id              Int           @id @default(autoincrement())
+  enrollmentId    Int?          @map("enrollment_id")
+  scheduleSlotId  Int?          @map("schedule_slot_id")
+  /// The slot's local date (student zone) this row was generated for.
+  occurrenceDate  DateTime?     @map("occurrence_date") @db.Date
+  teacherId       Int           @map("teacher_id")
+  studentId       Int           @map("student_id")
+  courseId        Int?          @map("course_id")
+  startsAt        DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime      @map("ends_at") @db.Timestamptz(6)
+  durationMinutes Int           @map("duration_minutes") @db.SmallInt
+  kind            SessionKind   @default(regular)
+  stage           SessionStage  @default(scheduled)
+  /// leave: student | teacher; cancelled: holiday | family_suspended | …; moved_out: rescheduled | advanced.
+  stageReason     String?       @map("stage_reason") @db.VarChar(32)
+  originSessionId Int?          @map("origin_session_id")
+  source          SessionSource @default(manual)
+  /// Shifted by hand: the generator's re-sync leaves it alone.
+  isDetached      Boolean       @default(false) @map("is_detached")
+  activatedAt     DateTime?     @map("activated_at") @db.Timestamptz(6)
+  startedAt       DateTime?     @map("started_at") @db.Timestamptz(6)
+  endedAt         DateTime?     @map("ended_at") @db.Timestamptz(6)
+  markedAt        DateTime?     @map("marked_at") @db.Timestamptz(6)
+  markedById      Int?          @map("marked_by")
+  needsReview     Boolean       @default(false) @map("needs_review")
+  reviewReason    String?       @map("review_reason") @db.VarChar(32)
+  zoomStatus      ZoomStatus    @default(none) @map("zoom_status")
+  zoomMeetingId   String?       @map("zoom_meeting_id") @db.VarChar(32)
+  zoomHostId      Int?          @map("zoom_host_id")
+  /// Never sent in a class payload; only through `/zoom/join` inside its window.
+  zoomJoinUrl     String?       @map("zoom_join_url") @db.VarChar(500)
+  zoomError       String?       @map("zoom_error") @db.VarChar(255)
+  actualStartedAt DateTime?     @map("actual_started_at") @db.Timestamptz(6)
+  actualEndedAt   DateTime?     @map("actual_ended_at") @db.Timestamptz(6)
+  teacherJoinedAt DateTime?     @map("teacher_joined_at") @db.Timestamptz(6)
+  studentJoinedAt DateTime?     @map("student_joined_at") @db.Timestamptz(6)
+  /// Optimistic concurrency: +1 on every write (409 stale_session on a mismatch).
+  lockVersion     Int           @default(0) @map("lock_version")
+  createdById     Int?          @map("created_by")
+  deletedAt       DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  /// Written from the app clock on every change (the board's `since` cursor reads it).
+  updatedAt       DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  enrollment     Enrollment?      @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  slot           ScheduleSlot?    @relation(fields: [scheduleSlotId], references: [id], onDelete: SetNull)
+  teacher        Teacher          @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  student        Student          @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  course         Course?          @relation(fields: [courseId], references: [id], onDelete: SetNull)
+  origin         ClassSession?    @relation("SessionOrigin", fields: [originSessionId], references: [id], onDelete: SetNull)
+  derived        ClassSession[]   @relation("SessionOrigin")
+  markedBy       User?            @relation("SessionMarkedBy", fields: [markedById], references: [id], onDelete: SetNull)
+  zoomHost       ZoomHost?        @relation(fields: [zoomHostId], references: [id], onDelete: SetNull)
+  events         SessionEvent[]
+  requests       SessionRequest[] @relation("SessionRequestSession")
+  resultRequests SessionRequest[] @relation("SessionRequestResult")
+
+  @@unique([scheduleSlotId, occurrenceDate], map: "class_sessions_slot_occurrence_key")
+  @@index([startsAt])
+  @@index([teacherId, startsAt])
+  @@index([studentId, startsAt])
+  @@index([enrollmentId, startsAt])
+  @@index([stage, startsAt])
+  @@index([updatedAt, id])
+  @@index([zoomMeetingId])
+  @@map("class_sessions")
+}
+
+/// Append-only per-class timeline (docs/14 §2.5): a trigger refuses UPDATE and DELETE.
+model SessionEvent {
+  id          Int      @id @default(autoincrement())
+  sessionId   Int      @map("session_id")
+  /// generated | activated | marked | reverted | cancelled | moved_out | time_changed | teacher_changed | zoom_* | note …
+  type        String   @db.VarChar(32)
+  fromStage   String?  @map("from_stage") @db.VarChar(20)
+  toStage     String?  @map("to_stage") @db.VarChar(20)
+  actorUserId Int?     @map("actor_user_id")
+  actorRole   String?  @map("actor_role") @db.VarChar(100)
+  payload     Json?
+  occurredAt  DateTime @map("occurred_at") @db.Timestamptz(3)
+
+  session ClassSession @relation(fields: [sessionId], references: [id], onDelete: Restrict)
+  actor   User?        @relation(fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, occurredAt])
+  @@index([type, occurredAt])
+  @@map("session_events")
+}
+
+/// Leave / reschedule / advance / extra request (docs/14 §2.6, §3.4). At most one pending
+/// request of a type per class: a partial unique index in the migration.
+model SessionRequest {
+  id                      Int                  @id @default(autoincrement())
+  type                    SessionRequestType
+  sessionId               Int                  @map("session_id")
+  enrollmentId            Int?                 @map("enrollment_id")
+  studentId               Int                  @map("student_id")
+  requestedById           Int                  @map("requested_by")
+  requesterRole           String?              @map("requester_role") @db.VarChar(100)
+  reason                  String
+  notifiedAt              DateTime?            @map("notified_at") @db.Timestamptz(6)
+  proposedStartsAt        DateTime?            @map("proposed_starts_at") @db.Timestamptz(6)
+  proposedDurationMinutes Int?                 @map("proposed_duration_minutes") @db.SmallInt
+  proposedTeacherId       Int?                 @map("proposed_teacher_id")
+  status                  SessionRequestStatus @default(pending)
+  decidedById             Int?                 @map("decided_by")
+  decidedAt               DateTime?            @map("decided_at") @db.Timestamptz(6)
+  decisionNote            String?              @map("decision_note")
+  resultSessionId         Int?                 @map("result_session_id")
+  lockVersion             Int                  @default(0) @map("lock_version")
+  createdAt               DateTime             @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime             @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  session       ClassSession  @relation("SessionRequestSession", fields: [sessionId], references: [id], onDelete: Restrict)
+  resultSession ClassSession? @relation("SessionRequestResult", fields: [resultSessionId], references: [id], onDelete: SetNull)
+  enrollment    Enrollment?   @relation(fields: [enrollmentId], references: [id], onDelete: SetNull)
+  student       Student       @relation(fields: [studentId], references: [id], onDelete: Restrict)
+  requestedBy   User          @relation("SessionRequestRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy     User?         @relation("SessionRequestDecider", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([studentId, status])
+  @@index([sessionId])
+  @@index([requestedById])
+  @@map("session_requests")
 }

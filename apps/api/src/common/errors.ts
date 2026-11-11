@@ -28,7 +28,7 @@ export const RULE_MESSAGES = {
   family_archived: 'The family is deleted (archived). Restore the family first.',
   same_status: 'The record already has this status.',
   teacher_has_students:
-    'This teacher still has active students. Move them to another teacher first.',
+    'This teacher still has active students or enrollments. Move them to another teacher first.',
   cannot_archive_self: 'You cannot delete or deactivate your own account.',
   cannot_change_own_role: 'You cannot change your own role.',
   last_admin: 'This is the last active owner account.',

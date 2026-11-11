@@ -252,8 +252,8 @@ export class TeachersService {
   }
 
   /**
-   * Deactivation is refused while the teacher still has active students (old `deactivate-teacher`
-   * rule, D125; N2 switches the check to live enrollments). The login stays (payslips, history).
+   * Deactivation is refused while the teacher still has active students or live (active or
+   * paused) enrollments (old `deactivate-teacher` rule, D125). The login stays (payslips, history).
    */
   async changeStatus(
     id: number,
@@ -268,8 +268,16 @@ export class TeachersService {
       if (input.status === 'inactive') {
         // Locked, so a student cannot be given to this teacher between the check and the write.
         await tx.$queryRaw`SELECT id FROM "students" WHERE teacher_id = ${id} FOR UPDATE`;
+        await tx.$queryRaw`SELECT id FROM "enrollments" WHERE teacher_id = ${id} FOR UPDATE`;
         const active = await tx.student.count({ where: { teacherId: id, ...activeStudentsWhere } });
-        if (active > 0) throw conflict('teacher_has_students', { activeStudents: active });
+        // Laravel (N2) counts live enrollments (`teacher_has_enrollments`); the N1 code and its
+        // `activeStudents` stay, so both block and both counts are returned.
+        const liveEnrollments = await tx.enrollment.count({
+          where: { teacherId: id, status: { in: ['active', 'paused'] } },
+        });
+        if (active > 0 || liveEnrollments > 0) {
+          throw conflict('teacher_has_students', { activeStudents: active, liveEnrollments });
+        }
       }
       await tx.teacher.update({
         where: { id },

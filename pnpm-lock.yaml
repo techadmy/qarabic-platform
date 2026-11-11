@@ -29,6 +29,9 @@ importers:
       '@nestjs/platform-express':
         specifier: ^12.4.2
         version: 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2)(rxjs@7.8.2)
+      '@nestjs/schedule':
+        specifier: ^12.0.3
+        version: 12.0.3(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2)
       '@nestjs/swagger':
         specifier: ^12.1.1
         version: 12.1.1(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2)(reflect-metadata@0.2.2)(typescript@5.9.3)
@@ -50,6 +53,9 @@ importers:
       cookie-parser:
         specifier: ^1.4.7
         version: 1.4.7
+      cron:
+        specifier: 4.4.0
+        version: 4.4.0
       helmet:
         specifier: ^8.3.0
         version: 8.3.0
@@ -1182,6 +1188,13 @@ packages:
       '@nestjs/common': ^12.0.0
       '@nestjs/core': ^12.0.0
       rxjs: ^7.1.0
+
+  '@nestjs/schedule@12.0.3':
+    resolution: {integrity: sha512-7G0HMYKXirWFoD72zY6ieSwwwe+AruJgHDR4BJ0pg0FseA0iR2q+e1c1T0Sv10uHNXT2xiPAFFnPa0yO4lY5eQ==}
+    engines: {node: '>=20.19.0'}
+    peerDependencies:
+      '@nestjs/common': ^11.0.0 || ^12.0.0
+      '@nestjs/core': ^11.0.0 || ^12.0.0
 
   '@nestjs/swagger@12.1.1':
     resolution: {integrity: sha512-HD4iO7dN6cVFrRaWW7WdYbHkJv0Mr3lDqgIi/31iKBe0gV5bCLV6usWkzgTIXgLTCzd3eDI1cJWhsl5H04RLjQ==}
@@ -2871,6 +2884,9 @@ packages:
   '@types/lodash@4.17.27':
     resolution: {integrity: sha512-VenMRv/eKNrspX9v3H4dbmjsrnCOYdYBG3kxXKk3dG6X+urBGcj2Prww3xw1U5K4FV/mE4h5GbWd0szEKf+9ew==}
 
+  '@types/luxon@3.7.6':
+    resolution: {integrity: sha512-6KSjliQAXK8ZLgFQO4B7iE4Rpf/B3rItzCFuXezBY/XIAGxOdLd7vRNK9/StRPwiS/yJsVbB7HKpW46B8tcEuQ==}
+
   '@types/methods@1.1.4':
     resolution: {integrity: sha512-ymXWVrDiCxTBE3+RIrrP533E70eA+9qu7zdWoHuOmGujkYtzf4HQF96b8nwHLqhuf4ykX61IGRIB38CC6/sImQ==}
 
@@ -3535,6 +3551,10 @@ packages:
   cors@2.8.6:
     resolution: {integrity: sha512-tJtZBBHA6vjIAaF6EnIaq6laBBP9aq/Y3ouVJjEfoHbRBcHBAHYcMh/w8LDrk2PvIMMq8gmopa5D4V8RmbrxGw==}
     engines: {node: '>= 0.10'}
+
+  cron@4.4.0:
+    resolution: {integrity: sha512-fkdfq+b+AHI4cKdhZlppHveI/mgz2qpiYxcm+t5E5TsxX7QrLS1VE0+7GENEk9z0EeGPcpSciGv6ez24duWhwQ==}
+    engines: {node: '>=18.x'}
 
   cross-spawn@7.0.6:
     resolution: {integrity: sha512-uV2QOWP2nWzsy2aMp8aRibhi9dlzF5Hgh5SHaB9OiTGEyDTiJJyx0uy51QXdyWbtAHNua4XJzUKca3OzKUd3vA==}
@@ -4802,6 +4822,10 @@ packages:
     peerDependenciesMeta:
       '@types/react':
         optional: true
+
+  luxon@3.7.2:
+    resolution: {integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew==}
+    engines: {node: '>=12'}
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
@@ -7030,6 +7054,12 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
+  '@nestjs/schedule@12.0.3(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2)':
+    dependencies:
+      '@nestjs/common': 12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/core': 12.4.2(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/platform-express@12.4.2)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      cron: 4.4.0
+
   '@nestjs/swagger@12.1.1(@nestjs/common@12.4.2(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/core@12.4.2)(reflect-metadata@0.2.2)(typescript@5.9.3)':
     dependencies:
       '@microsoft/tsdoc': 0.17.1
@@ -8600,6 +8630,8 @@ snapshots:
 
   '@types/lodash@4.17.27': {}
 
+  '@types/luxon@3.7.6': {}
+
   '@types/methods@1.1.4': {}
 
   '@types/node@24.19.2':
@@ -9316,6 +9348,11 @@ snapshots:
       object-assign: 4.1.1
       vary: 1.1.2
 
+  cron@4.4.0:
+    dependencies:
+      '@types/luxon': 3.7.6
+      luxon: 3.7.2
+
   cross-spawn@7.0.6:
     dependencies:
       path-key: 3.1.1
@@ -9701,8 +9738,8 @@ snapshots:
       '@next/eslint-plugin-next': 16.4.6(eslint@9.39.5(jiti@2.7.0))
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-jsx-a11y: 6.10.2(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react: 7.37.5(eslint@9.39.5(jiti@2.7.0))
       eslint-plugin-react-hooks: 7.1.1(eslint@9.39.5(jiti@2.7.0))
@@ -9724,7 +9761,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@nolyfill/is-core-module': 1.0.39
       debug: 4.4.3
@@ -9735,21 +9772,21 @@ snapshots:
       tinyglobby: 0.2.17
       unrs-resolver: 1.13.0
     optionalDependencies:
-      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-plugin-import: 2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-module-utils@2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-module-utils@2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       debug: 3.2.7
     optionalDependencies:
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0)(eslint@9.39.5(jiti@2.7.0))
+      eslint-import-resolver-typescript: 3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
     transitivePeerDependencies:
       - supports-color
 
-  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0)):
+  eslint-plugin-import@2.32.0(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)):
     dependencies:
       '@rtsao/scc': 1.1.0
       array-includes: 3.2.0
@@ -9760,7 +9797,7 @@ snapshots:
       doctrine: 2.1.0
       eslint: 9.39.5(jiti@2.7.0)
       eslint-import-resolver-node: 0.3.10
-      eslint-module-utils: 2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1)(eslint@9.39.5(jiti@2.7.0))
+      eslint-module-utils: 2.14.0(eslint-import-resolver-node@0.3.10)(eslint-import-resolver-typescript@3.10.1(eslint-plugin-import@2.32.0(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0)))(eslint@9.39.5(jiti@2.7.0))
       hasown: 2.0.4
       is-core-module: 2.18.0
       is-glob: 4.0.3
@@ -10696,6 +10733,8 @@ snapshots:
       react: 19.3.1
     optionalDependencies:
       '@types/react': 19.3.0
+
+  luxon@3.7.2: {}
 
   lz-string@1.5.0: {}
 

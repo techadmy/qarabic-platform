@@ -21,6 +21,16 @@ export const envSchema = z
     COOKIE_DOMAIN: z.string().min(1).optional(),
     /** Express `trust proxy` (nginx in front): `loopback` by default. */
     TRUST_PROXY: z.string().default('loopback'),
+    /**
+     * Zoom meetings driver (docs/14 §7.1): `none` = no Zoom account yet (classes use the
+     * enrollment's fixed link), `fake` = deterministic local/CI driver. No real driver yet (B7).
+     */
+    ZOOM_DRIVER: z.enum(['none', 'fake']).default('none'),
+    /** Run the class generator and the other class jobs on a timer in this process (cron). */
+    SCHEDULER_ENABLED: z
+      .enum(['true', 'false', '1', '0'])
+      .default('true')
+      .transform((v) => v === 'true' || v === '1'),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
