@@ -67,7 +67,7 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
-      - run: pnpm --filter @qarabic/web exec playwright install --with-deps chromium
+      - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e
       - uses: actions/upload-artifact@v4
         if: failure()
