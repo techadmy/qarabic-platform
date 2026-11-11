@@ -79,6 +79,7 @@ export const GROUPS: Record<string, Module[]> = {
 type Entry = Permission | `${Module}.*`;
 
 /** Permissions of each role except admin (admin gets every permission). */
+// prettier-ignore
 export const ROLE_PERMISSIONS: Record<Exclude<Role, 'admin'>, Entry[]> = {
   senior_manager: [
     'leads.view', 'leads.manage', 'leads.assign', 'families.*', 'staff.*', 'courses.*', 'packages.*',
