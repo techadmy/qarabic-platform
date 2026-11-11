@@ -64,7 +64,10 @@ export function DatePicker({
           variant="outline"
           aria-label={label ? `${label}: ${formatDate(value, locale) ?? ''}` : undefined}
           aria-invalid={invalid}
-          className={cn('h-10 justify-start gap-2 font-normal md:text-[0.9375rem]', className)}
+          className={cn(
+            'h-10 justify-start gap-2 bg-card font-normal md:text-[0.9375rem]',
+            className,
+          )}
         >
           <CalendarIcon className="text-muted-foreground" />
           <span>{value ? formatDate(value, locale) : ''}</span>

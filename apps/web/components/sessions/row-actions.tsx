@@ -86,9 +86,9 @@ export function RowActions({
   const [shifting, setShifting] = useState(false);
   const allowed = session.allowedActions;
   const ownTeacher = can(me, 'sessions.conduct') && !can(me, 'sessions.manage');
-  const primaryActions = primary
-    ? (['activate', 'end'] as const).filter((a) => allowed.includes(a))
-    : [];
+  // «ابدأ الحصة» / «أنهِ الحصة» as buttons for the class's own teacher; staff use the menu.
+  const primaryActions =
+    primary && ownTeacher ? (['activate', 'end'] as const).filter((a) => allowed.includes(a)) : [];
   const menu = MENU_ORDER.filter(
     (a) => allowed.includes(a) && !(primaryActions as readonly string[]).includes(a),
   );

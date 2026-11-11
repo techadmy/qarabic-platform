@@ -420,6 +420,15 @@ function build(): ScheduleDb {
       new Date(s.startsAt),
     );
   });
+  // A class of the demo parent's child starts in 90 minutes: a leave asked now is too late for
+  // the automatic approval (2 h notice), so it waits for staff.
+  const soon = fresh.sessions.find(
+    (s) =>
+      s.stage === 'scheduled' &&
+      Date.parse(s.startsAt) > now + 4 * 3_600_000 &&
+      people.students.find((x) => x.id === s.studentId)?.familyId === 1,
+  );
+  if (soon) soon.startsAt = iso(minute + 90 * MIN);
   fresh.sessions.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id);
 
   // Outcomes of past and current classes (deterministic by id).

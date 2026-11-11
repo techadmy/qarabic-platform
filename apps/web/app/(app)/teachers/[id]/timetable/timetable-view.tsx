@@ -209,6 +209,8 @@ export function TimetableView({ id }: { id: number }) {
       </Card>
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <WorkHoursCard
+          // Saved hours come back from the server: start the editor again from them.
+          key={JSON.stringify(data.workHours)}
           teacherId={id}
           hours={data.workHours}
           timezone={data.teacher.timezone}

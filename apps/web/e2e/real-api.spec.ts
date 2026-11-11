@@ -94,3 +94,68 @@ test('real API: families list → open one → edit a field (saved in the databa
   await page.reload();
   await expect(page.getByText(zoom)).toBeVisible();
 });
+
+test('real API: Today board on real data → open a class', async ({ page }) => {
+  const admin = seedAdmin();
+  await page.goto('/today');
+  await expect(page).toHaveURL(/\/login\?next=%2Ftoday$/);
+  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
+  await page.locator('#password').fill(admin.password);
+  await page.getByRole('button', { name: 'دخول' }).click();
+  await expect(page).toHaveURL(/\/today$/);
+  await expect(page.getByRole('heading', { level: 1, name: 'حصص اليوم' })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'عدادات اليوم' })).toBeVisible();
+
+  // The seed's demo weekly times: find the next day with classes (at most a week ahead).
+  const rows = page.locator('tr[data-session-id]');
+  for (let i = 0; i < 7; i++) {
+    await expect(rows.first().or(page.getByText('لا توجد حصص في هذا اليوم'))).toBeVisible();
+    if (await rows.count()) break;
+    await page.getByRole('button', { name: 'اليوم التالي' }).click();
+  }
+  const row = rows.first();
+  await expect(row).toBeVisible();
+  const name = (await row.getByRole('button').first().textContent())!.trim();
+  await row.getByRole('button', { name }).first().click();
+  await expect(page).toHaveURL(/session=\d+/);
+  const sheet = page.getByRole('dialog', { name: 'تفاصيل الحصة' });
+  await expect(sheet.getByText(name).first()).toBeVisible();
+  await expect(sheet.getByText('سجل الحصة')).toBeVisible();
+  await expect(sheet.getByText('إثبات الحضور')).toBeVisible();
+});
+
+test('real API: the N2 pages load real data (the shared schemas parse every answer)', async ({
+  page,
+}) => {
+  const admin = seedAdmin();
+  await page.goto('/login?next=%2Fschedule');
+  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
+  await page.locator('#password').fill(admin.password);
+  await page.getByRole('button', { name: 'دخول' }).click();
+  await expect(page).toHaveURL(/\/schedule$/);
+  const table = page.getByRole('table', { name: 'الاشتراكات' });
+  await expect(table.locator('tbody tr').first()).toBeVisible();
+  await table.locator('tbody tr').first().getByRole('link').first().click();
+  await expect(page).toHaveURL(/\/schedule\/\d+$/);
+  await expect(page.getByRole('list', { name: 'المواعيد الأسبوعية' })).toBeVisible();
+  await page.getByRole('link', { name: 'جدول المعلم' }).click();
+  await expect(page).toHaveURL(/\/teachers\/\d+\/timetable$/);
+  await expect(page.getByRole('table', { name: 'المواعيد الأسبوعية' })).toBeVisible();
+  for (const [path, check] of [
+    [
+      '/requests',
+      page
+        .getByRole('list', { name: 'طلبات الحصص' })
+        .or(page.getByText('لا توجد طلبات قيد المراجعة')),
+    ],
+    [
+      '/holidays',
+      page.getByRole('table', { name: 'العطلات الرسمية' }).or(page.getByText(/لا توجد عطلات في/)),
+    ],
+    ['/settings/sessions', page.getByLabel('تُنشأ الحصص مسبقًا لمدة')],
+  ] as const) {
+    await page.goto(path);
+    await expect(check).toBeVisible();
+    await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
+  }
+});
