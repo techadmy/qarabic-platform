@@ -4,7 +4,6 @@ import type { Me } from '@qarabic/shared';
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
@@ -17,12 +16,13 @@ import type { ComponentProps } from 'react';
 import { BrandLogo, BrandMark } from '@/components/brand-logo';
 import { navItemsFor } from '@/lib/navigation';
 import { NavMain } from './nav-main';
-import { NavUser } from './nav-user';
 
 /**
- * `app-sidebar` of the shadcn `sidebar-07` block (collapses to icons). RTL: the sidebar sits on
- * the right and gets `dir`, as in shadcn's sidebar RTL notes. The block's team switcher becomes a
- * static brand item with the Qarabic logo (the mark when collapsed to icons), and its projects group is dropped.
+ * `app-sidebar` of the shadcn `sidebar-07` block (collapses to icons), styled like the current
+ * app's sidebar: white, full height, the logo in a 64px header row that lines up with the top bar.
+ * RTL: the sidebar sits on the right and gets `dir`, as in shadcn's sidebar RTL notes. The block's
+ * team switcher becomes the Qarabic logo (the mark when collapsed to icons); its projects group is
+ * dropped, and its user menu moved to the top bar (`UserMenu`), as in the current app.
  */
 export function AppSidebar({
   me,
@@ -39,13 +39,17 @@ export function AppSidebar({
       mobileDescription={tn('menuDescription')}
       {...props}
     >
-      <SidebarHeader>
+      <SidebarHeader className="h-16 shrink-0 justify-center border-b border-sidebar-border px-3 py-0 group-data-[collapsible=icon]:px-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              className="hover:bg-transparent active:bg-transparent"
+            >
               <Link href="/">
                 <span className="group-data-[collapsible=icon]:hidden">
-                  <BrandLogo className="w-36" />
+                  <BrandLogo className="w-33" />
                 </span>
                 {/* Icon rail: the square mark; on dark backgrounds it sits on a white tile. */}
                 <span className="hidden shrink-0 rounded-md group-data-[collapsible=icon]:block dark:bg-white">
@@ -59,9 +63,6 @@ export function AppSidebar({
       <SidebarContent>
         <NavMain items={navItemsFor(me)} tooltipSide={dir === 'rtl' ? 'left' : 'right'} />
       </SidebarContent>
-      <SidebarFooter>
-        <NavUser user={me} dir={dir} />
-      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );

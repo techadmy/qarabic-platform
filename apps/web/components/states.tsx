@@ -13,7 +13,7 @@ import { CircleAlertIcon, LockIcon, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 
-/** Empty, error and no-access states, all from the shadcn `Empty` component (docs/15 §5.8). */
+/** Empty, error and no-access states, all from the shadcn `Empty` component (docs/15 §5.8), on a white card with a hairline border like the current app's surfaces. */
 export function EmptyState({
   icon: Icon,
   title,
@@ -28,7 +28,7 @@ export function EmptyState({
   role?: 'alert' | 'status';
 }) {
   return (
-    <Empty className="border border-dashed" role={role}>
+    <Empty className="border border-solid bg-card" role={role}>
       <EmptyHeader>
         <EmptyMedia variant="icon">
           <Icon />

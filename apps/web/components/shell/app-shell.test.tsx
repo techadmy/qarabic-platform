@@ -32,7 +32,9 @@ describe('AppShell', () => {
     const menu = await sidebarMenu();
     expect(menu.getByRole('link', { name: 'الرئيسية' })).toBeInTheDocument();
     expect(menu.getByRole('link', { name: 'الأدوار والصلاحيات' })).toBeInTheDocument();
-    expect(screen.getByText('مدير النظام')).toBeInTheDocument();
+    // Account menu in the top bar (current app layout): the avatar shows the name's first letter.
+    expect(screen.getByRole('button', { name: 'حسابي' })).toHaveTextContent('م');
+    expect(screen.getByRole('button', { name: 'Switch to English' })).toBeInTheDocument();
   });
 
   it('hides «الأدوار والصلاحيات» without roles.view (teacher, parent)', async () => {

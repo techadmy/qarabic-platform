@@ -4,13 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { loginSchema } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@qarabic/ui/components/card';
+import { Card, CardContent } from '@qarabic/ui/components/card';
 import { Checkbox } from '@qarabic/ui/components/checkbox';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@qarabic/ui/components/field';
 import { Input } from '@qarabic/ui/components/input';
@@ -25,6 +19,7 @@ import type { z } from 'zod';
 import { isApiError } from '@/lib/api/client';
 import { useLogin } from '@/lib/auth/use-me';
 import { useValidationMessages } from '@/lib/forms/validation-messages';
+import { AUTH_CARD_CLASS, AuthCardHeader } from './auth-page';
 import { PasswordInput } from './password-input';
 
 type LoginInput = z.input<typeof loginSchema>;
@@ -33,7 +28,8 @@ type LoginOutput = z.output<typeof loginSchema>;
 /**
  * Official shadcn `login-01` form (Card + Field), wired to react-hook-form and the shared
  * `loginSchema`. The schema cleans both values with `cleanCredential`, so a password pasted with
- * invisible bidi marks still signs in.
+ * invisible bidi marks still signs in. Laid out like the current app's login: logo and title in
+ * the card, «remember me» and «forgot password?» on one row, a full-width 44px submit button.
  */
 export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
   const t = useTranslations('auth');
@@ -59,13 +55,8 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
 
   return (
     <div className={cn('flex flex-col gap-6', className)} {...props}>
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h1>{t('loginTitle')}</h1>
-          </CardTitle>
-          <CardDescription>{t('loginDescription')}</CardDescription>
-        </CardHeader>
+      <Card className={AUTH_CARD_CLASS}>
+        <AuthCardHeader title={t('loginTitle')} />
         <CardContent>
           <form noValidate onSubmit={onSubmit}>
             <FieldGroup>
@@ -90,6 +81,7 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                       autoComplete="username"
                       autoFocus
                       placeholder="name@example.com"
+                      className="h-10 md:text-[0.9375rem]"
                       aria-invalid={fieldState.invalid}
                     />
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -101,15 +93,7 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                 control={form.control}
                 render={({ field, fieldState }) => (
                   <Field data-invalid={fieldState.invalid}>
-                    <div className="flex items-center">
-                      <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
-                      <Link
-                        href="/forgot-password"
-                        className="ms-auto inline-block text-sm underline-offset-4 hover:underline"
-                      >
-                        {t('forgot')}
-                      </Link>
-                    </div>
+                    <FieldLabel htmlFor="password">{t('password')}</FieldLabel>
                     <PasswordInput
                       {...field}
                       id="password"
@@ -124,7 +108,7 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                 name="remember"
                 control={form.control}
                 render={({ field }) => (
-                  <Field orientation="horizontal">
+                  <Field orientation="horizontal" className="items-center">
                     <Checkbox
                       id="remember"
                       name={field.name}
@@ -134,11 +118,21 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                     <FieldLabel htmlFor="remember" className="font-normal">
                       {t('remember')}
                     </FieldLabel>
+                    <Link
+                      href="/forgot-password"
+                      className="ms-auto text-sm font-medium text-primary underline-offset-4 hover:underline"
+                    >
+                      {t('forgot')}
+                    </Link>
                   </Field>
                 )}
               />
               <Field>
-                <Button type="submit" disabled={login.isPending}>
+                <Button
+                  type="submit"
+                  disabled={login.isPending}
+                  className="h-11 text-[0.9375rem] font-semibold"
+                >
                   {login.isPending && <Spinner />}
                   {login.isPending ? t('loggingIn') : t('login')}
                 </Button>

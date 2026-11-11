@@ -4,13 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { cleanCredential, newPasswordSchema, resetPasswordSchema } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@qarabic/ui/components/card';
+import { Card, CardContent } from '@qarabic/ui/components/card';
 import {
   Field,
   FieldDescription,
@@ -28,6 +22,7 @@ import { z } from 'zod';
 import { resetPassword } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/client';
 import { useValidationMessages } from '@/lib/forms/validation-messages';
+import { AUTH_CARD_CLASS, AuthCardHeader } from './auth-page';
 import { PasswordInput } from './password-input';
 
 export const PASSWORD_MIN = 8;
@@ -76,13 +71,8 @@ export function ResetPasswordForm({ token }: { token: string }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>
-            <h1>{t('resetTitle')}</h1>
-          </CardTitle>
-          <CardDescription>{t('resetHint')}</CardDescription>
-        </CardHeader>
+      <Card className={AUTH_CARD_CLASS}>
+        <AuthCardHeader title={t('resetTitle')} description={t('resetHint')} />
         <CardContent>
           {mutation.isSuccess ? (
             <FieldGroup>
@@ -91,7 +81,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
                 <AlertTitle>{t('resetDoneTitle')}</AlertTitle>
                 <AlertDescription>{t('resetDone')}</AlertDescription>
               </Alert>
-              <Button asChild>
+              <Button asChild className="h-11 text-[0.9375rem] font-semibold">
                 <Link href="/login">{t('login')}</Link>
               </Button>
             </FieldGroup>
@@ -158,7 +148,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
                   )}
                 />
                 <Field>
-                  <Button type="submit" disabled={mutation.isPending || linkMalformed}>
+                  <Button
+                    type="submit"
+                    className="h-11 text-[0.9375rem] font-semibold"
+                    disabled={mutation.isPending || linkMalformed}
+                  >
                     {mutation.isPending && <Spinner />}
                     {mutation.isPending ? t('saving') : t('resetSubmit')}
                   </Button>

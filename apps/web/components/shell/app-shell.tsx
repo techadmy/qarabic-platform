@@ -12,13 +12,15 @@ import { SidebarInset, SidebarProvider, SidebarTrigger } from '@qarabic/ui/compo
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { useLocale, useTranslations } from 'next-intl';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, type CSSProperties, type ReactNode } from 'react';
 import { directionOf, isLocale } from '@/i18n/config';
 import { loginPathFor } from '@/lib/auth/redirect';
 import { useMe } from '@/lib/auth/use-me';
 import { isActive, NAV_ITEMS } from '@/lib/navigation';
+import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
 import { AppSidebar } from './app-sidebar';
+import { UserMenu } from './user-menu';
 
 const MeContext = createContext<Me | null>(null);
 
@@ -29,9 +31,14 @@ export function useCurrentUser(): Me {
   return me;
 }
 
+/** Current app: 248px sidebar (shadcn default is 256px). */
+const SIDEBAR_STYLE = { '--sidebar-width': '15.5rem' } as CSSProperties;
+
 /**
  * Authenticated shell: page layout of the shadcn `sidebar-07` block (SidebarProvider + AppSidebar +
- * SidebarInset with the header row). No session → `/login?next=…`.
+ * SidebarInset), laid out like the current app: a white 64px top bar with a hairline under it
+ * (sidebar trigger and page name at the start; language and the account avatar at the end) over
+ * the warm-grey canvas, with 24px page padding. No session → `/login?next=…`.
  */
 export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; children: ReactNode }) {
   const t = useTranslations();
@@ -60,7 +67,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
     return (
       <div className="flex min-h-svh" aria-busy="true">
         <span className="sr-only">{t('common.loading')}</span>
-        <Skeleton className="hidden h-svh w-64 rounded-none md:block" />
+        <Skeleton className="hidden h-svh w-62 rounded-none md:block" />
         <div className="flex flex-1 flex-col gap-4 p-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-64 w-full" />
@@ -73,7 +80,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
 
   return (
     <MeContext.Provider value={me}>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider defaultOpen={defaultOpen} style={SIDEBAR_STYLE}>
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:start-2 focus:top-2 focus:z-50 focus:rounded-md focus:bg-background focus:px-3 focus:py-2"
@@ -82,28 +89,30 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
         </a>
         <AppSidebar me={me} dir={dir} />
         <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center gap-2 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-2 px-4">
-              <SidebarTrigger className="-ms-1" aria-label={t('common.toggleSidebar')} />
-              <Separator
-                orientation="vertical"
-                className="me-2 data-vertical:h-4 data-vertical:self-auto"
-              />
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>
-                      {current ? t(`nav.${current.key}`) : t('app.name')}
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-3 md:px-4">
+            <SidebarTrigger className="size-9" aria-label={t('common.toggleSidebar')} />
+            <Separator
+              orientation="vertical"
+              className="mx-1 data-vertical:h-5 data-vertical:self-auto"
+            />
+            <Breadcrumb className="min-w-0">
+              <BreadcrumbList>
+                <BreadcrumbItem className="min-w-0">
+                  <BreadcrumbPage className="truncate text-[1.0625rem] font-semibold">
+                    {current ? t(`nav.${current.key}`) : t('app.name')}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <div className="ms-auto flex shrink-0 items-center gap-1">
+              <LanguageSwitch />
+              <UserMenu user={me} dir={dir} />
             </div>
           </header>
           <main
             id="main"
             tabIndex={-1}
-            className="flex flex-1 flex-col gap-4 p-4 pt-0 outline-none"
+            className="flex min-w-0 flex-1 flex-col gap-4 p-4 outline-none md:p-6"
           >
             {children}
           </main>
