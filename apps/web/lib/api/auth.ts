@@ -1,4 +1,4 @@
-import { meSchema, type Me, type ResetPasswordInput } from '@qarabic/shared';
+import { meSchema, type Me, type ResetPasswordInput, type UpdateMeInput } from '@qarabic/shared';
 import { apiFetch, isApiError } from './client';
 
 export type LoginPayload = { email: string; password: string; remember: boolean };
@@ -28,4 +28,9 @@ export async function forgotPassword(email: string): Promise<void> {
 /** Body is `resetPasswordSchema` from shared: `{ token, password }` only. */
 export async function resetPassword(payload: ResetPasswordInput): Promise<void> {
   await apiFetch('/auth/reset-password', { method: 'POST', body: payload });
+}
+
+/** `PATCH /me`: own name, language, time zone, phone, password (with the current one). */
+export function updateMe(payload: UpdateMeInput): Promise<Me> {
+  return apiFetch('/me', { method: 'PATCH', body: payload, schema: meSchema });
 }

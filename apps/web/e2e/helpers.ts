@@ -15,3 +15,15 @@ export async function expectNoHorizontalScroll(page: Page) {
   );
   expect(overflow).toBeLessThanOrEqual(0);
 }
+
+/** axe: no serious or critical WCAG 2.2 AA violations on the current page. */
+export async function expectNoSeriousA11yViolations(page: Page) {
+  const { default: AxeBuilder } = await import('@axe-core/playwright');
+  const results = await new AxeBuilder({ page })
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .analyze();
+  const serious = results.violations.filter(
+    (v) => v.impact === 'serious' || v.impact === 'critical',
+  );
+  expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
+}

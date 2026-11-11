@@ -7,9 +7,9 @@ import { useSwitchLocale } from '@/hooks/use-switch-locale';
 
 /**
  * The other language's name as a ghost button in the brand colour, as in the current app's top bar
- * and login page («English» / «العربية»).
+ * and login page («English» / «العربية»). Signed in, the choice is saved on the account too.
  */
-export function LanguageSwitch({ className }: { className?: string }) {
+export function LanguageSwitch({ className, persist }: { className?: string; persist?: boolean }) {
   const t = useTranslations('languages');
   const { other, switchTo, pending } = useSwitchLocale();
   return (
@@ -17,7 +17,7 @@ export function LanguageSwitch({ className }: { className?: string }) {
       type="button"
       variant="ghost"
       lang={other}
-      onClick={() => switchTo(other)}
+      onClick={() => switchTo(other, { persist })}
       disabled={pending}
       aria-label={t('switchToLabel')}
       className={cn(

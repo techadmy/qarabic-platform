@@ -16,7 +16,8 @@ import { createContext, useContext, useEffect, type CSSProperties, type ReactNod
 import { directionOf, isLocale } from '@/i18n/config';
 import { loginPathFor } from '@/lib/auth/redirect';
 import { useMe } from '@/lib/auth/use-me';
-import { isActive, NAV_ITEMS } from '@/lib/navigation';
+import { currentPage } from '@/lib/navigation';
+import { useSwitchLocale } from '@/hooks/use-switch-locale';
 import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
 import { AppSidebar } from './app-sidebar';
@@ -48,6 +49,14 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
+  const { switchTo, pending: switchingLocale } = useSwitchLocale();
+
+  // The account's language wins after login (N0 gap): a cookie from another session or the login
+  // page's switch is replaced by `me.locale`. The top-bar switch saves to the account, so they agree.
+  useEffect(() => {
+    if (me && !switchingLocale && me.locale !== locale) switchTo(me.locale);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- run when the account or page language changes
+  }, [me?.locale, locale]);
 
   useEffect(() => {
     if (!isPending && !isError && !me) {
@@ -76,7 +85,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
     );
   }
 
-  const current = NAV_ITEMS.find((item) => isActive(item, pathname));
+  const current = currentPage(me, pathname);
 
   return (
     <MeContext.Provider value={me}>
@@ -105,7 +114,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
               </BreadcrumbList>
             </Breadcrumb>
             <div className="ms-auto flex shrink-0 items-center gap-1">
-              <LanguageSwitch />
+              <LanguageSwitch persist />
               <UserMenu user={me} dir={dir} />
             </div>
           </header>

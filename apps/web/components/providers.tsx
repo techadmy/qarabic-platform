@@ -1,6 +1,7 @@
 'use client';
 
 import { DirectionProvider } from '@qarabic/ui/components/direction';
+import { Toaster } from '@qarabic/ui/components/sonner';
 import { TooltipProvider } from '@qarabic/ui/components/tooltip';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
@@ -23,6 +24,13 @@ export function Providers({ dir, children }: { dir: 'rtl' | 'ltr'; children: Rea
         <TooltipProvider>
           <MockGate>
             <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            {/* docs/15 §5.9: bottom-start (bottom-right in Arabic), never over the primary action. */}
+            <Toaster
+              dir={dir}
+              position={dir === 'rtl' ? 'bottom-right' : 'bottom-left'}
+              closeButton
+              richColors={false}
+            />
           </MockGate>
         </TooltipProvider>
       </DirectionProvider>

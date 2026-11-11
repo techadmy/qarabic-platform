@@ -35,11 +35,14 @@ test('wrong password shows the invalid-credentials message', async ({ page }) =>
   await expect(page.getByText('البريد الإلكتروني أو كلمة المرور غير صحيحة.')).toBeVisible();
 });
 
-test('a teacher does not see «الأدوار والصلاحيات»', async ({ page }) => {
+test('a teacher sees only «الرئيسية» and «طلابي»', async ({ page }) => {
   await page.goto('/login');
   await login(page, 'teacher@qarabic.test');
   await expect(page.getByRole('heading', { name: 'مرحبًا، معلم تجريبي' })).toBeVisible();
-  await expect(page.locator('[data-sidebar="content"]').getByRole('link')).toHaveText(['الرئيسية']);
+  await expect(page.locator('[data-sidebar="content"]').getByRole('link')).toHaveText([
+    'الرئيسية',
+    'طلابي',
+  ]);
 });
 
 test('language switch on the login page flips to English LTR', async ({ page }) => {

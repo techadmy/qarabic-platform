@@ -54,15 +54,37 @@
     "email": "Enter a valid email",
     "passwordMin": "{count, plural, one {At least # character} other {At least # characters}}",
     "passwordsMatch": "Passwords do not match",
-    "passwordMax": "{count, plural, one {At most # character} other {At most # characters}}"
+    "passwordMax": "{count, plural, one {At most # character} other {At most # characters}}",
+    "numberMin": "Enter a number of at least {min}",
+    "numberMax": "Enter a number of at most {max}",
+    "invalidChoice": "Choose a valid option",
+    "invalid": "This value is not valid",
+    "phone": "Enter a valid international number with its country code",
+    "timezone": "Choose a valid time zone",
+    "reasonRequired": "Write the reason (at least 3 characters)",
+    "amount": "Enter a positive amount with at most 2 decimals",
+    "amountMax": "The amount is above the limit",
+    "currentPasswordRequired": "Enter your current password",
+    "taken": "This email is used by another account",
+    "wrongPassword": "The current password is not correct"
   },
   "nav": {
-    "group": "Main menu",
     "home": "Home",
     "roles": "Roles and permissions",
     "account": "My account",
     "menuTitle": "Sidebar",
-    "menuDescription": "Links to the pages of the system."
+    "menuDescription": "Links to the pages of the system.",
+    "families": "Families",
+    "students": "Students",
+    "teachers": "Teachers",
+    "staff": "Staff",
+    "myStudents": "My students",
+    "myFamily": "My family",
+    "accountSettings": "Account settings",
+    "groups": {
+      "users": "Users",
+      "settings": "Settings"
+    }
   },
   "home": {
     "title": "Home",
@@ -72,14 +94,15 @@
   },
   "roles": {
     "title": "Roles and permissions",
-    "description": "The roles defined in the system and how many permissions each one has.",
+    "description": "Choose what each role can see and do in the system.",
     "tableLabel": "Roles",
     "count": "{count, plural, =0 {No roles} one {# role} other {# roles}}",
     "columns": {
       "role": "Role",
       "kind": "Type",
       "permissions": "Permissions",
-      "status": "Status"
+      "status": "Status",
+      "users": "Users"
     },
     "kind": {
       "owner": "Owner",
@@ -92,7 +115,83 @@
     "customizedHint": "This role's permissions were changed from the default",
     "default": "Default",
     "empty": "No roles yet",
-    "emptyDescription": "System roles will appear here once they are set up."
+    "emptyDescription": "System roles will appear here once they are set up.",
+    "kindChip": {
+      "owner": "Owner",
+      "system": "System",
+      "custom": "Custom"
+    },
+    "usersCount": "{count, plural, =0 {No users} one {# user} other {# users}}",
+    "allPermissions": "All permissions",
+    "permissionsOf": "{count} of {total}",
+    "actions": "Actions",
+    "duplicate": "Duplicate",
+    "duplicateRole": "Duplicate the role “{name}”",
+    "delete": "Delete role",
+    "deleteRole": "Delete the role “{name}”",
+    "new": "New role",
+    "close": "Close",
+    "cancel": "Cancel",
+    "moreActions": "More actions",
+    "deleteDialog": {
+      "title": "Delete the role “{name}”?",
+      "body": "The role is deleted for good. No user is affected because nobody holds it.",
+      "confirm": "Delete the role",
+      "done": "The role “{name}” was deleted"
+    },
+    "errors": {
+      "role_in_use": "The role cannot be deleted because {count, plural, =0 {users hold it} one {# user holds it} other {# users hold it}}. Move them to another role first.",
+      "system_role": "System roles cannot be deleted, and the owner, teacher and parent roles keep their permissions.",
+      "cannot_edit_own_role": "You cannot edit or delete your own role.",
+      "owner_role_locked": "This role's permissions are fixed, and only an owner edits the owner role.",
+      "permission_not_held": "You cannot grant a permission you do not hold.",
+      "generic": "The changes could not be saved. Please try again."
+    },
+    "editor": {
+      "title": "Role",
+      "newTitle": "New role",
+      "back": "Back to roles",
+      "copyOf": "Copy of {name}",
+      "nameSection": "Role details",
+      "labelAr": "Arabic name",
+      "labelEn": "English name",
+      "description": "Short description",
+      "descriptionHint": "Optional: who the role is for and what they do.",
+      "matrix": "Permissions",
+      "matrixHint": "Choose what this role can see and do. Users only see the screens they may view.",
+      "search": "Search modules",
+      "searchHint": "Module or action",
+      "noMatch": "No modules match “{query}”",
+      "all": "All",
+      "allOf": "All {module} permissions",
+      "groupCount": "{count} of {total}",
+      "selected": "{count} of {total} permissions",
+      "ownerNote": "Always every permission: the owner holds every permission in the system, new ones included. Only the name can change.",
+      "portalNote": "This role's permissions are fixed for now because its portal is built on them. Only the name can change.",
+      "viewOnly": "You can only view roles. Ask for “Manage roles” to edit them.",
+      "ownRole": "This is your own role, so you cannot edit it. An owner or another user who manages roles can.",
+      "notHeld": "You do not hold it, so you cannot grant it",
+      "notHeldLegend": "Locked boxes are permissions you do not hold, so you cannot give them to this role.",
+      "copiedSkipped": "{count, plural, one {# permission you do not hold was not copied.} other {# permissions you do not hold were not copied.}}",
+      "changes": "{count, plural, one {# unsaved change} other {# unsaved changes}}",
+      "noChanges": "No changes",
+      "discard": "Discard",
+      "save": "Save",
+      "create": "Create the role",
+      "created": "The role “{name}” was created",
+      "saved": "Changes saved",
+      "saveBar": "Save changes",
+      "confirmTitle": "Save the role's permissions?",
+      "confirmBody": "{changes, plural, one {# permission changes} other {# permissions change}} for this role, and it applies at once to {users, plural, =0 {its users (none now)} one {# user} other {# users}}.",
+      "confirm": "Save changes",
+      "leaveTitle": "Leave without saving?",
+      "leaveBody": "The unsaved changes to this role will be lost.",
+      "leave": "Leave without saving",
+      "stay": "Stay on the page",
+      "notFound": "Role not found",
+      "notFoundHint": "The role may have been deleted. Go back to the roles list.",
+      "fixErrors": "Fix the marked fields, then save."
+    }
   },
   "errors": {
     "forbiddenTitle": "No access",
@@ -106,5 +205,369 @@
   "dev": {
     "title": "Component preview (development only)",
     "description": "Every shadcn component used so far, in Arabic and right-to-left."
+  },
+  "list": {
+    "clearSearch": "Clear search",
+    "archived": "Deleted",
+    "clearAll": "Clear all",
+    "perPage": "Rows per page",
+    "pagination": "Pages",
+    "range": "{from}–{to} of {total}",
+    "previous": "Previous page",
+    "next": "Next page",
+    "noResultsFor": "No results for “{q}”",
+    "noResults": "No matching results",
+    "noResultsHint": "Try another word or clear the filters.",
+    "all": "All",
+    "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
+    "sort": "Sort by",
+    "statusFilter": "Filter by status"
+  },
+  "time": {
+    "dayAhead": "next day",
+    "dayBehind": "previous day",
+    "yours": "Your time"
+  },
+  "form": {
+    "required": "required",
+    "choose": "Choose…",
+    "none": "None",
+    "clear": "Clear the choice",
+    "search": "Search…",
+    "loading": "Loading…",
+    "noMatch": "No matches",
+    "chooseCountry": "Choose the country",
+    "searchCountry": "Search by country name or code",
+    "chooseTimeZone": "Choose the time zone",
+    "searchTimeZone": "Search by city",
+    "timeZoneHelp": "Search by city, e.g. London or Cairo",
+    "dialCode": "Country code",
+    "phoneHelp": "The number without the country code, e.g. 7700 900123",
+    "chooseFamily": "Choose the family",
+    "familyHelp": "Search by the parent's name or email"
+  },
+  "people": {
+    "edit": "Edit",
+    "notRecorded": "Not recorded",
+    "actions": "Actions",
+    "open": "Open the profile",
+    "moreActions": "More actions",
+    "addStudent": "Add a student",
+    "cancel": "Cancel",
+    "close": "Close",
+    "undo": "Undo",
+    "optional": "optional",
+    "notFoundTitle": "Record not found",
+    "notFound": "We could not find this record, or you may not view it.",
+    "allCountries": "All countries",
+    "searchCountry": "Search by country",
+    "allManagers": "All managers",
+    "allTeachers": "All teachers",
+    "allCourses": "All courses",
+    "allRoles": "All roles",
+    "sort": {
+      "newest": "Newest",
+      "name": "Name",
+      "startDate": "Start date"
+    },
+    "party": {
+      "family": "Family",
+      "teacher": "Teacher"
+    },
+    "uiLanguage": {
+      "ar": "Arabic",
+      "en": "English"
+    },
+    "fields": {
+      "parent": "Parent",
+      "parentName": "Parent name",
+      "firstName": "First name",
+      "lastName": "Last name",
+      "name": "Name",
+      "email": "Email",
+      "phone": "Phone",
+      "altPhone": "Other phone",
+      "country": "Country",
+      "timezone": "Time zone",
+      "localTime": "Local time",
+      "familyTime": "Family time",
+      "students": "Students",
+      "manager": "Account manager",
+      "status": "Status",
+      "createdAt": "Created",
+      "comment": "Internal note",
+      "startDate": "Start date",
+      "trialDate": "Trial class date",
+      "zoomId": "Zoom ID",
+      "whatsappGroupId": "WhatsApp group ID",
+      "initialStatus": "Status when created",
+      "family": "Family",
+      "gender": "Gender",
+      "age": "Age",
+      "language": "Language",
+      "course": "Course",
+      "additionalCourse": "Additional course",
+      "teacher": "Teacher",
+      "remarkParent": "Notes for the parent",
+      "remarkTeacher": "Notes for the teacher",
+      "nationality": "Nationality",
+      "hourlyRate": "Hourly rate",
+      "courses": "Courses",
+      "qualification": "Qualification",
+      "experience": "Experience",
+      "description": "About",
+      "address": "Address",
+      "skypeId": "Skype ID",
+      "activeStudents": "Active students",
+      "role": "Role",
+      "statusReason": "Status reason"
+    },
+    "sections": {
+      "contact": "Contact",
+      "location": "Country and time zone",
+      "account": "Account",
+      "dates": "Dates",
+      "online": "Online classes",
+      "notes": "Notes",
+      "student": "Student",
+      "study": "Study plan",
+      "family": "Family",
+      "remarks": "Remarks",
+      "personal": "Personal details",
+      "work": "Work",
+      "background": "Qualifications and experience"
+    },
+    "history": {
+      "title": "Status history",
+      "empty": "The status has not changed since it was created.",
+      "change": "From “{from}” to “{to}”",
+      "reason": "Reason"
+    },
+    "status": {
+      "change": "Change status",
+      "title": "Change the status of {name}",
+      "current": "Current status: {status}",
+      "newStatus": "New status",
+      "reason": "Reason",
+      "reasonHelp": "Saved in the change log and shown on the profile.",
+      "apply": "Apply",
+      "done": "Status changed to “{status}”",
+      "undone": "The previous status is back",
+      "undoReason": "Undo of a status change",
+      "teacherBlocked": "A teacher with {count, plural, one {# active student} other {# active students}} cannot be deactivated. Move them to another teacher or deactivate them first.",
+      "viewStudents": "See their students",
+      "effect": {
+        "family": {
+          "regular": "Enrollments paused for leave or suspension resume, and the family is billed monthly again.",
+          "trial": "The family gets no monthly invoices; its enrollments do not change.",
+          "on_leave": "Enrollments pause and upcoming classes are cancelled; weekly times are kept for the return to “Regular”. No monthly invoices during the leave.",
+          "suspended": "Enrollments pause and upcoming classes are cancelled; weekly times are kept. No monthly invoices while suspended.",
+          "deactivated": "Enrollments end today and upcoming classes are cancelled; they do not come back if the family is reactivated. No monthly invoices."
+        },
+        "student": {
+          "active": "The student is active again and counted in the family's next invoice. Ended enrollments do not resume; create a new one from the schedule.",
+          "inactive": "The student's enrollments end today, upcoming classes are cancelled and the student is left out of the family's next invoice."
+        },
+        "teacher": {
+          "active": "The teacher shows in availability search again and can get new classes.",
+          "inactive": "The teacher leaves availability search and gets no new classes, and can still sign in to see payslips."
+        },
+        "staff": {
+          "active": "The staff member can sign in again with their role's permissions.",
+          "inactive": "The staff member cannot sign in and is signed out on every device."
+        }
+      },
+      "confirm": {
+        "family": {
+          "regular": "Reactivate",
+          "trial": "Make it a trial",
+          "on_leave": "Record the leave",
+          "suspended": "Suspend the account",
+          "deactivated": "Deactivate the account"
+        },
+        "student": {
+          "active": "Activate the student",
+          "inactive": "Deactivate the student"
+        },
+        "teacher": {
+          "active": "Activate the teacher",
+          "inactive": "Deactivate the teacher"
+        },
+        "staff": {
+          "active": "Activate the account",
+          "inactive": "Deactivate the account"
+        }
+      }
+    },
+    "archive": {
+      "action": "Delete",
+      "title": "Delete {name}?",
+      "confirm": "Delete",
+      "done": "{name} was deleted and moved to the archive",
+      "restored": "{name} was restored",
+      "restore": "Restore",
+      "bannerTitle": "Deleted record (archived)",
+      "banner": "Deleted on {date} by {name}. The record is read-only until you restore it.",
+      "reason": "Reason for deleting",
+      "undoReason": "Undo of a restore",
+      "deactivateFirst": {
+        "family": "An active family cannot be deleted. Change its status to “Deactivated” first (its enrollments end and upcoming classes are cancelled), then delete it.",
+        "student": "An active student cannot be deleted. Change the status to “Inactive” first, then delete the student.",
+        "teacher": "An active teacher cannot be deleted. Deactivate the teacher first (after moving or ending their students' enrollments), then delete.",
+        "staff": "An active account cannot be deleted. Deactivate it first, then delete it."
+      },
+      "effect": {
+        "family": "The family and its children move to the archive and leave the lists, and the parent's login is closed. Nothing is erased: invoices, payments and class history stay, and the family can be restored from “Deleted”.",
+        "student": "The student moves to the archive and leaves the lists. Class history, progress and the family's invoices stay, and the student can be restored from “Deleted”.",
+        "teacher": "The teacher moves to the archive, leaves the lists and can no longer sign in. Class, salary and payslip history stay, and the teacher can be restored from “Deleted”.",
+        "staff": "The staff member moves to the archive and cannot sign in. Everything they recorded stays in the change log, and they can be restored from “Deleted”."
+      }
+    },
+    "refusals": {
+      "same_status": "The record already has this status.",
+      "archived": "The record is deleted (archived) and cannot change. Restore it first.",
+      "must_deactivate_first": "Change the status to inactive first, then delete the record.",
+      "family_archived": "This student's family is deleted. Restore the family first.",
+      "teacher_has_students": "A teacher with {count, plural, one {# active student} other {# active students}} cannot be deactivated. Move them to another teacher or deactivate them first.",
+      "cannot_archive_self": "You cannot deactivate or delete your own account.",
+      "last_admin": "The last active owner cannot be deactivated.",
+      "not_archived": "The record is not deleted.",
+      "cannot_change_own_role": "You cannot change your own role.",
+      "owner_role_locked": "Only an owner can give the owner role.",
+      "permission_not_held": "You cannot give a role with permissions you do not hold.",
+      "forbidden": "You are not allowed to do this.",
+      "generic": "The action failed. Please try again."
+    },
+    "form": {
+      "titles": {
+        "new": {
+          "family": "New family",
+          "student": "New student",
+          "teacher": "New teacher",
+          "staff": "New staff member"
+        },
+        "edit": {
+          "family": "Edit family",
+          "student": "Edit student",
+          "teacher": "Edit teacher",
+          "staff": "Edit staff member"
+        }
+      },
+      "descriptions": {
+        "new": "Fields marked * are required.",
+        "edit": "Only the fields you change are saved."
+      },
+      "close": "Close",
+      "saving": "Saving…",
+      "create": "Create",
+      "save": "Save",
+      "cancel": "Cancel",
+      "discardTitle": "Discard your changes?",
+      "discardBody": "You have changes that are not saved yet.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard changes",
+      "saved": "Changes saved",
+      "created": "Record created",
+      "fixErrors": "Fix the marked fields, then save.",
+      "passwordNote": "The account gets a random password; its owner sets their own with “Forgot your password?”.",
+      "rateHelp": "In the pay currency ({currency}).",
+      "ownRole": "You cannot change your own role. An owner or another user who manages staff can change it."
+    }
+  },
+  "families": {
+    "title": "Families",
+    "description": "Parents and their children",
+    "add": "Add a family",
+    "search": "Search families",
+    "searchHint": "Parent's or a child's name, email, phone or ID",
+    "tableLabel": "Families",
+    "empty": "No families yet",
+    "emptyDescription": "Add the first family to see it here with its children.",
+    "studentsOf": "The family's students",
+    "childrenCount": "{count, plural, =0 {No children} one {# child} other {# children}}",
+    "profileTitle": "Family profile",
+    "back": "Back to families",
+    "children": "{count, plural, other {Children (#)}}",
+    "viewInStudents": "See in the students list",
+    "noChildren": "No children in this family yet.",
+    "childrenTable": "The family's children",
+    "noFamilyTitle": "No family is linked to your account",
+    "noFamily": "Contact the academy to link your account to your family."
+  },
+  "students": {
+    "title": "Students",
+    "description": "Every enrolled student",
+    "titleMine": "My students",
+    "descriptionMine": "The students you teach now",
+    "add": "Add a student",
+    "search": "Search students",
+    "searchHint": "Student's or parent's name, email, phone or ID",
+    "searchHintMine": "Student's name or ID",
+    "tableLabel": "Students",
+    "empty": "No students yet",
+    "emptyDescription": "Add a student here or from the family's profile.",
+    "emptyMine": "No students are assigned to you",
+    "emptyMineDescription": "The students you teach show here once their classes are assigned to you.",
+    "familyFilter": "Family: {name}",
+    "clearFamily": "Show every family",
+    "openFamily": "Family profile",
+    "profileTitle": "Student profile",
+    "back": "Back to students"
+  },
+  "teachers": {
+    "title": "Teachers",
+    "description": "The teaching team",
+    "add": "Add a teacher",
+    "search": "Search teachers",
+    "searchHint": "Name, email, phone or ID",
+    "tableLabel": "Teachers",
+    "empty": "No teachers yet",
+    "emptyDescription": "Add the first teacher to assign students.",
+    "studentsOf": "The teacher's students",
+    "activeStudents": "{count, plural, =0 {No active students} one {# active student} other {# active students}}",
+    "profileTitle": "Teacher profile",
+    "back": "Back to teachers"
+  },
+  "staff": {
+    "title": "Staff",
+    "description": "Management, monitoring, customer service and accounts",
+    "add": "Add a staff member",
+    "search": "Search staff",
+    "searchHint": "Name, email, phone or ID",
+    "tableLabel": "Staff",
+    "empty": "No staff yet",
+    "emptyDescription": "Add a staff member and choose their role.",
+    "profileTitle": "Staff profile",
+    "back": "Back to staff"
+  },
+  "account": {
+    "title": "My account",
+    "description": "Your details, interface language, time zone and password.",
+    "profile": "Personal details",
+    "profileHint": "Times in the system show in your time zone first.",
+    "name": "Name",
+    "phone": "Phone",
+    "language": "Interface language",
+    "timezone": "Time zone",
+    "save": "Save changes",
+    "saving": "Saving…",
+    "saved": "Changes saved",
+    "fixErrors": "Fix the marked fields, then save.",
+    "error": "The changes could not be saved. Please try again.",
+    "appearance": "Appearance",
+    "appearanceHint": "Your choice is kept on this device.",
+    "theme": "Theme",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "themeSystem": "Same as the device",
+    "password": "Password",
+    "passwordCardHint": "Changing it signs you out on your other devices.",
+    "currentPassword": "Current password",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm the new password",
+    "passwordHint": "At least 8 characters.",
+    "changePassword": "Change password",
+    "passwordChanged": "Password changed",
+    "tooMany": "Too many attempts. Try again in a minute."
   }
 }
