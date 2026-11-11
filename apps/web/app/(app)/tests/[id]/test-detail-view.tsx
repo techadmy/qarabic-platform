@@ -110,7 +110,7 @@ export function TestDetailView({ id }: { id: number }) {
             {test.can.refuse && (
               <Button
                 variant="outline"
-                className="text-destructive"
+                className="text-red-700 dark:text-red-400"
                 onClick={() => setActing('refuse')}
               >
                 {t('act.refuse')}

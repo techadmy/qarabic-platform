@@ -189,7 +189,11 @@ export function ResultForm({
           {t('tajweed')}: <bdi className="font-bold tabular-nums">{tajweed}%</bdi>
         </span>
         <span>
-          {t('overall')}: <bdi className="font-bold tabular-nums">{overall}%</bdi>
+          {t('overall')}:{' '}
+          <bdi className="font-bold tabular-nums">
+            {/* Until every score of the track is picked, the overall is not known yet. */}
+            {missing.reading || missing.hifz ? '—' : `${overall}%`}
+          </bdi>
         </span>
         <span className="text-muted-foreground">
           {t('mistakesCount', { count: mistakes.length })}
@@ -238,6 +242,7 @@ export function ResultForm({
         <Field>
           <FieldLabel htmlFor="result-remarks">{t('remarks')}</FieldLabel>
           <Textarea
+            dir="auto"
             id="result-remarks"
             rows={2}
             maxLength={2000}
@@ -249,6 +254,7 @@ export function ResultForm({
         <Field>
           <FieldLabel htmlFor="result-internal">{t('internalNotes')}</FieldLabel>
           <Textarea
+            dir="auto"
             id="result-internal"
             rows={2}
             maxLength={2000}
@@ -285,6 +291,7 @@ export function ResultForm({
               </span>
             </FieldLabel>
             <Textarea
+              dir="auto"
               id="result-reason"
               rows={2}
               maxLength={500}

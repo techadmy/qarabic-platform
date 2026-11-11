@@ -35,7 +35,7 @@ test('wrong password shows the invalid-credentials message', async ({ page }) =>
   await expect(page.getByText('البريد الإلكتروني أو كلمة المرور غير صحيحة.')).toBeVisible();
 });
 
-test('a teacher sees only their own pages: «الرئيسية», «حصصي», «طلباتي», «طلابي»', async ({
+test('a teacher sees only their own pages: «حصصي», «طلابي», «جدولي», «الاختبارات», «طلباتي»', async ({
   page,
 }) => {
   await page.goto('/login');
@@ -44,8 +44,10 @@ test('a teacher sees only their own pages: «الرئيسية», «حصصي», �
   await expect(page.locator('[data-sidebar="content"]').getByRole('link')).toHaveText([
     'الرئيسية',
     'حصصي',
-    'طلباتي',
     'طلابي',
+    'جدولي',
+    'الاختبارات',
+    'طلباتي',
   ]);
 });
 

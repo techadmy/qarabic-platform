@@ -299,6 +299,7 @@ export function ScheduleTestDialog({
                 <span className="font-normal text-muted-foreground">({t('optional')})</span>
               </FieldLabel>
               <Textarea
+                dir="auto"
                 id="test-notes"
                 rows={2}
                 maxLength={2000}

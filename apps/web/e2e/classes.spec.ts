@@ -153,13 +153,17 @@ test('parent requests a leave → staff approves it', async ({ page }) => {
 
 test('a teacher sees only their own classes', async ({ page }) => {
   await signIn(page, 'teacher@qarabic.test', '/');
-  const sessions = page.waitForResponse(
-    (r) => /\/api\/v1\/sessions\?/.test(r.url()) && r.status() === 200,
+  // «حصصي» is the teacher portal's week (N3).
+  const week = page.waitForResponse(
+    (r) => /\/api\/v1\/teacher-portal\/week/.test(r.url()) && r.status() === 200,
   );
   await page.getByRole('link', { name: 'حصصي' }).click();
-  const body = (await (await sessions).json()) as { data: { teacher: { id: number } }[] };
-  expect(body.data.length).toBeGreaterThan(0);
-  expect(new Set(body.data.map((s) => s.teacher.id))).toEqual(new Set([1]));
+  const body = (await (await week).json()) as {
+    data: { days: { sessions: { teacher: { id: number } }[] }[] };
+  };
+  const rows = body.data.days.flatMap((d) => d.sessions);
+  expect(rows.length).toBeGreaterThan(0);
+  expect(new Set(rows.map((s) => s.teacher.id))).toEqual(new Set([1]));
   await expect(page.getByRole('heading', { level: 1, name: 'حصصي' })).toBeVisible();
   await expect(page.getByRole('columnheader', { name: 'المعلم' })).toHaveCount(0);
   // No company-wide pages for a teacher.

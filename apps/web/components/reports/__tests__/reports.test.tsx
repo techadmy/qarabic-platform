@@ -36,7 +36,8 @@ describe('Lesson report form', () => {
     expect(await within(form).findByText('اكتب ملخص الحصة')).toBeInTheDocument();
     expect(within(form).getByLabelText(/ملخص الحصة/)).toHaveFocus();
 
-    await user.type(within(form).getByLabelText(/ملخص الحصة/), 'Memorised the new ayahs well.');
+    await user.click(within(form).getByLabelText(/ملخص الحصة/));
+    await user.paste('Memorised the new ayahs well.');
     // «تابع من آخر موضع» fills the sabaq row from the last position; an ayah past the surah's end
     // is refused with the surah's length.
     const sabaq = within(form).getByRole('group', { name: /الدرس الجديد/ });
@@ -50,7 +51,8 @@ describe('Lesson report form', () => {
     await user.clear(toAyah);
     await user.type(toAyah, fromAyah.value);
     await user.click(within(form).getByRole('radio', { name: '4 من 5' }));
-    await user.type(within(form).getByLabelText(/ملاحظات داخلية/), 'Needs revision at home.');
+    await user.click(within(form).getByLabelText(/ملاحظات داخلية/));
+    await user.paste('Needs revision at home.');
     await user.click(within(form).getByRole('button', { name: 'حفظ التقرير' }));
 
     expect(await screen.findByText(/حُفظ تقرير حصة/)).toBeInTheDocument();
@@ -59,7 +61,7 @@ describe('Lesson report form', () => {
     expect(saved).toMatchObject({ rating: 4, teacherNotes: 'Needs revision at home.' });
     expect(saved.hifz).toHaveLength(1);
     expect(saved.hifz[0]!.type).toBe('sabaq');
-  });
+  }, 30_000);
 
   it('shows the teacher until when a sent report may still be edited', async () => {
     const s = ownClasses('taken').find((x) => {

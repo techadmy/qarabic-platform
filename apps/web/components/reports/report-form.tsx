@@ -242,6 +242,7 @@ export function ReportForm({
               </span>
             </FieldLabel>
             <Textarea
+              dir="auto"
               {...field}
               id="report-summary"
               rows={3}
@@ -281,7 +282,13 @@ export function ReportForm({
                 {L('tajweedNotes')}{' '}
                 <span className="font-normal text-muted-foreground">({t('optional')})</span>
               </FieldLabel>
-              <Textarea {...field} id="report-tajweed" rows={2} aria-invalid={fieldState.invalid} />
+              <Textarea
+                dir="auto"
+                {...field}
+                id="report-tajweed"
+                rows={2}
+                aria-invalid={fieldState.invalid}
+              />
               {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
             </Field>
           )}
@@ -296,6 +303,7 @@ export function ReportForm({
                 <span className="font-normal text-muted-foreground">({t('optional')})</span>
               </FieldLabel>
               <Textarea
+                dir="auto"
                 {...field}
                 id="report-homework"
                 rows={2}
@@ -332,6 +340,7 @@ export function ReportForm({
                 <span className="font-normal text-muted-foreground">({t('optional')})</span>
               </FieldLabel>
               <Textarea
+                dir="auto"
                 {...field}
                 id="report-internal"
                 rows={2}

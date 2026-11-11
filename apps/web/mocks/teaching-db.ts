@@ -156,8 +156,9 @@ function shapeDemoTeacher(now: number) {
   const minute = Math.floor(now / MIN) * MIN;
   const own = sdb.sessions.filter((s) => s.teacherId === 1 && !s.deleted);
   // A class that can be started now (the activation window opens 10 min before).
+  // (Unless one is already startable: scheduled and starting within ten minutes either side.)
   const busy = own.some(
-    (s) => Math.abs(Date.parse(s.startsAt) - minute) < 45 * MIN && s.stage !== 'cancelled',
+    (s) => s.stage === 'scheduled' && Math.abs(Date.parse(s.startsAt) - minute) <= 10 * MIN,
   );
   if (!busy) {
     const pick = own.find(

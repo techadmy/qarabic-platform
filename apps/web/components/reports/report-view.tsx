@@ -37,7 +37,7 @@ export function ReportView({ report }: { report: LessonReportDto }) {
   const edited = report.updatedAt !== report.submittedAt;
 
   return (
-    <div className="flex flex-col gap-3" aria-label={L('title')} role="region">
+    <div className="flex flex-col gap-3">
       {!parent && (
         <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
           <span title={dayAndClock(report.submittedAt, tz, locale)}>
