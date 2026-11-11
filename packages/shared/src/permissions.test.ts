@@ -5,9 +5,7 @@ import { cleanCredential, loginSchema } from './auth.js';
 describe('role matrix (ported from Laravel RoleMatrix)', () => {
   it('gives admin every permission', () => {
     expect(permissionsFor('admin')).toEqual(allPermissions());
-    expect(allPermissions()).toHaveLength(
-      Object.values(MODULES).reduce((n, a) => n + a.length, 0),
-    );
+    expect(allPermissions()).toHaveLength(Object.values(MODULES).reduce((n, a) => n + a.length, 0));
   });
 
   it('expands wildcards and only yields known permissions', () => {
@@ -15,12 +13,21 @@ describe('role matrix (ported from Laravel RoleMatrix)', () => {
     for (const role of ROLES) {
       for (const p of permissionsFor(role)) expect(known.has(p)).toBe(true);
     }
-    expect(permissionsFor('monitor')).toEqual(expect.arrayContaining(['schedule.view', 'schedule.manage']));
+    expect(permissionsFor('monitor')).toEqual(
+      expect.arrayContaining(['schedule.view', 'schedule.manage']),
+    );
   });
 
   it('keeps teacher privacy (D138): no staff-wide modules', () => {
     const t = permissionsFor('teacher');
-    for (const p of ['staff.view', 'families.view', 'schedule.view', 'reports.view', 'complaints.view', 'tasks.view']) {
+    for (const p of [
+      'staff.view',
+      'families.view',
+      'schedule.view',
+      'reports.view',
+      'complaints.view',
+      'tasks.view',
+    ]) {
       expect(t).not.toContain(p);
     }
     expect(t).toEqual(expect.arrayContaining(['sessions.view', 'sessions.conduct']));
