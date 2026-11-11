@@ -12,7 +12,7 @@ import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CheckIcon, InboxIcon, SearchXIcon, Undo2Icon, XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { ListPagination } from '@/components/list/list-pagination';
 import { FilterSelect, StatusTabs } from '@/components/list/list-toolbar';
@@ -183,7 +183,14 @@ export function RequestsView() {
   );
 }
 
-function RequestCard({ request: r }: { request: SessionRequestDto }) {
+export function RequestCard({
+  request: r,
+  extra,
+}: {
+  request: SessionRequestDto;
+  /** A line under the card (the next step in «طلباتي», the queue and SLA in the inbox). */
+  extra?: ReactNode;
+}) {
   const t = useTranslations('requests');
   const locale = useUiLocale();
   const tz = useViewerTz();
@@ -271,6 +278,7 @@ function RequestCard({ request: r }: { request: SessionRequestDto }) {
             {r.decidedBy?.name && <> — {r.decidedBy.name}</>}
           </p>
         )}
+        {extra}
       </div>
       {r.allowedActions.length > 0 && (
         <div className="flex shrink-0 flex-wrap gap-2 md:flex-col md:items-stretch">

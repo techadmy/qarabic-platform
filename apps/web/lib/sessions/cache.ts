@@ -30,4 +30,6 @@ export function refreshClasses(queryClient: QueryClient) {
   void queryClient.invalidateQueries({ queryKey: sessionKeys.all });
   void queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
   void queryClient.invalidateQueries({ queryKey: requestKeys.all });
+  // «طلباتي», the support inbox and the parent home list class requests too (N4).
+  void queryClient.invalidateQueries({ queryKey: ['support'] });
 }

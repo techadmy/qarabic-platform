@@ -24,6 +24,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   EllipsisVerticalIcon,
   FilePenLineIcon,
+  HeadsetIcon,
   MessageCircleIcon,
   PhoneIcon,
   PlayIcon,
@@ -35,14 +36,17 @@ import { useState, type SyntheticEvent } from 'react';
 import { toast } from 'sonner';
 import { RequestDialog } from '@/components/requests/request-dialog';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import { TicketFormDialog } from '@/components/support/ticket-form-dialog';
 import { retryZoom } from '@/lib/api/sessions';
 import { can } from '@/lib/auth/use-me';
+import { dayAndClock } from '@/lib/schedule-time';
+import { canReport as mayReport } from '@/lib/support/labels';
 import { useDirection } from '@/lib/use-direction';
 import { upsertSession } from '@/lib/sessions/cache';
 import { useClassError } from '@/lib/sessions/errors';
 import { RescheduleDialog } from './reschedule-dialog';
 import { useOpenSession } from './session-sheet';
-import { useUiLocale } from './times';
+import { useUiLocale, useViewerTz } from './times';
 import { useSessionActions } from './use-session-actions';
 
 /** Class actions in the order a monitor reaches for them; destructive ones last (§5.7). */
@@ -79,6 +83,8 @@ export function RowActions({
 }) {
   const t = useTranslations('classes');
   const tr = useTranslations('reports');
+  const ts = useTranslations('support.actions');
+  const viewerTz = useViewerTz();
   const locale = useUiLocale();
   const dir = useDirection();
   const me = useCurrentUser();
@@ -88,6 +94,7 @@ export function RowActions({
   const actions = useSessionActions(session);
   const [request, setRequest] = useState<RequestType | null>(null);
   const [shifting, setShifting] = useState(false);
+  const [ticket, setTicket] = useState(false);
   const allowed = session.allowedActions;
   const ownTeacher = can(me, 'sessions.conduct') && !can(me, 'sessions.manage');
   // «ابدأ الحصة» / «أنهِ الحصة» as buttons for the class's own teacher; staff use the menu.
@@ -122,7 +129,10 @@ export function RowActions({
   const phone = session.teacher.phone;
   const stop = (e: SyntheticEvent) => e.stopPropagation();
   const name = session.student.name;
+  // «طلب بخصوص هذه الحصة» (docs/32 §2b layer 1): a «تواصل معنا» ticket with this class as context.
+  const aboutClass = mayReport(me);
   const hasMenu =
+    aboutClass ||
     menu.length > 0 ||
     canShift ||
     requestTypes.length > 0 ||
@@ -275,6 +285,19 @@ export function RowActions({
                 ))}
               </>
             )}
+            {aboutClass && (
+              <>
+                {(menu.length > 0 ||
+                  canShift ||
+                  canRetry ||
+                  requestTypes.length > 0 ||
+                  canReport) && <DropdownMenuSeparator />}
+                <DropdownMenuItem onSelect={() => setTicket(true)}>
+                  <HeadsetIcon />
+                  {ts('aboutClass')}
+                </DropdownMenuItem>
+              </>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       )}
@@ -288,6 +311,26 @@ export function RowActions({
         />
       )}
       {shifting && <RescheduleDialog session={session} open onOpenChange={setShifting} />}
+      {ticket && (
+        <TicketFormDialog
+          open
+          onOpenChange={setTicket}
+          intent={{
+            key: 'session_issue',
+            category: 'classes',
+            subcategory: 'session_issue',
+            subject: {
+              type: 'session',
+              id: session.id,
+              label: [
+                dayAndClock(session.startsAt, viewerTz, locale),
+                locale === 'en' ? session.course.nameEn : session.course.nameAr,
+                session.student.name,
+              ].join(' · '),
+            },
+          }}
+        />
+      )}
     </div>
   );
 }

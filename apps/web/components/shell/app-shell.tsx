@@ -20,6 +20,7 @@ import { currentPage } from '@/lib/navigation';
 import { useSwitchLocale } from '@/hooks/use-switch-locale';
 import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
+import { ContactButton } from '@/components/support/contact-button';
 import { AppSidebar } from './app-sidebar';
 import { UserMenu } from './user-menu';
 
@@ -114,6 +115,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
               </BreadcrumbList>
             </Breadcrumb>
             <div className="ms-auto flex shrink-0 items-center gap-1">
+              <ContactButton />
               <LanguageSwitch persist />
               <UserMenu user={me} dir={dir} />
             </div>

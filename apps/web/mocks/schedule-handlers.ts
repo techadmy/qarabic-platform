@@ -763,7 +763,7 @@ function affectedManual(enrollmentId: number, me: MockUser) {
 
 // ------------------------------------------------------------------ requests
 
-function presentRequest(r: RequestRow, me: MockUser, withSession = true): SessionRequestDto {
+export function presentRequest(r: RequestRow, me: MockUser, withSession = true): SessionRequestDto {
   const s = sdb.sessions.find((x) => x.id === r.sessionId)!;
   const student = studentOf(s.studentId);
   const actions: SessionRequestDto['allowedActions'] = [];
@@ -780,7 +780,7 @@ function presentRequest(r: RequestRow, me: MockUser, withSession = true): Sessio
   };
 }
 
-function seesRequest(me: MockUser, r: RequestRow) {
+export function seesRequest(me: MockUser, r: RequestRow) {
   const s = sdb.sessions.find((x) => x.id === r.sessionId);
   return !!s && seesSession(me, s);
 }

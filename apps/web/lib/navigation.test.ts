@@ -19,6 +19,9 @@ describe('navFor', () => {
       'requests',
       'lessonReports',
       'tests',
+      'supportInbox',
+      'feedbackTriage',
+      'myRequests',
       'users',
       'settings',
     ]);
@@ -29,19 +32,23 @@ describe('navFor', () => {
       'requests',
       'lessonReports',
       'tests',
+      'supportInbox',
+      'feedbackTriage',
+      'myRequests',
       'families',
       'students',
       'teachers',
       'staff',
       'holidays',
       'sessionSettings',
+      'supportSettings',
       'roles',
     ]);
   });
 
   it('filters by permission and drops empty groups', () => {
-    // Monitor: classes, schedule, requests, reports, tests, families, teachers and holidays; no
-    // users, settings or roles.
+    // Monitor: classes, schedule, requests, reports, tests, the support inbox and «طلباتي»,
+    // families, teachers and holidays; no triage board, users, settings or roles.
     expect(navItemsFor(as('monitor')).map((i) => i.key)).toEqual([
       'home',
       'today',
@@ -49,12 +56,18 @@ describe('navFor', () => {
       'requests',
       'lessonReports',
       'tests',
+      'supportInbox',
+      'myRequests',
       'families',
       'students',
       'teachers',
       'holidays',
     ]);
-    expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual(['home']);
+    expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
+      'home',
+      'supportInbox',
+      'myRequests',
+    ]);
   });
 
   it('gives a teacher and a parent their own classes, requests and people only', () => {
@@ -83,6 +96,12 @@ describe('navFor', () => {
     expect(currentPage(as('teacher'), '/tests/3')?.key).toBe('myTests');
     expect(currentPage(as('admin'), '/lesson-reports')?.key).toBe('lessonReports');
     expect(currentPage(as('parent'), '/requests')?.key).toBe('myRequests');
+    // N4: «طلباتي» holds the tickets too; staff open a ticket under its own name.
+    expect(currentPage(as('parent'), '/my-requests')?.key).toBe('myRequests');
+    expect(currentPage(as('parent'), '/tickets/4')?.key).toBe('myRequests');
+    expect(currentPage(as('admin'), '/tickets/4')?.key).toBe('ticket');
+    expect(currentPage(as('admin'), '/support')?.key).toBe('supportInbox');
+    expect(currentPage(as('admin'), '/settings/support')?.key).toBe('supportSettings');
   });
 });
 

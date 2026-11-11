@@ -21,7 +21,18 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { fetchRequestCounts, requestKeys } from '@/lib/api/requests';
+import { fetchFeedbackSummary, fetchSupportSummary, supportKeys } from '@/lib/api/support';
 import { isActive, isGroup, type NavEntry, type NavItem } from '@/lib/navigation';
+
+function CountBadge({ n, suffix }: { n: number; suffix: string }) {
+  if (!n) return null;
+  return (
+    <SidebarMenuBadge className="top-3! rounded-full bg-accent text-accent-foreground peer-hover/menu-button:text-accent-foreground peer-data-active/menu-button:text-accent-foreground">
+      {n}
+      <span className="sr-only"> {suffix}</span>
+    </SidebarMenuBadge>
+  );
+}
 
 /** «طلبات الحصص (4)»: pending requests, refreshed every minute (K3). */
 function PendingBadge() {
@@ -31,13 +42,33 @@ function PendingBadge() {
     queryFn: ({ signal }) => fetchRequestCounts(signal),
     refetchInterval: 60_000,
   });
-  const n = counts.data?.pending ?? 0;
-  if (!n) return null;
+  return <CountBadge n={counts.data?.pending ?? 0} suffix={t('pendingSuffix')} />;
+}
+
+/** «صندوق الطلبات»: open requests of my queues (`/support/summary`). */
+function SupportBadge() {
+  const t = useTranslations('nav');
+  const summary = useQuery({
+    queryKey: supportKeys.summary,
+    queryFn: ({ signal }) => fetchSupportSummary(signal),
+    refetchInterval: 60_000,
+  });
+  return <CountBadge n={summary.data?.openTotal ?? 0} suffix={t('openSuffix')} />;
+}
+
+/** «طلباتي» (requests with news) and «فرز البلاغات» (new reports) from `/feedback/summary`. */
+function FeedbackBadge({ kind }: { kind: 'mineUpdates' | 'triageNew' }) {
+  const t = useTranslations('nav');
+  const summary = useQuery({
+    queryKey: supportKeys.feedbackSummary,
+    queryFn: ({ signal }) => fetchFeedbackSummary(signal),
+    refetchInterval: 60_000,
+  });
   return (
-    <SidebarMenuBadge className="top-3! rounded-full bg-accent text-accent-foreground peer-hover/menu-button:text-accent-foreground peer-data-active/menu-button:text-accent-foreground">
-      {n}
-      <span className="sr-only"> {t('pendingSuffix')}</span>
-    </SidebarMenuBadge>
+    <CountBadge
+      n={summary.data?.[kind] ?? 0}
+      suffix={t(kind === 'mineUpdates' ? 'updatesSuffix' : 'newSuffix')}
+    />
   );
 }
 
@@ -83,6 +114,10 @@ function Items({ items, tooltipSide }: { items: NavItem[]; tooltipSide: 'left' |
               </Link>
             </SidebarMenuButton>
             {item.badge === 'pendingRequests' && <PendingBadge />}
+            {item.badge === 'supportOpen' && <SupportBadge />}
+            {(item.badge === 'mineUpdates' || item.badge === 'triageNew') && (
+              <FeedbackBadge kind={item.badge} />
+            )}
           </SidebarMenuItem>
         );
       })}
