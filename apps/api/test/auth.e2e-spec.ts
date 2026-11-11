@@ -183,7 +183,18 @@ describe('sessions', () => {
     const res = await client.get('/auth/me');
     expect(res.status).toBe(200);
     expect(Object.keys(res.body).sort()).toEqual(
-      ['email', 'id', 'locale', 'name', 'permissions', 'phone', 'role', 'roles', 'timezone'].sort(),
+      [
+        'email',
+        'id',
+        'locale',
+        'name',
+        'permissions',
+        'phone',
+        'role',
+        'roles',
+        'teacherId',
+        'timezone',
+      ].sort(),
     );
     expect(res.body).toMatchObject({
       id: user.id,

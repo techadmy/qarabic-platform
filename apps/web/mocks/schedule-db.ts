@@ -38,6 +38,7 @@ export const SETTINGS_DEFAULTS: SessionSettingsDto = {
   'sessions.teacher_buffer_min': 0,
   'sessions.reschedule_auto_approve_hours': 12,
   'zoom.create_lead_hours': 24,
+  'reports.parent_sees_rating': true,
 };
 
 export type EnrollmentRow = Omit<EnrollmentDto, 'slots'>;

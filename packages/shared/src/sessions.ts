@@ -148,7 +148,10 @@ export const SESSION_ACTIONS = [
   'revert',
 ] as const;
 export type SessionAction = (typeof SESSION_ACTIONS)[number];
-/** `allowedActions` may also hold `submit_report` (sent with the lesson report, N3). */
+/**
+ * `allowedActions` may also hold `submit_report`: the report is sent with `PUT /sessions/:id/report`
+ * (an ended class; a taken one inside the edit window, or always for `sessions.manage`).
+ */
 export const SESSION_ACTION_LABELS: Labels<SessionAction | 'submit_report'> = {
   activate: { ar: 'تفعيل', en: 'Activate' },
   undo_activate: { ar: 'تراجع عن التفعيل', en: 'Undo activation' },
@@ -286,7 +289,10 @@ export const sessionSchema = z.object({
     teacherJoinedAt: z.string().nullable(),
     studentJoinedAt: z.string().nullable(),
   }),
-  /** Lesson reports arrive with N3: `submitted` is false until then. */
+  /**
+   * The lesson report (N3): `submitted`, and until when the class's teacher may still edit it
+   * (`editableUntil`, a taken class only; staff with `sessions.manage` edit at any time).
+   */
   report: z.object({ submitted: z.boolean(), editableUntil: z.string().nullable() }),
   attention: z.array(z.string()),
   pendingRequests: z.array(z.object({ id: z.number().int(), type: z.string() })),
@@ -452,13 +458,7 @@ export const sessionRequestSummarySchema = z.object({
   createdAt: z.string(),
 });
 
-/** `GET /sessions/:id`: the class + its timeline + its requests (`lessonReport` arrives with N3). */
-export const sessionDetailSchema = sessionSchema.extend({
-  events: z.array(sessionEventSchema),
-  lessonReport: z.null(),
-  requests: z.array(sessionRequestSummarySchema),
-});
-export type SessionDetailDto = z.infer<typeof sessionDetailSchema>;
+// `sessionDetailSchema` (`GET /sessions/:id`, with the lesson report) lives in reports.ts.
 
 /** `GET /enrollments/:id`: the enrollment + its next classes (up to 20, from an hour ago). */
 export const enrollmentDetailSchema = enrollmentSchema.extend({
@@ -528,6 +528,8 @@ export const SESSION_SETTING_RULES = {
   'sessions.teacher_buffer_min': z.number().int().min(0).max(60),
   'sessions.reschedule_auto_approve_hours': z.number().int().min(0).max(168),
   'zoom.create_lead_hours': z.number().int().min(1).max(168),
+  /** B30 (D72): parents see the 1–5 class rating of a lesson report. */
+  'reports.parent_sees_rating': z.boolean(),
 } as const;
 export type SessionSettingKey = keyof typeof SESSION_SETTING_RULES;
 export const sessionSettingsSchema = z.object(SESSION_SETTING_RULES);

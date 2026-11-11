@@ -30,9 +30,9 @@ export const SETTING_DEFAULTS = {
   'sessions.leave_notice_hours': 2,
   /** A class not activated N minutes after its start is "late". */
   'sessions.late_teacher_min': 5,
-  /** Report due N hours after the end (N3 uses it; the board flags `report_missing`). */
+  /** Report due N hours after the end (the board flags `report_missing`). */
   'sessions.report_due_hours': 24,
-  /** The teacher may edit a report for N hours (N3). */
+  /** The teacher may edit a lesson report (and correct a test result) for N hours (D70, B29). */
   'sessions.report_edit_hours': 48,
   /** A leave class may be made up within N days. */
   'sessions.makeup_window_days': 14,
@@ -42,6 +42,8 @@ export const SETTING_DEFAULTS = {
   'sessions.reschedule_auto_approve_hours': 12,
   /** Zoom meetings are created N hours before a class (when Zoom is configured). */
   'zoom.create_lead_hours': 24,
+  /** B30 (D72, provisional yes): parents see the 1–5 class rating of a lesson report. */
+  'reports.parent_sees_rating': true as boolean,
 } satisfies Record<string, Prisma.InputJsonValue>;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

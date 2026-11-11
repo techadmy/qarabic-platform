@@ -17,6 +17,7 @@ import { PeopleModule } from './people/people.module.js';
 import { RolesModule } from './roles/roles.module.js';
 import { ScheduleModule } from './schedule/schedule.module.js';
 import { SettingsModule } from './settings/settings.service.js';
+import { TeachingModule } from './teaching/teaching.module.js';
 
 /** Never logged: credentials, cookies, tokens. */
 export const REDACT = [
@@ -57,6 +58,7 @@ export const REDACT = [
     RolesModule,
     PeopleModule,
     ScheduleModule,
+    TeachingModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

@@ -33,7 +33,7 @@ schemas the web forms use. OpenAPI (generated from those schemas) at `/api/docs`
 | GET    | `/auth/csrf`                                                   | public                                                   |                                                                                                                                    |
 | POST   | `/auth/login`, `/auth/forgot-password`, `/auth/reset-password` | public                                                   | rate limited                                                                                                                       |
 | POST   | `/auth/logout`                                                 | signed in                                                |                                                                                                                                    |
-| GET    | `/auth/me`, `/me`                                              | signed in                                                | `Me` (now with `phone` and `role {name, labelAr, labelEn, kind}`)                                                                  |
+| GET    | `/auth/me`, `/me`                                              | signed in                                                | `Me` (`phone`, `role {name, labelAr, labelEn, kind}`, `teacherId` for a teacher login — N3)                                        |
 | PATCH  | `/me`                                                          | signed in                                                | `updateMeSchema`: name, locale, timezone, phone; password with `currentPassword` (signs out other sessions, 5/min)                 |
 | GET    | `/people/lookups`                                              | any of `families.manage`, `staff.manage`, `users.manage` | `PeopleLookups`                                                                                                                    |
 | GET    | `/families`                                                    | `families.view`                                          | parent: own family only. Filters `status`, `managerId`, `countryCode`; sort `id                                                    | parentName | startDate  | createdAt` |
@@ -114,7 +114,7 @@ outside the scope answers 404.
 | GET                   | `/sessions/board`                             | `sessions.view`                                              | `BoardDto`; `since=cursor` deltas (removed rows included); weak `ETag` → 304                                                                                                      |
 | POST                  | `/sessions/generate`                          | `schedule.manage`                                            | «مزامنة حصص اليوم»: `{ date, dryRun }` → `{ toCreate, created }`                                                                                                                  |
 | POST                  | `/sessions`                                   | `sessions.manage`                                            | one-off class; 409 `schedule_conflict` / 422 `warnings_not_acknowledged`                                                                                                          |
-| GET                   | `/sessions/:id`                               | `sessions.view`                                              | `SessionDetailDto` (events, requests; `lessonReport: null` until N3)                                                                                                              |
+| GET                   | `/sessions/:id`                               | `sessions.view`                                              | `SessionDetailDto` (events, requests, `lessonReport` — see N3)                                                                                                                    |
 | PATCH                 | `/sessions/:id`                               | `sessions.manage`                                            | shift / change teacher of a scheduled class (detached); 409 `stale_session`                                                                                                       |
 | POST                  | `/sessions/:id/transitions`                   | any of `sessions.conduct`, `sessions.manage`                 | `transitionSchema`; the state machine below                                                                                                                                       |
 | GET                   | `/sessions/:id/zoom/start`                    | `sessions.conduct`                                           | own teacher, from 15 min before; never stored; `no-store`                                                                                                                         |
@@ -138,6 +138,34 @@ Windows come from `/settings/sessions`. Refusals: `invalid_transition` 409, `out
 (`errors.availableFrom` / `availableUntil`), `stale_session` 409 (`data` = fresh class),
 `forbidden` 403. Scheduling writes: `schedule_conflict` 409 and `warnings_not_acknowledged` 422
 with the lists in `data` (resend the warning codes in `acknowledgeWarnings`).
+
+## Endpoints (N3: teaching)
+
+Ported from the Laravel M3 routes (`api_v1.php`, `api_v1_tests.php`) with the same permissions.
+Contract in `@qarabic/shared` (`reports.ts`, `progress.ts`, `tests.ts`, `quran.ts`,
+`teacher-portal.ts`). Same row scope as N2 (404 outside it).
+
+| Method      | Path                            | Permission                                   | Notes                                                                                                                                                                                                                               |
+| ----------- | ------------------------------- | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PUT         | `/sessions/:id/report`          | any of `sessions.conduct`, `sessions.manage` | `lessonReportInputSchema`; `ended` → `taken` (event `report_submitted`); on `taken` an edit (`report_updated`, audited): the class's teacher until `report.editableUntil`, staff always; 422 `outside_window`; answers `SessionDto` |
+| GET         | `/sessions/:id/report`          | `sessions.view`                              | `LessonReportDto` or `data: null`; parents: no `teacherNotes` / authors / `editableUntil`; `rating` unless `reports.parent_sees_rating` is off (B30)                                                                                |
+| GET         | `/lesson-reports`               | `sessions.view`                              | ended + taken classes with `state` `pending` · `missing` («بلا تقرير») · `on_time` · `late`; filters `state`, `from`/`to`, `teacherId`, `studentId`; `meta.counts` per state; teacher: own; parent 403                              |
+| GET         | `/students/:id/progress`        | any of `families.view`, `sessions.conduct`   | `ProgressDto`: `lastPositions`, `timeline` (200, newest class first), `monthlyAyahs` (12 academy months), `coverage`; `from`/`to`/`type` filters                                                                                    |
+| GET         | `/quran/surahs`                 | signed in                                    | 114 `SurahDto`; `Cache-Control: private, max-age=86400`                                                                                                                                                                             |
+| GET         | `/tests`                        | `tests.view`                                 | `testListQuerySchema` (`status`, `month` academy zone, `date`, `from`/`to`, `teacherId`, `studentId`, `track`, `perPage` ≤ 100); scheduled first (soonest), then newest; `meta.counts` per status                                   |
+| GET         | `/tests/summary`                | `tests.view`                                 | `?month=YYYY-MM`: tiles + `byTeacher` (scoped; parents 403)                                                                                                                                                                         |
+| POST        | `/tests`                        | any of `tests.manage`, `tests.conduct`       | `createTestSchema`; teacher: own students, examiner = self; 422 `test_already_scheduled` / `no_examiner`                                                                                                                            |
+| GET · PATCH | `/tests/:id`                    | `tests.view` · any of manage, conduct        | PATCH while scheduled: time / sections / notes / duration (examiner or staff), `teacherId` (staff)                                                                                                                                  |
+| PUT         | `/tests/:id/result`             | any of `tests.manage`, `tests.conduct`       | `recordTestResultSchema` (checked after scope + action); from 30 min before (409 `test_not_started`); correction: examiner inside the edit window (409 `edit_window_closed`), staff with `reason` (422 `reason_required`)           |
+| POST        | `/tests/:id/refuse` · `/cancel` | any of `tests.manage`, `tests.conduct`       | `reason`; cancel: staff or the examiner who scheduled it; 409 `invalid_test_status`                                                                                                                                                 |
+| POST        | `/tests/:id/reopen`             | `tests.manage`                               | staff undo of refuse / cancel (`reason`); 422 `test_already_scheduled`                                                                                                                                                              |
+| GET         | `/teacher-portal/week`          | `sessions.conduct` (teacher login only)      | «أسبوعي»: Saturday–Friday in the teacher's zone (`?date=` any day), `summary` + 7 `days`                                                                                                                                            |
+| GET         | `/teacher-portal/students`      | `sessions.conduct` (teacher login only)      | «طلابي»: own students (no contact data), next class, last report, missing reports, last positions                                                                                                                                   |
+
+`submit_report` is in `allowedActions` for an ended class (its teacher, staff) and for a taken one
+inside the teacher's edit window (`sessions.report_edit_hours`, 48 h) or always for
+`sessions.manage`. A class `ended` (or taken without a report) past `sessions.report_due_hours` is
+flagged `report_missing`. Test errors: `TEST_ERROR_MESSAGES` (ar/en).
 
 ## Class jobs (N2)
 
@@ -167,3 +195,11 @@ future untouched generated classes right after it is saved (no queue), then fill
 - `session_events`: append-only timeline (a trigger refuses UPDATE / DELETE).
 - `session_requests`: partial unique index, one pending per class + type.
 - All "now" rules read the app `Clock` (tests pin it).
+
+## Data model notes (N3)
+
+- `lesson_reports` (one per class, `submitted_late` frozen at the first submission against
+  `due_at`), `hifz_entries` (surah/ayah ranges with the computed `ayahs`, the class time in
+  `lesson_at`; rewritten with the report), `student_tests` (partial unique index: one `scheduled`
+  test per student + track; score CHECKs), `quran_surahs` (seeded by the migration; kept by the
+  e2e table reset). Progress (last positions, coverage, monthly ayahs) is computed on read.

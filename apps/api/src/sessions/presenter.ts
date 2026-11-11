@@ -19,6 +19,7 @@ import {
   Actor,
   type GuardContext,
   type LastStageEvent,
+  reportEditableUntil,
   SessionStateMachine,
 } from './state-machine.js';
 
@@ -44,6 +45,7 @@ export const sessionInclude = {
     select: { id: true, type: true },
     orderBy: { id: 'asc' },
   },
+  report: { select: { id: true, submittedAt: true } },
 } satisfies Prisma.ClassSessionInclude;
 
 export type SessionRow = Prisma.ClassSessionGetPayload<{ include: typeof sessionInclude }>;
@@ -72,7 +74,8 @@ export function attentionFor(
   if (s.stage === 'scheduled' && now > starts + late && now <= ends) codes.push('late');
   if (s.activatedAt && s.activatedAt.getTime() > starts + late) codes.push('late_activation');
   if (
-    s.stage === 'ended' &&
+    (s.stage === 'ended' || s.stage === 'taken') &&
+    !s.report &&
     now > (s.endedAt ?? s.endsAt).getTime() + st['sessions.report_due_hours'] * HOUR
   ) {
     codes.push('report_missing');
@@ -253,7 +256,7 @@ export class SessionPresenter {
         teacherJoinedAt: isoZ(s.teacherJoinedAt),
         studentJoinedAt: isoZ(s.studentJoinedAt),
       },
-      report: { submitted: false, editableUntil: null },
+      report: { submitted: s.report !== null, editableUntil: isoZ(reportEditableUntil(s, st)) },
       attention: computed.attention,
       pendingRequests: s.requests.map((r) => ({ id: r.id, type: r.type })),
       allowedActions: computed.allowedActions,

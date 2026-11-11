@@ -41,10 +41,15 @@ export async function createTestApp(extraControllers: Type[] = []): Promise<Test
   };
 }
 
-/** Empty tables, fresh role matrix, no throttle counters, no mails. */
+/** Reference data the migrations seed: never truncated. */
+const REFERENCE_TABLES = ['_prisma_migrations', 'quran_surahs'];
+
+/** Empty tables (reference data kept), fresh role matrix, no throttle counters, no mails. */
 export async function resetState(ctx: TestContext): Promise<void> {
-  const tables = await ctx.prisma.$queryRaw<Array<{ tablename: string }>>`
-    SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
+  const tables = (
+    await ctx.prisma.$queryRaw<Array<{ tablename: string }>>`
+      SELECT tablename FROM pg_tables WHERE schemaname = 'public'`
+  ).filter((t) => !REFERENCE_TABLES.includes(t.tablename));
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(', ');
   if (list) await ctx.prisma.$executeRawUnsafe(`TRUNCATE ${list} RESTART IDENTITY CASCADE`);
   await syncRolesAndPermissions(ctx.prisma);
@@ -290,7 +295,10 @@ export const clock = (ctx: TestContext) => ctx.app.get(Clock);
 export async function authUser(ctx: TestContext, user: { id: number }): Promise<AuthUser> {
   const row = await ctx.prisma.user.findUniqueOrThrow({
     where: { id: user.id },
-    include: { role: { include: { permissions: { include: { permission: true } } } } },
+    include: {
+      role: { include: { permissions: { include: { permission: true } } } },
+      teacher: { select: { id: true } },
+    },
   });
   return {
     id: row.id,
@@ -309,6 +317,7 @@ export async function authUser(ctx: TestContext, user: { id: number }): Promise<
         }
       : null,
     permissions: new Set(row.role?.permissions.map((p) => p.permission.name) ?? []),
+    teacherId: row.teacher?.id ?? null,
   };
 }
 

@@ -43,6 +43,27 @@ export function sessionScopeWhere(scope: ViewerScope): Prisma.ClassSessionWhereI
   return {};
 }
 
+/**
+ * Students a viewer may open (Laravel `Scope::canSeeStudent`): a teacher their own students or any
+ * they have an enrollment or a class with (a substitute writes the report), a parent their own
+ * children, staff any. Archived students are hidden from portal users.
+ */
+export function studentScopeWhere(scope: ViewerScope): Prisma.StudentWhereInput {
+  if (scope.kind === 'teacher') {
+    const teacherId = scope.teacherId;
+    return {
+      archivedAt: null,
+      OR: [
+        { teacherId },
+        { enrollments: { some: { teacherId } } },
+        { sessions: { some: { teacherId } } },
+      ],
+    };
+  }
+  if (scope.kind === 'family') return { id: { in: scope.studentIds }, archivedAt: null };
+  return {};
+}
+
 export function enrollmentScopeWhere(scope: ViewerScope): Prisma.EnrollmentWhereInput {
   if (scope.kind === 'teacher') return { teacherId: scope.teacherId };
   if (scope.kind === 'family') return { studentId: { in: scope.studentIds } };

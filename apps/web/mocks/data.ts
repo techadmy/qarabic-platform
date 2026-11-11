@@ -38,6 +38,8 @@ function user(id: number, name: string, email: string, role: Role): MockUser {
     },
     roles: [role],
     permissions: permissionsFor(role),
+    // The demo teacher login is mock teacher 1 (people-db: userId 2).
+    teacherId: role === 'teacher' ? 1 : null,
     password: MOCK_PASSWORD,
   };
 }
@@ -73,6 +75,7 @@ function buildUsers(): MockUser[] {
       },
       roles: [SUPERVISOR_ROLE.name],
       permissions: [...SUPERVISOR_PERMISSIONS],
+      teacherId: null,
       password: MOCK_PASSWORD,
     },
   ];
