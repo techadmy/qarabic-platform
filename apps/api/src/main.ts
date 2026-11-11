@@ -6,7 +6,11 @@ import { configureApp } from './app.setup.js';
 import { ENV, type Env } from './config/env.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    bufferLogs: true,
+    // Payment webhook signatures are computed over the raw body (N6).
+    rawBody: true,
+  });
   configureApp(app);
   await app.listen(app.get<Env>(ENV).PORT);
 }

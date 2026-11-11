@@ -203,3 +203,91 @@ future untouched generated classes right after it is saved (no queue), then fill
   `lesson_at`; rewritten with the report), `student_tests` (partial unique index: one `scheduled`
   test per student + track; score CHECKs), `quran_surahs` (seeded by the migration; kept by the
   e2e table reset). Progress (last positions, coverage, monthly ayahs) is computed on read.
+
+## Endpoints (N6: billing)
+
+Ported from the Laravel M5 billing routes (`api_v1.php`, docs/20) with the same permissions.
+Contract in `@qarabic/shared` (`billing.ts`). Money is a decimal string with 2 places (`"60.00"`)
+plus an ISO currency; the services compute in integer minor units (`toMinor` / `fromMinor` /
+`prorate` / `percentOf`, half up), the database stores `numeric(12,2)`. Row scope (D87): staff see
+every family; a parent only their own family and never a draft; teachers nothing (404 outside).
+
+| Method    | Path                           | Permission                                    | Notes                                                                                                                                                                                                                           |
+| --------- | ------------------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET       | `/billing/providers`           | `invoices.view`                               | `BillingProvidersDto`: configured online methods (test / sandbox keys only), manual methods, currencies                                                                                                                         |
+| GET       | `/billing/summary`             | any of `invoices.manage`, `reports.financial` | `BillingSummaryDto`: per currency due / overdue / collected this academy month; status counts + `overdue`                                                                                                                       |
+| GET       | `/fee-packages`                | `packages.view`                               | `?active=1\|0`; active first, then classes per week                                                                                                                                                                             |
+| POST      | `/fee-packages`                | `packages.manage`                             | `createFeePackageSchema` (a price per currency); 201                                                                                                                                                                            |
+| PATCH     | `/fee-packages/:id`            | `packages.manage`                             | `updateFeePackageSchema`; `prices` replaces the list; archive with `isActive: false` (never deleted)                                                                                                                            |
+| GET       | `/families/:id/billing`        | `invoices.view`                               | `FamilyBillingDto`: profile, children's packages, `nextInvoice` preview, `balance` per currency; parent: own family only                                                                                                        |
+| PUT       | `/families/:id/billing`        | `invoices.manage`                             | `updateFamilyBillingSchema`; a package change applies from the next invoice; 422 `unknown_student`                                                                                                                              |
+| GET       | `/invoices`                    | `invoices.view`                               | `invoiceListQuerySchema`: `status` (a status, `open`, `overdue`), `familyId` (staff), `period=YYYY-MM`, `q` (number, parent name / email); `meta.counts` for every tab                                                          |
+| POST      | `/invoices`                    | any of `invoices.manage`, `invoices.request`  | `createInvoiceSchema` (manual); `issue: true` issues only with `invoices.manage` (CSR always drafts, D87); 422 `missing_currency`, `unknown_student`                                                                            |
+| GET       | `/invoices/:id`                | `invoices.view`                               | `InvoiceDetailDto`: lines, payments (parent: no internal fields), split links, package `usage` (B24), `can`                                                                                                                     |
+| GET       | `/invoices/:id/print`          | `invoices.view`                               | printable HTML in the viewer's language (Laravel has no PDF; print / save as PDF in the browser)                                                                                                                                |
+| POST      | `/invoices/:id/issue`          | `invoices.manage`                             | draft → issued: number `INV-YYYY-000123` from a locked yearly counter, due date default `billing.default_due_days`; 422 `not_draft` / `empty_invoice`                                                                           |
+| POST      | `/invoices/:id/lines`          | `invoices.manage`                             | `addInvoiceLineSchema`: adjustment (±) or discount (amount or percent) with a reason, a new line (lines are append-only); 422 `not_editable` / `below_paid` / `zero_amount`                                                     |
+| POST      | `/invoices/:id/void`           | `invoices.manage`                             | `{ reason }`; 422 `has_payments` / `not_editable`; frees the period for a new run                                                                                                                                               |
+| POST      | `/invoices/:id/split`          | `invoices.manage`                             | `splitInvoiceSchema` (2–6 parts summing to the total, each issued); 201 `{ original, parts }`; 422 `split_not_allowed` / `split_sum` (+ `data.total`)                                                                           |
+| POST      | `/invoices/:id/remind`         | `invoices.manage`                             | one reminder email now; 429 `remind_throttled` (1 an hour); 422 `parent_mail_off` while `billing.notify_parents` is off, `not_open`                                                                                             |
+| POST      | `/invoices/:id/payments`       | `invoices.manage`                             | `manualPaymentSchema` (cash, bank transfer, cheque, other; partial allowed; not in the future); 201 `PaymentDto` (`receiptNumber` `RC-000123`); 422 `over_balance` / `not_open`                                                 |
+| POST      | `/payments/:id/void`           | `invoices.manage`                             | `{ reason }`: reverses a manual payment, the invoice reopens; 422 `payment_not_voidable` (online ones are refunded at the provider)                                                                                             |
+| POST      | `/invoices/:id/checkout`       | `invoices.pay`                                | `{ provider: stripe \| paypal }` → 201 `CheckoutResultDto` (`url` of the hosted page) for the server's balance; a pending attempt is reused 30 min; 10/min per user; 422 `provider_unavailable` / `provider_error` / `not_open` |
+| POST      | `/invoices/:id/paypal/capture` | `invoices.pay`                                | `{ orderId }` after PayPal's return: server-side capture; only PayPal's answer (amount + currency checked) marks it paid                                                                                                        |
+| POST      | `/invoice-runs/preview`        | `invoices.manage`                             | `invoiceRunPreviewSchema` (`period`, `billingDay` 1 \| 15, `familyIds`): rows + `meta {families, willIssue, totals}`; writes nothing                                                                                            |
+| POST      | `/invoice-runs`                | `invoices.manage`                             | `invoiceRunSchema` (+ `dueDate`): issues once per family and period (unique `period_key`, races too); 201 `{ issued, skipped, issuedCount }`                                                                                    |
+| GET · PUT | `/settings/billing`            | `settings.view` · `settings.manage`           | flat keys (`BILLING_SETTING_RULES`): `billing.deducting_stages`, `billing.reminder_days`, `billing.default_due_days`, `billing.notify_parents` (off)                                                                            |
+| POST      | `/webhooks/stripe`             | public (signed)                               | `Stripe-Signature` HMAC over the raw body, 5 min tolerance; live events refused; idempotent per event id; 404 without keys; 300/min per IP                                                                                      |
+| POST      | `/webhooks/paypal`             | public (verified)                             | verified by PayPal (`verify-webhook-signature`, cert URL must be `https://…paypal.com`); idempotent per event id; 404 without keys                                                                                              |
+
+Invoice lifecycle: `draft` → `issued` → `partially_paid` → `paid`; `void` and `split` close it
+(«متأخرة» = open and past its due date, computed). Totals and status come only from the
+recalculation (lines + succeeded payments) inside the transaction that locks the invoice row.
+Every money fact writes a `billing_events` row (outbox for the ledger, D86): `invoice.issued`,
+`invoice.adjusted`, `invoice.voided`, `payment.succeeded`, `payment.refunded`.
+
+Monthly fee (D84, D85): the family's custom fee, else one line per child with a package priced in
+the family currency (a missing price skips the family with a warning); prorated by days when
+billing starts inside the period. Package usage per child (allowance = classes a week × 4,
+counted stages from `billing.deducting_stages`) is shown on the invoice; it never changes money.
+
+## Payments: safety (D88, D140)
+
+- Stripe test keys and PayPal sandbox only. Outside production the API refuses to start with a
+  live key (`*_live_*`), `BILLING_PAYPAL_MODE=live` or `BILLING_ALLOW_LIVE=true`; in production a
+  live key stays off unless `BILLING_ALLOW_LIVE=true` (Ahmed's go-live decision, B40). Live-mode
+  Stripe events are refused unless live money is allowed.
+- A provider without keys is hidden and its webhook answers 404. Under `NODE_ENV=test` the
+  provider transport refuses every call unless a test installs a fake: no test reaches Stripe or
+  PayPal, and tests start with no keys whatever `.env` says.
+- Paid status comes only from a signed Stripe webhook or PayPal's own capture / verified webhook,
+  with the amount and currency of the attempt checked under the row locks (`amount_mismatch` fails
+  the attempt). Every provider event is stored once per (provider, event id); a failed one is
+  retried on the next delivery.
+- Parent emails (invoice issued, reminders) go through the Mailer (memory only until SMTP, B31)
+  and only while `billing.notify_parents` is on (off by default).
+
+## Billing jobs (N6)
+
+`billing:reminders` hourly at :20 in the academy zone (cron with `SCHEDULER_ENABLED`): one email
+per open invoice on each day of `billing.reminder_days` around the due date (−3, 0, +3, +7; a
+missed day is caught up within 2 days), claimed in `invoice_reminders` so it is sent once. A no-op
+while `billing.notify_parents` is off. Monthly invoices are not automatic (D84, B38).
+
+```sh
+pnpm --filter @qarabic/api cli invoices:generate --period=YYYY-MM [--day=1|15] [--family=ID ...] (--dry-run | --due=YYYY-MM-DD)
+pnpm --filter @qarabic/api cli billing:reminders
+```
+
+## Data model notes (N6)
+
+- `fee_packages` + `fee_package_prices` (one price per currency), `family_billing_profiles` (1:1
+  family: currency, billing day 1 \| 15, on/off, custom fee, first billed day),
+  `student_fee_packages` (a child's package).
+- `invoices` (`number` unique, `period_key` unique for monthly ones, totals, lock version),
+  `invoice_lines` (append-only: a trigger refuses UPDATE / DELETE), `invoice_sequences` (yearly
+  counter), `payments` (unique (method, provider ref), idempotency key), `payment_webhook_events`
+  (unique (provider, event id)), `billing_events` (append-only except `consumed_at`),
+  `invoice_reminders` (unique (invoice, slot)). CHECKs: positive prices and payments, billing day.
+- Archiving a family is refused while it has open invoices: 409 `has_open_invoices`
+  (`data.openInvoices`).

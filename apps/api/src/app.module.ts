@@ -5,6 +5,7 @@ import { LoggerModule } from 'nestjs-pino';
 import { AccountModule } from './account/account.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
+import { BillingModule } from './billing/billing.module.js';
 import { ClockModule } from './common/clock.js';
 import { CryptoModule } from './common/crypto.js';
 import { HttpExceptionFilter } from './common/http-exception.filter.js';
@@ -59,6 +60,7 @@ export const REDACT = [
     PeopleModule,
     ScheduleModule,
     TeachingModule,
+    BillingModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

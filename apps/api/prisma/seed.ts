@@ -2,6 +2,7 @@ import { PasswordsService } from '../src/auth/passwords.service.js';
 import { loadEnv } from '../src/config/env.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
+import { seedDemoBilling } from './seed-billing.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
 import { seedDemoSchedule } from './seed-schedule.js';
 import { seedDemoTeaching } from './seed-teaching.js';
@@ -58,6 +59,12 @@ async function main(): Promise<void> {
         taught
           ? 'Demo lesson reports, hifz progress and three tests added (fake data).'
           : 'Demo lesson reports already there (or no demo classes).',
+      );
+      const billed = await seedDemoBilling(prisma);
+      console.log(
+        billed
+          ? 'Demo fee packages, billing profiles and invoices added (fake data, no real money).'
+          : 'Demo billing already there (or no demo families).',
       );
     }
   } finally {

@@ -30,7 +30,10 @@ export async function createTestApp(extraControllers: Type[] = []): Promise<Test
     imports: [AppModule],
     controllers: extraControllers,
   }).compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    bufferLogs: true,
+    rawBody: true,
+  });
   configureApp(app);
   await app.init();
   return {

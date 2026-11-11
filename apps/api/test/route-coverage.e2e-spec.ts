@@ -32,6 +32,10 @@ const PUBLIC_ROUTES = [
   'POST auth/forgot-password',
   'POST auth/login',
   'POST auth/reset-password',
+  // N6: payment provider webhooks (404 while the provider has no keys; Stripe signed over the raw
+  // body with a 5 min tolerance, PayPal verified by PayPal; idempotent per event id).
+  'POST webhooks/paypal',
+  'POST webhooks/stripe',
 ];
 
 describe('route permission coverage', () => {
@@ -198,6 +202,38 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every N6 route needs the permission of the Laravel M5 billing routes (api_v1.php)', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expect(byRoute).toMatchObject({
+      'GET billing/providers': 'all:invoices.view',
+      'GET billing/summary': 'any:invoices.manage|reports.financial',
+      'GET fee-packages': 'all:packages.view',
+      'POST fee-packages': 'all:packages.manage',
+      'PATCH fee-packages/:id': 'all:packages.manage',
+      'GET families/:familyId/billing': 'all:invoices.view',
+      'PUT families/:familyId/billing': 'all:invoices.manage',
+      'GET invoices': 'all:invoices.view',
+      'POST invoices': 'any:invoices.manage|invoices.request',
+      'GET invoices/:id': 'all:invoices.view',
+      'GET invoices/:id/print': 'all:invoices.view',
+      'POST invoices/:id/issue': 'all:invoices.manage',
+      'POST invoices/:id/lines': 'all:invoices.manage',
+      'POST invoices/:id/void': 'all:invoices.manage',
+      'POST invoices/:id/split': 'all:invoices.manage',
+      'POST invoices/:id/remind': 'all:invoices.manage',
+      'POST invoices/:id/payments': 'all:invoices.manage',
+      'POST payments/:id/void': 'all:invoices.manage',
+      'POST invoices/:id/checkout': 'all:invoices.pay',
+      'POST invoices/:id/paypal/capture': 'all:invoices.pay',
+      'POST invoice-runs/preview': 'all:invoices.manage',
+      'POST invoice-runs': 'all:invoices.manage',
+      'GET settings/billing': 'all:settings.view',
+      'PUT settings/billing': 'all:settings.manage',
+    });
+  });
+
   it('answers 403 to a signed-in user with no role on every permission route', async () => {
     const { client } = await signedIn(ctx, null);
     for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
@@ -285,6 +321,9 @@ describe('platform', () => {
         '/api/v1/students/{id}/progress',
         '/api/v1/tests/{id}/result',
         '/api/v1/teacher-portal/week',
+        '/api/v1/invoices',
+        '/api/v1/invoices/{id}/checkout',
+        '/api/v1/invoice-runs/preview',
       ]),
     );
   });
