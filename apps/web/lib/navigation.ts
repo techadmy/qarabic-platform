@@ -2,8 +2,8 @@ import type { Me } from '@qarabic/shared';
 import {
   BadgeCheckIcon,
   GraduationCapIcon,
-  HomeIcon,
-  HouseIcon,
+  LayoutDashboardIcon,
+  UsersRoundIcon,
   ShieldCheckIcon,
   UserCogIcon,
   UsersIcon,
@@ -41,7 +41,7 @@ export type NavEntry = NavItem | NavGroup;
 
 export const isGroup = (entry: NavEntry): entry is NavGroup => 'group' in entry;
 
-const HOME: NavItem = { key: 'home', href: '/', icon: HomeIcon };
+const HOME: NavItem = { key: 'home', href: '/', icon: LayoutDashboardIcon };
 
 /**
  * Staff sidebar, grouped like the current app (and the developer admin it copies): top items, then
@@ -53,7 +53,7 @@ export const STAFF_NAV: NavEntry[] = [
     group: 'users',
     icon: UsersIcon,
     items: [
-      { key: 'families', href: '/families', icon: HouseIcon, permission: 'families.view' },
+      { key: 'families', href: '/families', icon: UsersRoundIcon, permission: 'families.view' },
       { key: 'students', href: '/students', icon: GraduationCapIcon, permission: 'families.view' },
       { key: 'teachers', href: '/teachers', icon: BadgeCheckIcon, permission: 'staff.view' },
       { key: 'staff', href: '/staff', icon: UserCogIcon, permission: 'users.view' },
@@ -75,7 +75,7 @@ export const TEACHER_NAV: NavEntry[] = [
 /** Parent portal: own family and children. */
 export const PARENT_NAV: NavEntry[] = [
   HOME,
-  { key: 'myFamily', href: '/my-family', icon: HouseIcon, permission: 'families.view' },
+  { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
 ];
 
 /** Pages outside the sidebar that still name the top bar. */
