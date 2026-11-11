@@ -1,0 +1,112 @@
+{
+  "app": {
+    "name": "Qarabic",
+    "tagline": "Online Quran and Arabic academy"
+  },
+  "common": {
+    "loading": "Loading…",
+    "retry": "Try again",
+    "language": "Language",
+    "logout": "Log out",
+    "toggleSidebar": "Show or hide the sidebar",
+    "skipToContent": "Skip to content"
+  },
+  "languages": {
+    "ar": "العربية",
+    "en": "English",
+    "switchTo": "العربية",
+    "switchToLabel": "التبديل إلى العربية"
+  },
+  "auth": {
+    "loginTitle": "Sign in to your account",
+    "loginDescription": "Enter your email and password to continue.",
+    "email": "Email",
+    "password": "Password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "remember": "Remember me",
+    "login": "Sign in",
+    "loggingIn": "Signing in…",
+    "forgot": "Forgot password?",
+    "forgotTitle": "Reset your password",
+    "forgotHint": "Enter your email and we will send you a link to reset your password.",
+    "sendLink": "Send reset link",
+    "sending": "Sending…",
+    "linkSentTitle": "Link sent",
+    "linkSent": "If this email is registered, a reset link is on its way.",
+    "resetTitle": "Choose a new password",
+    "resetHint": "Enter your new password twice to confirm it.",
+    "newPassword": "New password",
+    "confirmPassword": "Confirm password",
+    "resetSubmit": "Save password",
+    "saving": "Saving…",
+    "resetDoneTitle": "Password changed",
+    "resetDone": "Your password was changed. You can sign in now.",
+    "resetInvalidLink": "This reset link is invalid or has expired. Request a new one.",
+    "requestNewLink": "Request a new link",
+    "backToLogin": "Back to sign in",
+    "errorTitle": "Could not sign in",
+    "invalidCredentials": "Email or password is incorrect.",
+    "tooManyAttempts": "Too many attempts. Try again in a minute.",
+    "genericError": "Something went wrong. Please try again."
+  },
+  "validation": {
+    "required": "This field is required",
+    "email": "Enter a valid email",
+    "passwordMin": "{count, plural, one {At least # character} other {At least # characters}}",
+    "passwordsMatch": "Passwords do not match"
+  },
+  "nav": {
+    "group": "Main menu",
+    "home": "Home",
+    "roles": "Roles and permissions",
+    "account": "My account",
+    "menuTitle": "Sidebar",
+    "menuDescription": "Links to the pages of the system."
+  },
+  "home": {
+    "title": "Home",
+    "welcome": "Welcome, {name}",
+    "emptyTitle": "No data yet",
+    "emptyDescription": "Your daily work summaries will appear here as the next modules are added."
+  },
+  "roles": {
+    "title": "Roles and permissions",
+    "description": "The roles defined in the system and how many permissions each one has.",
+    "tableLabel": "Roles",
+    "count": "{count, plural, =0 {No roles} one {# role} other {# roles}}",
+    "columns": {
+      "role": "Role",
+      "kind": "Type",
+      "permissions": "Permissions",
+      "status": "Status"
+    },
+    "kind": {
+      "owner": "Owner",
+      "staff": "Staff",
+      "teacher": "Teacher",
+      "parent": "Parent",
+      "system": "System",
+      "custom": "Custom"
+    },
+    "permissionsCount": "{count, plural, =0 {No permissions} one {# permission} other {# permissions}}",
+    "customized": "Customized",
+    "customizedHint": "This role's permissions were changed from the default",
+    "default": "Default",
+    "empty": "No roles yet",
+    "emptyDescription": "System roles will appear here once they are set up."
+  },
+  "errors": {
+    "forbiddenTitle": "No access",
+    "forbidden": "You do not have permission to view this page. Ask the system administrator if you need it.",
+    "loadTitle": "Could not load the data",
+    "load": "Something went wrong while loading the data. Please try again.",
+    "notFoundTitle": "Page not found",
+    "notFound": "We could not find the page you asked for.",
+    "goHome": "Go to home"
+  },
+  "dev": {
+    "title": "Component preview (development only)",
+    "description": "Every shadcn component used so far, in Arabic and right-to-left."
+  }
+}
