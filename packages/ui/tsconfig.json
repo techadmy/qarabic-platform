@@ -1,0 +1,8 @@
+{
+  "extends": "@qarabic/config/react-library.json",
+  "compilerOptions": {
+    "paths": { "@qarabic/ui/*": ["./src/*"] }
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "dist"]
+}
