@@ -34,6 +34,15 @@ export function toMe(user: AuthUser): Me {
     email: user.email,
     locale: user.locale,
     timezone: user.timezone,
+    phone: user.phone,
+    role: user.role
+      ? {
+          name: user.role.name,
+          labelAr: user.role.labelAr,
+          labelEn: user.role.labelEn,
+          kind: user.role.kind,
+        }
+      : null,
     roles: user.role ? [user.role.name] : [],
     permissions: [...user.permissions].sort(),
   };
@@ -55,7 +64,7 @@ export class AuthService {
   ): Promise<{ token: string; ttlMs: number; remember: boolean }> {
     const user = await this.findByEmail(input.email);
     const ok = await this.passwords.verify(user?.passwordHash ?? null, input.password);
-    if (!user || !ok || !user.isActive) throw invalidCredentials();
+    if (!user || !ok || !user.isActive || user.archivedAt) throw invalidCredentials();
 
     if (this.passwords.needsRehash(user.passwordHash)) {
       await this.prisma.user.update({
@@ -70,7 +79,7 @@ export class AuthService {
   /** Always resolves the same way; a mail goes out only for an existing, active account. */
   async forgotPassword(input: z.output<typeof forgotPasswordSchema>): Promise<void> {
     const user = await this.findByEmail(input.email);
-    if (!user?.isActive) return;
+    if (!user?.isActive || user.archivedAt) return;
     const token = randomToken();
     const now = Date.now();
     await this.prisma.$transaction([

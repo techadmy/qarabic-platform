@@ -58,3 +58,39 @@ test('real API: wrong password shows the invalid-credentials message', async ({ 
   await page.getByRole('button', { name: 'دخول' }).click();
   await expect(page.getByText('البريد الإلكتروني أو كلمة المرور غير صحيحة.')).toBeVisible();
 });
+
+test('real API: families list → open one → edit a field (saved in the database)', async ({
+  page,
+}) => {
+  const admin = seedAdmin();
+  await page.goto('/families');
+  await expect(page).toHaveURL(/\/login\?next=%2Ffamilies$/);
+  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
+  await page.locator('#password').fill(admin.password);
+  await page.getByRole('button', { name: 'دخول' }).click();
+  await expect(page).toHaveURL(/\/families$/);
+
+  // The seed's made-up demo families, with counts on the status tabs from meta.counts.
+  const table = page.getByRole('table', { name: 'العائلات' });
+  await expect(table).not.toHaveAttribute('aria-busy');
+  await expect(table.getByRole('row').nth(1)).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^الكل/ })).toHaveText(/\(\d+\)/);
+
+  const first = table.getByRole('row').nth(1).getByRole('link').first();
+  const name = (await first.textContent())!.trim();
+  await first.click();
+  await expect(page).toHaveURL(/\/families\/\d+$/);
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
+
+  const zoom = `E2E ${Date.now() % 1_000_000}`;
+  await page.getByRole('button', { name: 'تعديل', exact: true }).click();
+  const sheet = page.getByRole('dialog', { name: 'تعديل بيانات العائلة' });
+  await sheet.getByLabel(/معرّف Zoom/).fill(zoom);
+  await sheet.getByRole('button', { name: 'حفظ' }).click();
+  await expect(sheet).toBeHidden();
+  await expect(page.getByText(zoom)).toBeVisible();
+
+  // Still there after a reload: it came back from the API, not from the cache.
+  await page.reload();
+  await expect(page.getByText(zoom)).toBeVisible();
+});

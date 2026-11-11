@@ -14,7 +14,7 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ComponentProps } from 'react';
 import { BrandLogo, BrandMark } from '@/components/brand-logo';
-import { navItemsFor } from '@/lib/navigation';
+import { navFor } from '@/lib/navigation';
 import { NavMain } from './nav-main';
 
 /**
@@ -22,7 +22,8 @@ import { NavMain } from './nav-main';
  * app's sidebar: white, full height, the logo in a 64px header row that lines up with the top bar.
  * RTL: the sidebar sits on the right and gets `dir`, as in shadcn's sidebar RTL notes. The block's
  * team switcher becomes the Qarabic logo (the mark when collapsed to icons); its projects group is
- * dropped, and its user menu moved to the top bar (`UserMenu`), as in the current app.
+ * dropped, and its user menu moved to the top bar (`UserMenu`), as in the current app. The menu is
+ * the portal of the user's role kind (staff groups, «طلابي» for a teacher, «عائلتي» for a parent).
  */
 export function AppSidebar({
   me,
@@ -61,7 +62,7 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navItemsFor(me)} tooltipSide={dir === 'rtl' ? 'left' : 'right'} />
+        <NavMain entries={navFor(me)} tooltipSide={dir === 'rtl' ? 'left' : 'right'} />
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

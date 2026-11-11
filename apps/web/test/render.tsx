@@ -3,6 +3,7 @@ import { render, type RenderOptions } from '@testing-library/react';
 import { NextIntlClientProvider } from 'next-intl';
 import type { ReactElement, ReactNode } from 'react';
 import { DirectionProvider } from '@qarabic/ui/components/direction';
+import { Toaster } from '@qarabic/ui/components/sonner';
 import { TooltipProvider } from '@qarabic/ui/components/tooltip';
 import ar from '@/messages/ar.json';
 import en from '@/messages/en.json';
@@ -27,6 +28,7 @@ export function renderWithProviders(
         <DirectionProvider dir={locale === 'ar' ? 'rtl' : 'ltr'}>
           <TooltipProvider>
             <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+            <Toaster />
           </TooltipProvider>
         </DirectionProvider>
       </NextIntlClientProvider>

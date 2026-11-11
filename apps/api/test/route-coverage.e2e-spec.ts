@@ -2,7 +2,7 @@ import { Controller, Get } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { auditRoutes } from '../src/common/route-audit.js';
-import { createTestApp, resetState, signedIn, type TestContext } from './helpers.js';
+import { Client, createTestApp, resetState, signedIn, type TestContext } from './helpers.js';
 
 /** Deliberately unmarked: proves the global guard denies by default. */
 @Controller('unmarked')
@@ -47,8 +47,96 @@ describe('route permission coverage', () => {
     expect(routes.filter((r) => r.access === 'public').map((r) => r.route)).toEqual(PUBLIC_ROUTES);
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
+      'GET me',
+      'PATCH me',
       'POST auth/logout',
     ]);
+  });
+
+  it('answers 401 on every non-public route without a session (CSRF token present)', async () => {
+    const anonymous = await new Client(ctx.app).init();
+    const routes = auditRoutes(ctx.app).filter(
+      (r) => r.access !== 'public' && r.route !== 'GET unmarked',
+    );
+    expect(routes.length).toBeGreaterThanOrEqual(39);
+    for (const { route } of routes) {
+      const [method, path] = route.split(' ') as [string, string];
+      const url = '/' + path.replace(/:\w+/g, '1');
+      const res =
+        method === 'GET'
+          ? await anonymous.get(url)
+          : method === 'POST'
+            ? await anonymous.post(url, {})
+            : method === 'PATCH'
+              ? await anonymous.patch(url, {})
+              : method === 'PUT'
+                ? await anonymous.put(url, {})
+                : await anonymous.delete(url, {});
+      expect(res.status, route).toBe(401);
+      expect(res.body.code, route).toBe('unauthenticated');
+    }
+  });
+
+  it('every N1 route needs the permission documented in docs/28 and docs/29', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expect(byRoute).toMatchObject({
+      'GET people/lookups': 'any:families.manage|staff.manage|users.manage',
+      'GET families': 'all:families.view',
+      'GET families/:id': 'all:families.view',
+      'POST families': 'all:families.manage',
+      'PATCH families/:id': 'all:families.manage',
+      'POST families/:id/status': 'all:families.manage',
+      'DELETE families/:id': 'all:families.manage',
+      'POST families/:id/restore': 'all:families.manage',
+      'GET students': 'any:families.view|sessions.conduct',
+      'GET students/:id': 'any:families.view|sessions.conduct',
+      'POST students': 'all:families.manage',
+      'PATCH students/:id': 'all:families.manage',
+      'POST students/:id/status': 'all:families.manage',
+      'DELETE students/:id': 'all:families.manage',
+      'POST students/:id/restore': 'all:families.manage',
+      'GET teachers': 'all:staff.view',
+      'GET teachers/:id': 'all:staff.view',
+      'POST teachers': 'all:staff.manage',
+      'PATCH teachers/:id': 'all:staff.manage',
+      'POST teachers/:id/status': 'all:staff.manage',
+      'DELETE teachers/:id': 'all:staff.manage',
+      'POST teachers/:id/restore': 'all:staff.manage',
+      'GET staff': 'all:users.view',
+      'GET staff/:id': 'all:users.view',
+      'POST staff': 'all:users.manage',
+      'PATCH staff/:id': 'all:users.manage',
+      'POST staff/:id/status': 'all:users.manage',
+      'DELETE staff/:id': 'all:users.manage',
+      'POST staff/:id/restore': 'all:users.manage',
+      'GET roles': 'all:roles.view',
+      'GET roles/catalog': 'all:roles.view',
+      'GET roles/:id': 'all:roles.view',
+      'POST roles': 'all:roles.manage',
+      'PATCH roles/:id': 'all:roles.manage',
+      'DELETE roles/:id': 'all:roles.manage',
+    });
+  });
+
+  it('answers 403 to a signed-in user with no role on every permission route', async () => {
+    const { client } = await signedIn(ctx, null);
+    for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
+      const [method, path] = route.split(' ') as [string, string];
+      const url = '/' + path.replace(/:\w+/g, '1');
+      const res =
+        method === 'GET'
+          ? await client.get(url)
+          : method === 'POST'
+            ? await client.post(url, {})
+            : method === 'PATCH'
+              ? await client.patch(url, {})
+              : method === 'PUT'
+                ? await client.put(url, {})
+                : await client.delete(url, {});
+      expect(res.status, route).toBe(403);
+    }
   });
 
   it('the audit flags an unmarked route', () => {
@@ -107,7 +195,12 @@ describe('platform', () => {
     const res = await request(ctx.app.getHttpServer()).get('/api/docs-json');
     expect(res.status).toBe(200);
     expect(Object.keys(res.body.paths)).toEqual(
-      expect.arrayContaining(['/api/v1/auth/login', '/api/v1/roles']),
+      expect.arrayContaining([
+        '/api/v1/auth/login',
+        '/api/v1/roles',
+        '/api/v1/families',
+        '/api/v1/staff/{id}/status',
+      ]),
     );
   });
 });

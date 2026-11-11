@@ -2,12 +2,19 @@ import { RequestMethod } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants.js';
 import { ModulesContainer, Reflector } from '@nestjs/core';
 import type { INestApplicationContext } from '@nestjs/common';
-import { AUTHENTICATED_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from '../auth/decorators.js';
+import {
+  ANY_PERMISSION_KEY,
+  AUTHENTICATED_KEY,
+  PERMISSIONS_KEY,
+  PUBLIC_KEY,
+} from '../auth/decorators.js';
 
 export interface RouteAccess {
   route: string;
   access: 'public' | 'authenticated' | 'permission' | 'none';
   permissions: string[];
+  /** `all` = `@Can` (every listed permission), `any` = `@CanAny` (one of them). */
+  mode?: 'all' | 'any';
 }
 
 const join = (...parts: Array<string | string[] | undefined>) =>
@@ -34,7 +41,9 @@ export function auditRoutes(app: INestApplicationContext): RouteAccess[] {
         if (path === undefined) continue;
         const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod;
         const targets = [handler, cls];
-        const perms = reflector.getAllAndOverride<string[] | undefined>(PERMISSIONS_KEY, targets);
+        const all = reflector.getAllAndOverride<string[] | undefined>(PERMISSIONS_KEY, targets);
+        const any = reflector.getAllAndOverride<string[] | undefined>(ANY_PERMISSION_KEY, targets);
+        const perms = all ?? any;
         const access = reflector.getAllAndOverride<boolean>(PUBLIC_KEY, targets)
           ? 'public'
           : perms?.length
@@ -46,6 +55,7 @@ export function auditRoutes(app: INestApplicationContext): RouteAccess[] {
           route: `${RequestMethod[method]} ${join(base, path)}`,
           access,
           permissions: perms ?? [],
+          ...(perms?.length ? { mode: all ? ('all' as const) : ('any' as const) } : {}),
         });
       }
     }

@@ -11,7 +11,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@qarabic/ui/components/dropdown-menu';
-import { LogOutIcon } from 'lucide-react';
+import { LogOutIcon, UserRoundIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useLogout } from '@/lib/auth/use-me';
 
@@ -22,7 +23,7 @@ function initial(name: string): string {
 
 /**
  * Account menu at the end of the top bar (current app layout): a round brand-coloured avatar that
- * opens name + email and logout. Built from the shadcn `nav-user` parts (DropdownMenu + Avatar).
+ * opens name + email, «إعدادات الحساب» and logout. Built from the shadcn `nav-user` parts (DropdownMenu + Avatar).
  */
 export function UserMenu({ user, dir }: { user: Pick<Me, 'name' | 'email'>; dir: 'rtl' | 'ltr' }) {
   const t = useTranslations();
@@ -51,6 +52,12 @@ export function UserMenu({ user, dir }: { user: Pick<Me, 'name' | 'email'>; dir:
           </span>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link href="/account">
+            <UserRoundIcon />
+            {t('nav.accountSettings')}
+          </Link>
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => logout.mutate()} disabled={logout.isPending}>
           <LogOutIcon />
           {t('common.logout')}

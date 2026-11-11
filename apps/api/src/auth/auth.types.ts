@@ -7,7 +7,14 @@ export interface AuthUser {
   email: string;
   locale: Locale;
   timezone: string;
-  role: { id: number; name: string; kind: RoleKind } | null;
+  phone: string | null;
+  role: {
+    id: number;
+    name: string;
+    kind: RoleKind;
+    labelAr: string;
+    labelEn: string | null;
+  } | null;
   permissions: ReadonlySet<string>;
 }
 

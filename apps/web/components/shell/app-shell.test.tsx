@@ -8,7 +8,7 @@ import { AppShell } from './app-shell';
 
 /** The sidebar's menu (the breadcrumb also has role="link"). */
 async function sidebarMenu() {
-  await screen.findByText('القائمة الرئيسية');
+  await waitFor(() => expect(document.querySelector('[data-sidebar="content"]')).not.toBeNull());
   return within(document.querySelector('[data-sidebar="content"]') as HTMLElement);
 }
 
@@ -32,18 +32,33 @@ describe('AppShell', () => {
     const menu = await sidebarMenu();
     expect(menu.getByRole('link', { name: 'الرئيسية' })).toBeInTheDocument();
     expect(menu.getByRole('link', { name: 'الأدوار والصلاحيات' })).toBeInTheDocument();
+    // Grouped like the current app: «المستخدمون» and «الإعدادات».
+    expect(menu.getByRole('button', { name: 'المستخدمون' })).toBeInTheDocument();
+    expect(menu.getByRole('button', { name: 'الإعدادات' })).toBeInTheDocument();
+    expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual([
+      'الرئيسية',
+      'العائلات',
+      'الطلاب',
+      'المعلمون',
+      'الموظفون',
+      'الأدوار والصلاحيات',
+    ]);
     // Account menu in the top bar (current app layout): the avatar shows the name's first letter.
     expect(screen.getByRole('button', { name: 'حسابي' })).toHaveTextContent('م');
     expect(screen.getByRole('button', { name: 'Switch to English' })).toBeInTheDocument();
   });
 
-  it('hides «الأدوار والصلاحيات» without roles.view (teacher, parent)', async () => {
-    for (const email of ['teacher@qarabic.test', 'parent@qarabic.test']) {
+  it('gives a teacher «طلابي» and a parent «عائلتي», nothing company-wide', async () => {
+    for (const [email, item] of [
+      ['teacher@qarabic.test', 'طلابي'],
+      ['parent@qarabic.test', 'عائلتي'],
+    ] as const) {
       mockSignIn(email);
       const { unmount } = renderShell();
       const menu = await sidebarMenu();
-      expect(menu.getByRole('link', { name: 'الرئيسية' })).toBeInTheDocument();
-      expect(menu.queryByRole('link', { name: 'الأدوار والصلاحيات' })).not.toBeInTheDocument();
+      await waitFor(() =>
+        expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual(['الرئيسية', item]),
+      );
       unmount();
     }
   });
@@ -66,11 +81,12 @@ describe('Roles page', () => {
     routerMock.pathname = '/roles';
     renderShell(<RolesView />);
     const table = await screen.findByRole('table', { name: 'الأدوار' });
+    expect(await within(table).findByText('مشرف متابعة')).toBeInTheDocument();
     const rows = within(table).getAllByRole('row');
-    expect(rows).toHaveLength(10); // header + 9 system roles
-    expect(within(table).getByText('مشرف متابعة')).toBeInTheDocument();
-    expect(within(table).getByText('معدَّل')).toBeInTheDocument();
-    expect(screen.getByText('9 أدوار')).toBeInTheDocument();
+    expect(rows).toHaveLength(11); // header + 9 system roles + the mock custom role
+    expect(within(table).getAllByText('معدَّل')).toHaveLength(2);
+    expect(screen.getByText('10 أدوار')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'دور جديد' })).toBeInTheDocument();
   });
 
   it('shows no-access instead of the table without roles.view', async () => {

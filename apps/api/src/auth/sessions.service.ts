@@ -51,7 +51,11 @@ export class SessionsService {
     });
     const now = Date.now();
     if (!session) return null;
-    if (session.expiresAt.getTime() <= now || !session.user.isActive) {
+    if (
+      session.expiresAt.getTime() <= now ||
+      !session.user.isActive ||
+      session.user.archivedAt !== null
+    ) {
       await this.prisma.session.deleteMany({ where: { id } });
       return null;
     }
@@ -74,7 +78,16 @@ export class SessionsService {
         email: user.email,
         locale: user.locale,
         timezone: user.timezone,
-        role: role ? { id: role.id, name: role.name, kind: role.kind } : null,
+        phone: user.phone,
+        role: role
+          ? {
+              id: role.id,
+              name: role.name,
+              kind: role.kind,
+              labelAr: role.labelAr,
+              labelEn: role.labelEn,
+            }
+          : null,
         permissions,
       },
     };

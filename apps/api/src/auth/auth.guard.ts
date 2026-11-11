@@ -12,7 +12,12 @@ import { ApiException } from '../common/errors.js';
 import { ENV, type Env } from '../config/env.js';
 import type { AuthedRequest } from './auth.types.js';
 import { clearSessionCookie, SESSION_COOKIE } from './cookies.js';
-import { AUTHENTICATED_KEY, PERMISSIONS_KEY, PUBLIC_KEY } from './decorators.js';
+import {
+  ANY_PERMISSION_KEY,
+  AUTHENTICATED_KEY,
+  PERMISSIONS_KEY,
+  PUBLIC_KEY,
+} from './decorators.js';
 import { SessionsService } from './sessions.service.js';
 
 const forbidden = () =>
@@ -23,7 +28,7 @@ const forbidden = () =>
 
 /**
  * Deny by default: a route is open only with `@Public()`. Every other route needs a session, and
- * then `@Can(...)` (permissions) or `@Authenticated()` (own account). A route with neither is a
+ * then `@Can(...)` (every listed permission), `@CanAny(...)` (one of them) or `@Authenticated()` (own account). A route with neither is a
  * bug: it answers 403 and is caught by the route coverage test.
  */
 @Injectable()
@@ -55,6 +60,11 @@ export class AuthGuard implements CanActivate {
     const needed = this.reflector.getAllAndOverride<string[] | undefined>(PERMISSIONS_KEY, targets);
     if (needed) {
       if (needed.every((p) => auth.user.permissions.has(p))) return true;
+      throw forbidden();
+    }
+    const any = this.reflector.getAllAndOverride<string[] | undefined>(ANY_PERMISSION_KEY, targets);
+    if (any) {
+      if (any.some((p) => auth.user.permissions.has(p))) return true;
       throw forbidden();
     }
     if (this.reflector.getAllAndOverride<boolean>(AUTHENTICATED_KEY, targets)) return true;
