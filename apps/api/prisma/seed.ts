@@ -3,6 +3,7 @@ import { loadEnv } from '../src/config/env.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 import { seedDemoCrm } from './seed-crm.js';
+import { seedDemoBilling } from './seed-billing.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
 import { seedDemoSchedule } from './seed-schedule.js';
 import { seedDemoSupport } from './seed-support.js';
@@ -69,6 +70,12 @@ async function main(): Promise<void> {
       );
       const leads = await seedDemoCrm(prisma);
       console.log(leads ? 'Demo leads added (fake data).' : 'Leads already there.');
+      const billed = await seedDemoBilling(prisma);
+      console.log(
+        billed
+          ? 'Demo fee packages, billing profiles and invoices added (fake data, no real money).'
+          : 'Demo billing already there (or no demo families).',
+      );
     }
   } finally {
     await prisma.$disconnect();

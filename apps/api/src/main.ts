@@ -8,7 +8,7 @@ import { ENV, type Env } from './config/env.js';
 async function bootstrap(): Promise<void> {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     bufferLogs: true,
-    // The WhatsApp webhook signature is computed over the raw body.
+    // Webhook signatures (WhatsApp, Stripe, PayPal) are computed over the raw body.
     rawBody: true,
   });
   configureApp(app);

@@ -1,5 +1,6 @@
 import { Global, Injectable, Module } from '@nestjs/common';
 import { CRM_SETTING_DEFAULTS } from '../crm/settings-defaults.js';
+import { BILLING_SETTING_DEFAULTS } from '../billing/settings-defaults.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SUPPORT_SETTING_DEFAULTS } from '../support/settings-defaults.js';
@@ -50,6 +51,8 @@ export const SETTING_DEFAULTS = {
   'zoom.create_lead_hours': 24,
   /** B30 (D72, provisional yes): parents see the 1–5 class rating of a lesson report. */
   'reports.parent_sees_rating': true as boolean,
+  // N6 billing (`GET/PUT /settings/billing`).
+  ...BILLING_SETTING_DEFAULTS,
 } satisfies Record<string, Prisma.InputJsonValue>;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
