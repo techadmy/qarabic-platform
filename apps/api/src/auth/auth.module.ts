@@ -21,6 +21,6 @@ import { SessionsService } from './sessions.service.js';
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
   ],
-  exports: [PasswordsService, SessionsService, RateLimiterService],
+  exports: [AuthService, PasswordsService, SessionsService, RateLimiterService],
 })
 export class AuthModule {}

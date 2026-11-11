@@ -102,6 +102,13 @@ model User {
   family              Family?              @relation("FamilyParent")
   teacher             Teacher?             @relation("TeacherUser")
 
+  // N5 CRM
+  leadsAssigned  Lead[]         @relation("LeadAssignee")
+  leadsCreated   Lead[]         @relation("LeadCreatedBy")
+  leadsConverted Lead[]         @relation("LeadConvertedBy")
+  leadActivities LeadActivity[]
+  notifications  Notification[]
+
   usersStatusChanged    User[]           @relation("UserStatusChangedBy")
   usersArchived         User[]           @relation("UserArchivedBy")
   managedFamilies       Family[]         @relation("FamilyManager")
@@ -255,6 +262,10 @@ model Family {
   statusChangedBy User?     @relation("FamilyStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
   archivedBy      User?     @relation("FamilyArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
   students        Student[]
+
+  // N5 CRM
+  leads         Lead[] @relation("LeadFamily")
+  referredLeads Lead[] @relation("LeadReferralFamily")
 
   @@index([status])
   @@index([managerId])
@@ -1146,4 +1157,174 @@ model WhatsAppInboundMessage {
 
   @@index([status])
   @@map("whatsapp_inbound_messages")
+}
+
+// ====================================================================== N5: CRM
+// Leads, their timeline and the staff alerts (docs/26, docs/33 §3; D105–D111, D136, D137).
+// Ported from the Laravel M4 CRM (`leads`, `lead_activities`). A referral is a lead with
+// `source=referral` + `referral_family_id`; a lead's trial classes are the `kind=trial` classes
+// of its family's students (Laravel does the same). The rules live in `crm.*` settings.
+
+/// Pipeline stage (D106).
+enum LeadStatus {
+  new
+  contacted
+  trial_scheduled
+  trial_done
+  converted
+  lost
+  spam
+  job_applicant
+}
+
+enum LeadSource {
+  web_form
+  phone
+  whatsapp
+  walk_in
+  referral
+  other
+}
+
+enum LostReason {
+  not_interested
+  no_response
+  price
+  schedule
+  duplicate
+  other
+}
+
+enum TrialOutcome {
+  interested
+  not_interested
+  no_show
+}
+
+enum LeadActivityType {
+  note
+  call
+  whatsapp
+  email
+  status_changed
+  assigned
+  account_created
+  trial_booked
+  trial_cancelled
+  trial_outcome
+  converted
+  resubmitted
+  created
+}
+
+/// A prospective family (docs/26 §3.1). Contact data is kept as submitted; `phone_digits`
+/// (digits, leading zeros dropped, last 15) is what duplicates match on.
+model Lead {
+  id                  Int           @id @default(autoincrement())
+  status              LeadStatus    @default(new)
+  source              LeadSource    @default(web_form)
+  /// `app_trial` (the app's form), `wpforms:4823` (the website), or an old form's value.
+  site                String?       @db.VarChar(40)
+  parentName          String        @map("parent_name") @db.VarChar(120)
+  email               String?       @db.VarChar(190)
+  phone               String?       @db.VarChar(40)
+  phoneDigits         String?       @map("phone_digits") @db.VarChar(15)
+  countryCode         String?       @map("country_code") @db.Char(2)
+  city                String?       @db.VarChar(80)
+  /// IANA zone of the family (the country's main zone until staff change it).
+  timezone            String        @db.VarChar(64)
+  preferredLanguage   String?       @map("preferred_language") @db.VarChar(8)
+  /// `[{ name?, age?, gender?, courseId? }]`
+  children            Json          @default("[]")
+  courseInterest      String?       @map("course_interest") @db.VarChar(120)
+  preferredTimes      String?       @map("preferred_times") @db.VarChar(500)
+  /// `{ days: [1..7], periods: [...], note? }` from the app's trial form.
+  preferredSchedule   Json?         @map("preferred_schedule")
+  teacherGenderPref   String?       @map("teacher_gender_pref") @db.VarChar(8)
+  heardFrom           String?       @map("heard_from") @db.VarChar(16)
+  message             String?
+  utm                 Json?
+  /// Idempotency key of an external intake (`wpforms:<form>:<entry>`).
+  externalRef         String?       @unique @map("external_ref") @db.VarChar(100)
+  referralFamilyId    Int?          @map("referral_family_id")
+  familyId            Int?          @map("family_id")
+  assignedToId        Int?          @map("assigned_to")
+  assignedAt          DateTime?     @map("assigned_at") @db.Timestamptz(6)
+  /// Set when the round-robin (or the lead-admin fallback) gave the lead its owner.
+  autoAssignedAt      DateTime?     @map("auto_assigned_at") @db.Timestamptz(6)
+  createdById         Int?          @map("created_by")
+  nextFollowUpAt      DateTime?     @map("next_follow_up_at") @db.Timestamptz(6)
+  /// The follow-up time already reminded (a new `next_follow_up_at` arms the reminder again).
+  followUpNotifiedFor DateTime?     @map("follow_up_notified_for") @db.Timestamptz(6)
+  lastContactedAt     DateTime?     @map("last_contacted_at") @db.Timestamptz(6)
+  firstResponseAt     DateTime?     @map("first_response_at") @db.Timestamptz(6)
+  slaNotifiedAt       DateTime?     @map("sla_notified_at") @db.Timestamptz(6)
+  contactAttempts     Int           @default(0) @map("contact_attempts")
+  trialOutcome        TrialOutcome? @map("trial_outcome")
+  lostReason          LostReason?   @map("lost_reason")
+  statusNote          String?       @map("status_note") @db.VarChar(1000)
+  statusChangedAt     DateTime      @map("status_changed_at") @db.Timestamptz(6)
+  convertedAt         DateTime?     @map("converted_at") @db.Timestamptz(6)
+  convertedById       Int?          @map("converted_by")
+  spamScore           Int           @default(0) @map("spam_score") @db.SmallInt
+  spamFlags           Json?         @map("spam_flags")
+  /// sha256 of the sender's IP + app secret (burst detection), never the IP itself.
+  ipHash              String?       @map("ip_hash") @db.Char(64)
+  /// Submissions merged into this lead (1 = only the first).
+  submissions         Int           @default(1)
+  createdAt           DateTime      @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime      @map("updated_at") @db.Timestamptz(6)
+
+  family         Family?        @relation("LeadFamily", fields: [familyId], references: [id], onDelete: SetNull)
+  referralFamily Family?        @relation("LeadReferralFamily", fields: [referralFamilyId], references: [id], onDelete: SetNull)
+  assignedTo     User?          @relation("LeadAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy      User?          @relation("LeadCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  convertedBy    User?          @relation("LeadConvertedBy", fields: [convertedById], references: [id], onDelete: SetNull)
+  activities     LeadActivity[]
+
+  @@index([status, createdAt])
+  @@index([assignedToId, status])
+  @@index([email])
+  @@index([phoneDigits])
+  @@index([familyId])
+  @@index([nextFollowUpAt])
+  @@index([ipHash, createdAt])
+  @@map("leads")
+}
+
+/// Append-only timeline of a lead (docs/26 §3.2): a trigger refuses UPDATE and DELETE.
+model LeadActivity {
+  id         Int              @id @default(autoincrement())
+  leadId     Int              @map("lead_id")
+  type       LeadActivityType
+  body       String?
+  /// reached | no_answer | busy | wrong_number
+  callResult String?          @map("call_result") @db.VarChar(16)
+  meta       Json?
+  userId     Int?             @map("user_id")
+  createdAt  DateTime         @map("created_at") @db.Timestamptz(3)
+
+  lead Lead  @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([leadId, id])
+  @@index([type])
+  @@map("lead_activities")
+}
+
+/// In-app alert for one user (Laravel `notifications`, database channel): the bell reads it.
+/// `kind` names the module (`lead`), `event` what happened; `data` never holds contact details.
+model Notification {
+  id        Int       @id @default(autoincrement())
+  userId    Int       @map("user_id")
+  kind      String    @db.VarChar(32)
+  event     String    @db.VarChar(32)
+  data      Json
+  readAt    DateTime? @map("read_at") @db.Timestamptz(6)
+  createdAt DateTime  @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt])
+  @@map("notifications")
 }

@@ -201,72 +201,92 @@ export class EnrollmentsService {
     const minutes = input.sessionMinutes ?? 30;
 
     const id = await this.checker
-      .locked([input.teacherId], [student.id], async (tx) => {
-        const live = await tx.enrollment.findFirst({
-          where: { studentId: student.id, courseId: input.courseId, ...LIVE_ENROLLMENT },
-          select: { id: true },
-        });
-        if (live) throw enrollmentExists();
-        const now = this.clock.now();
-        const enrollment = await tx.enrollment.create({
-          data: {
-            studentId: student.id,
-            courseId: input.courseId,
-            teacherId: input.teacherId,
-            kind: input.kind,
-            status: 'active',
-            startsOn: toDbDate(input.startsOn),
-            sessionMinutes: minutes,
-            timezone: zone,
-            meetingMode: input.meetingMode,
-            externalMeetingUrl: this.crypto.encryptOrNull(input.externalMeetingUrl),
-            notes: input.notes ?? null,
-            statusChangedAt: now,
-            createdById: actor.id,
-          },
-        });
-        const result = new ConflictResult();
-        for (const slot of input.slots) {
-          const candidate: SlotCandidate = {
-            teacherId: input.teacherId,
-            studentId: student.id,
-            weekday: slot.weekday,
-            localStartTime: slot.localStartTime,
-            durationMinutes: slot.durationMinutes ?? minutes,
-            timezone: zone,
-            validFrom: input.startsOn,
-            validTo: null,
-          };
-          // earlier slots of this payload are already inserted, so they are checked too
-          result.merge(await this.checker.checkSlot(tx, candidate, st));
-          await this.insertSlot(tx, enrollment.id, candidate, actor.id);
-        }
-        result.assertPasses(input.acknowledgeWarnings);
-        await recordStatusChange(tx, 'enrollment', enrollment.id, null, 'active', null, actor.id);
-        await this.audit.record(
-          {
-            actorId: actor.id,
-            action: 'created',
-            subjectType: 'enrollment',
-            subjectId: enrollment.id,
-            after: {
-              studentId: student.id,
-              courseId: input.courseId,
-              teacherId: input.teacherId,
-              kind: input.kind,
-              startsOn: input.startsOn,
-              timezone: zone,
-              meetingMode: input.meetingMode,
-              slots: input.slots,
-            },
-          },
-          tx,
-        );
-        return enrollment.id;
-      })
+      .locked([input.teacherId], [student.id], (tx) =>
+        this.createIn(tx, input, student.id, zone, minutes, st, actor.id),
+      )
       .catch(rethrowLiveTaken);
     await this.resync.run({ enrollmentId: id });
     return id;
+  }
+
+  /**
+   * The enrollment write of `create()` inside the caller's transaction, which must already hold
+   * the teacher and student locks (N5 conversion: several students in one transaction). The
+   * caller validates the student, course, teacher and meeting mode, and runs `resyncAll` after
+   * the commit.
+   */
+  async createIn(
+    tx: Tx,
+    input: CreateInput,
+    studentId: number,
+    zone: string,
+    minutes: number,
+    st: SettingsMap,
+    actorId: number,
+  ): Promise<number> {
+    const student = { id: studentId };
+    const actor = { id: actorId };
+    const live = await tx.enrollment.findFirst({
+      where: { studentId: student.id, courseId: input.courseId, ...LIVE_ENROLLMENT },
+      select: { id: true },
+    });
+    if (live) throw enrollmentExists();
+    const now = this.clock.now();
+    const enrollment = await tx.enrollment.create({
+      data: {
+        studentId: student.id,
+        courseId: input.courseId,
+        teacherId: input.teacherId,
+        kind: input.kind,
+        status: 'active',
+        startsOn: toDbDate(input.startsOn),
+        sessionMinutes: minutes,
+        timezone: zone,
+        meetingMode: input.meetingMode,
+        externalMeetingUrl: this.crypto.encryptOrNull(input.externalMeetingUrl),
+        notes: input.notes ?? null,
+        statusChangedAt: now,
+        createdById: actor.id,
+      },
+    });
+    const result = new ConflictResult();
+    for (const slot of input.slots) {
+      const candidate: SlotCandidate = {
+        teacherId: input.teacherId,
+        studentId: student.id,
+        weekday: slot.weekday,
+        localStartTime: slot.localStartTime,
+        durationMinutes: slot.durationMinutes ?? minutes,
+        timezone: zone,
+        validFrom: input.startsOn,
+        validTo: null,
+      };
+      // earlier slots of this payload are already inserted, so they are checked too
+      result.merge(await this.checker.checkSlot(tx, candidate, st));
+      await this.insertSlot(tx, enrollment.id, candidate, actor.id);
+    }
+    result.assertPasses(input.acknowledgeWarnings);
+    await recordStatusChange(tx, 'enrollment', enrollment.id, null, 'active', null, actor.id);
+    await this.audit.record(
+      {
+        actorId: actor.id,
+        action: 'created',
+        subjectType: 'enrollment',
+        subjectId: enrollment.id,
+        after: {
+          studentId: student.id,
+          courseId: input.courseId,
+          teacherId: input.teacherId,
+          kind: input.kind,
+          startsOn: input.startsOn,
+          timezone: zone,
+          meetingMode: input.meetingMode,
+          slots: input.slots,
+        },
+      },
+      tx,
+    );
+    return enrollment.id;
   }
 
   async addSlot(
@@ -528,6 +548,21 @@ export class EnrollmentsService {
       return this.endIn(tx, e, endsOn, actor.id, null);
     });
     await this.resync.run(scope);
+  }
+
+  /**
+   * Ends an enrollment inside the caller's transaction (N5 conversion ends the trial enrollment);
+   * returns the re-sync to run after the commit.
+   */
+  async endInTx(
+    tx: Tx,
+    id: number,
+    endsOn: string,
+    actorId: number,
+    reason: string | null,
+  ): Promise<ResyncScope> {
+    const e = await this.lock(tx, id);
+    return this.endIn(tx, e, endsOn, actorId, reason);
   }
 
   // ------------------------------------------------------------------ People side effects (N1 follow-ups)

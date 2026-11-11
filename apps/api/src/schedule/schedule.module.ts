@@ -75,6 +75,11 @@ import {
     LessonReportsService,
     // N4: the support inbox lists class requests; the parent home shows classes.
     SessionRequestsService,
+    // N5: the CRM books trial classes and enrollments with the same services.
+    ConflictChecker,
+    ZoomMeetings,
+    SessionStateMachine,
+    SessionsService,
   ],
 })
 export class ScheduleModule {}
