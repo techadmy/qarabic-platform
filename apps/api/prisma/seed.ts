@@ -3,6 +3,7 @@ import { loadEnv } from '../src/config/env.js';
 import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
+import { seedDemoSchedule } from './seed-schedule.js';
 
 /**
  * `pnpm --filter @qarabic/api db:seed` — idempotent.
@@ -45,6 +46,12 @@ async function main(): Promise<void> {
     if (env.NODE_ENV !== 'production' && process.env.SEED_DEMO !== '0') {
       const added = await seedDemoPeople(prisma);
       console.log(added ? 'Demo people added (fake data).' : 'Demo people already there.');
+      const scheduled = await seedDemoSchedule(prisma, env.APP_ENCRYPTION_KEY);
+      console.log(
+        scheduled
+          ? 'Demo enrollments, weekly times and two weeks of classes added (fake data).'
+          : 'Demo schedule already there (or no demo people).',
+      );
     }
   } finally {
     await prisma.$disconnect();

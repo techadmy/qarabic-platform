@@ -58,7 +58,7 @@ describe('route permission coverage', () => {
     const routes = auditRoutes(ctx.app).filter(
       (r) => r.access !== 'public' && r.route !== 'GET unmarked',
     );
-    expect(routes.length).toBeGreaterThanOrEqual(39);
+    expect(routes.length).toBeGreaterThanOrEqual(83);
     for (const { route } of routes) {
       const [method, path] = route.split(' ') as [string, string];
       const url = '/' + path.replace(/:\w+/g, '1');
@@ -117,6 +117,58 @@ describe('route permission coverage', () => {
       'POST roles': 'all:roles.manage',
       'PATCH roles/:id': 'all:roles.manage',
       'DELETE roles/:id': 'all:roles.manage',
+    });
+  });
+
+  it('every N2 route needs the permission of the Laravel M2 routes (api_v1.php)', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expect(byRoute).toMatchObject({
+      'GET enrollments': 'any:schedule.view|sessions.conduct',
+      'GET enrollments/:id': 'any:schedule.view|sessions.conduct',
+      'POST enrollments': 'all:schedule.manage',
+      'PATCH enrollments/:id': 'all:schedule.manage',
+      'POST enrollments/:id/pause': 'all:schedule.manage',
+      'POST enrollments/:id/resume': 'all:schedule.manage',
+      'POST enrollments/:id/end': 'all:schedule.manage',
+      'POST enrollments/:id/slots': 'all:schedule.manage',
+      'PATCH schedule-slots/:id': 'all:schedule.manage',
+      'POST schedule-slots/:id/end': 'all:schedule.manage',
+      'GET schedule/availability': 'all:schedule.view',
+      'POST schedule/check': 'all:schedule.view',
+      'GET teachers/:teacherId/timetable': 'any:schedule.view|sessions.conduct',
+      'GET teachers/:teacherId/blocks': 'any:schedule.view|sessions.conduct',
+      'POST teachers/:teacherId/blocks': 'all:schedule.manage',
+      'PATCH teachers/:teacherId/blocks/:blockId': 'all:schedule.manage',
+      'DELETE teachers/:teacherId/blocks/:blockId': 'all:schedule.manage',
+      'GET teachers/:teacherId/work-hours': 'any:schedule.view|sessions.conduct',
+      'PUT teachers/:teacherId/work-hours': 'any:schedule.manage|sessions.conduct',
+      'GET holidays': 'all:schedule.view',
+      'POST holidays': 'all:schedule.manage',
+      'PATCH holidays/:id': 'all:schedule.manage',
+      'DELETE holidays/:id': 'all:schedule.manage',
+      'GET sessions': 'all:sessions.view',
+      'GET sessions/board': 'all:sessions.view',
+      'POST sessions/generate': 'all:schedule.manage',
+      'POST sessions': 'all:sessions.manage',
+      'GET sessions/:id': 'all:sessions.view',
+      'PATCH sessions/:id': 'all:sessions.manage',
+      'POST sessions/:id/transitions': 'any:sessions.conduct|sessions.manage',
+      'GET sessions/:id/zoom/start': 'all:sessions.conduct',
+      'GET sessions/:id/zoom/join': 'all:sessions.view',
+      'POST sessions/:id/zoom/retry': 'all:sessions.manage',
+      'GET session-requests': 'all:session_requests.view',
+      'GET session-requests/:id': 'all:session_requests.view',
+      'POST session-requests': 'any:session_requests.request|session_requests.manage',
+      'POST session-requests/:id/approve': 'all:session_requests.approve',
+      'POST session-requests/:id/reject': 'all:session_requests.approve',
+      'POST session-requests/:id/cancel': 'any:session_requests.request|session_requests.manage',
+      'GET settings/sessions': 'all:settings.view',
+      'PUT settings/sessions': 'all:settings.manage',
+      'GET zoom-hosts': 'all:settings.manage',
+      'POST zoom-hosts': 'all:settings.manage',
+      'PATCH zoom-hosts/:id': 'all:settings.manage',
     });
   });
 
@@ -200,6 +252,9 @@ describe('platform', () => {
         '/api/v1/roles',
         '/api/v1/families',
         '/api/v1/staff/{id}/status',
+        '/api/v1/enrollments',
+        '/api/v1/sessions/board',
+        '/api/v1/session-requests/{id}/approve',
       ]),
     );
   });

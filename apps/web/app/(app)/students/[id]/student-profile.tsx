@@ -18,6 +18,7 @@ import { fetchPerson } from '@/lib/api/people';
 import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatDate, zoneLabel } from '@/lib/time';
+import { ProfileSchedule } from '@/components/schedule/profile-schedule';
 
 /** Student profile: Student · Study plan · Family · Remarks (docs/28 §5). */
 export function StudentProfile({ id }: { id: number }) {
@@ -151,6 +152,7 @@ export function StudentProfile({ id }: { id: number }) {
                 ]}
               />
               {staffView && <StatusHistory kind="students" entries={s.statusHistory} />}
+              {!s.archive && <ProfileSchedule studentId={s.id} />}
             </div>
           </>
         )

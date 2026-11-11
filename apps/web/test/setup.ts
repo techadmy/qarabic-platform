@@ -1,11 +1,14 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { resetMockState } from '@/mocks/handlers';
 import { server } from '@/mocks/node';
 import { routerMock } from './router-mock';
 
 process.env.NEXT_PUBLIC_API_URL = 'http://api.test';
+
+// `findBy…`/`waitFor` wait up to 3 s (1 s by default): a loaded runner renders the big forms slower.
+configure({ asyncUtilTimeout: 3_000 });
 
 vi.mock('next/navigation', () => ({
   useRouter: () => routerMock,
@@ -26,6 +29,8 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  // A test that failed before its own cleanup must not leave request listeners for the next one.
+  server.events.removeAllListeners();
   resetMockState();
   routerMock.reset();
   document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';

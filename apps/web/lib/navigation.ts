@@ -1,8 +1,14 @@
 import type { Me } from '@qarabic/shared';
 import {
   BadgeCheckIcon,
+  CalendarCheckIcon,
+  CalendarClockIcon,
+  CalendarDaysIcon,
+  CalendarOffIcon,
+  CalendarRangeIcon,
   GraduationCapIcon,
   LayoutDashboardIcon,
+  SlidersHorizontalIcon,
   UsersRoundIcon,
   ShieldCheckIcon,
   UserCogIcon,
@@ -19,6 +25,14 @@ export type NavKey =
   | 'roles'
   | 'myStudents'
   | 'myFamily'
+  | 'today'
+  | 'schedule'
+  | 'requests'
+  | 'holidays'
+  | 'sessionSettings'
+  | 'myClasses'
+  | 'childrenClasses'
+  | 'myRequests'
   | 'account';
 
 export type NavItem = {
@@ -28,6 +42,8 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown only to users who have this permission. */
   permission?: string;
+  /** A live count beside the item (K3: badge counts in the sidebar items). */
+  badge?: 'pendingRequests';
 };
 
 export type NavGroup = {
@@ -44,11 +60,21 @@ export const isGroup = (entry: NavEntry): entry is NavGroup => 'group' in entry;
 const HOME: NavItem = { key: 'home', href: '/', icon: LayoutDashboardIcon };
 
 /**
- * Staff sidebar, grouped like the current app (and the developer admin it copies): top items, then
- * «المستخدمون» and «الإعدادات». Unbuilt modules are not listed (docs/15 §5.1, D34).
+ * Staff sidebar, grouped like the current app (and the developer admin it copies): top items
+ * («حصص اليوم», «الجدول», «طلبات الحصص» with its pending count), then «المستخدمون» and
+ * «الإعدادات» (holidays, class rules, roles). Unbuilt modules are not listed (docs/15 §5.1, D34).
  */
 export const STAFF_NAV: NavEntry[] = [
   HOME,
+  { key: 'today', href: '/today', icon: CalendarCheckIcon, permission: 'sessions.view' },
+  { key: 'schedule', href: '/schedule', icon: CalendarRangeIcon, permission: 'schedule.view' },
+  {
+    key: 'requests',
+    href: '/requests',
+    icon: CalendarClockIcon,
+    permission: 'session_requests.view',
+    badge: 'pendingRequests',
+  },
   {
     group: 'users',
     icon: UsersIcon,
@@ -62,19 +88,49 @@ export const STAFF_NAV: NavEntry[] = [
   {
     group: 'settings',
     icon: ShieldCheckIcon,
-    items: [{ key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' }],
+    items: [
+      { key: 'holidays', href: '/holidays', icon: CalendarOffIcon, permission: 'schedule.view' },
+      {
+        key: 'sessionSettings',
+        href: '/settings/sessions',
+        icon: SlidersHorizontalIcon,
+        permission: 'settings.view',
+      },
+      { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },
+    ],
   },
 ];
 
-/** Teacher portal (D138): own students only. */
+/** Teacher portal (D138): own classes, own requests, own students. */
 export const TEACHER_NAV: NavEntry[] = [
   HOME,
+  { key: 'myClasses', href: '/my-classes', icon: CalendarDaysIcon, permission: 'sessions.conduct' },
+  {
+    key: 'myRequests',
+    href: '/requests',
+    icon: CalendarClockIcon,
+    permission: 'session_requests.view',
+    badge: 'pendingRequests',
+  },
   { key: 'myStudents', href: '/students', icon: GraduationCapIcon, permission: 'sessions.conduct' },
 ];
 
-/** Parent portal: own family and children. */
+/** Parent portal: the children's classes, own requests, own family. */
 export const PARENT_NAV: NavEntry[] = [
   HOME,
+  {
+    key: 'childrenClasses',
+    href: '/my-classes',
+    icon: CalendarDaysIcon,
+    permission: 'sessions.view',
+  },
+  {
+    key: 'myRequests',
+    href: '/requests',
+    icon: CalendarClockIcon,
+    permission: 'session_requests.view',
+    badge: 'pendingRequests',
+  },
   { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
 ];
 

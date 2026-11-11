@@ -3,4 +3,7 @@ export * from './countries.js';
 export * from './people.js';
 export * from './permission-labels.js';
 export * from './permissions.js';
+export * from './requests.js';
 export * from './roles.js';
+export * from './schedule.js';
+export * from './sessions.js';

@@ -17,6 +17,7 @@ import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains, dateOnly, phoneDigits, searchId, toDate } from '../common/search.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EnrollmentsService } from '../schedule/enrollments.service.js';
 import { AccountsService } from './accounts.service.js';
 import {
   archiveInfo,
@@ -77,6 +78,7 @@ export class FamiliesService {
     private readonly prisma: PrismaService,
     private readonly accounts: AccountsService,
     private readonly audit: AuditService,
+    private readonly enrollments: EnrollmentsService,
   ) {}
 
   async list(
@@ -231,7 +233,7 @@ export class FamiliesService {
     input: z.output<typeof familyStatusChangeSchema>,
     actor: AuthUser,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    const resyncs = await this.prisma.$transaction(async (tx) => {
       await lockRow(tx, 'families', id);
       const family = await tx.family.findUniqueOrThrow({ where: { id } });
       assertNotArchived(family);
@@ -261,7 +263,12 @@ export class FamiliesService {
         },
         tx,
       );
+      // docs/14 §4.2: suspended / on leave pause the live enrollments, deactivated ends them,
+      // back to regular / trial resumes the ones paused for a family reason.
+      return this.enrollments.syncWithFamilyStatus(tx, id, input.status, actor.id);
     });
+    // Future generated classes follow (cancelled / restored) once the change is saved.
+    await this.enrollments.resyncAll(resyncs);
   }
 
   /**

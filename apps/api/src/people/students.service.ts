@@ -17,6 +17,8 @@ import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains, dateOnly, phoneDigits, searchId, toDate } from '../common/search.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { EnrollmentsService } from '../schedule/enrollments.service.js';
+import { LIVE_ENROLLMENT } from '../schedule/scope.js';
 import {
   archiveInfo,
   assertChanged,
@@ -92,6 +94,7 @@ export class StudentsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly enrollments: EnrollmentsService,
   ) {}
 
   async list(
@@ -149,7 +152,7 @@ export class StudentsService {
   }
 
   async show(id: number, viewer: AuthUser): Promise<StudentDetailDto> {
-    const scope = await this.scopeOf(viewer);
+    const scope = await this.scopeOf(viewer, true);
     // 404, not 403: never confirm that another family's child exists (Laravel StudentPolicy).
     const row = await this.prisma.student.findFirst({ where: { AND: [{ id }, scope] }, include });
     if (!row) throw notFound();
@@ -224,15 +227,16 @@ export class StudentsService {
   }
 
   /**
-   * Active / inactive with a reason for inactive (D123, D125). In N2 an inactive student's live
-   * enrollments end today; back to active reopens nothing by itself.
+   * Active / inactive with a reason for inactive (D123, D125). An inactive student's live
+   * enrollments end today (their later generated classes are removed); back to active reopens
+   * nothing by itself.
    */
   async changeStatus(
     id: number,
     input: z.output<typeof activeStatusChangeSchema>,
     actor: AuthUser,
   ): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
+    const resyncs = await this.prisma.$transaction(async (tx) => {
       await lockRow(tx, 'students', id);
       const student = await tx.student.findUniqueOrThrow({ where: { id } });
       assertNotArchived(student);
@@ -262,7 +266,9 @@ export class StudentsService {
         },
         tx,
       );
+      return input.status === 'inactive' ? this.enrollments.endForStudent(tx, id, actor.id) : [];
     });
+    await this.enrollments.resyncAll(resyncs);
   }
 
   async archive(id: number, reason: string, actor: AuthUser): Promise<void> {
@@ -311,17 +317,29 @@ export class StudentsService {
   }
 
   /**
-   * Row scope (D138): a teacher sees the students they teach now (N2 adds live enrollments and,
-   * for one record, past students); a parent their own children; staff need `families.view`
-   * (`sessions.conduct` on a staff role never stands in for it). Portal users never see archived rows.
+   * Row scope (D138): a teacher lists the students they teach now (own or a live enrollment) and
+   * may open a past one too (any enrollment or class with them: a substitute writes the report);
+   * a parent their own children; staff need `families.view` (`sessions.conduct` on a staff role
+   * never stands in for it). Portal users never see archived rows.
    */
-  private async scopeOf(viewer: AuthUser): Promise<Prisma.StudentWhereInput> {
+  private async scopeOf(viewer: AuthUser, single = false): Promise<Prisma.StudentWhereInput> {
     if (isTeacherViewer(viewer)) {
       const teacher = await this.prisma.teacher.findUnique({
         where: { userId: viewer.id },
         select: { id: true },
       });
-      return { teacherId: teacher?.id ?? -1, archivedAt: null };
+      const teacherId = teacher?.id ?? -1;
+      // The students they teach now: their own (student.teacher) or a live enrollment (D137).
+      return {
+        archivedAt: null,
+        OR: single
+          ? [
+              { teacherId },
+              { enrollments: { some: { teacherId } } },
+              { sessions: { some: { teacherId } } },
+            ]
+          : [{ teacherId }, { enrollments: { some: { teacherId, ...LIVE_ENROLLMENT } } }],
+      };
     }
     if (isParentViewer(viewer)) return { family: { userId: viewer.id }, archivedAt: null };
     if (!viewer.permissions.has('families.view') && !viewer.permissions.has('families.manage')) {

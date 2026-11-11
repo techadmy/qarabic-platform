@@ -84,3 +84,86 @@ assignment refusals), `not_archived`, `cannot_change_own_role`, `wrong_password`
 - `courses` (minimal), `teacher_courses`, `audit_logs`, `app_settings` (typed defaults in
   `src/settings/settings.service.ts`).
 - Countries and time zones are not tables: ISO codes and IANA names validated in `@qarabic/shared`.
+
+## Endpoints (N2: schedule and classes)
+
+Ported from the Laravel M2 routes (`api_v1.php`) with the same permissions. Contract in
+`@qarabic/shared` (`schedule.ts`, `sessions.ts`, `requests.ts`). Row scope (D138): a teacher sees
+only their own enrollments, classes, timetable and requests; a parent only their children's; a row
+outside the scope answers 404.
+
+| Method                | Path                                          | Permission                                                   | Notes                                                                                                                                                                             |
+| --------------------- | --------------------------------------------- | ------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET                   | `/enrollments`                                | any of `schedule.view`, `sessions.conduct`                   | scoped; filters `studentId`, `teacherId`, `courseId`, `status`, `q` (student / teacher name); `meta.counts` per status; `externalMeetingUrl` + `notes` for `schedule.manage` only |
+| GET                   | `/enrollments/:id`                            | any of `schedule.view`, `sessions.conduct`                   | `EnrollmentDetailDto` (+ `upcomingSessions`, 20)                                                                                                                                  |
+| POST                  | `/enrollments`                                | `schedule.manage`                                            | `createEnrollmentSchema`; zone = family's; 422 `courseId` when a live one exists; 422 `meetingMode` for Zoom while `ZOOM_DRIVER=none`                                             |
+| PATCH                 | `/enrollments/:id`                            | `schedule.manage`                                            | `updateEnrollmentSchema`; a new teacher versions every live slot from `effectiveFrom`; `{ data, affectedManualSessions }`; a meeting change updates future classes' links         |
+| POST                  | `/enrollments/:id/pause` · `/resume` · `/end` | `schedule.manage`                                            | 409 `conflict` once ended; history in `status_changes`                                                                                                                            |
+| POST                  | `/enrollments/:id/slots`                      | `schedule.manage`                                            | `addSlotSchema`                                                                                                                                                                   |
+| PATCH                 | `/schedule-slots/:id`                         | `schedule.manage`                                            | `updateSlotSchema`: closes the slot the day before `effectiveFrom`, opens a version; `{ data, affectedManualSessions }`                                                           |
+| POST                  | `/schedule-slots/:id/end`                     | `schedule.manage`                                            | `endSlotSchema`                                                                                                                                                                   |
+| GET                   | `/schedule/availability`                      | `schedule.view` (staff only)                                 | `availabilityQuerySchema` → `AvailabilityDto`                                                                                                                                     |
+| POST                  | `/schedule/check`                             | `schedule.view` (not a parent)                               | `scheduleCheckSchema` (slot or single class) → `ConflictResultDto`                                                                                                                |
+| GET                   | `/teachers/:teacherId/timetable`              | any of `schedule.view`, `sessions.conduct`                   | own teacher only (else 404)                                                                                                                                                       |
+| GET                   | `/teachers/:teacherId/blocks` · `/work-hours` | any of `schedule.view`, `sessions.conduct`                   | own teacher only                                                                                                                                                                  |
+| POST · PATCH · DELETE | `/teachers/:teacherId/blocks[/:blockId]`      | `schedule.manage`                                            | re-syncs the teacher's classes                                                                                                                                                    |
+| PUT                   | `/teachers/:teacherId/work-hours`             | any of `schedule.manage`, `sessions.conduct`                 | a teacher only their own (else 403)                                                                                                                                               |
+| GET                   | `/holidays`                                   | `schedule.view`                                              | `?year=`                                                                                                                                                                          |
+| POST · PATCH · DELETE | `/holidays[/:id]`                             | `schedule.manage`                                            | academy-local dates; re-syncs classes (cancel / restore)                                                                                                                          |
+| GET                   | `/sessions`                                   | `sessions.view`                                              | `sessionListQuerySchema` (`date`+`tz`, `from`/`to`, `stage`, `kind`, `attention`, `perPage` ≤ 500); `meta.counts` per stage                                                       |
+| GET                   | `/sessions/board`                             | `sessions.view`                                              | `BoardDto`; `since=cursor` deltas (removed rows included); weak `ETag` → 304                                                                                                      |
+| POST                  | `/sessions/generate`                          | `schedule.manage`                                            | «مزامنة حصص اليوم»: `{ date, dryRun }` → `{ toCreate, created }`                                                                                                                  |
+| POST                  | `/sessions`                                   | `sessions.manage`                                            | one-off class; 409 `schedule_conflict` / 422 `warnings_not_acknowledged`                                                                                                          |
+| GET                   | `/sessions/:id`                               | `sessions.view`                                              | `SessionDetailDto` (events, requests; `lessonReport: null` until N3)                                                                                                              |
+| PATCH                 | `/sessions/:id`                               | `sessions.manage`                                            | shift / change teacher of a scheduled class (detached); 409 `stale_session`                                                                                                       |
+| POST                  | `/sessions/:id/transitions`                   | any of `sessions.conduct`, `sessions.manage`                 | `transitionSchema`; the state machine below                                                                                                                                       |
+| GET                   | `/sessions/:id/zoom/start`                    | `sessions.conduct`                                           | own teacher, from 15 min before; never stored; `no-store`                                                                                                                         |
+| GET                   | `/sessions/:id/zoom/join`                     | `sessions.view`                                              | from 60 min before; 503 `zoom_unavailable` without a link                                                                                                                         |
+| POST                  | `/sessions/:id/zoom/retry`                    | `sessions.manage`                                            | failed / missing meeting of a scheduled class                                                                                                                                     |
+| GET                   | `/session-requests`                           | `session_requests.view`                                      | scoped; `status` (+ `decided`), `type`, `studentId`, `mine`; `countOnly=1` → `RequestCountsDto`                                                                                   |
+| GET                   | `/session-requests/:id`                       | `session_requests.view`                                      |                                                                                                                                                                                   |
+| POST                  | `/session-requests`                           | any of `session_requests.request`, `session_requests.manage` | leave / reschedule / advance / extra; auto-approval rules in `requests.ts`                                                                                                        |
+| POST                  | `/session-requests/:id/approve` · `/reject`   | `session_requests.approve`                                   | approve may change time / teacher (re-checked, 409 rolls back); reject needs `note`                                                                                               |
+| POST                  | `/session-requests/:id/cancel`                | any of `session_requests.request`, `session_requests.manage` | requester only (else 403)                                                                                                                                                         |
+| GET · PUT             | `/settings/sessions`                          | `settings.view` · `settings.manage`                          | flat keys (`SESSION_SETTING_RULES`); unknown key = 422 on it                                                                                                                      |
+| GET · POST · PATCH    | `/zoom-hosts[/:id]`                           | `settings.manage`                                            | the Zoom host pool                                                                                                                                                                |
+
+Class state machine (docs/14 §3.2): `activate` (from 10 min before to 30 min after the end;
+staff `override` + `reason`; one running class per teacher), `undo_activate` (teacher 10 min),
+`start`, `end` (teacher after 25 min; staff earlier with `reason` → `needsReview`),
+`mark_absent` (25 min after the start, `note`), `mark_declined` (`note`), `mark_leave`
+(`stageReason` student | teacher; a teacher needs 2 h notice via `notifiedAt`), `cancel` (staff,
+`stageReason` from `CANCEL_REASONS`), `undo_mark` (the marker, 2 min), `revert` (staff, `reason`).
+Windows come from `/settings/sessions`. Refusals: `invalid_transition` 409, `outside_window` 422
+(`errors.availableFrom` / `availableUntil`), `stale_session` 409 (`data` = fresh class),
+`forbidden` 403. Scheduling writes: `schedule_conflict` 409 and `warnings_not_acknowledged` 422
+with the lists in `data` (resend the warning codes in `acknowledgeWarnings`).
+
+## Class jobs (N2)
+
+`@nestjs/schedule` cron in the API process (`SCHEDULER_ENABLED=true`, one process only), in the
+academy zone (`academy.timezone`, Africa/Cairo): `sessions:generate` hourly at :05 (horizon
+`sessions.horizon_days`, idempotent, Postgres advisory lock), `session-requests:expire` hourly at
+:15, `zoom:ensure-upcoming` every 10 min (no-op with `ZOOM_DRIVER=none`),
+`sessions:audit-overlaps` daily at 03:10. The same jobs from the command line (after `build`):
+
+```sh
+pnpm --filter @qarabic/api cli sessions:generate [--from=YYYY-MM-DD --to=YYYY-MM-DD] [--enrollment=ID] [--dry-run]
+pnpm --filter @qarabic/api cli session-requests:expire
+pnpm --filter @qarabic/api cli zoom:ensure-upcoming
+pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   # exit 1 on overlaps
+```
+
+A schedule change (enrollment, slot, teacher, holiday, block, family / student status) re-syncs
+future untouched generated classes right after it is saved (no queue), then fills gaps.
+
+## Data model notes (N2)
+
+- `enrollments` (partial unique index: one live per student + course), `schedule_slots` (weekday
+  - local `HH:MM` + IANA zone, versioned by `valid_from/valid_to`), `holidays`, `teacher_blocks`,
+    `teacher_work_hours`, `zoom_hosts`.
+- `class_sessions`: `starts_at`/`ends_at` UTC, `kind` + `stage` (+ `stage_reason`), unique
+  (`schedule_slot_id`, `occurrence_date`) including removed rows (`deleted_at`), `lock_version`.
+- `session_events`: append-only timeline (a trigger refuses UPDATE / DELETE).
+- `session_requests`: partial unique index, one pending per class + type.
+- All "now" rules read the app `Clock` (tests pin it).
