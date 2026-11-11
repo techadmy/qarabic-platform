@@ -46,7 +46,7 @@ async function main(): Promise<void> {
     if (env.NODE_ENV !== 'production' && process.env.SEED_DEMO !== '0') {
       const added = await seedDemoPeople(prisma);
       console.log(added ? 'Demo people added (fake data).' : 'Demo people already there.');
-      const scheduled = await seedDemoSchedule(prisma);
+      const scheduled = await seedDemoSchedule(prisma, env.APP_ENCRYPTION_KEY);
       console.log(
         scheduled
           ? 'Demo enrollments, weekly times and two weeks of classes added (fake data).'

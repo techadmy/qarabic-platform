@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { Crypto } from '../src/common/crypto.js';
 import { SessionGenerator } from '../src/sessions/generator.js';
 import { SessionJobs } from '../src/sessions/jobs.js';
 import { Actor, SessionStateMachine } from '../src/sessions/state-machine.js';
@@ -106,7 +107,7 @@ describe('meeting links (MeetingLinksTest)', () => {
     for (const s of await ctx.prisma.classSession.findMany({
       where: { id: { in: sessions.map((x) => x.id) } },
     })) {
-      expect([s.zoomStatus, s.zoomJoinUrl]).toEqual([
+      expect([s.zoomStatus, ctx.app.get(Crypto).tryDecrypt(s.zoomJoinUrl)]).toEqual([
         'external',
         'https://meet.google.com/abc-defg-hij',
       ]);
@@ -165,7 +166,9 @@ describe('meeting links (MeetingLinksTest)', () => {
       where: { enrollmentId: id },
       select: { zoomJoinUrl: true },
     });
-    expect([...new Set(urls.map((u) => u.zoomJoinUrl))]).toEqual(['https://zoom.us/j/999']);
+    expect([...new Set(urls.map((u) => ctx.app.get(Crypto).tryDecrypt(u.zoomJoinUrl)))]).toEqual([
+      'https://zoom.us/j/999',
+    ]);
     expect(
       (await ctx.prisma.classSession.findUniqueOrThrow({ where: { id: first.id } })).zoomStatus,
     ).toBe('external');
@@ -212,7 +215,9 @@ describe('Zoom meetings (ZoomTest)', () => {
     await ensure();
     const s = await get(session.id);
     expect([s.zoomStatus, s.zoomHostId]).toEqual(['ready', host.id]);
-    expect(s.zoomJoinUrl).toMatch(/^https:\/\/zoom\.example\.test\/j\//);
+    expect(ctx.app.get(Crypto).tryDecrypt(s.zoomJoinUrl)).toMatch(
+      /^https:\/\/zoom\.example\.test\/j\//,
+    );
     expect(fake.calls).toHaveLength(1);
     expect(fake.calls[0]![1]).toMatchObject({
       host: 'zu-1',
@@ -398,5 +403,95 @@ describe('class rules and operations (SettingsOpsTest)', () => {
     expect(
       (await client.post('/zoom-hosts', { zoomUserId: 'zu-9', email: 'x@example.test' })).status,
     ).toBe(422);
+  });
+});
+
+describe('meeting links at rest (AES-256-GCM)', () => {
+  let teacher: Awaited<ReturnType<typeof m2Teacher>>;
+  let family: Awaited<ReturnType<typeof makeFamily>>;
+  let admin: Client;
+  let enrollmentId: number;
+  const link = 'https://meet.example.test/private-room?pwd=s3cret';
+
+  beforeEach(async () => {
+    clock(ctx).set('2026-11-10T08:00:00Z');
+    teacher = await m2Teacher(ctx, 'Africa/Cairo');
+    family = await makeFamily(ctx, { timezone: 'Africa/Cairo' });
+    const kid = await m2Student(ctx, 'Africa/Cairo', family);
+    admin = (await signedIn(ctx, 'admin')).client;
+    const res = await admin.post('/enrollments', {
+      studentId: kid.id,
+      courseId: kid.regularCourseId,
+      teacherId: teacher.id,
+      kind: 'regular',
+      startsOn: '2026-11-10',
+      meetingMode: 'external',
+      externalMeetingUrl: link,
+      slots: [{ weekday: 2, localStartTime: '15:30' }],
+    });
+    expect(res.status).toBe(201);
+    enrollmentId = res.body.data.id as number;
+  });
+
+  it('stores only ciphertext in the database, never the link', async () => {
+    const e = await ctx.prisma.enrollment.findUniqueOrThrow({ where: { id: enrollmentId } });
+    const classes = await ctx.prisma.classSession.findMany({ where: { enrollmentId } });
+    expect(classes.length).toBeGreaterThan(0);
+    for (const value of [e.externalMeetingUrl, ...classes.map((c) => c.zoomJoinUrl)]) {
+      expect(value).toMatch(/^v1:/);
+      expect(value).not.toContain('meet.example.test');
+    }
+    for (const table of ['enrollments', 'class_sessions', 'session_events', 'audit_logs']) {
+      const rows = await ctx.prisma.$queryRawUnsafe<unknown[]>(`SELECT * FROM "${table}"`);
+      expect(JSON.stringify(rows), table).not.toContain('private-room');
+    }
+    // staff who manage the schedule read it back decrypted
+    expect((await admin.get(`/enrollments/${enrollmentId}`)).body.data.externalMeetingUrl).toBe(
+      link,
+    );
+  });
+
+  it('decrypts only for the start / join links, inside their windows', async () => {
+    const s = await ctx.prisma.classSession.findFirstOrThrow({
+      where: { enrollmentId },
+      orderBy: { startsAt: 'asc' },
+    });
+    clock(ctx).set('2026-11-10T13:20:00Z');
+    const asParent = await signInAs(ctx, family.user);
+    expect((await asParent.get(`/sessions/${s.id}/zoom/join`)).body.data.joinUrl).toBe(link);
+    expect(JSON.stringify((await asParent.get(`/sessions/${s.id}`)).body)).not.toContain(
+      'private-room',
+    );
+    const asTeacher = await signInAs(ctx, teacher.user);
+    expect((await asTeacher.get(`/sessions/${s.id}/zoom/start`)).body.data.startUrl).toBe(link);
+  });
+
+  it('answers 503 zoom_unavailable (not a server error) when the stored link was tampered with', async () => {
+    const s = await ctx.prisma.classSession.findFirstOrThrow({
+      where: { enrollmentId },
+      orderBy: { startsAt: 'asc' },
+    });
+    const raw = Buffer.from(s.zoomJoinUrl!.slice(3), 'base64');
+    raw.writeUInt8(raw.readUInt8(20) ^ 0xff, 20);
+    await ctx.prisma.classSession.update({
+      where: { id: s.id },
+      data: { zoomJoinUrl: `v1:${raw.toString('base64')}` },
+    });
+    await ctx.prisma.enrollment.update({
+      where: { id: enrollmentId },
+      data: { externalMeetingUrl: 'https://plain.example.test/x' },
+    });
+
+    clock(ctx).set('2026-11-10T13:20:00Z');
+    const asParent = await signInAs(ctx, family.user);
+    const join = await asParent.get(`/sessions/${s.id}/zoom/join`);
+    expect([join.status, join.body.code]).toEqual([503, 'zoom_unavailable']);
+    const asTeacher = await signInAs(ctx, teacher.user);
+    const start = await asTeacher.get(`/sessions/${s.id}/zoom/start`);
+    expect([start.status, start.body.code]).toEqual([503, 'zoom_unavailable']);
+    // a value that is not ours (plain text) reads as no link, not as the text itself
+    expect(
+      (await admin.get(`/enrollments/${enrollmentId}`)).body.data.externalMeetingUrl,
+    ).toBeNull();
   });
 });

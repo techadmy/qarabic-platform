@@ -249,6 +249,7 @@ export class SessionGenerator {
       stageReason: reason,
       source: 'generated',
       zoomStatus: external ? 'external' : 'none',
+      // Stored encrypted (AES-256-GCM): the enrollment's ciphertext is copied as is.
       zoomJoinUrl: external ? e.externalMeetingUrl : null,
       markedAt: terminal ? new Date(now) : null,
       createdAt: new Date(now),

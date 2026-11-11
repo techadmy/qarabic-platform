@@ -6,6 +6,7 @@ import { AccountModule } from './account/account.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { ClockModule } from './common/clock.js';
+import { CryptoModule } from './common/crypto.js';
 import { HttpExceptionFilter } from './common/http-exception.filter.js';
 import { ConfigModule } from './config/config.module.js';
 import { ENV, type Env } from './config/env.js';
@@ -47,6 +48,7 @@ export const REDACT = [
     CronModule.forRoot(),
     PrismaModule,
     ClockModule,
+    CryptoModule,
     MailModule,
     AuditModule,
     SettingsModule,

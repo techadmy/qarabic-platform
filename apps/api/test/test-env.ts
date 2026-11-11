@@ -21,6 +21,8 @@ export function applyTestEnv(): void {
     SESSION_SECRET: 'test-only-secret-0123456789abcdef0123456789',
     // No timers in tests: jobs are called directly. Zoom tests swap in the fake driver.
     SCHEDULER_ENABLED: 'false',
+    // Fixed test-only key (32 bytes of 0x07): refused in production like the placeholder.
+    APP_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     ZOOM_DRIVER: 'none',
   });
   delete process.env.COOKIE_DOMAIN;

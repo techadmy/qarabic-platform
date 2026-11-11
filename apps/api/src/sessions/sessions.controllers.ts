@@ -43,6 +43,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { Can, CanAny, CurrentUser } from '../auth/decorators.js';
 import { RateLimit } from '../auth/rate-limit.guard.js';
 import { Clock } from '../common/clock.js';
+import { Crypto } from '../common/crypto.js';
 import { notFound, validationError } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
 import { jsonSchema } from '../common/openapi.js';
@@ -86,6 +87,7 @@ export class SessionsController {
     private readonly audit: AuditService,
     private readonly zoom: ZoomDriver,
     private readonly meetings: ZoomMeetings,
+    private readonly crypto: Crypto,
   ) {}
 
   @Can('sessions.view')
@@ -242,8 +244,9 @@ export class SessionsController {
     }
     this.assertWindow(s, START_BEFORE_MIN);
     let url: string;
-    if (s.zoomStatus === 'external' && s.zoomJoinUrl) {
-      url = s.zoomJoinUrl; // the teacher's own meeting link (until Zoom, B7)
+    const external = s.zoomStatus === 'external' ? this.crypto.tryDecrypt(s.zoomJoinUrl) : null;
+    if (external) {
+      url = external; // the teacher's own meeting link (until Zoom, B7)
     } else if (s.zoomStatus === 'ready' && s.zoomMeetingId && this.zoom.client.enabled()) {
       try {
         url = await this.zoom.client.startUrl(s.zoomMeetingId);
@@ -267,11 +270,15 @@ export class SessionsController {
   ): Promise<{ data: { joinUrl: string } }> {
     const s = await this.reads.find(id, viewer);
     this.assertWindow(s, JOIN_BEFORE_MIN);
-    if ((s.zoomStatus !== 'ready' && s.zoomStatus !== 'external') || !s.zoomJoinUrl) {
-      throw fail(HttpStatus.SERVICE_UNAVAILABLE, 'zoom_unavailable');
-    }
+    // Stored encrypted; a value that does not decrypt (tampered, wrong key) is logged and
+    // treated as no link.
+    const joinUrl =
+      s.zoomStatus === 'ready' || s.zoomStatus === 'external'
+        ? this.crypto.tryDecrypt(s.zoomJoinUrl)
+        : null;
+    if (!joinUrl) throw fail(HttpStatus.SERVICE_UNAVAILABLE, 'zoom_unavailable');
     res.setHeader('Cache-Control', 'no-store, private');
-    return { data: { joinUrl: s.zoomJoinUrl } };
+    return { data: { joinUrl } };
   }
 
   /** Staff: try the meeting again (a failed or missing one, class not started). */

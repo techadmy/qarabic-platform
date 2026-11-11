@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
+import { Crypto } from '../common/crypto.js';
 import { ENV, type Env } from '../config/env.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { recordEvent } from './events.js';
@@ -139,6 +140,7 @@ export class ZoomMeetings {
     private readonly prisma: PrismaService,
     private readonly driver: ZoomDriver,
     private readonly clock: Clock,
+    private readonly crypto: Crypto,
   ) {}
 
   get enabled(): boolean {
@@ -214,7 +216,7 @@ export class ZoomMeetings {
           data: {
             zoomStatus: 'ready',
             zoomMeetingId: meeting.id,
-            zoomJoinUrl: meeting.joinUrl,
+            zoomJoinUrl: this.crypto.encrypt(meeting.joinUrl),
             zoomError: null,
             updatedAt: this.clock.now(),
           },

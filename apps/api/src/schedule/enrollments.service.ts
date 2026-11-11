@@ -17,6 +17,7 @@ import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
+import { Crypto } from '../common/crypto.js';
 import { notFound } from '../common/errors.js';
 import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains } from '../common/search.js';
@@ -101,6 +102,7 @@ export class EnrollmentsService {
     private readonly resync: ResyncService,
     private readonly presenter: SessionPresenter,
     private readonly zoom: ZoomDriver,
+    private readonly crypto: Crypto,
   ) {}
 
   // ------------------------------------------------------------------ reads
@@ -217,7 +219,7 @@ export class EnrollmentsService {
             sessionMinutes: minutes,
             timezone: zone,
             meetingMode: input.meetingMode,
-            externalMeetingUrl: input.externalMeetingUrl ?? null,
+            externalMeetingUrl: this.crypto.encryptOrNull(input.externalMeetingUrl),
             notes: input.notes ?? null,
             statusChangedAt: now,
             createdById: actor.id,
@@ -458,14 +460,16 @@ export class EnrollmentsService {
     const fields: Prisma.EnrollmentUncheckedUpdateInput = {};
     if (data.sessionMinutes !== undefined) fields.sessionMinutes = data.sessionMinutes;
     if (data.meetingMode !== undefined) fields.meetingMode = data.meetingMode;
-    if (data.externalMeetingUrl !== undefined) fields.externalMeetingUrl = data.externalMeetingUrl;
+    if (data.externalMeetingUrl !== undefined) {
+      fields.externalMeetingUrl = this.crypto.encryptOrNull(data.externalMeetingUrl);
+    }
     if (data.notes !== undefined) fields.notes = data.notes;
     // Existing slots keep their zone (immutable on the row); new slots use the new one.
     if (data.timezone !== undefined) fields.timezone = data.timezone;
     const meetingChanged =
       (data.meetingMode !== undefined && data.meetingMode !== enrollment.meetingMode) ||
       (data.externalMeetingUrl !== undefined &&
-        data.externalMeetingUrl !== enrollment.externalMeetingUrl);
+        data.externalMeetingUrl !== this.crypto.tryDecrypt(enrollment.externalMeetingUrl));
     if (Object.keys(fields).length) {
       await this.prisma.$transaction(async (tx) => {
         const after = await tx.enrollment.update({ where: { id }, data: fields });
@@ -707,7 +711,8 @@ export class EnrollmentsService {
     e: { id: number; meetingMode: string; externalMeetingUrl: string | null },
   ): Promise<void> {
     const external = e.meetingMode === 'external';
-    const url = external ? e.externalMeetingUrl : null;
+    // Stored encrypted; classes get their own ciphertext of the same link.
+    const url = external ? this.crypto.tryDecrypt(e.externalMeetingUrl) : null;
     const status = external ? 'external' : 'none';
     const rows = await tx.classSession.findMany({
       where: {
@@ -723,12 +728,12 @@ export class EnrollmentsService {
     for (const s of rows) {
       // Already on Zoom (none / pending / ready / failed): leave the meeting alone.
       if (!external && s.zoomStatus !== 'external') continue;
-      if (s.zoomStatus === status && s.zoomJoinUrl === url) continue;
+      if (s.zoomStatus === status && this.crypto.tryDecrypt(s.zoomJoinUrl) === url) continue;
       await tx.classSession.update({
         where: { id: s.id },
         data: {
           zoomStatus: status,
-          zoomJoinUrl: url,
+          zoomJoinUrl: this.crypto.encryptOrNull(url),
           zoomError: null,
           lockVersion: { increment: 1 },
           updatedAt: this.clock.now(),
@@ -807,7 +812,9 @@ export class EnrollmentsService {
       sessionMinutes: row.sessionMinutes,
       timezone: row.timezone,
       meetingMode: row.meetingMode,
-      ...(manage ? { externalMeetingUrl: row.externalMeetingUrl, notes: row.notes } : {}),
+      ...(manage
+        ? { externalMeetingUrl: this.crypto.tryDecrypt(row.externalMeetingUrl), notes: row.notes }
+        : {}),
       slots: row.slots
         .filter((s) => !s.validTo || fromDbDate(s.validTo) >= today)
         .map((s) => this.slotDto(s, academy)),

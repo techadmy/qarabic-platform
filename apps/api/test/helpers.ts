@@ -9,6 +9,7 @@ import { PasswordsService } from '../src/auth/passwords.service.js';
 import { RateLimiterService } from '../src/auth/rate-limiter.service.js';
 import type { AuthUser } from '../src/auth/auth.types.js';
 import { Clock } from '../src/common/clock.js';
+import { Crypto } from '../src/common/crypto.js';
 import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
 import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
 import { MemoryMailer } from '../src/mail/mailer.js';
@@ -361,7 +362,7 @@ export async function m2Enrollment(
       sessionMinutes: 30,
       timezone: overrides.timezone ?? student.family.timezone,
       meetingMode: overrides.meetingMode ?? 'zoom',
-      externalMeetingUrl: overrides.externalMeetingUrl ?? null,
+      externalMeetingUrl: ctx.app.get(Crypto).encryptOrNull(overrides.externalMeetingUrl),
     },
   });
 }
@@ -430,7 +431,7 @@ export function m2Session(
         ? new Date(`${overrides.occurrenceDate}T00:00:00Z`)
         : null,
       zoomStatus: overrides.zoomStatus ?? 'none',
-      zoomJoinUrl: overrides.zoomJoinUrl ?? null,
+      zoomJoinUrl: ctx.app.get(Crypto).encryptOrNull(overrides.zoomJoinUrl),
       needsReview: overrides.needsReview ?? false,
       isDetached: overrides.isDetached ?? false,
       updatedAt: clock(ctx).now(),

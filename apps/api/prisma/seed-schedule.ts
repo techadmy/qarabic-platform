@@ -1,4 +1,5 @@
 import { Clock } from '../src/common/clock.js';
+import { FieldCipher } from '../src/common/crypto.js';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { addDays, localDate } from '../src/schedule/time.js';
@@ -22,7 +23,11 @@ const PLAN = [
  * from the generator; a few past ones are marked (held, absent, leave) so the board has something
  * to show. Skipped when enrollments exist.
  */
-export async function seedDemoSchedule(prisma: PrismaClient): Promise<boolean> {
+export async function seedDemoSchedule(
+  prisma: PrismaClient,
+  encryptionKey: string,
+): Promise<boolean> {
+  const cipher = FieldCipher.fromBase64(encryptionKey);
   if ((await prisma.enrollment.count()) > 0) return false;
   const students = await prisma.student.findMany({
     where: { family: { user: { email: { endsWith: `@${DEMO_DOMAIN}` } } }, archivedAt: null },
@@ -45,7 +50,7 @@ export async function seedDemoSchedule(prisma: PrismaClient): Promise<boolean> {
         startsOn: new Date(`${startsOn}T00:00:00Z`),
         timezone: s.family.timezone,
         meetingMode: 'external',
-        externalMeetingUrl: `https://meet.example.test/demo-${s.id}`,
+        externalMeetingUrl: cipher.encrypt(`https://meet.example.test/demo-${s.id}`),
         slots: {
           create: plan.days.map((weekday) => ({
             teacherId: s.teacherId!,

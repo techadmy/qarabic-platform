@@ -493,7 +493,8 @@ model Enrollment {
   /// The student's (family's) zone when the enrollment was made; new slots use it.
   timezone           String           @db.VarChar(64)
   meetingMode        MeetingMode      @default(zoom) @map("meeting_mode")
-  externalMeetingUrl String?          @map("external_meeting_url") @db.VarChar(500)
+  /// Encrypted at rest (AES-256-GCM, `APP_ENCRYPTION_KEY`): `v1:` + base64.
+  externalMeetingUrl String?          @map("external_meeting_url")
   notes              String?
   statusChangedAt    DateTime?        @map("status_changed_at") @db.Timestamptz(6)
   createdById        Int?             @map("created_by")
@@ -648,8 +649,9 @@ model ClassSession {
   zoomStatus      ZoomStatus    @default(none) @map("zoom_status")
   zoomMeetingId   String?       @map("zoom_meeting_id") @db.VarChar(32)
   zoomHostId      Int?          @map("zoom_host_id")
-  /// Never sent in a class payload; only through `/zoom/join` inside its window.
-  zoomJoinUrl     String?       @map("zoom_join_url") @db.VarChar(500)
+  /// Encrypted at rest (AES-256-GCM). Never sent in a class payload; only decrypted by
+  /// `/zoom/start` (own teacher) and `/zoom/join` inside their windows.
+  zoomJoinUrl     String?       @map("zoom_join_url")
   zoomError       String?       @map("zoom_error") @db.VarChar(255)
   actualStartedAt DateTime?     @map("actual_started_at") @db.Timestamptz(6)
   actualEndedAt   DateTime?     @map("actual_ended_at") @db.Timestamptz(6)

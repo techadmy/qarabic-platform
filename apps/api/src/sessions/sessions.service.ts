@@ -88,6 +88,7 @@ export class SessionsService {
           source: data.source ?? 'manual',
           originSessionId: data.originSessionId ?? null,
           zoomStatus: external ? 'external' : 'none',
+          // The enrollment's link is stored encrypted: its ciphertext is copied as is.
           zoomJoinUrl: external ? enrollment.externalMeetingUrl : null,
           createdById: actor.user?.id ?? null,
           createdAt: now,
