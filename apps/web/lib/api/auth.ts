@@ -1,13 +1,7 @@
-import { meSchema, type Me } from '@qarabic/shared';
+import { meSchema, type Me, type ResetPasswordInput } from '@qarabic/shared';
 import { apiFetch, isApiError } from './client';
 
 export type LoginPayload = { email: string; password: string; remember: boolean };
-export type ResetPasswordPayload = {
-  token: string;
-  email: string;
-  password: string;
-  password_confirmation: string;
-};
 
 /** The signed-in user, or `null` when there is no session (401). */
 export async function fetchMe(signal?: AbortSignal): Promise<Me | null> {
@@ -31,6 +25,7 @@ export async function forgotPassword(email: string): Promise<void> {
   await apiFetch('/auth/forgot-password', { method: 'POST', body: { email } });
 }
 
-export async function resetPassword(payload: ResetPasswordPayload): Promise<void> {
+/** Body is `resetPasswordSchema` from shared: `{ token, password }` only. */
+export async function resetPassword(payload: ResetPasswordInput): Promise<void> {
   await apiFetch('/auth/reset-password', { method: 'POST', body: payload });
 }

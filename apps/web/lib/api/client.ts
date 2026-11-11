@@ -1,3 +1,4 @@
+import { apiErrorSchema, type ApiError as ApiErrorBody } from '@qarabic/shared';
 import type { z } from 'zod';
 
 /**
@@ -12,18 +13,33 @@ const CSRF_COOKIE = 'XSRF-TOKEN';
 const CSRF_HEADER = 'X-XSRF-TOKEN';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
+/** A non-2xx answer. The API's body is `{ message, code, errors? }` (`apiErrorSchema`). */
 export class ApiError extends Error {
+  /** The parsed standard error body, or null when the body had another shape. */
+  readonly error: ApiErrorBody | null;
+
   constructor(
     readonly status: number,
     readonly body: unknown,
   ) {
     super(`API request failed with status ${status}`);
     this.name = 'ApiError';
+    const parsed = apiErrorSchema.safeParse(body);
+    this.error = parsed.success ? parsed.data : null;
+  }
+
+  /** Machine-readable error code, e.g. `invalid_credentials`, `csrf_mismatch`. */
+  get code(): string | undefined {
+    return this.error?.code;
   }
 }
 
 export function isApiError(error: unknown, status?: number): error is ApiError {
   return error instanceof ApiError && (status === undefined || error.status === status);
+}
+
+function isCsrfMismatch(status: number, data: unknown): boolean {
+  return status === 403 && apiErrorSchema.safeParse(data).data?.code === 'csrf_mismatch';
 }
 
 export function readCookie(name: string): string | null {
@@ -68,32 +84,25 @@ type RequestOptions<S extends z.ZodType | undefined> = {
 
 type Result<S> = S extends z.ZodType ? z.infer<S> : unknown;
 
-async function send(path: string, method: string, body: unknown, signal?: AbortSignal) {
+async function send(
+  path: string,
+  method: string,
+  body: unknown,
+  signal?: AbortSignal,
+): Promise<{ res: Response; data: unknown }> {
   const headers: Record<string, string> = { Accept: 'application/json' };
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (!SAFE_METHODS.has(method)) {
     const token = await ensureCsrfToken();
     if (token) headers[CSRF_HEADER] = token;
   }
-  return fetch(`${API_URL}${API_PREFIX}${path}`, {
+  const res = await fetch(`${API_URL}${API_PREFIX}${path}`, {
     method,
     credentials: 'include',
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
     signal,
   });
-}
-
-export async function apiFetch<S extends z.ZodType | undefined = undefined>(
-  path: string,
-  { method = 'GET', body, schema, signal }: RequestOptions<S> = {},
-): Promise<Result<S>> {
-  let res = await send(path, method, body, signal);
-  // 419: the CSRF token expired or rotated. Fetch a fresh one and retry once.
-  if (res.status === 419 && !SAFE_METHODS.has(method)) {
-    await ensureCsrfToken(true);
-    res = await send(path, method, body, signal);
-  }
   const text = await res.text();
   let data: unknown = null;
   if (text) {
@@ -102,6 +111,19 @@ export async function apiFetch<S extends z.ZodType | undefined = undefined>(
     } catch {
       data = text;
     }
+  }
+  return { res, data };
+}
+
+export async function apiFetch<S extends z.ZodType | undefined = undefined>(
+  path: string,
+  { method = 'GET', body, schema, signal }: RequestOptions<S> = {},
+): Promise<Result<S>> {
+  let { res, data } = await send(path, method, body, signal);
+  // 403 `csrf_mismatch`: the token expired or rotated. Fetch a fresh one and retry once.
+  if (!SAFE_METHODS.has(method) && isCsrfMismatch(res.status, data)) {
+    await ensureCsrfToken(true);
+    ({ res, data } = await send(path, method, body, signal));
   }
   if (!res.ok) throw new ApiError(res.status, data);
   return (schema ? schema.parse(data) : data) as Result<S>;

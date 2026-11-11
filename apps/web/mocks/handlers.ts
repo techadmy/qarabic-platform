@@ -1,8 +1,9 @@
 import { http, HttpResponse, type HttpHandler } from 'msw';
-import { MOCK_ROLES, MOCK_USERS, toMe } from './data';
+import { MOCK_RESET_TOKEN, MOCK_ROLES, MOCK_USERS, toMe } from './data';
 
 /**
- * MSW handlers for the N0 API contract (`/api/v1`). Used by unit tests (node) and by the optional
+ * MSW handlers for the N0 API (`/api/v1`), same shapes as apps/api: errors are
+ * `{ message, code, errors? }`, a CSRF failure is 403 `csrf_mismatch`, lists are `{ data }`. Used by unit tests (node) and by the optional
  * mock mode in the browser (`NEXT_PUBLIC_ENABLE_MOCKS=true`). Paths match any origin, so they work
  * whatever `NEXT_PUBLIC_API_URL` is.
  */
@@ -58,8 +59,17 @@ function csrfOk(request: Request) {
   return request.headers.get('X-XSRF-TOKEN') === CSRF_TOKEN;
 }
 
-const csrfFailed = () => HttpResponse.json({ message: 'CSRF token mismatch.' }, { status: 419 });
-const unauthenticated = () => HttpResponse.json({ message: 'Unauthenticated.' }, { status: 401 });
+function apiError(
+  status: number,
+  code: string,
+  message: string,
+  errors?: Record<string, string[]>,
+) {
+  return HttpResponse.json({ message, code, ...(errors ? { errors } : {}) }, { status });
+}
+const csrfFailed = () =>
+  apiError(403, 'csrf_mismatch', 'CSRF token mismatch. Reload the page and try again.');
+const unauthenticated = () => apiError(401, 'unauthenticated', 'Unauthenticated.');
 
 export const handlers: HttpHandler[] = [
   http.get(`${API}/auth/csrf`, () => {
@@ -70,16 +80,15 @@ export const handlers: HttpHandler[] = [
   http.post(`${API}/auth/login`, async ({ request }) => {
     if (!csrfOk(request)) return csrfFailed();
     if (failedLogins >= MAX_FAILED_LOGINS) {
-      return HttpResponse.json({ message: 'Too many attempts.' }, { status: 429 });
+      return apiError(429, 'too_many_requests', 'Too many attempts.');
     }
     const body = (await request.json()) as { email?: string; password?: string };
     const found = MOCK_USERS.find((u) => u.email === body.email && u.password === body.password);
     if (!found) {
       failedLogins += 1;
-      return HttpResponse.json(
-        { message: 'Invalid credentials.', errors: { email: ['auth.failed'] } },
-        { status: 422 },
-      );
+      return apiError(422, 'invalid_credentials', 'These credentials do not match our records.', {
+        email: ['These credentials do not match our records.'],
+      });
     }
     failedLogins = 0;
     setSessionUserId(found.id);
@@ -100,27 +109,31 @@ export const handlers: HttpHandler[] = [
   http.post(`${API}/auth/forgot-password`, ({ request }) => {
     if (!csrfOk(request)) return csrfFailed();
     // Always 200: the API never reveals whether an email is registered.
-    return HttpResponse.json({ status: 'ok' });
+    return HttpResponse.json({
+      message: 'If an active account uses this email, a password reset link has been sent to it.',
+    });
   }),
 
   http.post(`${API}/auth/reset-password`, async ({ request }) => {
     if (!csrfOk(request)) return csrfFailed();
-    const body = (await request.json()) as { token?: string };
-    if (body.token !== 'valid-token') {
-      return HttpResponse.json(
-        { message: 'Invalid token.', errors: { email: ['passwords.token'] } },
-        { status: 422 },
-      );
+    const body = (await request.json()) as Record<string, unknown>;
+    const keys = Object.keys(body).sort().join(',');
+    if (keys !== 'password,token') {
+      return apiError(422, 'validation_failed', 'The given data was invalid.');
     }
-    return HttpResponse.json({ status: 'ok' });
+    if (body.token !== MOCK_RESET_TOKEN) {
+      const message = 'This password reset link is invalid or has expired.';
+      return apiError(422, 'invalid_reset_token', message, { token: [message] });
+    }
+    return HttpResponse.json({ message: 'Your password has been reset. Please sign in.' });
   }),
 
   http.get(`${API}/roles`, () => {
     const me = currentUser();
     if (!me) return unauthenticated();
     if (!me.permissions.includes('roles.view')) {
-      return HttpResponse.json({ message: 'Forbidden.' }, { status: 403 });
+      return apiError(403, 'forbidden', 'Forbidden.');
     }
-    return HttpResponse.json(MOCK_ROLES);
+    return HttpResponse.json({ data: MOCK_ROLES });
   }),
 ];

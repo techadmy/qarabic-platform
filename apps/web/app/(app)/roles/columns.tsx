@@ -4,13 +4,10 @@ import { Badge } from '@qarabic/ui/components/badge';
 import type { ColumnDef } from '@tanstack/react-table';
 import { useLocale, useTranslations } from 'next-intl';
 import { useMemo } from 'react';
-import type { RoleRow } from '@/lib/api/roles';
-
-const KNOWN_KINDS = ['owner', 'staff', 'teacher', 'parent', 'system', 'custom'] as const;
-type Kind = (typeof KNOWN_KINDS)[number];
+import type { RoleDto } from '@qarabic/shared';
 
 /** Columns of the read-only roles table (shadcn Data Table pattern). */
-export function useRoleColumns(): ColumnDef<RoleRow>[] {
+export function useRoleColumns(): ColumnDef<RoleDto>[] {
   const t = useTranslations('roles');
   const locale = useLocale();
   return useMemo(
@@ -20,19 +17,14 @@ export function useRoleColumns(): ColumnDef<RoleRow>[] {
         header: t('columns.role'),
         cell: ({ row }) => (
           <span className="font-medium">
-            {locale === 'ar' ? row.original.label_ar : row.original.label_en}
+            {locale === 'ar' ? row.original.labelAr : row.original.labelEn}
           </span>
         ),
       },
       {
         accessorKey: 'kind',
         header: t('columns.kind'),
-        cell: ({ row }) => {
-          const kind = row.original.kind;
-          return (KNOWN_KINDS as readonly string[]).includes(kind)
-            ? t(`kind.${kind as Kind}`)
-            : kind;
-        },
+        cell: ({ row }) => t(`kind.${row.original.kind}`),
       },
       {
         id: 'permissions',
@@ -47,7 +39,7 @@ export function useRoleColumns(): ColumnDef<RoleRow>[] {
         id: 'status',
         header: t('columns.status'),
         cell: ({ row }) =>
-          row.original.customized_at ? (
+          row.original.customizedAt ? (
             <Badge variant="secondary" title={t('customizedHint')}>
               {t('customized')}
             </Badge>

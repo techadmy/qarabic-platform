@@ -22,6 +22,9 @@ export function useValidationMessages() {
               ? t('required')
               : t('passwordMin', { count: Number(issue.minimum) });
           }
+          if (issue.code === 'too_big' && issue.origin === 'string') {
+            return t('passwordMax', { count: Number(issue.maximum) });
+          }
           return undefined;
         },
       }) satisfies z.core.ParseContext<z.core.$ZodIssue>,

@@ -6,12 +6,12 @@ export async function generateMetadata(): Promise<Metadata> {
   return { title: (await getTranslations('auth'))('resetTitle') };
 }
 
-/** The reset link from the email: `/reset-password?token=…&email=…`. */
+/** The reset link from the email: `/reset-password?token=…`. */
 export default async function ResetPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ token?: string; email?: string }>;
+  searchParams: Promise<{ token?: string }>;
 }) {
-  const { token = '', email = '' } = await searchParams;
-  return <ResetPasswordForm token={token} email={email} />;
+  const { token = '' } = await searchParams;
+  return <ResetPasswordForm token={token} />;
 }

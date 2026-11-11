@@ -1,4 +1,11 @@
-import { permissionsFor, ROLES, SYSTEM_ROLES, type Me, type Role } from '@qarabic/shared';
+import {
+  permissionsFor,
+  ROLES,
+  SYSTEM_ROLES,
+  type Me,
+  type Role,
+  type RoleDto,
+} from '@qarabic/shared';
 
 /** Demo password of every mock user (mock mode and tests only; never a real credential). */
 export const MOCK_PASSWORD = 'Qarabic-demo-123';
@@ -28,12 +35,18 @@ export function toMe({ password: _password, ...me }: MockUser): Me {
   return me;
 }
 
-export const MOCK_ROLES = ROLES.map((name, index) => ({
+/** Same shape as the API's `GET /roles` rows (`RoleDto`). */
+export const MOCK_ROLES: RoleDto[] = ROLES.map((name, index) => ({
   id: index + 1,
   name,
-  label_ar: SYSTEM_ROLES[name].ar,
-  label_en: SYSTEM_ROLES[name].en,
+  labelAr: SYSTEM_ROLES[name].ar,
+  labelEn: SYSTEM_ROLES[name].en,
   kind: SYSTEM_ROLES[name].kind,
-  customized_at: name === 'monitor' ? '2026-11-09T10:00:00.000Z' : null,
-  permissions: permissionsFor(name) as string[],
+  isSystem: true,
+  editable: SYSTEM_ROLES[name].kind === 'staff',
+  customizedAt: name === 'monitor' ? '2026-11-09T10:00:00.000Z' : null,
+  permissions: permissionsFor(name),
 }));
+
+/** A reset token the mock API accepts (real tokens are 20–200 characters). */
+export const MOCK_RESET_TOKEN = 'mock-reset-token-0123456789';

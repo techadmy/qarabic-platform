@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { cleanCredential } from '@qarabic/shared';
+import { forgotPasswordSchema } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import {
@@ -25,12 +25,12 @@ import { AlertCircleIcon, MailCheckIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { Controller, useForm } from 'react-hook-form';
-import { z } from 'zod';
+import type { z } from 'zod';
 import { forgotPassword } from '@/lib/api/auth';
 import { isApiError } from '@/lib/api/client';
 import { useValidationMessages } from '@/lib/forms/validation-messages';
 
-const forgotSchema = z.object({ email: z.string().transform(cleanCredential).pipe(z.email()) });
+const forgotSchema = forgotPasswordSchema;
 type ForgotInput = z.input<typeof forgotSchema>;
 type ForgotOutput = z.output<typeof forgotSchema>;
 

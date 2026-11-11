@@ -60,7 +60,10 @@ describe('LoginForm', () => {
   it('asks the user to wait on 429', async () => {
     server.use(
       http.post('*/api/v1/auth/login', () =>
-        HttpResponse.json({ message: 'Too many attempts.' }, { status: 429 }),
+        HttpResponse.json(
+          { message: 'Too Many Requests.', code: 'too_many_requests' },
+          { status: 429 },
+        ),
       ),
     );
     const { user } = setup();

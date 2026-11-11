@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { cleanCredential } from '@qarabic/shared';
+import { cleanCredential, newPasswordSchema, resetPasswordSchema } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import {
@@ -31,37 +31,48 @@ import { useValidationMessages } from '@/lib/forms/validation-messages';
 import { PasswordInput } from './password-input';
 
 export const PASSWORD_MIN = 8;
-const password = z.string().transform(cleanCredential).pipe(z.string().min(PASSWORD_MIN));
 
-const resetSchema = z
-  .object({ password, password_confirmation: password })
-  .refine((v) => v.password === v.password_confirmation, {
-    path: ['password_confirmation'],
+/**
+ * The shared `newPasswordSchema` (8–128, cleaned) validates the password; the confirmation is a
+ * client-side check only. The API receives `{ token, password }` (`resetPasswordSchema`).
+ */
+const resetFormSchema = z
+  .object({ password: newPasswordSchema, confirmation: z.string().transform(cleanCredential) })
+  .refine((v) => v.password === v.confirmation, {
+    path: ['confirmation'],
     params: { mismatch: true },
   });
-type ResetInput = z.input<typeof resetSchema>;
-type ResetOutput = z.output<typeof resetSchema>;
+type ResetFormInput = z.input<typeof resetFormSchema>;
+type ResetFormOutput = z.output<typeof resetFormSchema>;
+
+/** The API rejects a used, expired or unknown token with 422 `invalid_reset_token`. */
+function isInvalidToken(error: unknown): boolean {
+  return (
+    isApiError(error, 422) && (error.code === 'invalid_reset_token' || !!error.error?.errors?.token)
+  );
+}
 
 /** Same block family as the login form (shadcn `login-01` Card + Field). */
-export function ResetPasswordForm({ token, email }: { token: string; email: string }) {
+export function ResetPasswordForm({ token }: { token: string }) {
   const t = useTranslations('auth');
   const tv = useTranslations('validation');
   const messages = useValidationMessages();
   const mutation = useMutation({
-    mutationFn: (v: ResetOutput) => resetPassword({ token, email, ...v }),
+    mutationFn: (v: ResetFormOutput) =>
+      resetPassword(resetPasswordSchema.parse({ token, password: v.password })),
   });
-  const form = useForm<ResetInput, unknown, ResetOutput>({
-    resolver: zodResolver(resetSchema, {
+  const form = useForm<ResetFormInput, unknown, ResetFormOutput>({
+    resolver: zodResolver(resetFormSchema, {
       error: (issue) => (issue.code === 'custom' ? tv('passwordsMatch') : messages.error(issue)),
     }),
-    defaultValues: { password: '', password_confirmation: '' },
+    defaultValues: { password: '', confirmation: '' },
     // Validate on submit, then on change. Blur validation moved the links under the autofocused
-    // email field while the user was clicking them (the error line shifts the layout).
+    // field while the user was clicking them (the error line shifts the layout).
     mode: 'onSubmit',
   });
 
-  const linkMissing = !token || !email;
-  const linkInvalid = linkMissing || isApiError(mutation.error, 422);
+  const linkMalformed = !resetPasswordSchema.shape.token.safeParse(token).success;
+  const linkInvalid = linkMalformed || isInvalidToken(mutation.error);
 
   return (
     <div className="flex flex-col gap-6">
@@ -131,16 +142,14 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
                   )}
                 />
                 <Controller
-                  name="password_confirmation"
+                  name="confirmation"
                   control={form.control}
                   render={({ field, fieldState }) => (
                     <Field data-invalid={fieldState.invalid}>
-                      <FieldLabel htmlFor="password_confirmation">
-                        {t('confirmPassword')}
-                      </FieldLabel>
+                      <FieldLabel htmlFor="confirmation">{t('confirmPassword')}</FieldLabel>
                       <PasswordInput
                         {...field}
-                        id="password_confirmation"
+                        id="confirmation"
                         autoComplete="new-password"
                         aria-invalid={fieldState.invalid}
                       />
@@ -149,7 +158,7 @@ export function ResetPasswordForm({ token, email }: { token: string; email: stri
                   )}
                 />
                 <Field>
-                  <Button type="submit" disabled={mutation.isPending || linkMissing}>
+                  <Button type="submit" disabled={mutation.isPending || linkMalformed}>
                     {mutation.isPending && <Spinner />}
                     {mutation.isPending ? t('saving') : t('resetSubmit')}
                   </Button>
