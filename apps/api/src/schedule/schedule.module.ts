@@ -73,6 +73,8 @@ import {
     SessionGenerator,
     SessionPresenter,
     LessonReportsService,
+    // N4: the support inbox lists class requests; the parent home shows classes.
+    SessionRequestsService,
   ],
 })
 export class ScheduleModule {}

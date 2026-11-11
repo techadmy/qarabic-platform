@@ -29,9 +29,13 @@ beforeEach(async () => {
 const PUBLIC_ROUTES = [
   'GET auth/csrf',
   'GET health',
+  // N4: Meta's WhatsApp webhook (404 while FEEDBACK_WHATSAPP_ENABLED is off; POST signed with
+  // the app secret, GET answers only the verify token). Reviewed in the N4 PR.
+  'GET webhooks/whatsapp',
   'POST auth/forgot-password',
   'POST auth/login',
   'POST auth/reset-password',
+  'POST webhooks/whatsapp',
 ];
 
 describe('route permission coverage', () => {
@@ -198,6 +202,35 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every N4 route needs the permission of the Laravel feedback / support routes', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    const any =
+      'any:feedback.view|feedback.request|feedback.review|feedback.manage|support.view|support.handle';
+    expect(byRoute).toMatchObject({
+      'GET feedback/summary': any,
+      'GET feedback/assignees': 'all:feedback.manage',
+      'GET feedback/tickets': any,
+      'POST feedback/tickets': 'all:feedback.request',
+      'GET feedback/tickets/:id': any,
+      'PATCH feedback/tickets/:id': 'any:feedback.manage|support.handle',
+      'POST feedback/tickets/:id/comments': any,
+      'POST feedback/tickets/:id/confirm': 'all:feedback.request',
+      'POST feedback/tickets/:id/seen': 'all:feedback.request',
+      'GET feedback/attachments/:id': any,
+      'GET support/inbox': 'all:support.view',
+      'GET support/summary': 'all:support.view',
+      'GET support/assignees': 'any:support.handle|support.manage',
+      'GET support/people': 'all:support.view',
+      'POST support/tickets/:id/take': 'any:support.handle|support.manage',
+      'GET support/mine': 'any:feedback.request|session_requests.request',
+      'GET settings/support': 'all:settings.view',
+      'PUT settings/support': 'all:settings.manage',
+      'GET parent/home': 'all:families.view',
+    });
+  });
+
   it('answers 403 to a signed-in user with no role on every permission route', async () => {
     const { client } = await signedIn(ctx, null);
     for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
@@ -285,6 +318,9 @@ describe('platform', () => {
         '/api/v1/students/{id}/progress',
         '/api/v1/tests/{id}/result',
         '/api/v1/teacher-portal/week',
+        '/api/v1/feedback/tickets',
+        '/api/v1/support/inbox',
+        '/api/v1/parent/home',
       ]),
     );
   });

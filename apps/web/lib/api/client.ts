@@ -1,5 +1,6 @@
 import { apiErrorSchema, type ApiError as ApiErrorBody } from '@qarabic/shared';
 import type { z } from 'zod';
+import { recordApiError } from '@/lib/support/error-log';
 
 /**
  * API client for the NestJS API (`/api/v1`). Sessions live in an httpOnly cookie, so every request
@@ -91,7 +92,9 @@ async function send(
   signal?: AbortSignal,
 ): Promise<{ res: Response; data: unknown }> {
   const headers: Record<string, string> = { Accept: 'application/json' };
-  if (body !== undefined) headers['Content-Type'] = 'application/json';
+  // Multipart (ticket files): the browser sets the boundary itself.
+  const form = typeof FormData !== 'undefined' && body instanceof FormData;
+  if (body !== undefined && !form) headers['Content-Type'] = 'application/json';
   if (!SAFE_METHODS.has(method)) {
     const token = await ensureCsrfToken();
     if (token) headers[CSRF_HEADER] = token;
@@ -100,7 +103,7 @@ async function send(
     method,
     credentials: 'include',
     headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: body === undefined ? undefined : form ? (body as FormData) : JSON.stringify(body),
     signal,
   });
   const text = await res.text();
@@ -125,6 +128,14 @@ export async function apiFetch<S extends z.ZodType | undefined = undefined>(
     await ensureCsrfToken(true);
     ({ res, data } = await send(path, method, body, signal));
   }
-  if (!res.ok) throw new ApiError(res.status, data);
+  if (!res.ok) {
+    recordApiError({
+      method,
+      path,
+      status: res.status,
+      requestId: res.headers.get('x-request-id'),
+    });
+    throw new ApiError(res.status, data);
+  }
   return (schema ? schema.parse(data) : data) as Result<S>;
 }

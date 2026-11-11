@@ -216,3 +216,57 @@ test('real API: open a class with a lesson report; tests and progress load (N3)'
   await expect(page.getByRole('region', { name: /التقدم وسجل الدروس/ })).toBeVisible();
   await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
 });
+
+test('real API: the N4 support centre — inbox, a ticket, triage, settings, «تواصل معنا» → «طلباتي»', async ({
+  page,
+}) => {
+  const admin = seedAdmin();
+  if (existsSync(SESSION_FILE)) {
+    const saved = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as {
+      cookies: Parameters<BrowserContext['addCookies']>[0];
+    };
+    await page.context().addCookies(saved.cookies);
+  }
+  await page.goto('/support');
+  if (/\/login/.test(page.url())) {
+    await page.getByLabel('البريد الإلكتروني').fill(admin.email);
+    await page.locator('#password').fill(admin.password);
+    await page.getByRole('button', { name: 'دخول' }).click();
+  }
+  await expect(page).toHaveURL(/\/support$/);
+
+  // The seed's demo tickets, with the queue tabs and their counts (the shared schemas parse them).
+  await expect(page.getByRole('heading', { level: 1, name: 'صندوق الطلبات' })).toBeVisible();
+  await expect(page.getByRole('radio', { name: /^الجدولة \(\d+\)/ })).toBeVisible();
+  const list = page.getByRole('list', { name: 'صندوق الطلبات' });
+  await expect(list.getByRole('listitem').first()).toBeVisible();
+  await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
+  await list.locator('a[href^="/tickets/"]').first().click();
+  await expect(page).toHaveURL(/\/tickets\/\d+$/);
+  await expect(page.getByRole('heading', { level: 1, name: /#\d+/ })).toBeVisible();
+  await expect(page.getByText('معالجة الطلب')).toBeVisible();
+
+  for (const [path, check] of [
+    ['/feedback', page.getByRole('table', { name: 'فرز البلاغات' })],
+    ['/settings/support', page.getByRole('table', { name: 'الأقسام' })],
+  ] as const) {
+    await page.goto(path);
+    await expect(check).toBeVisible();
+    await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
+  }
+
+  // «تواصل معنا» → a suggestion is saved in the database and shows in «طلباتي».
+  const text = `E2E suggestion ${Date.now() % 1_000_000}`;
+  await page.getByRole('button', { name: 'تواصل معنا' }).filter({ visible: true }).first().click();
+  await page
+    .getByRole('dialog', { name: 'تواصل معنا' })
+    .getByRole('button', { name: /^اقتراح/ })
+    .click();
+  const report = page.getByRole('dialog', { name: 'مشكلة تقنية أو اقتراح' });
+  await expect(report.getByText('جارٍ التقاط صورة الشاشة…')).toHaveCount(0, { timeout: 15_000 });
+  await report.getByLabel(/ما اقتراحك؟/).fill(text);
+  await report.getByRole('button', { name: 'أرسل' }).click();
+  await expect(page.getByText(/أُرسل طلبك رقم #\d+/).first()).toBeVisible();
+  await page.goto('/my-requests');
+  await expect(page.getByRole('list', { name: 'طلباتي' }).getByText(text)).toBeVisible();
+});

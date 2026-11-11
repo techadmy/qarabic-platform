@@ -13,6 +13,7 @@ import { Crypto } from '../src/common/crypto.js';
 import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
 import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
 import { MemoryMailer } from '../src/mail/mailer.js';
+import { WhatsAppConfig } from '../src/support/whatsapp.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 
@@ -30,7 +31,10 @@ export async function createTestApp(extraControllers: Type[] = []): Promise<Test
     imports: [AppModule],
     controllers: extraControllers,
   }).compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true });
+  const app = moduleRef.createNestApplication<NestExpressApplication>({
+    bufferLogs: true,
+    rawBody: true,
+  });
   configureApp(app);
   await app.init();
   return {
@@ -57,6 +61,7 @@ export async function resetState(ctx: TestContext): Promise<void> {
   ctx.mailer.clear();
   ctx.app.get(Clock).set(null);
   ctx.app.get(ZoomDriver).use(new NoneZoomClient());
+  ctx.app.get(WhatsAppConfig).reset();
 }
 
 let seq = 0;
@@ -127,6 +132,32 @@ export class Client {
   delete(path: string, body?: object, opts: { csrf?: boolean } = {}): Promise<request.Response> {
     return this.wrap(
       this.withCsrf(this.agent.delete(`/api/v1${path}`), opts.csrf).send(body ?? {}),
+    );
+  }
+
+  /** `multipart/form-data` POST: text fields + files `[field, bytes, file name]`. */
+  upload(
+    path: string,
+    fields: Record<string, string>,
+    files: Array<[field: string, bytes: Buffer, name: string]> = [],
+  ): Promise<request.Response> {
+    let req = this.withCsrf(this.agent.post(`/api/v1${path}`));
+    for (const [k, v] of Object.entries(fields)) req = req.field(k, v);
+    for (const [field, bytes, name] of files) req = req.attach(field, bytes, name);
+    return this.wrap(req);
+  }
+
+  /** GET answering the raw bytes in `res.body` (files). */
+  download(path: string): Promise<request.Response> {
+    return this.wrap(
+      this.agent
+        .get(`/api/v1${path}`)
+        .buffer(true)
+        .parse((res, done) => {
+          const chunks: Buffer[] = [];
+          res.on('data', (c: Buffer) => chunks.push(c));
+          res.on('end', () => done(null, Buffer.concat(chunks)));
+        }),
     );
   }
 

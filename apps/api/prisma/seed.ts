@@ -4,6 +4,7 @@ import { createPrismaClient } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
 import { seedDemoSchedule } from './seed-schedule.js';
+import { seedDemoSupport } from './seed-support.js';
 import { seedDemoTeaching } from './seed-teaching.js';
 
 /**
@@ -58,6 +59,12 @@ async function main(): Promise<void> {
         taught
           ? 'Demo lesson reports, hifz progress and three tests added (fake data).'
           : 'Demo lesson reports already there (or no demo classes).',
+      );
+      const tickets = await seedDemoSupport(prisma);
+      console.log(
+        tickets
+          ? 'Demo «تواصل معنا» tickets added (fake data).'
+          : 'Demo tickets already there (or no demo people).',
       );
     }
   } finally {

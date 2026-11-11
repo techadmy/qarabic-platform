@@ -9,7 +9,11 @@ import {
   ClipboardCheckIcon,
   ClipboardListIcon,
   GraduationCapIcon,
+  HeadsetIcon,
+  InboxIcon,
   LayoutDashboardIcon,
+  ListChecksIcon,
+  MessagesSquareIcon,
   SlidersHorizontalIcon,
   UsersRoundIcon,
   ShieldCheckIcon,
@@ -39,6 +43,10 @@ export type NavKey =
   | 'tests'
   | 'myTests'
   | 'mySchedule'
+  | 'supportInbox'
+  | 'feedbackTriage'
+  | 'supportSettings'
+  | 'ticket'
   | 'account';
 
 export type NavItem = {
@@ -49,7 +57,7 @@ export type NavItem = {
   /** Shown only to users who have this permission. */
   permission?: string;
   /** A live count beside the item (K3: badge counts in the sidebar items). */
-  badge?: 'pendingRequests';
+  badge?: 'pendingRequests' | 'supportOpen' | 'triageNew' | 'mineUpdates';
   /** Other paths that belong to this item (a teacher's student profile under «طلابي»). */
   also?: string[];
 };
@@ -66,6 +74,19 @@ export type NavEntry = NavItem | NavGroup;
 export const isGroup = (entry: NavEntry): entry is NavGroup => 'group' in entry;
 
 const HOME: NavItem = { key: 'home', href: '/', icon: LayoutDashboardIcon };
+
+/**
+ * «طلباتي» for parents and teachers (N4, docs/32 S2): support requests and class requests in one
+ * list, with the count of requests that have news. The old class-request list stays reachable.
+ */
+const MY_REQUESTS: NavItem = {
+  key: 'myRequests',
+  href: '/my-requests',
+  icon: MessagesSquareIcon,
+  permission: 'feedback.request',
+  badge: 'mineUpdates',
+  also: ['/requests', '/tickets'],
+};
 
 /**
  * Staff sidebar, grouped like the current app (and the developer admin it copies): top items
@@ -91,6 +112,27 @@ export const STAFF_NAV: NavEntry[] = [
   },
   { key: 'tests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
   {
+    key: 'supportInbox',
+    href: '/support',
+    icon: InboxIcon,
+    permission: 'support.view',
+    badge: 'supportOpen',
+  },
+  {
+    key: 'feedbackTriage',
+    href: '/feedback',
+    icon: ListChecksIcon,
+    permission: 'feedback.review',
+    badge: 'triageNew',
+  },
+  {
+    key: 'myRequests',
+    href: '/my-requests',
+    icon: MessagesSquareIcon,
+    permission: 'feedback.request',
+    badge: 'mineUpdates',
+  },
+  {
     group: 'users',
     icon: UsersIcon,
     items: [
@@ -109,6 +151,12 @@ export const STAFF_NAV: NavEntry[] = [
         key: 'sessionSettings',
         href: '/settings/sessions',
         icon: SlidersHorizontalIcon,
+        permission: 'settings.view',
+      },
+      {
+        key: 'supportSettings',
+        href: '/settings/support',
+        icon: HeadsetIcon,
         permission: 'settings.view',
       },
       { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },
@@ -137,13 +185,7 @@ export const TEACHER_NAV: NavEntry[] = [
     permission: 'sessions.conduct',
   },
   { key: 'myTests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
-  {
-    key: 'myRequests',
-    href: '/requests',
-    icon: CalendarClockIcon,
-    permission: 'session_requests.view',
-    badge: 'pendingRequests',
-  },
+  MY_REQUESTS,
 ];
 
 /** Parent portal: the children's classes, own requests, own family. */
@@ -155,18 +197,15 @@ export const PARENT_NAV: NavEntry[] = [
     icon: CalendarDaysIcon,
     permission: 'sessions.view',
   },
-  {
-    key: 'myRequests',
-    href: '/requests',
-    icon: CalendarClockIcon,
-    permission: 'session_requests.view',
-    badge: 'pendingRequests',
-  },
+  MY_REQUESTS,
   { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
 ];
 
 /** Pages outside the sidebar that still name the top bar. */
-const OTHER_PAGES: NavItem[] = [{ key: 'account', href: '/account', icon: UserCogIcon }];
+const OTHER_PAGES: NavItem[] = [
+  { key: 'account', href: '/account', icon: UserCogIcon },
+  { key: 'ticket', href: '/tickets', icon: MessagesSquareIcon },
+];
 
 function allowed(me: Pick<Me, 'permissions'>, item: NavItem) {
   return !item.permission || me.permissions.includes(item.permission);

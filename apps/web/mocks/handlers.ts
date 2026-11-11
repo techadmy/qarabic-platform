@@ -21,6 +21,8 @@ import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
 import { scheduleHandlers } from './schedule-handlers';
 import { resetScheduleDb } from './schedule-db';
+import { resetSupportDb } from './support-db';
+import { supportHandlers } from './support-handlers';
 import { resetTeachingDb } from './teaching-db';
 import { teachingHandlers } from './teaching-handlers';
 import {
@@ -56,6 +58,7 @@ export function resetMockState() {
   resetPeopleDb();
   resetScheduleDb();
   resetTeachingDb();
+  resetSupportDb();
 }
 
 /** Signs a mock user in without going through the login form (tests). */
@@ -290,6 +293,7 @@ export const handlers: HttpHandler[] = [
     return new HttpResponse(null, { status: 204 });
   }),
 
+  ...supportHandlers,
   ...peopleHandlers,
   ...teachingHandlers,
   ...scheduleHandlers,

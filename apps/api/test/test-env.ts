@@ -1,4 +1,6 @@
 import { existsSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -24,6 +26,14 @@ export function applyTestEnv(): void {
     // Fixed test-only key (32 bytes of 0x07): refused in production like the placeholder.
     APP_ENCRYPTION_KEY: Buffer.alloc(32, 7).toString('base64'),
     ZOOM_DRIVER: 'none',
+    // Ticket files on the local disk, in a throwaway folder (never the dev storage).
+    STORAGE_DRIVER: 'local',
+    STORAGE_LOCAL_DIR: join(tmpdir(), `qarabic-test-storage-${process.pid}`),
+    // WhatsApp intake off, as in production by default; tests switch it on with WhatsAppConfig.
+    FEEDBACK_WHATSAPP_ENABLED: 'false',
+    FEEDBACK_WHATSAPP_ALLOW_UNKNOWN: 'false',
   });
+  delete process.env.WHATSAPP_APP_SECRET;
+  delete process.env.WHATSAPP_VERIFY_TOKEN;
   delete process.env.COOKIE_DOMAIN;
 }
