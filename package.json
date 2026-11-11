@@ -2,7 +2,9 @@
   "name": "qarabic-platform",
   "private": true,
   "packageManager": "pnpm@10.34.9",
-  "engines": { "node": ">=24" },
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

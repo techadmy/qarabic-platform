@@ -1,0 +1,14 @@
+{
+  "extends": "@qarabic/config/tsconfig.base.json",
+  "compilerOptions": {
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "dist",
+    "types": ["node"],
+    "declaration": false,
+    "noEmit": true
+  },
+  "include": ["src", "test", "prisma", "prisma.config.ts", "vitest.config.ts", "eslint.config.js"]
+}
