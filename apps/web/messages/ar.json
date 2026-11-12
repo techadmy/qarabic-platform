@@ -259,7 +259,27 @@
     "all": "الكل",
     "results": "{count, plural, zero {لا نتائج} one {نتيجة واحدة} two {نتيجتان} few {# نتائج} many {# نتيجة} other {# نتيجة}}",
     "sort": "الترتيب",
-    "statusFilter": "تصفية حسب الحالة"
+    "statusFilter": "تصفية حسب الحالة",
+    "viewsChange": "تغيير العرض",
+    "columns": {
+      "trigger": "اختيار الأعمدة",
+      "title": "الأعمدة المعروضة",
+      "hidden": "{count, plural, one {عمود واحد مخفي} two {عمودان مخفيان} few {# أعمدة مخفية} many {# عمودًا مخفيًا} other {# عمود مخفي}}",
+      "showAll": "إظهار كل الأعمدة"
+    },
+    "split": {
+      "close": "إغلاق والعودة إلى القائمة",
+      "openFull": "فتح في صفحة كاملة"
+    },
+    "actions": {
+      "moreCreate": "إجراءات إنشاء أخرى",
+      "more": "إجراءات أخرى"
+    },
+    "summary": {
+      "title": "ملخص",
+      "show": "إظهار التفاصيل",
+      "hide": "إخفاء التفاصيل"
+    }
   },
   "time": {
     "dayAhead": "اليوم التالي",
