@@ -20,8 +20,10 @@ import { ChevronDownIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { crmKeys, fetchLeadSummary } from '@/lib/api/crm';
 import { fetchRequestCounts, requestKeys } from '@/lib/api/requests';
 import { fetchFeedbackSummary, fetchSupportSummary, supportKeys } from '@/lib/api/support';
+import { useViewerTz } from '@/components/sessions/times';
 import { isActive, isGroup, type NavEntry, type NavItem } from '@/lib/navigation';
 
 function CountBadge({ n, suffix }: { n: number; suffix: string }) {
@@ -43,6 +45,19 @@ function PendingBadge() {
     refetchInterval: 60_000,
   });
   return <CountBadge n={counts.data?.pending ?? 0} suffix={t('pendingSuffix')} />;
+}
+
+/** «العملاء المحتملون»: new leads + follow-ups due today (docs/26 §9), in the viewer's zone. */
+function LeadsBadge() {
+  const t = useTranslations('nav');
+  const tz = useViewerTz();
+  const summary = useQuery({
+    queryKey: crmKeys.summary(tz),
+    queryFn: ({ signal }) => fetchLeadSummary(tz, signal),
+    refetchInterval: 60_000,
+  });
+  const n = (summary.data?.new ?? 0) + (summary.data?.followUpsDue ?? 0);
+  return <CountBadge n={n} suffix={t('leadsSuffix')} />;
 }
 
 /** «صندوق الطلبات»: open requests of my queues (`/support/summary`). */
@@ -115,6 +130,7 @@ function Items({ items, tooltipSide }: { items: NavItem[]; tooltipSide: 'left' |
             </SidebarMenuButton>
             {item.badge === 'pendingRequests' && <PendingBadge />}
             {item.badge === 'supportOpen' && <SupportBadge />}
+            {item.badge === 'leads' && <LeadsBadge />}
             {(item.badge === 'mineUpdates' || item.badge === 'triageNew') && (
               <FeedbackBadge kind={item.badge} />
             )}

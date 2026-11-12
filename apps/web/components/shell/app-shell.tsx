@@ -22,6 +22,7 @@ import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
 import { ContactButton } from '@/components/support/contact-button';
 import { AppSidebar } from './app-sidebar';
+import { NotificationBell } from './notification-bell';
 import { UserMenu } from './user-menu';
 
 const MeContext = createContext<Me | null>(null);
@@ -116,6 +117,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
             </Breadcrumb>
             <div className="ms-auto flex shrink-0 items-center gap-1">
               <ContactButton />
+              <NotificationBell />
               <LanguageSwitch persist />
               <UserMenu user={me} dir={dir} />
             </div>

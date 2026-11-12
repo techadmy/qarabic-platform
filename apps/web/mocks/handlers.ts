@@ -17,6 +17,8 @@ import {
   toMe,
   type MockUser,
 } from './data';
+import { crmHandlers } from './crm-handlers';
+import { resetCrmDb } from './crm-db';
 import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
 import { scheduleHandlers } from './schedule-handlers';
@@ -59,6 +61,7 @@ export function resetMockState() {
   resetScheduleDb();
   resetTeachingDb();
   resetSupportDb();
+  resetCrmDb();
 }
 
 /** Signs a mock user in without going through the login form (tests). */
@@ -294,6 +297,7 @@ export const handlers: HttpHandler[] = [
   }),
 
   ...supportHandlers,
+  ...crmHandlers,
   ...peopleHandlers,
   ...teachingHandlers,
   ...scheduleHandlers,
