@@ -59,6 +59,7 @@ export const PERMISSION_ACTION_LABELS: Record<string, Label> = {
   financial: { ar: 'التقارير المالية', en: 'Financial reports' },
   handle: { ar: 'معالجة', en: 'Handle' },
   view_restricted: { ar: 'عرض الشكاوى المقيّدة', en: 'See restricted complaints' },
+  oversee: { ar: 'الإشراف', en: 'Oversee' },
 };
 
 // prettier-ignore
@@ -109,6 +110,7 @@ export const PERMISSION_HINTS: Record<Permission, Label> = {
   "accounting.manage": { ar: "تسجيل القيود والمصروفات وتعديلها.", en: "Record and edit entries and expenses." },
   "tasks.view": { ar: "عرض المهام.", en: "See tasks." },
   "tasks.manage": { ar: "إنشاء المهام وإسنادها وتعديلها.", en: "Create, assign and edit tasks." },
+  "tasks.oversee": { ar: "عرض جميع المهام والتصرف فيها، وإدارة قوالب المهام.", en: "See and act on every task, and manage task templates." },
   "complaints.view": { ar: "عرض الشكاوى.", en: "See complaints." },
   "complaints.manage": { ar: "معالجة الشكاوى وإغلاقها.", en: "Handle and close complaints." },
   "complaints.request": { ar: "تقديم شكوى.", en: "File a complaint." },
