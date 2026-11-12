@@ -60,10 +60,14 @@ describe('route permission coverage', () => {
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
       'GET me',
+      // The bell: the user's own notifications only (N5).
+      'GET me/notifications',
       // The Quran reference (Laravel: any signed-in user).
       'GET quran/surahs',
       'PATCH me',
       'POST auth/logout',
+      'POST me/notifications/:id/read',
+      'POST me/notifications/read-all',
     ]);
   });
 
@@ -358,6 +362,7 @@ describe('platform', () => {
         '/api/v1/parent/home',
         '/api/v1/leads/{id}/convert',
         '/api/v1/public/web-leads/wpforms',
+        '/api/v1/me/notifications',
       ]),
     );
   });
