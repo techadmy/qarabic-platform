@@ -317,6 +317,7 @@ export function runDto(r: RunRow, viewer: AuthUser): PayrollRunDto {
     approvedBy: r.approvedBy,
     approvedAt: isoZ(r.approvedAt),
     paidAt: isoZ(r.paidAt),
+    updatedAt: r.updatedAt.toISOString(),
     people: slips.length,
     paidPeople: slips.filter((s) => s.status === 'paid').length,
     errorCount: slips.filter((s) => issues(s.errors).length > 0).length,

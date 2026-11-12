@@ -35,7 +35,8 @@ test('teacher: week → start → end → write the report → edit it inside th
   // The meeting opens in a new tab on «ابدأ الحصة»; close any such tab.
   context.on('page', (p) => void p.close());
   await signIn(page, 'teacher@qarabic.test', '/');
-  await page.getByRole('link', { name: 'حصصي' }).click();
+  // The sidebar's link: the teacher home (M9) has a «حصصي» link of its own.
+  await page.locator('[data-slot="sidebar"]').first().getByRole('link', { name: 'حصصي' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'حصصي' })).toBeVisible();
   await expect(page.getByText('بلا تقرير').first()).toBeVisible();
 

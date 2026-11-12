@@ -27,6 +27,8 @@ import {
   type PayRuleSetDto,
   type PayslipDto,
   reasonDecisionSchema,
+  reopenRunSchema,
+  runTransitionSchema,
   recordPaymentSchema,
   runListQuerySchema,
   type RunPreviewDto,
@@ -330,46 +332,52 @@ export class PayrollController {
   @Can('payroll.manage')
   @Post('runs/:id/recompute')
   @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(runTransitionSchema) })
   async recompute(
     @Param('id', IdPipe) id: number,
+    @ZodBody(runTransitionSchema) body: Out<typeof runTransitionSchema>,
     @CurrentUser() by: AuthUser,
   ): Promise<{ data: PayrollRunDto }> {
-    await this.runs.recompute(id);
+    await this.runs.recompute(id, body.expectedUpdatedAt);
     return { data: await this.runs.runDto(id, by) };
   }
 
   @Can('payroll.review')
   @Post('runs/:id/review')
   @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(runTransitionSchema) })
   async review(
     @Param('id', IdPipe) id: number,
+    @ZodBody(runTransitionSchema) body: Out<typeof runTransitionSchema>,
     @CurrentUser() by: AuthUser,
   ): Promise<{ data: PayrollRunDto }> {
-    await this.runs.review(id, by);
+    await this.runs.review(id, by, body.expectedUpdatedAt);
     return { data: await this.runs.runDto(id, by) };
   }
 
   @Can('payroll.approve')
   @Post('runs/:id/approve')
   @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(runTransitionSchema) })
   async runApprove(
     @Param('id', IdPipe) id: number,
+    @ZodBody(runTransitionSchema) body: Out<typeof runTransitionSchema>,
     @CurrentUser() by: AuthUser,
   ): Promise<{ data: PayrollRunDto }> {
-    await this.runs.approve(id, by);
+    await this.runs.approve(id, by, body.expectedUpdatedAt);
     return { data: await this.runs.runDto(id, by) };
   }
 
   @Can('payroll.approve')
   @Post('runs/:id/reopen')
   @HttpCode(200)
-  @ApiBody({ schema: jsonSchema(reasonDecisionSchema) })
+  @ApiBody({ schema: jsonSchema(reopenRunSchema) })
   async reopen(
     @Param('id', IdPipe) id: number,
-    @ZodBody(reasonDecisionSchema) body: Out<typeof reasonDecisionSchema>,
+    @ZodBody(reopenRunSchema) body: Out<typeof reopenRunSchema>,
     @CurrentUser() by: AuthUser,
   ): Promise<{ data: PayrollRunDto }> {
-    await this.runs.reopen(id, body.note, by);
+    await this.runs.reopen(id, body.note, by, body.expectedUpdatedAt);
     return { data: await this.runs.runDto(id, by) };
   }
 }
