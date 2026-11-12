@@ -10,7 +10,7 @@ function as(role: Role) {
 }
 
 describe('navFor', () => {
-  it('groups the staff sidebar like the current app: home, «المستخدمون», «الإعدادات»', () => {
+  it('groups the staff sidebar like the current app: home, «المستخدمون», «الحسابات», «الإعدادات»', () => {
     const nav = navFor(as('admin'));
     expect(nav.map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
@@ -24,6 +24,7 @@ describe('navFor', () => {
       'feedbackTriage',
       'myRequests',
       'users',
+      'billing',
       'settings',
     ]);
     expect(navItemsFor(as('admin')).map((i) => i.key)).toEqual([
@@ -41,17 +42,21 @@ describe('navFor', () => {
       'students',
       'teachers',
       'staff',
+      'invoices',
+      'packages',
       'holidays',
       'sessionSettings',
       'supportSettings',
       'crmSettings',
+      'billingSettings',
       'roles',
     ]);
   });
 
   it('filters by permission and drops empty groups', () => {
     // Monitor: classes, schedule, requests, reports, tests, the support inbox and «طلباتي»,
-    // families, teachers and holidays; no triage board, users, settings or roles.
+    // families, teachers, the fee packages (read only) and holidays; no triage board, users,
+    // settings or roles.
     expect(navItemsFor(as('monitor')).map((i) => i.key)).toEqual([
       'home',
       'today',
@@ -64,12 +69,15 @@ describe('navFor', () => {
       'families',
       'students',
       'teachers',
+      'packages',
       'holidays',
     ]);
+    // Accounts (N6): the invoices under «الحسابات»; no packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'supportInbox',
       'myRequests',
+      'billing',
     ]);
   });
 
@@ -86,6 +94,7 @@ describe('navFor', () => {
     expect(navItemsFor(as('parent')).map((i) => i.key)).toEqual([
       'home',
       'childrenClasses',
+      'myInvoices',
       'myRequests',
       'myFamily',
     ]);
@@ -105,6 +114,10 @@ describe('navFor', () => {
     expect(currentPage(as('admin'), '/tickets/4')?.key).toBe('ticket');
     expect(currentPage(as('admin'), '/support')?.key).toBe('supportInbox');
     expect(currentPage(as('admin'), '/settings/support')?.key).toBe('supportSettings');
+    // N6: an invoice and its receipt stay under «الفواتير» / «فواتيري».
+    expect(currentPage(as('admin'), '/invoices/3')?.key).toBe('invoices');
+    expect(currentPage(as('parent'), '/invoices/3/receipts/2')?.key).toBe('myInvoices');
+    expect(currentPage(as('admin'), '/settings/billing')?.key).toBe('billingSettings');
   });
 });
 

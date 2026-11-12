@@ -51,10 +51,13 @@ describe('AppShell', () => {
       'الطلاب',
       'المعلمون',
       'الموظفون',
+      'الفواتير',
+      'الباقات',
       'العطلات الرسمية',
       'إعدادات الحصص',
       'إعدادات الدعم',
       'إعدادات العملاء المحتملين',
+      'إعدادات الفوترة',
       'الأدوار والصلاحيات',
     ]);
     // «طلبات الحصص» shows the pending count (K3).
@@ -67,7 +70,7 @@ describe('AppShell', () => {
   it('gives a teacher and a parent their own classes, requests and people, nothing company-wide', async () => {
     for (const [email, items] of [
       ['teacher@qarabic.test', ['حصصي', 'طلابي', 'جدولي', 'الاختبارات', 'طلباتي']],
-      ['parent@qarabic.test', ['حصص أبنائي', 'طلباتي', 'عائلتي']],
+      ['parent@qarabic.test', ['حصص أبنائي', 'فواتيري', 'طلباتي', 'عائلتي']],
     ] as const) {
       mockSignIn(email);
       const { unmount } = renderShell();

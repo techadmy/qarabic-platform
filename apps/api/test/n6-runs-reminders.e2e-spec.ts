@@ -187,6 +187,8 @@ describe('monthly invoice run', () => {
     });
     const row = (await billing.post('/invoice-runs/preview', { period: '2026-12' })).body.data[0];
     expect(row.total).toBe('60.00');
+    // The preview's child count follows the same rule as the fee.
+    expect(row.children).toBe(1);
   });
 
   it('runs from the command line with a dry run', async () => {

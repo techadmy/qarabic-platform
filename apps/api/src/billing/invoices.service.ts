@@ -104,7 +104,8 @@ export class InvoiceService {
         ...fee,
         familyId: family.id,
         familyName: family.user.name,
-        children: family.students.length,
+        // Same rule as the fee: an inactive child is neither billed nor counted (D125).
+        children: family.students.filter((s) => s.status !== 'inactive').length,
         periodStart: period.start,
         periodEnd: period.end,
         existingInvoiceId,
