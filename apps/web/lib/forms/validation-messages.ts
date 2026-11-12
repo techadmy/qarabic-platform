@@ -74,22 +74,39 @@ function translateErrors(errors: FieldErrors, t: (key: string) => string) {
   }
 }
 
+/** `values` without the listed keys whose value is the empty string (they count as not given). */
+export function dropBlank<T extends Record<string, unknown>>(
+  values: T,
+  keys: readonly string[],
+): T {
+  if (!keys.length) return values;
+  const out: Record<string, unknown> = { ...values };
+  for (const k of keys) if (out[k] === '') delete out[k];
+  return out as T;
+}
+
 /**
  * `zodResolver` for a shared schema with our messages: the error map above, plus a pass that turns
- * the few English messages fixed in the shared schemas into the UI language.
+ * the few English messages fixed in the shared schemas into the UI language. `blankAsMissing`: keys
+ * an edit form leaves empty because the record has no value (a family converted from a lead
+ * without a phone): an untouched '' is "not given", which the update schema allows, instead of an
+ * invalid value that would block every other change.
  */
 export function useSchemaResolver<In extends FieldValues, Out>(
   schema: z.ZodType<Out, In>,
+  { blankAsMissing = [] }: { blankAsMissing?: readonly string[] } = {},
 ): Resolver<In, unknown, Out> {
   const messages = useValidationMessages();
   const t = useTranslations('validation');
+  const blankKey = blankAsMissing.join(',');
   return useMemo(() => {
+    const blank = blankKey ? blankKey.split(',') : [];
     const base = zodResolver(schema as never, messages) as unknown as Resolver<In, unknown, Out>;
     const resolver: Resolver<In, unknown, Out> = async (values, context, options) => {
-      const result = await base(values, context, options);
+      const result = await base(dropBlank(values, blank), context, options);
       translateErrors(result.errors as FieldErrors, (key) => t(key));
       return result;
     };
     return resolver;
-  }, [schema, messages, t]);
+  }, [schema, messages, t, blankKey]);
 }
