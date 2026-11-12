@@ -334,6 +334,13 @@ function runDto(run: RunRow, me: MockUser): PayrollRunDto {
     approvedBy: run.approvedBy,
     approvedAt: run.approvedAt,
     paidAt: run.paidAt,
+    // The API's version stamp (sent back as `expectedUpdatedAt`); the mocks never refuse a stale one.
+    updatedAt:
+      run.paidAt ??
+      run.approvedAt ??
+      run.reviewedAt ??
+      run.computedAt ??
+      '2026-01-01T00:00:00.000Z',
     people: slips.length,
     paidPeople: slips.filter((s) => s.status === 'paid').length,
     errorCount: slips.reduce((a, s) => a + s.errors.length, 0),
