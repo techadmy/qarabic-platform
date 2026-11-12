@@ -181,7 +181,7 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
                             <Badge
                               key={s.id}
                               variant="outline"
-                              className="h-auto gap-1.5 px-2 py-1 text-[0.8125rem] font-normal whitespace-normal"
+                              className="h-auto gap-1.5 px-2 py-1 text-caption font-normal whitespace-normal"
                             >
                               <bdi className="font-semibold">{wallTime(side.time, locale)}</bdi>
                               <span>{s.label}</span>

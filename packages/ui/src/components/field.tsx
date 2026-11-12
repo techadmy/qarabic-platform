@@ -2,7 +2,7 @@
 
 import { useMemo } from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@qarabic/ui/lib/utils"
 
 import { Label } from "@qarabic/ui/components/label"
 import { Separator } from "@qarabic/ui/components/separator"

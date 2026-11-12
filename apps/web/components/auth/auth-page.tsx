@@ -44,9 +44,7 @@ export function AuthCardHeader({ title, description }: { title: string; descript
       <CardTitle className="mt-6 text-[1.375rem] leading-snug font-bold">
         <h1>{title}</h1>
       </CardTitle>
-      {description && (
-        <CardDescription className="mt-2 text-[0.9375rem]">{description}</CardDescription>
-      )}
+      {description && <CardDescription className="mt-2 text-body">{description}</CardDescription>}
     </CardHeader>
   );
 }

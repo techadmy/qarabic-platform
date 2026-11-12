@@ -10,6 +10,7 @@ import { ProfilesView } from '@/components/payroll/profiles-view';
 import { RunView } from '@/components/payroll/run-view';
 import { RunsView } from '@/components/payroll/runs-view';
 import { WalletsView } from '@/components/payroll/wallet-views';
+import { formatMonth } from '@/components/forms/date-time';
 import { server } from '@/mocks/node';
 import {
   academyToday,
@@ -68,7 +69,9 @@ describe('Payroll runs (staff)', () => {
     await user.click(screen.getByRole('button', { name: 'أنشئ مسيّر الشهر' }));
     const dialog = await screen.findByRole('dialog', { name: 'مسيّر رواتب جديد' });
     // Last month already has a run: the default is the current month.
-    expect(within(dialog).getByLabelText(/شهر المسيّر/)).toHaveValue(current());
+    expect(within(dialog).getByLabelText(/شهر المسيّر/)).toHaveTextContent(
+      formatMonth(current(), 'ar'),
+    );
     await user.click(within(dialog).getByRole('button', { name: 'معاينة' }));
     const preview = await within(dialog).findByRole('table', { name: 'معاينة القسائم' });
     expect(within(preview).getAllByRole('row').length).toBe(pdb.profiles.length + 1);
@@ -87,9 +90,18 @@ describe('Payroll runs (staff)', () => {
     await table('مسيّرات الرواتب');
     await user.click(screen.getByRole('button', { name: 'أنشئ مسيّر الشهر' }));
     const dialog = await screen.findByRole('dialog', { name: 'مسيّر رواتب جديد' });
-    const month = within(dialog).getByLabelText(/شهر المسيّر/);
-    await user.clear(month);
-    await user.type(month, previousPeriod(current()));
+    // The month picker (shadcn Popover, Arabic month names): open it and pick last month.
+    const prev = previousPeriod(current());
+    await user.click(within(dialog).getByLabelText(/شهر المسيّر/));
+    if (prev.slice(0, 4) !== current().slice(0, 4)) {
+      await user.click(await screen.findByRole('button', { name: 'السنة السابقة' }));
+    }
+    await user.click(
+      await screen.findByRole('button', {
+        name: formatMonth(prev, 'ar').replace(/\s*\d{4}$/, '') + ' ' + prev.slice(0, 4),
+      }),
+    );
+    expect(within(dialog).getByLabelText(/شهر المسيّر/)).toHaveTextContent(formatMonth(prev, 'ar'));
     await user.click(within(dialog).getByRole('button', { name: 'أنشئ المسيّر' }));
     expect(
       await within(dialog).findByText('يوجد مسيّر رواتب لهذا الشهر بالفعل.'),

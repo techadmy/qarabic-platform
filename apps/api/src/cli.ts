@@ -1,8 +1,10 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { OutboxService } from './accounting/outbox.service.js';
 import { AppModule } from './app.module.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
+import { runLegacy } from './legacy/legacy-cli.js';
 import { Period } from './payroll/period.js';
 import { PayrollRunsService } from './payroll/runs.service.js';
 import { SessionJobs } from './sessions/jobs.js';
@@ -18,6 +20,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
  *   pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]       (N7; default: this month)
+ *   pnpm --filter @qarabic/api cli ledger:post   (M7: post the billing/payroll outbox to the journal)
  *
  * The support ticket queue (docs/22 §7, Laravel `tickets:*`), writes recorded as "Claude":
  *
@@ -34,6 +37,13 @@ import { TicketCli } from './support/ticket-cli.js';
  *                                                    (--dry-run | --due=YYYY-MM-DD)
  *   pnpm --filter @qarabic/api cli billing:reminders   (a no-op while billing.notify_parents is off)
  *
+ * N8 data move from the Laravel MySQL database (docs/34 §5, docs/37). Refuses a target database
+ * whose name does not end in _rehearsal, _dev or _test without --i-know-this-is-production:
+ *
+ *   pnpm --filter @qarabic/api cli legacy:import [--source=mysql://…] [--only=people,billing,…]
+ *                                                [--dry-run] [--report=file.md] [--seed=N]
+ *   pnpm --filter @qarabic/api cli legacy:verify [--only=…] [--report=file.md] [--seed=N]
+ *
  * The CLI never starts the cron (`SCHEDULER_ENABLED=false`).
  */
 process.env.SCHEDULER_ENABLED = 'false';
@@ -45,6 +55,12 @@ function option(args: string[], name: string): string | undefined {
 
 async function main(): Promise<number> {
   const [command, ...args] = process.argv.slice(2);
+  if (command === 'legacy:import' || command === 'legacy:verify') {
+    // No Nest app: only DATABASE_URL, APP_ENCRYPTION_KEY and the LEGACY_* variables are needed.
+    const result = await runLegacy({ command, args, env: process.env });
+    (result.code === 0 ? console.log : console.error)(result.out.join('\n'));
+    return result.code;
+  }
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     const jobs = app.get(SessionJobs);
@@ -139,6 +155,12 @@ async function main(): Promise<number> {
         }
         console.log(`Payroll ${period.toString()}: run ${result.runId} ${result.action}.`);
         return 0;
+      }
+      case 'ledger:post': {
+        // Posts the billing and payroll outbox events to the journal (M7; the cron does it every 5 min).
+        const r = await app.get(OutboxService).process();
+        console.log(`Ledger: ${r.posted} posted, ${r.skipped} skipped, ${r.failed} failed.`);
+        return r.failed ? 1 : 0;
       }
       default:
         console.error(
