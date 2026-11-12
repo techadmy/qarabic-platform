@@ -64,6 +64,8 @@ describe('route permission coverage', () => {
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
       'GET me',
+      // M8: the user's own notification channels per kind.
+      'GET me/notification-preferences',
       // The bell: the user's own notifications only (N5).
       'GET me/notifications',
       // The Quran reference (Laravel: any signed-in user).
@@ -72,6 +74,7 @@ describe('route permission coverage', () => {
       'POST auth/logout',
       'POST me/notifications/:id/read',
       'POST me/notifications/read-all',
+      'PUT me/notification-preferences',
     ]);
   });
 
