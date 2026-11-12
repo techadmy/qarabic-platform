@@ -421,6 +421,15 @@ describe('automatic entries from the outboxes (D86, D95)', () => {
 
     const journal = (await accounts.get('/accounting/journal?source=billing')).body;
     expect(journal.meta.total).toBe(2);
+    // Source tabs count over the same filters, ignoring the source filter.
+    expect(journal.meta.counts).toEqual({
+      all: 3,
+      manual: 0,
+      voucher: 0,
+      billing: 2,
+      payroll: 1,
+      reversal: 0,
+    });
     const inv = journal.data.find(
       (e: { sourceRef: string }) => e.sourceRef === `billing_event:${issued.id}`,
     );
