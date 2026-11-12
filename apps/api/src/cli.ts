@@ -1,6 +1,8 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
+import { Period } from './payroll/period.js';
+import { PayrollRunsService } from './payroll/runs.service.js';
 import { SessionJobs } from './sessions/jobs.js';
 
 /**
@@ -11,6 +13,7 @@ import { SessionJobs } from './sessions/jobs.js';
  *   pnpm --filter @qarabic/api cli session-requests:expire
  *   pnpm --filter @qarabic/api cli zoom:ensure-upcoming
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
+ *   pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]       (N7; default: this month)
  *
  * The CLI never starts the cron (`SCHEDULER_ENABLED=false`).
  */
@@ -73,9 +76,28 @@ async function main(): Promise<number> {
         console.error(`${overlaps.length} overlap(s) found.`);
         return 1;
       }
+      case 'payroll:compute': {
+        // Creates the month's payroll run or recomputes an open one (never an approved month).
+        const runs = app.get(PayrollRunsService);
+        const value = option(args, 'period');
+        if (value !== undefined && !/^\d{4}-(0[1-9]|1[0-2])$/.test(value)) {
+          console.error('--period must be YYYY-MM.');
+          return 2;
+        }
+        const period = value ? Period.parse(value) : await runs.currentPeriod();
+        const result = await runs.computePeriod(period);
+        if (result.action === 'locked') {
+          console.error(
+            `Payroll ${period.toString()} is approved and locked (run ${result.runId}).`,
+          );
+          return 1;
+        }
+        console.log(`Payroll ${period.toString()}: run ${result.runId} ${result.action}.`);
+        return 0;
+      }
       default:
         console.error(
-          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps',
+          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, payroll:compute',
         );
         return 2;
     }

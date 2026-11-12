@@ -12,6 +12,8 @@ import { ConfigModule } from './config/config.module.js';
 import { ENV, type Env } from './config/env.js';
 import { HealthController } from './health/health.controller.js';
 import { MailModule } from './mail/mailer.js';
+import { PayRulesModule } from './payroll/pay-rules.js';
+import { PayrollModule } from './payroll/payroll.module.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { PeopleModule } from './people/people.module.js';
 import { RolesModule } from './roles/roles.module.js';
@@ -53,12 +55,14 @@ export const REDACT = [
     MailModule,
     AuditModule,
     SettingsModule,
+    PayRulesModule,
     AuthModule,
     AccountModule,
     RolesModule,
     PeopleModule,
     ScheduleModule,
     TeachingModule,
+    PayrollModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

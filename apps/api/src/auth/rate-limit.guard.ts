@@ -12,7 +12,7 @@ import { ApiException } from '../common/errors.js';
 import { RATE_LIMIT_KEY } from './decorators.js';
 import { RateLimiterService } from './rate-limiter.service.js';
 
-type Policy = 'login' | 'password' | 'search';
+type Policy = 'login' | 'password' | 'search' | 'clock';
 
 const MINUTE = 60_000;
 
@@ -34,6 +34,8 @@ const POLICIES: Record<Policy, (req: Request) => Array<[key: string, max: number
   password: (req) => [[`password:${req.ip}`, 5]],
   // Instant-search lists fire as the user types (debounced): Laravel `throttle:120,1`.
   search: (req) => [[`search:${req.ip}`, 120]],
+  // N7 attendance check-in / check-out: Laravel `throttle:30,1`.
+  clock: (req) => [[`clock:${req.ip}`, 30]],
 };
 
 export const RateLimit = (policy: Policy): MethodDecorator => SetMetadata(RATE_LIMIT_KEY, policy);

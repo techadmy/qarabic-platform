@@ -13,6 +13,15 @@ export const SETTING_DEFAULTS = {
   'payroll.default_currency': 'EGP',
   /** Currencies a salary profile may use (N7); People only offers the default one. */
   'payroll.currencies': ['USD', 'GBP', 'EUR', 'CAD', 'AUD', 'AED', 'PKR', 'EGP', 'SAR'],
+  // N7 payroll (Laravel `config/payroll.php`, docs/21).
+  /** Leave deduction = monthly salary × days / divisor (old system: fixed 30, B48). */
+  'payroll.leave_divisor': 30,
+  /** Earlier approved months checked for class changes after approval (B49). */
+  'payroll.prior_period_months': 6,
+  /** Longest leave request, in days. */
+  'payroll.max_leave_days': 31,
+  /** Email each person their payslip when a run is approved (off: no messages to real people, D140). */
+  'payroll.payslip_emails': false as boolean,
   // N2 class rules (Laravel `Settings::DEFAULTS`, docs/14 §2.9; `GET/PUT /settings/sessions`).
   /** Days ahead the generator keeps classes for. */
   'sessions.horizon_days': 14,

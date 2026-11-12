@@ -203,3 +203,55 @@ future untouched generated classes right after it is saved (no queue), then fill
   `lesson_at`; rewritten with the report), `student_tests` (partial unique index: one `scheduled`
   test per student + track; score CHECKs), `quran_surahs` (seeded by the migration; kept by the
   e2e table reset). Progress (last positions, coverage, monthly ayahs) is computed on read.
+
+## Endpoints (N7: payroll)
+
+Ported from the Laravel M6 routes (`api_v1_payroll.php`, `pay-rule-sets` in `api_v1.php`) with
+the same permissions. Contract in `@qarabic/shared` (`payroll.ts`). Payroll only computes,
+records and approves (D140): no endpoint moves money; «تسجيل الصرف» records a payment made outside
+the system. Money is a decimal string + ISO currency; integer minor units inside, half-up once per
+line (D90). A payroll month (`period`) is a calendar month in the academy zone.
+
+| Method | Path                                                          | Permission                                                                       | Notes                                                                                                                                                   |
+| ------ | ------------------------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/attendance/today`                                           | `attendance.request`                                                             | `AttendanceTodayDto`: own local date + zone (teacher zone → own zone → academy), record, `onLeave`                                                      |
+| POST   | `/attendance/check-in` · `/check-out`                         | `attendance.request`                                                             | server clock, 30/min; 409 `already_checked_in` / `on_leave` / `not_checked_in`; check-out closes the latest open day within 24 h (real elapsed minutes) |
+| GET    | `/attendance`                                                 | any of `attendance.request`, `attendance.view`                                   | `?month=&userId=`; without `attendance.manage` own days only (`meta.scope = own`); `meta.summary` per person                                            |
+| PUT    | `/attendance/:userId/:date`                                   | `attendance.manage`                                                              | `markAttendanceSchema` (`reason` audited); 404 bad date / user; 409 `period_locked`                                                                     |
+| GET    | `/leave-requests[/:id]`                                       | any of `attendance.request`, `attendance.manage`                                 | own only without manage (404 outside); pending first; detail has `affectedSessions` (B43)                                                               |
+| POST   | `/leave-requests`                                             | any of `attendance.request`, `attendance.manage`                                 | `createLeaveSchema`; `userId` needs manage (403); 422 `leave_overlap`, `endsOn` over `payroll.max_leave_days`                                           |
+| POST   | `/leave-requests/:id/approve` · `/reject`                     | `attendance.manage`                                                              | approve writes the days into attendance (worked days kept; unpaid = deductible); reject needs `note`                                                    |
+| POST   | `/leave-requests/:id/cancel`                                  | any of `attendance.request`, `attendance.manage`                                 | own pending, or any pending / approved with manage (`note`); 409 `invalid_leave_status`                                                                 |
+| GET    | `/payroll/adjustments[/:id]`                                  | any of `fines.view`, `payroll.view`                                              | payroll staff all types, fine staff fines only, others own decided items (404 outside); `meta.counts` per status                                        |
+| POST   | `/payroll/adjustments`                                        | any of `fines.request`, `fines.manage`, `fines.approve`, `payroll.manage`        | the type decides: fine proposed (monitor) / approved (manager), others `payroll.manage`; 403 `forbidden_type`, 422 `no_pay_profile` / `no_csr_rate`     |
+| POST   | `/payroll/adjustments/:id/approve` · `/reject`                | any of `fines.approve`, `payroll.manage`                                         | 409 `invalid_adjustment_status`                                                                                                                         |
+| POST   | `/payroll/adjustments/:id/cancel`                             | as POST                                                                          | 200 cancelled; a fine of an approved month → 201 with a `fine_reduction` in the first open month (409 `already_waived`); other locked items 409         |
+| GET    | `/payroll/people`                                             | any of `fines.*` (request/manage/approve), `payroll.manage`, `attendance.manage` | picker: active profiles (id, name, teacherId, currency)                                                                                                 |
+| GET    | `/salary-profiles[/:userId]` · PUT `/salary-profiles/:userId` | `payroll.manage`                                                                 | `savePayProfileSchema`; `data: null` without a profile; parents refused (422); audited                                                                  |
+| GET    | `/payroll/runs[/:id]` · `/payroll/runs/preview?period=`       | any of `payroll.manage`, `payroll.review`, `payroll.approve`                     | totals per currency, `can`; preview computes without storing                                                                                            |
+| POST   | `/payroll/runs` · `/:id/recompute`                            | `payroll.manage`                                                                 | 409 `run_exists`, 422 `period_not_started`; compute rebuilds payslips in place (idempotent)                                                             |
+| POST   | `/payroll/runs/:id/review`                                    | `payroll.review`                                                                 | recompute + 422 `payroll_blocked` (`data` = payslips with errors)                                                                                       |
+| POST   | `/payroll/runs/:id/approve` · `/reopen`                       | `payroll.approve`                                                                | approve: lock, wallet credit, outbox; reopen (`note`): wallet reversal, 409 `payslips_paid`                                                             |
+| GET    | `/payslips/:id`                                               | any of `payroll.view`, `payroll.manage`, `payroll.review`, `payroll.approve`     | staff all; others own approved / paid (404 otherwise); lines + classes                                                                                  |
+| POST   | `/payslips/:id/payments`                                      | `payroll.manage`                                                                 | `recordPaymentSchema` (reference except cash); records only; wallet debit; run → paid when all paid                                                     |
+| GET    | `/me/payslips` · `/me/wallet` · `/wallets`                    | `payroll.view` · `wallet.view` · `wallet.manage`                                 | own payslips (36), own ledger (50) + balances; everyone's balances                                                                                      |
+| GET    | `/pay-rule-sets` · POST                                       | `settings.view` · `settings.manage`                                              | versions are never edited; a new one starts today or later                                                                                              |
+
+Run lifecycle: draft → reviewed → approved → paid. Any input change of an open month (attendance,
+leave, adjustment) sends its run back to draft and recomputes it in the same transaction; an
+approved / paid month refuses them (409 `period_locked`). Payslip emails only with
+`payroll.payslip_emails` (off by default). CLI (no cron in Laravel either):
+
+```sh
+pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]   # create or recompute; exit 1 when locked
+```
+
+## Data model notes (N7)
+
+- `pay_profiles` (one per user; the teacher's hourly rate moved here from `teachers.hourly_rate`),
+  `pay_rule_sets` (append-only, set #1 seeded), `class_sessions.pay_hours/pay_rule_key/
+pay_rule_set_id/billable` (snapshot written by the state machine, the generator and the re-sync).
+- `staff_attendance` (unique user + local work date), `leave_requests`, `pay_adjustments`,
+  `payroll_runs` (unique period), `payslips` (unique run + user) with `payslip_lines` and
+  `payslip_sessions`, `wallet_transactions` (append-only ledger), `payroll_events` (outbox).
+- `AttendanceService.isOnShift(userId, at)` answers the CRM shift check (`crm.shift_source=attendance`).

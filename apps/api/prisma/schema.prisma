@@ -120,6 +120,26 @@ model User {
   testsRecorded         StudentTest[]    @relation("StudentTestRecordedBy")
   testsDecided          StudentTest[]    @relation("StudentTestDecidedBy")
 
+  // N7 payroll back-relations.
+  payProfile            PayProfile?         @relation("PayProfileUser")
+  payProfilesUpdated    PayProfile[]        @relation("PayProfileUpdatedBy")
+  attendance            StaffAttendance[]   @relation("AttendanceUser")
+  attendanceRecorded    StaffAttendance[]   @relation("AttendanceRecordedBy")
+  leaveRequests         LeaveRequest[]      @relation("LeaveRequestUser")
+  leaveRequested        LeaveRequest[]      @relation("LeaveRequestRequestedBy")
+  leaveDecided          LeaveRequest[]      @relation("LeaveRequestDecidedBy")
+  payAdjustments        PayAdjustment[]     @relation("PayAdjustmentUser")
+  payAdjustmentsMade    PayAdjustment[]     @relation("PayAdjustmentCreatedBy")
+  payAdjustmentsDecided PayAdjustment[]     @relation("PayAdjustmentDecidedBy")
+  payrollRunsCreated    PayrollRun[]        @relation("PayrollRunCreatedBy")
+  payrollRunsReviewed   PayrollRun[]        @relation("PayrollRunReviewedBy")
+  payrollRunsApproved   PayrollRun[]        @relation("PayrollRunApprovedBy")
+  payslips              Payslip[]           @relation("PayslipUser")
+  payslipsPaid          Payslip[]           @relation("PayslipPaidBy")
+  walletTransactions    WalletTransaction[] @relation("WalletUser")
+  walletTxCreated       WalletTransaction[] @relation("WalletCreatedBy")
+  payRuleSetsCreated    PayRuleSet[]
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -302,33 +322,30 @@ model Student {
 
 /// A teacher = one teacher login (`user_id`) + profile. Email and phone live on the user.
 model Teacher {
-  id                 Int          @id @default(autoincrement())
-  userId             Int          @unique @map("user_id")
-  firstName          String       @map("first_name") @db.VarChar(60)
-  lastName           String?      @map("last_name") @db.VarChar(60)
-  altPhone           String?      @map("alt_phone") @db.VarChar(16)
-  gender             Gender?
-  nationality        String?      @db.VarChar(60)
-  countryCode        String?      @map("country_code") @db.Char(2)
-  timezone           String       @db.VarChar(64)
-  age                Int?         @db.SmallInt
-  /// Hourly pay rate shown on the profile; payroll (N7) will own it through pay profiles (D89).
-  hourlyRate         Decimal?     @map("hourly_rate") @db.Decimal(12, 2)
-  hourlyRateCurrency String       @default("EGP") @map("hourly_rate_currency") @db.Char(3)
-  qualification      String?
-  experience         String?
-  address            String?      @db.VarChar(500)
-  skypeId            String?      @map("skype_id") @db.VarChar(100)
-  description        String?
-  status             ActiveStatus @default(active)
-  statusReason       String?      @map("status_reason") @db.VarChar(500)
-  statusChangedAt    DateTime?    @map("status_changed_at") @db.Timestamptz(6)
-  statusChangedById  Int?         @map("status_changed_by")
-  archivedAt         DateTime?    @map("archived_at") @db.Timestamptz(6)
-  archivedById       Int?         @map("archived_by")
-  archiveReason      String?      @map("archive_reason") @db.VarChar(500)
-  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                Int          @id @default(autoincrement())
+  userId            Int          @unique @map("user_id")
+  firstName         String       @map("first_name") @db.VarChar(60)
+  lastName          String?      @map("last_name") @db.VarChar(60)
+  altPhone          String?      @map("alt_phone") @db.VarChar(16)
+  gender            Gender?
+  nationality       String?      @db.VarChar(60)
+  countryCode       String?      @map("country_code") @db.Char(2)
+  timezone          String       @db.VarChar(64)
+  age               Int?         @db.SmallInt
+  qualification     String?
+  experience        String?
+  address           String?      @db.VarChar(500)
+  skypeId           String?      @map("skype_id") @db.VarChar(100)
+  description       String?
+  status            ActiveStatus @default(active)
+  statusReason      String?      @map("status_reason") @db.VarChar(500)
+  statusChangedAt   DateTime?    @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById Int?         @map("status_changed_by")
+  archivedAt        DateTime?    @map("archived_at") @db.Timestamptz(6)
+  archivedById      Int?         @map("archived_by")
+  archiveReason     String?      @map("archive_reason") @db.VarChar(500)
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user            User              @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
   statusChangedBy User?             @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
@@ -343,6 +360,10 @@ model Teacher {
   zoomHosts       ZoomHost[]
   lessonReports   LessonReport[]
   tests           StudentTest[]
+
+  // N7: the hourly rate lives on the pay profile (D89); back-relations.
+  payProfile PayProfile?
+  payslips   Payslip[]
 
   @@index([status])
   @@index([archivedAt])
@@ -668,6 +689,12 @@ model ClassSession {
   actualEndedAt   DateTime?     @map("actual_ended_at") @db.Timestamptz(6)
   teacherJoinedAt DateTime?     @map("teacher_joined_at") @db.Timestamptz(6)
   studentJoinedAt DateTime?     @map("student_joined_at") @db.Timestamptz(6)
+  /// N7 pay snapshot (D41/D56), written when the stage is decided, cleared when it is undone.
+  /// pay hours = rule factor × duration / 60.
+  payHours        Decimal?      @map("pay_hours") @db.Decimal(5, 2)
+  payRuleKey      String?       @map("pay_rule_key") @db.VarChar(40)
+  payRuleSetId    Int?          @map("pay_rule_set_id")
+  billable        Boolean?
   /// Optimistic concurrency: +1 on every write (409 stale_session on a mismatch).
   lockVersion     Int           @default(0) @map("lock_version")
   createdById     Int?          @map("created_by")
@@ -689,6 +716,10 @@ model ClassSession {
   requests       SessionRequest[] @relation("SessionRequestSession")
   resultRequests SessionRequest[] @relation("SessionRequestResult")
   report         LessonReport?
+
+  // N7 payroll back-relations.
+  payRuleSet     PayRuleSet?     @relation(fields: [payRuleSetId], references: [id], onDelete: SetNull)
+  payAdjustments PayAdjustment[]
 
   @@unique([scheduleSlotId, occurrenceDate], map: "class_sessions_slot_occurrence_key")
   @@index([startsAt])
@@ -925,4 +956,377 @@ model StudentTest {
   @@index([teacherId, scheduledAt])
   @@index([studentId, scheduledAt])
   @@map("student_tests")
+}
+
+// ====================================================================== N7: payroll
+// Ported from the Laravel M6 module (docs/21, D41, D89–D95): pay rules, pay profiles, staff
+// attendance and leave, pay adjustments (fines …), monthly payroll runs, payslips, the wallet and
+// the payroll outbox. Money = numeric(12,2) + ISO currency; services compute in integer minor
+// units. Payroll never moves money (D140): a payment is recorded, not made.
+
+/// Old `profile.Salary` 1–4 (docs/21 §2).
+enum SalaryType {
+  monthly
+  per_class
+  hourly
+  slot
+}
+
+enum AttendanceStatus {
+  present
+  absent
+  leave
+  holiday
+}
+
+enum AttendanceSource {
+  self
+  staff
+  leave
+}
+
+enum LeaveType {
+  paid
+  unpaid
+  sick
+}
+
+enum LeaveStatus {
+  pending
+  approved
+  rejected
+  cancelled
+}
+
+/// Old `teacher_fine.type` 1–8 plus CSR conversions.
+enum AdjustmentType {
+  fine
+  bonus
+  advance
+  arrears
+  fine_reduction
+  gift
+  other_addition
+  other_deduction
+  csr_conversions
+}
+
+enum AdjustmentStatus {
+  proposed
+  approved
+  rejected
+  cancelled
+}
+
+enum PayrollRunStatus {
+  draft
+  reviewed
+  approved
+  paid
+}
+
+enum PayslipStatus {
+  draft
+  approved
+  paid
+}
+
+enum PaymentMethod {
+  vodafone_cash
+  bank_transfer
+  cash
+  other
+}
+
+enum WalletTxType {
+  salary_credit
+  salary_payment
+  reversal
+}
+
+/// Immutable pay rule version (D41): a change inserts a new set (a trigger refuses UPDATE/DELETE).
+/// `rules` = { key: { factor, billable, paidHolidayOnly? } }; the set in force at a class start applies.
+model PayRuleSet {
+  id            Int      @id @default(autoincrement())
+  effectiveFrom DateTime @map("effective_from") @db.Timestamptz(6)
+  rules         Json
+  note          String?  @db.VarChar(255)
+  createdById   Int?     @map("created_by")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  createdBy User?          @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  sessions  ClassSession[]
+
+  @@index([effectiveFrom])
+  @@map("pay_rule_sets")
+}
+
+/// How a staff member or teacher is paid (D89; old `profile` salary fields). One per user.
+model PayProfile {
+  id            Int        @id @default(autoincrement())
+  userId        Int        @unique @map("user_id")
+  teacherId     Int?       @unique @map("teacher_id")
+  salaryType    SalaryType @default(hourly) @map("salary_type")
+  /// Null = the payroll default currency (EGP).
+  currency      String?    @db.Char(3)
+  monthlySalary Decimal    @default(0) @map("monthly_salary") @db.Decimal(12, 2)
+  classRate     Decimal    @default(0) @map("class_rate") @db.Decimal(12, 2)
+  hourlyRate    Decimal    @default(0) @map("hourly_rate") @db.Decimal(12, 2)
+  csrRate       Decimal    @default(0) @map("csr_rate") @db.Decimal(12, 2)
+  allowance     Decimal    @default(0) @db.Decimal(12, 2)
+  tax           Decimal    @default(0) @db.Decimal(12, 2)
+  /// [{ minSlots, amount }] sorted by minSlots (slot type only).
+  slotTiers     Json       @default("[]") @map("slot_tiers")
+  active        Boolean    @default(true)
+  notes         String?    @db.VarChar(500)
+  updatedById   Int?       @map("updated_by")
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user      User     @relation("PayProfileUser", fields: [userId], references: [id], onDelete: Restrict)
+  teacher   Teacher? @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  updatedBy User?    @relation("PayProfileUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([active])
+  @@map("pay_profiles")
+}
+
+/// A staff member's leave request (D94, B43, B44). Approval writes the days into attendance.
+model LeaveRequest {
+  id            Int         @id @default(autoincrement())
+  userId        Int         @map("user_id")
+  startsOn      DateTime    @map("starts_on") @db.Date
+  endsOn        DateTime    @map("ends_on") @db.Date
+  days          Int         @db.SmallInt
+  leaveType     LeaveType   @map("leave_type")
+  reason        String      @db.VarChar(2000)
+  status        LeaveStatus @default(pending)
+  requestedById Int?        @map("requested_by")
+  decidedById   Int?        @map("decided_by")
+  decidedAt     DateTime?   @map("decided_at") @db.Timestamptz(6)
+  decisionNote  String?     @map("decision_note") @db.VarChar(2000)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user        User              @relation("LeaveRequestUser", fields: [userId], references: [id], onDelete: Restrict)
+  requestedBy User?             @relation("LeaveRequestRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  decidedBy   User?             @relation("LeaveRequestDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  attendance  StaffAttendance[]
+
+  @@index([userId, startsOn])
+  @@index([status, startsOn])
+  @@map("leave_requests")
+}
+
+/// One person's work day (D94): self check-in/out (server clock, the person's zone), a day marked
+/// by staff, or an approved leave. One row per user and local work date.
+model StaffAttendance {
+  id             Int              @id @default(autoincrement())
+  userId         Int              @map("user_id")
+  workDate       DateTime         @map("work_date") @db.Date
+  status         AttendanceStatus
+  /// Leave only: false = unpaid (deducted from a monthly salary).
+  paidLeave      Boolean          @default(true) @map("paid_leave")
+  checkInAt      DateTime?        @map("check_in_at") @db.Timestamptz(6)
+  checkOutAt     DateTime?        @map("check_out_at") @db.Timestamptz(6)
+  /// Real elapsed minutes (UTC), so a DST night is counted right.
+  workedMinutes  Int?             @map("worked_minutes")
+  /// The IANA zone the work date was counted in.
+  timezone       String?          @db.VarChar(64)
+  source         AttendanceSource @default(self)
+  leaveRequestId Int?             @map("leave_request_id")
+  note           String?          @db.VarChar(1000)
+  recordedById   Int?             @map("recorded_by")
+  createdAt      DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user         User          @relation("AttendanceUser", fields: [userId], references: [id], onDelete: Restrict)
+  recordedBy   User?         @relation("AttendanceRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  leaveRequest LeaveRequest? @relation(fields: [leaveRequestId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, workDate])
+  @@index([workDate, status])
+  @@index([userId, checkOutAt])
+  @@map("staff_attendance")
+}
+
+/// One payroll month (D92): draft → reviewed → approved → paid. One run per month.
+model PayrollRun {
+  id           Int              @id @default(autoincrement())
+  /// `YYYY-MM` in the academy zone.
+  period       String           @unique @db.Char(7)
+  startsOn     DateTime         @map("starts_on") @db.Date
+  endsOn       DateTime         @map("ends_on") @db.Date
+  status       PayrollRunStatus @default(draft)
+  computedAt   DateTime?        @map("computed_at") @db.Timestamptz(6)
+  createdById  Int?             @map("created_by")
+  reviewedById Int?             @map("reviewed_by")
+  reviewedAt   DateTime?        @map("reviewed_at") @db.Timestamptz(6)
+  approvedById Int?             @map("approved_by")
+  approvedAt   DateTime?        @map("approved_at") @db.Timestamptz(6)
+  paidAt       DateTime?        @map("paid_at") @db.Timestamptz(6)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  createdBy  User?     @relation("PayrollRunCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  reviewedBy User?     @relation("PayrollRunReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  approvedBy User?     @relation("PayrollRunApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  payslips   Payslip[]
+
+  @@map("payroll_runs")
+}
+
+/// One person's pay for one run, in the profile's currency (rates snapshot in `rates`).
+model Payslip {
+  id               Int            @id @default(autoincrement())
+  runId            Int            @map("payroll_run_id")
+  userId           Int            @map("user_id")
+  teacherId        Int?           @map("teacher_id")
+  currency         String         @db.Char(3)
+  salaryType       SalaryType     @map("salary_type")
+  rates            Json
+  paidHours        Decimal        @default(0) @map("paid_hours") @db.Decimal(8, 2)
+  paidClasses      Int            @default(0) @map("paid_classes")
+  deductionDays    Int            @default(0) @map("deduction_days") @db.SmallInt
+  earnings         Decimal        @default(0) @db.Decimal(12, 2)
+  deductions       Decimal        @default(0) @db.Decimal(12, 2)
+  /// May be negative (an error that blocks the review).
+  net              Decimal        @default(0) @db.Decimal(12, 2)
+  status           PayslipStatus  @default(draft)
+  warnings         Json           @default("[]")
+  errors           Json           @default("[]")
+  paidAt           DateTime?      @map("paid_at") @db.Timestamptz(6)
+  paidOn           DateTime?      @map("paid_on") @db.Date
+  paidById         Int?           @map("paid_by")
+  paymentMethod    PaymentMethod? @map("payment_method")
+  paymentReference String?        @map("payment_reference") @db.VarChar(120)
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  run         PayrollRun          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  user        User                @relation("PayslipUser", fields: [userId], references: [id], onDelete: Restrict)
+  teacher     Teacher?            @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  paidBy      User?               @relation("PayslipPaidBy", fields: [paidById], references: [id], onDelete: SetNull)
+  lines       PayslipLine[]
+  sessions    PayslipSession[]
+  adjustments PayAdjustment[]
+  walletTx    WalletTransaction[]
+
+  @@unique([runId, userId])
+  @@index([userId, status])
+  @@map("payslips")
+}
+
+/// Fines, bonuses, advances … (D91). Nothing is deleted: cancel before approval of the month, a
+/// fine reduction (`reverses_id`) after it. `payslip_id` is set when the month is approved.
+model PayAdjustment {
+  id           Int              @id @default(autoincrement())
+  userId       Int              @map("user_id")
+  type         AdjustmentType
+  /// Positive; the type decides the sign.
+  amount       Decimal          @db.Decimal(12, 2)
+  /// `csr_conversions`: the number of conversions (amount = quantity × CSR rate).
+  quantity     Int?
+  currency     String           @db.Char(3)
+  effectiveOn  DateTime         @map("effective_on") @db.Date
+  reason       String           @db.VarChar(2000)
+  status       AdjustmentStatus
+  sessionId    Int?             @map("session_id")
+  payslipId    Int?             @map("payslip_id")
+  reversesId   Int?             @map("reverses_id")
+  createdById  Int?             @map("created_by")
+  decidedById  Int?             @map("decided_by")
+  decidedAt    DateTime?        @map("decided_at") @db.Timestamptz(6)
+  decisionNote String?          @map("decision_note") @db.VarChar(2000)
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  user       User            @relation("PayAdjustmentUser", fields: [userId], references: [id], onDelete: Restrict)
+  session    ClassSession?   @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  payslip    Payslip?        @relation(fields: [payslipId], references: [id], onDelete: SetNull)
+  reverses   PayAdjustment?  @relation("AdjustmentReverses", fields: [reversesId], references: [id], onDelete: SetNull)
+  reversedBy PayAdjustment[] @relation("AdjustmentReverses")
+  createdBy  User?           @relation("PayAdjustmentCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  decidedBy  User?           @relation("PayAdjustmentDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+  lines      PayslipLine[]
+
+  @@index([userId, effectiveOn])
+  @@index([type, status])
+  @@map("pay_adjustments")
+}
+
+/// A payslip line (earning, adjustment, deduction): amount positive, `sign` ±1.
+model PayslipLine {
+  id              Int      @id @default(autoincrement())
+  payslipId       Int      @map("payslip_id")
+  code            String   @db.VarChar(24)
+  sign            Int      @db.SmallInt
+  quantity        Decimal? @db.Decimal(10, 2)
+  rate            Decimal? @db.Decimal(12, 2)
+  amount          Decimal  @db.Decimal(12, 2)
+  payAdjustmentId Int?     @map("pay_adjustment_id")
+  position        Int      @default(0) @db.SmallInt
+
+  payslip    Payslip        @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+  adjustment PayAdjustment? @relation(fields: [payAdjustmentId], references: [id], onDelete: SetNull)
+
+  @@index([payslipId])
+  @@map("payslip_lines")
+}
+
+/// The paid classes a payslip counted (snapshot: a later class change shows up as a warning, B49).
+model PayslipSession {
+  id         Int       @id @default(autoincrement())
+  payslipId  Int       @map("payslip_id")
+  sessionId  Int       @map("session_id")
+  startsAt   DateTime? @map("starts_at") @db.Timestamptz(6)
+  kind       String    @db.VarChar(16)
+  stage      String    @db.VarChar(20)
+  payHours   Decimal   @map("pay_hours") @db.Decimal(5, 2)
+  payRuleKey String?   @map("pay_rule_key") @db.VarChar(40)
+
+  payslip Payslip @relation(fields: [payslipId], references: [id], onDelete: Cascade)
+
+  @@index([payslipId])
+  @@index([sessionId])
+  @@map("payslip_sessions")
+}
+
+/// The teacher wallet (D93): append-only ledger (a trigger refuses UPDATE/DELETE). Approval
+/// credits the net, a recorded payment debits it, a reopen reverses the credit.
+model WalletTransaction {
+  id          Int          @id @default(autoincrement())
+  userId      Int          @map("user_id")
+  currency    String       @db.Char(3)
+  /// Signed.
+  amount      Decimal      @db.Decimal(12, 2)
+  type        WalletTxType
+  payslipId   Int?         @map("payslip_id")
+  reference   String?      @db.VarChar(190)
+  createdById Int?         @map("created_by")
+  occurredAt  DateTime     @map("occurred_at") @db.Timestamptz(6)
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user      User     @relation("WalletUser", fields: [userId], references: [id], onDelete: Restrict)
+  payslip   Payslip? @relation(fields: [payslipId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("WalletCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([userId, currency])
+  @@map("wallet_transactions")
+}
+
+/// Outbox for accounting (D95): written in the same transaction as the change; a later module
+/// consumes it (`consumed_at`). Payroll itself makes no journal entries.
+model PayrollEvent {
+  id            Int       @id @default(autoincrement())
+  type          String    @db.VarChar(40)
+  aggregateType String    @map("aggregate_type") @db.VarChar(40)
+  aggregateId   Int       @map("aggregate_id")
+  payload       Json
+  occurredAt    DateTime  @map("occurred_at") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([consumedAt, id])
+  @@map("payroll_events")
 }
