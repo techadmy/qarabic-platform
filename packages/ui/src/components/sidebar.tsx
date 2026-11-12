@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@qarabic/ui/lib/utils"
 import { Slot } from "radix-ui"
 
 import { useIsMobile } from "@qarabic/ui/hooks/use-mobile"

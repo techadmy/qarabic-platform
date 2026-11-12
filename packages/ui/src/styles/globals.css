@@ -96,6 +96,10 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-sans: var(--font-sans);
+  /* Type scale additions (docs/standards/design-tokens.md): 15px body (the current app's MUI body1)
+     and 13px captions / table headers. Size only: the line height is inherited, as before. */
+  --text-body: 0.9375rem;
+  --text-caption: 0.8125rem;
 }
 
 /*
@@ -306,7 +310,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     /* Current app: 15px body text (MUI body1). Components keep their own sizes. */
-    font-size: 0.9375rem;
+    font-size: var(--text-body);
     line-height: 1.5;
   }
   :lang(ar) body {

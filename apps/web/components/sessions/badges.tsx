@@ -104,7 +104,7 @@ export function ToneBadge({
     <Badge
       variant="outline"
       title={title}
-      className={cn('h-6 rounded-md px-2 text-[0.8125rem] font-medium', TONES[tone], className)}
+      className={cn('h-6 rounded-md px-2 text-caption font-medium', TONES[tone], className)}
     >
       {Icon && <Icon aria-hidden />}
       {label}

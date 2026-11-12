@@ -81,7 +81,7 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                       autoComplete="username"
                       autoFocus
                       placeholder="name@example.com"
-                      className="h-10 md:text-[0.9375rem]"
+                      className="h-10 md:text-body"
                       aria-invalid={fieldState.invalid}
                     />
                     {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -131,7 +131,7 @@ export function LoginForm({ className, ...props }: ComponentProps<'div'>) {
                 <Button
                   type="submit"
                   disabled={login.isPending}
-                  className="h-11 text-[0.9375rem] font-semibold"
+                  className="h-11 text-body font-semibold"
                 >
                   {login.isPending && <Spinner />}
                   {login.isPending ? t('loggingIn') : t('login')}
