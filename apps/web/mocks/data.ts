@@ -62,6 +62,8 @@ function buildUsers(): MockUser[] {
     user(3, 'ولي أمر تجريبي', 'parent@qarabic.test', 'parent'),
     // N7: a monitor proposes fines and marks attendance (people-db staff row 12).
     user(12, 'Rana Monitor', 'monitor@qarabic.test', 'monitor'),
+    // M7: the accounts role posts entries and vouchers and closes periods.
+    user(13, 'Accounts Officer', 'accounts@qarabic.test', 'accounts'),
     {
       id: 4,
       name: 'مشرف تجريبي',
