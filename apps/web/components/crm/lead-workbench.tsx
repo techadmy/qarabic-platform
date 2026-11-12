@@ -326,7 +326,7 @@ function Workbench({ lead }: { lead: LeadDetailDto }) {
       />
 
       {(dup.leads.length > 0 || dup.families.length > 0) && (
-        <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <Alert variant="warning">
           <AlertTriangleIcon />
           <AlertTitle>{t('work.duplicateTitle')}</AlertTitle>
           <AlertDescription className="text-inherit">
@@ -355,7 +355,7 @@ function Workbench({ lead }: { lead: LeadDetailDto }) {
       )}
       {lead.status === 'converted' && lead.convertedAt && (
         <Alert role="status">
-          <CircleCheckIcon className="text-emerald-700" />
+          <CircleCheckIcon className="text-status-green-emphasis" />
           <AlertDescription>
             {t('work.converted', {
               date: formatInstant(lead.convertedAt, tz, locale) ?? '',
@@ -375,7 +375,7 @@ function Workbench({ lead }: { lead: LeadDetailDto }) {
         </Alert>
       )}
       {lead.suggestLostNoResponse && can('lose') && (
-        <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <Alert variant="warning">
           <AlertTriangleIcon />
           <AlertDescription className="text-inherit">
             {t('work.suggestLost', { count: lead.unansweredAttempts })}

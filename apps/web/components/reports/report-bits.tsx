@@ -58,7 +58,7 @@ export function RatingStars({ value, className }: { value: number; className?: s
           aria-hidden
           className={cn(
             'size-4',
-            n <= value ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground/40',
+            n <= value ? 'fill-rating text-rating-border' : 'text-muted-foreground/40',
           )}
         />
       ))}
@@ -104,7 +104,7 @@ export function RatingInput({
             aria-hidden
             className={cn(
               'size-5',
-              value && n <= value ? 'fill-amber-400 text-amber-500' : 'text-muted-foreground',
+              value && n <= value ? 'fill-rating text-rating-border' : 'text-muted-foreground',
             )}
           />
         </ToggleGroupItem>
