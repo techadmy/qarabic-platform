@@ -60,6 +60,9 @@ export const SETTING_DEFAULTS = {
   'zoom.create_lead_hours': 24,
   /** B30 (D72, provisional yes): parents see the 1–5 class rating of a lesson report. */
   'reports.parent_sees_rating': true as boolean,
+  // M7 accounting.
+  /** Post the billing and payroll outbox events to the journal every 5 minutes. */
+  'accounting.auto_post': true as boolean,
   // N6 billing (`GET/PUT /settings/billing`).
   ...BILLING_SETTING_DEFAULTS,
 } satisfies Record<string, Prisma.InputJsonValue>;

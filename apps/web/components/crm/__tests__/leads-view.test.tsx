@@ -12,15 +12,27 @@ async function table() {
   return t;
 }
 
-function tiles() {
+/** The tiles sit in the collapsible summary (D141 §8), closed by default. */
+async function tiles() {
+  const user = userEvent.setup();
+  if (!screen.queryByRole('navigation', { name: 'ملخص اليوم' })) {
+    await user.click(screen.getByRole('button', { name: /ملخص.*إظهار التفاصيل/ }));
+  }
   return screen.getByRole('navigation', { name: 'ملخص اليوم' });
 }
 
+/** The status views are a menu on the title (D141 §2): its trigger names the current view. */
+function viewsTrigger() {
+  return screen.getByRole('button', { name: /تغيير العرض$/ });
+}
+
 describe('Leads list', () => {
-  it('shows today’s tiles with the summary counts and the open tab with its count', async () => {
+  it('shows today’s tiles (collapsible) with the summary counts and the open view with its count', async () => {
     renderPage(<LeadsView />, { path: '/leads' });
     const t = await table();
-    const nav = tiles();
+    // Closed by default; the hint keeps the urgent counts visible.
+    expect(screen.queryByRole('navigation', { name: 'ملخص اليوم' })).not.toBeInTheDocument();
+    const nav = await tiles();
     // Four open leads are «جديد» and none of them was contacted; three passed the 30-minute limit.
     const fresh = within(nav).getByRole('button', { name: /طلبات جديدة/ });
     await waitFor(() => expect(fresh).toHaveTextContent(/^4/));
@@ -29,9 +41,13 @@ describe('Leads list', () => {
     expect(uncontacted).toHaveTextContent('متأخرة: 3');
     // (Not «تحوّلت هذا الشهر»: the seed converted 3 days ago, last month on the 1st–3rd.)
     expect(within(nav).getByRole('button', { name: /تحوّلت هذا الشهر/ })).toBeInTheDocument();
-    const tabs = screen.getByRole('radiogroup', { name: 'حالة الطلب' });
-    expect(within(tabs).getByRole('radio', { name: /^المفتوحة\s*\(8\)$/ })).toBeChecked();
-    expect(within(tabs).getByRole('radio', { name: /^جديد\s*\(4\)$/ })).toBeInTheDocument();
+    expect(viewsTrigger()).toHaveAccessibleName(/^المفتوحة\s*\(8\)\s*تغيير العرض$/);
+    expect(viewsTrigger()).toHaveTextContent(/المفتوحة\s*\(8\)/);
+    await userEvent.setup().click(viewsTrigger());
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitemradio', { name: /المفتوحة\s*8/ })).toBeChecked();
+    expect(within(menu).getByRole('menuitemradio', { name: /^جديد\s*4$/ })).toBeInTheDocument();
+    await userEvent.setup().keyboard('{Escape}');
     // 8 open leads + the header row.
     expect(within(t).getAllByRole('row')).toHaveLength(9);
     expect(within(t).getByRole('link', { name: 'Amina Rahman' })).toHaveAttribute(
@@ -45,17 +61,18 @@ describe('Leads list', () => {
     const user = userEvent.setup();
     renderPage(<LeadsView />, { path: '/leads' });
     await table();
-    await user.click(within(tiles()).getByRole('button', { name: /طلبات جديدة/ }));
+    await user.click(within(await tiles()).getByRole('button', { name: /طلبات جديدة/ }));
     expect(lastReplacedUrl().searchParams.get('status')).toBe('new');
-    await user.click(within(tiles()).getByRole('button', { name: /متابعات اليوم/ }));
+    await user.click(within(await tiles()).getByRole('button', { name: /متابعات اليوم/ }));
     expect(lastReplacedUrl().searchParams.get('followUp')).toBe('due');
   });
 
-  it('puts the status tab in the URL and lists only that status', async () => {
+  it('puts the view from the title menu in the URL and lists only that status', async () => {
     const user = userEvent.setup();
     const { unmount } = renderPage(<LeadsView />, { path: '/leads' });
     await table();
-    await user.click(screen.getByRole('radio', { name: /^تحوّل إلى منتظم\s*\(1\)$/ }));
+    await user.click(viewsTrigger());
+    await user.click(await screen.findByRole('menuitemradio', { name: /^تحوّل إلى منتظم\s*1$/ }));
     expect(lastReplacedUrl().searchParams.get('status')).toBe('converted');
     unmount();
 
@@ -63,7 +80,7 @@ describe('Leads list', () => {
     const t = await table();
     await waitFor(() => expect(within(t).getAllByRole('row')).toHaveLength(2));
     expect(within(t).getByRole('link', { name: 'Nadia Karim' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /^تحوّل إلى منتظم\s*\(1\)$/ })).toBeChecked();
+    expect(viewsTrigger()).toHaveTextContent(/تحوّل إلى منتظم\s*\(1\)/);
   });
 
   it('reflects search and filters in the URL, and reads them back from it', async () => {

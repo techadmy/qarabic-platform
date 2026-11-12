@@ -145,16 +145,17 @@ test('parent refers a friend from the home page', async ({ page }) => {
   await expect(dialog).toBeHidden();
 });
 
-test('leads list: status tab and filters live in the URL; bulk bar counts the selection', async ({
+test('leads list: status view and filters live in the URL; bulk bar counts the selection', async ({
   page,
 }) => {
   await signIn(page);
   await expect(page.getByRole('heading', { level: 1, name: 'العملاء المحتملون' })).toBeVisible();
-  const tabs = page.getByRole('radiogroup', { name: 'حالة الطلب' });
-  await tabs.getByRole('radio', { name: /^جديد \(\d+\)$/ }).click();
+  // The ten statuses are a views menu on the title (D141 §2).
+  await page.getByRole('button', { name: /تغيير العرض$/ }).click();
+  await page.getByRole('menuitemradio', { name: /^جديد\s*\d+$/ }).click();
   await expect(page).toHaveURL(/status=new/);
   await page.reload();
-  await expect(tabs.getByRole('radio', { name: /^جديد \(\d+\)$/ })).toBeChecked();
+  await expect(page.getByRole('button', { name: /^جديد \(\d+\) تغيير العرض$/ })).toBeVisible();
 
   await page.getByRole('searchbox', { name: 'البحث' }).fill('Amina');
   await expect(page).toHaveURL(/q=Amina/);

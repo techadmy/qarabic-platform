@@ -3,6 +3,7 @@ import { APP_FILTER } from '@nestjs/core';
 import { ScheduleModule as CronModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountModule } from './account/account.module.js';
+import { AccountingModule } from './accounting/accounting.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
@@ -71,6 +72,7 @@ export const REDACT = [
     PortalModule,
     BillingModule,
     PayrollModule,
+    AccountingModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],
