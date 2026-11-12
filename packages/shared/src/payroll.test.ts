@@ -121,3 +121,17 @@ describe('payroll contract', () => {
     expect(isLockedRun('approved') && isLockedRun('paid') && !isLockedRun('reviewed')).toBe(true);
   });
 });
+
+describe('payroll leftovers (docs/21)', () => {
+  it('approve note: optional, blank = none, otherwise 3+ characters', async () => {
+    const { approveDecisionSchema, runTransitionSchema, PAYROLL_ERROR_MESSAGES } =
+      await import('./payroll.js');
+    expect(approveDecisionSchema.parse({}).note).toBeNull();
+    expect(approveDecisionSchema.parse({ note: '  ' }).note).toBeNull();
+    expect(approveDecisionSchema.parse({ note: ' Fine ' }).note).toBe('Fine');
+    expect(approveDecisionSchema.safeParse({ note: 'ok' }).success).toBe(false);
+    expect(runTransitionSchema.safeParse({ expectedUpdatedAt: 'yesterday' }).success).toBe(false);
+    expect(runTransitionSchema.parse({})).toEqual({});
+    expect(PAYROLL_ERROR_MESSAGES.stale_run.ar).toBeTruthy();
+  });
+});

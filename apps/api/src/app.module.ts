@@ -4,6 +4,8 @@ import { ScheduleModule as CronModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountModule } from './account/account.module.js';
 import { AccountingModule } from './accounting/accounting.module.js';
+import { NotificationCentreModule } from './operations/notification-centre.js';
+import { OperationsModule } from './operations/operations.module.js';
 import { AuditModule } from './audit/audit.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
@@ -73,6 +75,8 @@ export const REDACT = [
     BillingModule,
     PayrollModule,
     AccountingModule,
+    NotificationCentreModule,
+    OperationsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

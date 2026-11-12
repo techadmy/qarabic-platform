@@ -235,6 +235,10 @@ export const PAYROLL_ERROR_MESSAGES = {
     en: 'A payroll run already exists for this month.',
   },
   period_not_started: { ar: 'لم يبدأ هذا الشهر بعد.', en: 'This month has not started yet.' },
+  stale_run: {
+    ar: 'تغيّر مسيّر الرواتب منذ فتحه. أعد تحميل الصفحة ثم حاول مرة أخرى.',
+    en: 'The payroll run changed since you opened it. Reload and try again.',
+  },
   invalid_run_status: {
     ar: 'لا يمكن تنفيذ هذا الإجراء على المسيّر في حالته الحالية.',
     en: 'This action is not allowed for the payroll run in its current status.',
@@ -493,12 +497,33 @@ export const createLeaveSchema = z
   });
 export type CreateLeaveInput = z.input<typeof createLeaveSchema>;
 
-/** Approve (note optional). */
+/**
+ * Approve: the note is optional (docs/21). Blank = no note; a note, when given, has 3+ characters
+ * (a clear message instead of a bare length error).
+ */
 export const approveDecisionSchema = z.object({
-  note: z.string().trim().min(3).max(2000).nullish(),
+  note: z
+    .string()
+    .trim()
+    .max(2000)
+    .nullish()
+    .transform((v) => (v ? v : null))
+    .refine((v) => v === null || v.length >= 3, {
+      message: 'Write at least 3 characters, or leave the note empty.',
+    }),
 });
 /** Reject, cancel, reopen: a reason is required (D31). */
 export const reasonDecisionSchema = z.object({ note: reasonText });
+
+/**
+ * A payroll run transition (recompute, review, approve, reopen). `expectedUpdatedAt` is the run's
+ * `updatedAt` the client last saw: when the run changed since, the API answers 409 `stale_run`
+ * (docs/21 §7) instead of acting on a run the person has not seen. Optional for old clients.
+ */
+export const runTransitionSchema = z.object({
+  expectedUpdatedAt: z.iso.datetime({ offset: true }).optional(),
+});
+export const reopenRunSchema = reasonDecisionSchema.extend(runTransitionSchema.shape);
 export type DecisionInput = z.input<typeof reasonDecisionSchema>;
 
 // ------------------------------------------------------------------ pay adjustments (D91)
@@ -719,6 +744,8 @@ export const payrollRunSchema = z.object({
   approvedBy: refSchema,
   approvedAt: z.string().nullable(),
   paidAt: z.string().nullable(),
+  /** Send back as `expectedUpdatedAt` on a transition (409 `stale_run` when it moved on). */
+  updatedAt: z.string(),
   people: z.number().int(),
   paidPeople: z.number().int(),
   errorCount: z.number().int(),
