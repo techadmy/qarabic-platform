@@ -37,7 +37,18 @@ describe('Journal', () => {
     const table = await screen.findByRole('table', { name: 'القيود اليومية' });
     await waitFor(() => expect(within(table).getAllByRole('row').length).toBeGreaterThan(5));
     expect(within(table).getAllByText(JOURNAL_SOURCE_LABELS.billing.ar).length).toBeGreaterThan(0);
-    await user.click(screen.getByRole('radio', { name: JOURNAL_SOURCE_LABELS.voucher.ar }));
+    // Source tabs carry counts (the API sends them per source since #17).
+    const billing = adb.entries.filter((e) => e.source === 'billing').length;
+    await waitFor(() =>
+      expect(screen.getAllByRole('radio').map((r) => r.textContent)).toContain(
+        `${JOURNAL_SOURCE_LABELS.billing.ar} (${billing})`,
+      ),
+    );
+    await user.click(
+      screen
+        .getAllByRole('radio')
+        .find((r) => r.textContent?.startsWith(JOURNAL_SOURCE_LABELS.voucher.ar))!,
+    );
     expect(routerMock.replace).toHaveBeenLastCalledWith(
       expect.stringContaining('source=voucher'),
       expect.anything(),

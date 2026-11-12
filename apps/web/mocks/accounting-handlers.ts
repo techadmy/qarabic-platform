@@ -7,6 +7,7 @@ import {
   createJournalEntrySchema,
   createVoucherSchema,
   fromMinor,
+  JOURNAL_SOURCES,
   journalListQuerySchema,
   periodListQuerySchema,
   reopenPeriodSchema,
@@ -264,9 +265,11 @@ export const accountingHandlers: HttpHandler[] = [
           e.memo.toLowerCase().includes(needle),
       )
       .sort((x, y) => y.date.localeCompare(x.date) || y.id - x.id);
-    // Like the API: no per-source counts on the journal.
+    // Like the API: counts per source over the same filters, ignoring `source`.
+    const counts: Record<string, number> = { all: base.length };
+    for (const src of JOURNAL_SOURCES) counts[src] = base.filter((e) => e.source === src).length;
     const rows = base.filter((e) => !source || e.source === source);
-    const out = paginate(rows, page, perPage, {});
+    const out = paginate(rows, page, perPage, counts);
     return HttpResponse.json({ ...out, data: out.data.map((e) => presentEntry(e, false)) });
   }),
 
