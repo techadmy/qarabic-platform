@@ -163,6 +163,8 @@ test.describe('mobile 375 px', () => {
 
 test.describe('accessibility (axe)', () => {
   test('lists, profile, sheet, status dialog, roles and account', async ({ page }) => {
+    // ~10 full-page axe scans: over the 30 s default on a slow CI runner (failed on main too).
+    test.setTimeout(90_000);
     await signIn(page, 'admin@qarabic.test', '/families');
     await expect(page.getByRole('table', { name: 'العائلات' }).getByRole('row')).toHaveCount(26);
     await expectNoSeriousA11yViolations(page);
