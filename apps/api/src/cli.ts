@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
+import { OutboxService } from './accounting/outbox.service.js';
 import { AppModule } from './app.module.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
@@ -18,6 +19,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
  *   pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]       (N7; default: this month)
+ *   pnpm --filter @qarabic/api cli ledger:post   (M7: post the billing/payroll outbox to the journal)
  *
  * The support ticket queue (docs/22 §7, Laravel `tickets:*`), writes recorded as "Claude":
  *
@@ -139,6 +141,12 @@ async function main(): Promise<number> {
         }
         console.log(`Payroll ${period.toString()}: run ${result.runId} ${result.action}.`);
         return 0;
+      }
+      case 'ledger:post': {
+        // Posts the billing and payroll outbox events to the journal (M7; the cron does it every 5 min).
+        const r = await app.get(OutboxService).process();
+        console.log(`Ledger: ${r.posted} posted, ${r.skipped} skipped, ${r.failed} failed.`);
+        return r.failed ? 1 : 0;
       }
       default:
         console.error(
