@@ -135,7 +135,8 @@ describe('Add / edit sheet', () => {
 
 describe('Status dialog', () => {
   it('requires the reason the shared FAMILY_STATUSES_NEEDING_REASON lists, explains the effect, then changes it', async () => {
-    renderPage(<FamilyProfile id={2} />, { path: '/families/2' });
+    // The status history is the «السجل» tab (D141 §7).
+    renderPage(<FamilyProfile id={2} />, { path: '/families/2?tab=history' });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'تغيير الحالة' }));
     const dialog = await screen.findByRole('dialog', { name: 'تغيير حالة Yusuf Hassan' });
