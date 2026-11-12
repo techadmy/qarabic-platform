@@ -57,10 +57,10 @@ test('real API: families list → open one → edit a field (saved in the databa
   await expect(table.getByRole('row').nth(1)).toBeVisible();
   await expect(page.getByRole('radio', { name: /^الكل/ })).toHaveText(/\(\d+\)/);
 
-  // A seed family (the flows spec adds converted families without a phone, which the edit form
-  // cannot save yet: docs/31 «family edit with no phone»).
-  await page.getByRole('searchbox', { name: 'بحث في العائلات' }).fill('Demo Parent');
-  await expect(page).toHaveURL(/q=Demo/);
+  // A family converted from a phone-less lead by real-api-flows.spec.ts (it runs first): the edit
+  // form must save it without a phone (#33).
+  await page.getByRole('searchbox', { name: 'بحث في العائلات' }).fill('E2E Parent');
+  await expect(page).toHaveURL(/q=E2E/);
   await expect(table).not.toHaveAttribute('aria-busy');
   const first = table.getByRole('row').nth(1).getByRole('link').first();
   const name = (await first.textContent())!.trim();
@@ -109,8 +109,10 @@ test('real API: the N2 pages load real data (the shared schemas parse every answ
 }) => {
   await signInReal(page, '/schedule');
   const table = page.getByRole('table', { name: 'الاشتراكات' });
-  await expect(table.locator('tbody tr').first()).toBeVisible();
-  await table.locator('tbody tr').first().getByRole('link').first().click();
+  // A regular enrollment: it has weekly times (the flows spec adds trials, which have none).
+  const seeded = table.locator('tbody tr').filter({ hasText: 'منتظم' }).first();
+  await expect(seeded).toBeVisible();
+  await seeded.getByRole('link').first().click();
   await expect(page).toHaveURL(/\/schedule\/\d+$/);
   await expect(page.getByRole('list', { name: 'المواعيد الأسبوعية' })).toBeVisible();
   await page.getByRole('link', { name: 'جدول المعلم' }).click();
