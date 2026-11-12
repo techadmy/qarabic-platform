@@ -20,7 +20,8 @@ type Policy =
   | 'feedback-create'
   | 'feedback-comment'
   | 'attachments'
-  | 'webhook';
+  | 'webhook'
+  | 'clock';
 
 const MINUTE = 60_000;
 const HOUR = 60 * MINUTE;
@@ -59,6 +60,8 @@ const POLICIES: Record<
   attachments: (req) => [[`attachments:${userKey(req)}`, 120]],
   // Signed webhooks (WhatsApp): per IP.
   webhook: (req) => [[`webhook:${req.ip}`, 300]],
+  // N7 attendance check-in / check-out: Laravel `throttle:30,1`.
+  clock: (req) => [[`clock:${req.ip}`, 30]],
 };
 
 export const RateLimit = (policy: Policy): MethodDecorator => SetMetadata(RATE_LIMIT_KEY, policy);

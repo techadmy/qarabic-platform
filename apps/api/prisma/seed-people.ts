@@ -69,20 +69,28 @@ export async function seedDemoPeople(prisma: PrismaClient): Promise<boolean> {
       `+20100000020${i + 1}`,
       'Africa/Cairo',
     );
-    teachers.push(
-      await prisma.teacher.create({
-        data: {
-          userId: login.id,
-          firstName: first,
-          lastName: last,
-          gender,
-          timezone: 'Africa/Cairo',
-          countryCode: 'EG',
-          hourlyRate: '100.00',
-          courses: { create: courses.slice(0, 3).map((c) => ({ courseId: c.id })) },
-        },
-      }),
-    );
+    const teacher = await prisma.teacher.create({
+      data: {
+        userId: login.id,
+        firstName: first,
+        lastName: last,
+        gender,
+        timezone: 'Africa/Cairo',
+        countryCode: 'EG',
+        courses: { create: courses.slice(0, 3).map((c) => ({ courseId: c.id })) },
+      },
+    });
+    // N7: the hourly rate lives on the pay profile (D89).
+    await prisma.payProfile.create({
+      data: {
+        userId: login.id,
+        teacherId: teacher.id,
+        salaryType: 'hourly',
+        currency: 'EGP',
+        hourlyRate: '100.00',
+      },
+    });
+    teachers.push(teacher);
   }
 
   const families = [

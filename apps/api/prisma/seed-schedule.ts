@@ -1,6 +1,7 @@
 import { Clock } from '../src/common/clock.js';
 import { FieldCipher } from '../src/common/crypto.js';
 import type { PrismaClient } from '../src/generated/prisma/client.js';
+import { PayRuleEngine } from '../src/payroll/pay-rules.js';
 import type { PrismaService } from '../src/prisma/prisma.service.js';
 import { addDays, localDate } from '../src/schedule/time.js';
 import { SessionGenerator } from '../src/sessions/generator.js';
@@ -70,7 +71,8 @@ export async function seedDemoSchedule(
 
   const clock = new Clock();
   const settings = new SettingsService(prisma as PrismaService);
-  const generator = new SessionGenerator(prisma as PrismaService, settings, clock);
+  const pay = new PayRuleEngine(prisma as PrismaService, settings);
+  const generator = new SessionGenerator(prisma as PrismaService, settings, clock, pay);
   await generator.run({ from: startsOn, to: addDays(today, 7) });
 
   // Mark the past classes like a real week: mostly held, one absent, one leave.
@@ -88,6 +90,8 @@ export async function seedDemoSchedule(
         activatedAt: stage === 'leave' ? null : s.startsAt,
         endedAt: stage === 'taken' ? s.endsAt : null,
         markedAt: s.endsAt,
+        // N7 pay snapshot, as the state machine writes it.
+        ...(await pay.snapshot({ ...s, stage, stageReason: stage === 'leave' ? 'student' : null })),
         updatedAt: new Date(),
       },
     });

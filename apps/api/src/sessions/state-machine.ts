@@ -11,6 +11,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { validationError } from '../common/errors.js';
 import type { ClassSession, Prisma } from '../generated/prisma/client.js';
+import { CLEARED_PAY, PayRuleEngine } from '../payroll/pay-rules.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
@@ -182,6 +183,7 @@ export class SessionStateMachine {
     private readonly settings: SettingsService,
     private readonly clock: Clock,
     private readonly zoom: ZoomMeetings,
+    private readonly pay: PayRuleEngine,
   ) {}
 
   /**
@@ -217,6 +219,26 @@ export class SessionStateMachine {
       const ctx = this.liveContext(db, s, now, settings);
       await this.guard(s, action, actor, input, false, ctx);
       const { data, to } = await this.transition(s, action, actor, input, ctx);
+      // N7 pay snapshot (D41/D56): taken when the stage is decided, cleared when it is undone.
+      if (isTerminal(to)) {
+        const stageReason =
+          'stageReason' in data ? (data.stageReason as string | null) : s.stageReason;
+        Object.assign(
+          data,
+          await this.pay.snapshot(
+            {
+              kind: s.kind,
+              stage: to,
+              stageReason,
+              durationMinutes: s.durationMinutes,
+              startsAt: s.startsAt,
+            },
+            db,
+          ),
+        );
+      } else if (isTerminal(current)) {
+        Object.assign(data, CLEARED_PAY);
+      }
       await db.classSession.update({
         where: { id: s.id },
         data: { ...data, stage: to, lockVersion: { increment: 1 }, updatedAt: new Date(now) },

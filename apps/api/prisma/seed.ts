@@ -5,6 +5,7 @@ import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 import { seedDemoCrm } from './seed-crm.js';
 import { seedDemoBilling } from './seed-billing.js';
 import { seedCourses, seedDemoPeople } from './seed-people.js';
+import { seedDemoPayroll } from './seed-payroll.js';
 import { seedDemoSchedule } from './seed-schedule.js';
 import { seedDemoSupport } from './seed-support.js';
 import { seedDemoTeaching } from './seed-teaching.js';
@@ -75,6 +76,12 @@ async function main(): Promise<void> {
         billed
           ? 'Demo fee packages, billing profiles and invoices added (fake data, no real money).'
           : 'Demo billing already there (or no demo families).',
+      );
+      const paid = await seedDemoPayroll(prisma);
+      console.log(
+        paid
+          ? 'Demo pay profiles, attendance, a leave request and a proposed fine added (fake data).'
+          : 'Demo payroll data already there (or no demo teachers).',
       );
     }
   } finally {

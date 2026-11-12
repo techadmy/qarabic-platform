@@ -3,6 +3,7 @@ export * from './billing.js';
 export * from './countries.js';
 export * from './crm.js';
 export * from './notifications.js';
+export * from './payroll.js';
 export * from './people.js';
 export * from './permission-labels.js';
 export * from './permissions.js';
