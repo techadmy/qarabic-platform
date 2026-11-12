@@ -31,13 +31,16 @@ export function TeachersView() {
   const courses = (x: TeacherDto) =>
     x.courses.map((c) => (locale === 'ar' ? c.nameAr : c.nameEn)).join('، ') || '—';
 
-  const columns = (params: ListParams): ColumnDef<TeacherDto, unknown>[] => [
+  const columns = (
+    params: ListParams,
+    recordHref: (id: number) => string,
+  ): ColumnDef<TeacherDto, unknown>[] => [
     {
       id: 'name',
       header: tp('fields.name'),
       cell: ({ row }) => (
         <RecordCell
-          href={`/teachers/${row.original.id}`}
+          href={recordHref(row.original.id)}
           name={<Highlight text={row.original.name} query={params.q} />}
           secondary={<bdi dir="ltr">{row.original.email}</bdi>}
         />

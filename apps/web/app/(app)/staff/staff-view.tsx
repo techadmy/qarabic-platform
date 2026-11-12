@@ -26,13 +26,16 @@ export function StaffView() {
   const canManage = can(me, 'users.manage');
   const lookups = useLookups(canManage);
 
-  const columns = (params: ListParams): ColumnDef<StaffDto, unknown>[] => [
+  const columns = (
+    params: ListParams,
+    recordHref: (id: number) => string,
+  ): ColumnDef<StaffDto, unknown>[] => [
     {
       id: 'name',
       header: tp('fields.name'),
       cell: ({ row }) => (
         <RecordCell
-          href={`/staff/${row.original.id}`}
+          href={recordHref(row.original.id)}
           name={<Highlight text={row.original.name} query={params.q} />}
           secondary={<bdi dir="ltr">{row.original.email}</bdi>}
         />

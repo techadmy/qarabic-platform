@@ -69,13 +69,16 @@ export function StudentsView() {
   const course = (c: StudentDto['regularCourse']) =>
     c ? (locale === 'ar' ? c.nameAr : c.nameEn) : '—';
 
-  const columns = (params: ListParams): ColumnDef<StudentDto, unknown>[] => [
+  const columns = (
+    params: ListParams,
+    recordHref: (id: number) => string,
+  ): ColumnDef<StudentDto, unknown>[] => [
     {
       id: 'name',
       header: tp('fields.name'),
       cell: ({ row }) => (
         <RecordCell
-          href={`/students/${row.original.id}`}
+          href={recordHref(row.original.id)}
           name={<Highlight text={row.original.name} query={params.q} />}
           secondary={row.original.family.parentName}
         />
