@@ -21,18 +21,18 @@ import {
 
 /** Number colour of a tile when it is above zero (the old dashboard's hues, D35). */
 const TILE_TEXT: Partial<Record<BoardTile, string>> = {
-  taken: 'text-emerald-700 dark:text-emerald-400',
-  running: 'text-amber-700 dark:text-amber-400',
-  needs_action: 'text-orange-700 dark:text-orange-400',
-  late: 'text-orange-700 dark:text-orange-400',
-  absent: 'text-red-700 dark:text-red-400',
-  leave: 'text-violet-700 dark:text-violet-400',
-  declined: 'text-sky-700 dark:text-sky-400',
-  suspended: 'text-rose-800 dark:text-rose-400',
-  trial: 'text-amber-800 dark:text-amber-400',
-  advance: 'text-indigo-700 dark:text-indigo-400',
-  rescheduled: 'text-teal-700 dark:text-teal-400',
-  extra: 'text-emerald-700 dark:text-emerald-400',
+  taken: 'text-status-green-emphasis',
+  running: 'text-status-amber-emphasis',
+  needs_action: 'text-status-orange-emphasis',
+  late: 'text-status-orange-emphasis',
+  absent: 'text-status-red-emphasis',
+  leave: 'text-status-violet-emphasis',
+  declined: 'text-status-sky-emphasis',
+  suspended: 'text-status-rose-emphasis',
+  trial: 'text-status-brown-emphasis',
+  advance: 'text-status-indigo-emphasis',
+  rescheduled: 'text-status-teal-emphasis',
+  extra: 'text-status-green-emphasis',
 };
 
 /**

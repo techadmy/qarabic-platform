@@ -20,7 +20,7 @@ export function PasswordInput(props: Omit<ComponentProps<typeof InputGroupInput>
   return (
     <InputGroup className="h-10">
       <InputGroupInput
-        className="md:text-[0.9375rem]"
+        className="md:text-body"
         type={visible ? 'text' : 'password'}
         dir="ltr"
         autoCapitalize="none"

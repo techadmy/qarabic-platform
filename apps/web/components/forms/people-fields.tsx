@@ -216,7 +216,7 @@ function PhoneControl({
           aria-invalid={invalid}
           aria-required={required}
           aria-describedby={`${id}-help`}
-          className="h-10 min-w-0 flex-1 md:text-[0.9375rem]"
+          className="h-10 min-w-0 flex-1 md:text-body"
         />
       </div>
       <FieldDescription id={`${id}-help`}>

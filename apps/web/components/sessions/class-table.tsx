@@ -35,7 +35,7 @@ function Progress({ s, now }: { s: SessionDto; now: Date }) {
   }
   if (s.attention.includes('late')) {
     return (
-      <span className="font-semibold text-orange-700 dark:text-orange-400">
+      <span className="font-semibold text-status-orange-emphasis">
         {t('lateBy', { count: Math.floor(minutesBetween(s.startsAt, now)) })}
       </span>
     );
@@ -49,7 +49,7 @@ function Joined({ at, label }: { at: string | null; label: string }) {
     <span className="inline-flex items-center gap-0.5" title={at ? undefined : t('notJoined')}>
       {label}
       {at ? (
-        <CheckIcon aria-label={t('joined')} className="size-3.5 text-emerald-700" />
+        <CheckIcon aria-label={t('joined')} className="size-3.5 text-status-green-emphasis" />
       ) : (
         <MinusIcon aria-label={t('notJoined')} className="size-3.5" />
       )}
@@ -94,7 +94,7 @@ function NowDivider({ now }: { now: Date }) {
   );
 }
 
-const lateRow = 'bg-orange-50/70 dark:bg-orange-950/40';
+const lateRow = 'bg-status-orange/70 dark:bg-status-orange/40';
 
 /**
  * Class rows (docs/15 §6.1, the current app's `BoardTable`): the shadcn `Table` from 768 px, one
@@ -240,7 +240,7 @@ export function ClassTable({
               <TableHead
                 key={c}
                 className={cn(
-                  'h-10 px-3 text-[0.8125rem] font-semibold text-muted-foreground',
+                  'h-10 px-3 text-caption font-semibold text-muted-foreground',
                   c === 'actions' && 'text-end',
                 )}
               >

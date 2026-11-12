@@ -11,8 +11,8 @@ import {
   SelectValue,
 } from '@qarabic/ui/components/select';
 import { cn } from '@qarabic/ui/lib/utils';
-import { CalendarIcon } from 'lucide-react';
-import { useLocale } from 'next-intl';
+import { CalendarIcon, ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { arSA, enGB } from 'react-day-picker/locale';
 import { QUARTER_TIMES, wallTime } from '@/lib/schedule-time';
@@ -64,10 +64,7 @@ export function DatePicker({
           variant="outline"
           aria-label={label ? `${label}: ${formatDate(value, locale) ?? ''}` : undefined}
           aria-invalid={invalid}
-          className={cn(
-            'h-10 justify-start gap-2 bg-card font-normal md:text-[0.9375rem]',
-            className,
-          )}
+          className={cn('h-10 justify-start gap-2 bg-card font-normal md:text-body', className)}
         >
           <CalendarIcon className="text-muted-foreground" />
           <span>{value ? formatDate(value, locale) : ''}</span>
@@ -132,5 +129,133 @@ export function TimeSelect({
         ))}
       </SelectContent>
     </Select>
+  );
+}
+
+const monthKey = (y: number, m: number) => `${y}-${String(m).padStart(2, '0')}`;
+
+/** «نوفمبر 2026» / «November 2026» for a `YYYY-MM`, Latin digits (D32). */
+export function formatMonth(value: string, locale: 'ar' | 'en'): string {
+  const [y, m] = value.split('-').map(Number);
+  if (!y || !m) return '';
+  return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', {
+    month: 'long',
+    year: 'numeric',
+    numberingSystem: 'latn',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, 1)));
+}
+
+/**
+ * A `YYYY-MM` month picker in the UI language (replaces `<input type="month">`, which shows the
+ * browser's language and no Arabic month names): the shadcn Date Picker pattern (Popover + outline
+ * Button) with a year header and the twelve months as buttons; `min`/`max` disable months outside.
+ */
+export function MonthPicker({
+  id,
+  value,
+  onChange,
+  label,
+  min,
+  max,
+  invalid,
+  className,
+}: {
+  id?: string;
+  value: string;
+  onChange: (value: string) => void;
+  /** Accessible name when no visible label points at the button. */
+  label?: string;
+  min?: string;
+  max?: string;
+  invalid?: boolean;
+  className?: string;
+}) {
+  const t = useTranslations('form.month');
+  const locale = useLocale() === 'en' ? 'en' : 'ar';
+  const [open, setOpen] = useState(false);
+  const thisYear = new Date().getFullYear();
+  const valueYear = Number(value.slice(0, 4)) || thisYear;
+  const [year, setYear] = useState(valueYear);
+  const names = Array.from({ length: 12 }, (_, i) =>
+    new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-GB', {
+      month: 'long',
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(2000, i, 1))),
+  );
+  const outside = (key: string) => (!!min && key < min) || (!!max && key > max);
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (o) setYear(valueYear);
+      }}
+    >
+      <PopoverTrigger asChild>
+        <Button
+          id={id}
+          type="button"
+          variant="outline"
+          aria-label={label ? `${label}: ${value ? formatMonth(value, locale) : ''}` : undefined}
+          aria-invalid={invalid}
+          className={cn('h-10 justify-start gap-2 bg-card font-normal md:text-body', className)}
+        >
+          <CalendarIcon className="text-muted-foreground" />
+          <span>{value ? formatMonth(value, locale) : t('choose')}</span>
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-72 p-3" align="start">
+        <div className="mb-2 flex items-center justify-between">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('prevYear')}
+            disabled={!!min && monthKey(year - 1, 12) < min}
+            onClick={() => setYear((y) => y - 1)}
+          >
+            <ChevronRightIcon className="ltr:rotate-180" />
+          </Button>
+          <span className="font-semibold tabular-nums" aria-live="polite">
+            {year}
+          </span>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('nextYear')}
+            disabled={!!max && monthKey(year + 1, 1) > max}
+            onClick={() => setYear((y) => y + 1)}
+          >
+            <ChevronLeftIcon className="ltr:rotate-180" />
+          </Button>
+        </div>
+        <div role="group" aria-label={String(year)} className="grid grid-cols-3 gap-1">
+          {names.map((name, i) => {
+            const key = monthKey(year, i + 1);
+            const selected = key === value;
+            return (
+              <Button
+                key={key}
+                type="button"
+                size="sm"
+                variant={selected ? 'default' : 'ghost'}
+                aria-pressed={selected}
+                aria-label={`${name} ${year}`}
+                disabled={outside(key)}
+                onClick={() => {
+                  onChange(key);
+                  setOpen(false);
+                }}
+                className="h-9"
+              >
+                {name}
+              </Button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -94,7 +94,7 @@ function FeedbackBadge({ kind }: { kind: 'mineUpdates' | 'triageNew' }) {
  * on the active item (tinted background, semibold). Groups start open, as in the current app.
  */
 const ITEM_CLASS = [
-  'h-11 gap-3 px-3 text-[0.9375rem] font-medium',
+  'h-11 gap-3 px-3 text-body font-medium',
   'hover:bg-subtle hover:text-sidebar-foreground active:bg-subtle',
   '[&_svg]:size-5 [&_svg]:text-muted-foreground',
   'data-active:font-semibold data-active:[&_svg]:text-sidebar-accent-foreground',
