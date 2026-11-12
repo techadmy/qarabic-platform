@@ -2721,7 +2721,11 @@
       "paidThanks": "Thank you. The receipt is in the payments list.",
       "cancelledTitle": "Payment cancelled",
       "cancelled": "Nothing was charged; you can pay later.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "homeDue": "Amount due",
+      "allInvoices": "All invoices",
+      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}",
+      "homeDueError": "Couldn’t load what is due."
     },
     "pay": {
       "title": "Choose how to pay",
