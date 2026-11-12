@@ -17,33 +17,29 @@ import { KINDS } from '@/lib/people/kinds';
 /**
  * One status chip per domain (docs/15 §5.14): fixed colour + icon + label, never colour alone, the
  * English term in the tooltip. Same hues as the current app's chips (green regular/active, blue
- * trial, purple leave, red suspended, grey inactive). shadcn `Badge`, outline variant.
+ * trial, purple leave, red suspended, grey inactive) from the `--status-*` tokens. shadcn `Badge`,
+ * outline variant.
  */
 const STYLES: Record<string, { icon: LucideIcon; className: string }> = {
   regular: {
     icon: CircleCheckIcon,
-    className:
-      'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+    className: 'border-status-green-border bg-status-green text-status-green-foreground',
   },
   active: {
     icon: CircleCheckIcon,
-    className:
-      'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
+    className: 'border-status-green-border bg-status-green text-status-green-foreground',
   },
   trial: {
     icon: InfoIcon,
-    className:
-      'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
+    className: 'border-status-sky-border bg-status-sky text-status-sky-foreground',
   },
   on_leave: {
     icon: PlaneIcon,
-    className:
-      'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300',
+    className: 'border-status-violet-border bg-status-violet text-status-violet-foreground',
   },
   suspended: {
     icon: CirclePauseIcon,
-    className:
-      'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
+    className: 'border-status-red-border bg-status-red text-status-red-foreground',
   },
   deactivated: {
     icon: CircleMinusIcon,

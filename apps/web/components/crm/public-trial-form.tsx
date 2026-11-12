@@ -109,7 +109,7 @@ export function PublicTrialForm() {
               className="flex flex-col items-center gap-3 py-10 text-center"
               role="status"
             >
-              <CircleCheckIcon className="size-14 text-emerald-700" aria-hidden />
+              <CircleCheckIcon className="size-14 text-status-green-emphasis" aria-hidden />
               <h1 className="text-2xl font-bold">
                 {sentName ? t('thanks.titleNamed', { name: sentName }) : t('thanks.title')}
               </h1>
