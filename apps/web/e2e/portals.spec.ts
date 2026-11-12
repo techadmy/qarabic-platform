@@ -38,6 +38,8 @@ for (const [name, width] of Object.entries(WIDTHS)) {
         }
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
         await expectNoHorizontalScroll(page);
+        // Next streams <title> with the page metadata; axe needs it in place.
+        await expect(page).toHaveTitle(/\S/);
         await expectNoSeriousA11yViolations(page);
       });
     }
