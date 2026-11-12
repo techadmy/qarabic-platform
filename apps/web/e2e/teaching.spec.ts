@@ -28,7 +28,10 @@ test('teacher: week → start → end → write the report → edit it inside th
   page,
   context,
 }) => {
-  await page.clock.install();
+  // Midday in Cairo today (12:00 UTC+2; 13:00 in summer time): with the real time, a run at Friday ~23:55 started the class at 23:59 and
+  // the 30 minutes below crossed into Saturday, a new week, so «تحديث» lost the running class.
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+  await page.clock.install({ time: new Date(`${today}T12:00:00+02:00`) });
   // The meeting opens in a new tab on «ابدأ الحصة»; close any such tab.
   context.on('page', (p) => void p.close());
   await signIn(page, 'teacher@qarabic.test', '/');
