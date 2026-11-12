@@ -1951,7 +1951,18 @@
     "readAll": "Mark all as read",
     "error": "Could not load the notifications.",
     "other": "New notification",
-    "unread": "Unread:"
+    "unread": "Unread:",
+    "task": {
+      "assigned": "{by} gave you a task: {title}",
+      "submitted": "{by} handed in a task: {title}",
+      "completed": "{by} confirmed a task done: {title}",
+      "reopened": "{by} reopened a task: {title}",
+      "closed": "{by} closed a task: {title}",
+      "commented": "{by} commented on a task: {title}",
+      "due_soon": "A task is due within the hour: {title}"
+    },
+    "announcement": "New announcement: {title}",
+    "classReminder": "Reminder: {student}'s class at {when}"
   },
   "crm": {
     "title": "Leads",
@@ -3288,6 +3299,48 @@
         "bodyRequired": "Write the text (at least 3 characters).",
         "fixErrors": "Fix the marked fields, then try again."
       }
+    },
+    "home": {
+      "welcome": "Welcome, {name}",
+      "updated": "Updated {ago}",
+      "refresh": "Refresh",
+      "queuesTitle": "Needs action",
+      "classesTitle": "Today's classes",
+      "classesTotal": "All classes",
+      "peopleTitle": "People",
+      "financeTitle": "Finance",
+      "queues": {
+        "myTasks": "My open tasks",
+        "myOverdueTasks": "My overdue tasks",
+        "sessionRequests": "Pending class requests",
+        "leaveRequests": "Pending leave requests",
+        "proposedFines": "Proposed fines",
+        "newLeads": "New leads",
+        "trialsToday": "Trial classes today",
+        "openTickets": "Open support requests",
+        "openComplaints": "Open complaints",
+        "unreadAnnouncements": "Unread announcements"
+      },
+      "people": {
+        "families": "Families",
+        "students": "Students",
+        "teachers": "Teachers"
+      },
+      "finance": {
+        "overdue": "{count, plural, one {# overdue invoice} other {# overdue invoices}}",
+        "received": "Received this month",
+        "payroll": "Payroll runs awaiting approval",
+        "ledger": "Automatic entries waiting"
+      }
+    },
+    "preferences": {
+      "title": "Notifications",
+      "hint": "Choose how each kind of alert reaches you.",
+      "kind": "Kind",
+      "saved": "Notification preferences saved.",
+      "save": "Save preferences",
+      "reset": "Undo changes",
+      "whatsappOff": "WhatsApp notifications are not switched on for the academy yet."
     }
   }
 }

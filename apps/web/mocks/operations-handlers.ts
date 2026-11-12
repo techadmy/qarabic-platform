@@ -450,7 +450,7 @@ export const operationsHandlers: HttpHandler[] = [
         today: new Date().toISOString().slice(0, 10),
         people: has(me, 'families.view') ? { families: 28, students: 41, teachers: 8 } : null,
         classesToday: has(me, 'sessions.view')
-          ? { total: 46, scheduled: 18, running: 3, taken: 21, absent: 2, leave: 2 }
+          ? { scheduled: 18, in_progress: 3, taken: 21, absent: 2, leave: 2 }
           : null,
         queues: {
           myTasks: n('tasks.view', mine.length),

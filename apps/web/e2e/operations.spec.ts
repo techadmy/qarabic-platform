@@ -7,6 +7,8 @@ import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from '
  */
 const WIDTHS = { mobile: 375, tablet: 768, desktop: 1440 } as const;
 const PAGES = [
+  '/',
+  '/account',
   '/tasks',
   '/tasks?box=issued',
   '/tasks/1',

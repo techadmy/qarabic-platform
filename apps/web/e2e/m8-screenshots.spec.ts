@@ -15,7 +15,7 @@ const sizes = {
 } as const;
 
 async function shot(page: Page, name: string, size: string, fullPage = true) {
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => undefined);
   await page.waitForTimeout(700);
   await page.screenshot({ path: `${dir}/${name}-${size}.png`, fullPage });
 }
@@ -51,12 +51,18 @@ for (const [size, viewport] of Object.entries(sizes)) {
   });
 
   test(`M8 announcements management ${size}`, async ({ page }) => {
+    test.slow();
     await page.emulateMedia({ colorScheme: 'light' });
     await page.setViewportSize(viewport);
     await page.goto('/login?next=%2Fannouncements%3Ftab%3Dmanage');
     await login(page);
     await expect(page.getByRole('heading', { level: 1, name: 'الإعلانات' })).toBeVisible();
     await shot(page, 'announcements-manage', size);
+    await open(page, '/');
+    await shot(page, 'staff-home', size);
+    await open(page, '/account');
+    await shot(page, 'account-notifications', size);
+    await open(page, '/announcements?tab=manage');
     await page.getByRole('button', { name: 'إعلان جديد' }).click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await shot(page, 'announcement-dialog', size, false);

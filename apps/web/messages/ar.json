@@ -1951,7 +1951,18 @@
     "readAll": "تعليم الكل كمقروء",
     "error": "تعذّر تحميل الإشعارات.",
     "other": "إشعار جديد",
-    "unread": "غير مقروء:"
+    "unread": "غير مقروء:",
+    "task": {
+      "assigned": "{by} أسند إليك مهمة: {title}",
+      "submitted": "{by} سلّم مهمة للمراجعة: {title}",
+      "completed": "{by} اعتمد إنجاز مهمة: {title}",
+      "reopened": "{by} أعاد فتح مهمة: {title}",
+      "closed": "{by} أغلق مهمة: {title}",
+      "commented": "{by} علّق على مهمة: {title}",
+      "due_soon": "يحين موعد مهمة خلال ساعة: {title}"
+    },
+    "announcement": "إعلان جديد: {title}",
+    "classReminder": "تذكير: حصة {student} في {when}"
   },
   "crm": {
     "title": "العملاء المحتملون",
@@ -3288,6 +3299,48 @@
         "bodyRequired": "اكتب نص الإعلان (3 أحرف على الأقل).",
         "fixErrors": "صحّح الحقول المعلَّمة ثم أعد المحاولة."
       }
+    },
+    "home": {
+      "welcome": "مرحبًا، {name}",
+      "updated": "آخر تحديث {ago}",
+      "refresh": "تحديث",
+      "queuesTitle": "تحتاج إجراء",
+      "classesTitle": "حصص اليوم",
+      "classesTotal": "إجمالي الحصص",
+      "peopleTitle": "الأشخاص",
+      "financeTitle": "المالية",
+      "queues": {
+        "myTasks": "مهامي المفتوحة",
+        "myOverdueTasks": "مهامي المتأخرة",
+        "sessionRequests": "طلبات حصص معلّقة",
+        "leaveRequests": "طلبات إجازة معلّقة",
+        "proposedFines": "غرامات مقترحة",
+        "newLeads": "عملاء محتملون جدد",
+        "trialsToday": "حصص تجريبية اليوم",
+        "openTickets": "طلبات دعم مفتوحة",
+        "openComplaints": "شكاوى مفتوحة",
+        "unreadAnnouncements": "إعلانات غير مقروءة"
+      },
+      "people": {
+        "families": "العائلات",
+        "students": "الطلاب",
+        "teachers": "المعلمون"
+      },
+      "finance": {
+        "overdue": "{count, plural, one {فاتورة متأخرة} two {فاتورتان متأخرتان} few {# فواتير متأخرة} many {# فاتورة متأخرة} other {# فاتورة متأخرة}}",
+        "received": "المحصّل هذا الشهر",
+        "payroll": "مسيّرات بانتظار الاعتماد",
+        "ledger": "قيود تلقائية منتظرة"
+      }
+    },
+    "preferences": {
+      "title": "الإشعارات",
+      "hint": "اختر كيف تصلك تنبيهات كل نوع.",
+      "kind": "النوع",
+      "saved": "حُفظت تفضيلات الإشعارات.",
+      "save": "حفظ التفضيلات",
+      "reset": "تراجع",
+      "whatsappOff": "إشعارات واتساب غير مفعّلة في الأكاديمية بعد."
     }
   }
 }
