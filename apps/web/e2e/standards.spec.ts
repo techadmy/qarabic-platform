@@ -26,24 +26,35 @@ async function switchToEnglish(page: Page) {
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 }
 
+// One test per page × width × language: all pages in one test outgrew the 30 s budget on the CI
+// runner (axe takes seconds per page), and a failure now names the page.
 for (const [name, width] of Object.entries(WIDTHS)) {
   for (const lang of ['ar', 'en'] as const) {
-    test(`${name} ${width}px ${lang}: main pages fit the screen and pass axe`, async ({ page }) => {
-      await page.setViewportSize({ width, height: 900 });
-      await page.goto('/login');
-      await expectNoHorizontalScroll(page);
-      await login(page);
-      await expect(page.locator('main h1').first()).toBeVisible();
-      if (lang === 'en') await switchToEnglish(page);
-      const dir = lang === 'ar' ? 'rtl' : 'ltr';
-      for (const path of PAGES) {
-        await page.goto(path);
-        await expect(page.locator('html')).toHaveAttribute('dir', dir);
-        await expect(page.locator('main h1').first()).toBeVisible();
+    test.describe(`${name} ${width}px ${lang}`, () => {
+      test.use({ viewport: { width, height: 900 } });
+
+      test('the login page fits the screen', async ({ page }) => {
+        await page.goto('/login');
+        await expect(page.locator('#password')).toBeVisible();
         await expectNoHorizontalScroll(page);
-        // Next streams <title> with the page metadata; axe needs it in place.
-        await expect(page).toHaveTitle(/\S/);
-        await expectNoSeriousA11yViolations(page);
+      });
+
+      for (const path of PAGES) {
+        test(`${path} fits the screen and passes axe`, async ({ page }) => {
+          await page.goto('/login');
+          await login(page);
+          await expect(page.locator('main h1').first()).toBeVisible();
+          if (lang === 'en') await switchToEnglish(page);
+          // Then a fresh load of the page: a client-side navigation or the language switch re-streams
+          // the metadata and briefly leaves <title> empty, which axe reports.
+          await page.goto(path);
+          await expect(page.locator('html')).toHaveAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+          await expect(page.locator('main h1').first()).toBeVisible();
+          await expectNoHorizontalScroll(page);
+          // Next streams <title> with the page metadata; axe needs it in place.
+          await expect(page).toHaveTitle(/\S/);
+          await expectNoSeriousA11yViolations(page);
+        });
       }
     });
   }
