@@ -397,6 +397,39 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every M8 operations route (tasks, templates, announcements, dashboard) has its permission', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    // Task actions need tasks.view; who may act on which task (issuer, assignee, tasks.oversee) is
+    // checked by the service (other people's tasks answer 404).
+    expectDocumented(byRoute, {
+      'GET announcements': 'all:announcements.view',
+      'GET announcements/:id': 'all:announcements.view',
+      'GET dashboard/summary': 'all:reports.view',
+      'GET task-templates': 'all:tasks.manage',
+      'GET tasks': 'all:tasks.view',
+      'GET tasks/:id': 'all:tasks.view',
+      'GET tasks/assignees': 'all:tasks.manage',
+      'PATCH announcements/:id': 'all:announcements.manage',
+      'PATCH tasks/:id': 'all:tasks.manage',
+      'POST announcements': 'all:announcements.manage',
+      'POST announcements/:id/archive': 'all:announcements.manage',
+      'POST announcements/:id/publish': 'all:announcements.manage',
+      'POST announcements/:id/read': 'all:announcements.view',
+      'POST announcements/:id/unarchive': 'all:announcements.manage',
+      'POST task-templates': 'all:tasks.oversee',
+      'POST tasks': 'all:tasks.manage',
+      'POST tasks/:id/close': 'all:tasks.view',
+      'POST tasks/:id/comments': 'all:tasks.view',
+      'POST tasks/:id/complete': 'all:tasks.view',
+      'POST tasks/:id/reassign': 'all:tasks.view',
+      'POST tasks/:id/reopen': 'all:tasks.view',
+      'POST tasks/:id/submit': 'all:tasks.view',
+      'PUT task-templates/:id': 'all:tasks.oversee',
+    });
+  });
+
   it('every permission route is pinned in one of the maps above (add new routes there)', (ctx2) => {
     // The maps fill `documented` as they run; a filtered run (-t) has nothing to compare.
     if (documented.size === 0) ctx2.skip();
