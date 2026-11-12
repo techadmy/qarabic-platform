@@ -40,4 +40,14 @@ pnpm --filter @qarabic/api db:migrate       # prisma migrate dev
 pnpm --filter @qarabic/api db:seed          # roles, permissions, courses (+ dev admin, fake demo people)
 pnpm --filter @qarabic/api dev              # http://localhost:3001/api/v1/health
 pnpm --filter @qarabic/api test:e2e         # against TEST_DATABASE_URL (must end in _test)
+pnpm --filter @qarabic/web test:e2e         # web e2e on the MSW mocks (production build)
+pnpm --filter @qarabic/web test:e2e:real    # web e2e on the real API + the seeded dev database
 ```
+
+`test:e2e:real` (`apps/web/e2e/real-api*.spec.ts`, also a CI job) builds and starts the API and the
+web app itself (or reuses servers already on 3000/3001; `E2E_PORT`, `E2E_API_PORT` and
+`E2E_BASE_URL` move them). The N3–N7 flows write to the dev database and pick a fresh lead,
+invoice month and payroll month each run, so the suite can run again without reseeding. The API's
+rate limits are in memory: running it many times within an hour (10 tickets an hour per user,
+5 logins a minute) needs an API restart in between. A public-form lead sent again from the same
+address within the hour is scored as spam; the test accepts «جديد» or «مزعج».

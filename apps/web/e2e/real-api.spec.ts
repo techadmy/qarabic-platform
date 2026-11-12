@@ -1,31 +1,14 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { expect, test, type BrowserContext } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import { REAL_API, seedAdmin, signInReal } from './real-api-helpers';
 
 /**
  * Integration check against the real API and its dev database (opt-in: `pnpm test:e2e:real`).
  * The seed admin comes from E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD, or from SEED_ADMIN_* in
- * apps/api/.env (never committed, never printed).
+ * apps/api/.env (never committed, never printed). Only the first two tests sign in through the form;
+ * the rest share one session (`signInReal`: 5 logins a minute per email). The N3–N7 write flows
+ * are in real-api-flows.spec.ts.
  */
-test.skip(process.env.E2E_REAL_API !== '1', 'set E2E_REAL_API=1 (needs the API and Postgres)');
-
-function seedAdmin(): { email: string; password: string } {
-  const fromEnv = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
-  if (fromEnv.email && fromEnv.password) return fromEnv as { email: string; password: string };
-  const file = fileURLToPath(new URL('../../api/.env', import.meta.url));
-  const vars = Object.fromEntries(
-    readFileSync(file, 'utf8')
-      .split('\n')
-      .map((line) => line.match(/^\s*([A-Z0-9_]+)\s*=\s*(.*)\s*$/))
-      .filter((m): m is RegExpMatchArray => !!m)
-      .map((m) => [m[1], m[2]!.replace(/^(['"])(.*)\1$/, '$2')]),
-  );
-  return { email: vars.SEED_ADMIN_EMAIL, password: vars.SEED_ADMIN_PASSWORD };
-}
-
-const SESSION_FILE = join(tmpdir(), 'qarabic-e2e-real-session.json');
+test.skip(!REAL_API, 'set E2E_REAL_API=1 (needs the API and Postgres)');
 
 test('real API: login → home → roles → logout', async ({ page }) => {
   const admin = seedAdmin();
@@ -66,13 +49,7 @@ test('real API: wrong password shows the invalid-credentials message', async ({ 
 test('real API: families list → open one → edit a field (saved in the database)', async ({
   page,
 }) => {
-  const admin = seedAdmin();
-  await page.goto('/families');
-  await expect(page).toHaveURL(/\/login\?next=%2Ffamilies$/);
-  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
-  await page.locator('#password').fill(admin.password);
-  await page.getByRole('button', { name: 'دخول' }).click();
-  await expect(page).toHaveURL(/\/families$/);
+  await signInReal(page, '/families');
 
   // The seed's made-up demo families, with counts on the status tabs from meta.counts.
   const table = page.getByRole('table', { name: 'العائلات' });
@@ -80,6 +57,11 @@ test('real API: families list → open one → edit a field (saved in the databa
   await expect(table.getByRole('row').nth(1)).toBeVisible();
   await expect(page.getByRole('radio', { name: /^الكل/ })).toHaveText(/\(\d+\)/);
 
+  // A seed family (the flows spec adds converted families without a phone, which the edit form
+  // cannot save yet: docs/31 «family edit with no phone»).
+  await page.getByRole('searchbox', { name: 'بحث في العائلات' }).fill('Demo Parent');
+  await expect(page).toHaveURL(/q=Demo/);
+  await expect(table).not.toHaveAttribute('aria-busy');
   const first = table.getByRole('row').nth(1).getByRole('link').first();
   const name = (await first.textContent())!.trim();
   await first.click();
@@ -100,13 +82,7 @@ test('real API: families list → open one → edit a field (saved in the databa
 });
 
 test('real API: Today board on real data → open a class', async ({ page }) => {
-  const admin = seedAdmin();
-  await page.goto('/today');
-  await expect(page).toHaveURL(/\/login\?next=%2Ftoday$/);
-  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
-  await page.locator('#password').fill(admin.password);
-  await page.getByRole('button', { name: 'دخول' }).click();
-  await expect(page).toHaveURL(/\/today$/);
+  await signInReal(page, '/today');
   await expect(page.getByRole('heading', { level: 1, name: 'حصص اليوم' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'عدادات اليوم' })).toBeVisible();
 
@@ -131,12 +107,7 @@ test('real API: Today board on real data → open a class', async ({ page }) => 
 test('real API: the N2 pages load real data (the shared schemas parse every answer)', async ({
   page,
 }) => {
-  const admin = seedAdmin();
-  await page.goto('/login?next=%2Fschedule');
-  await page.getByLabel('البريد الإلكتروني').fill(admin.email);
-  await page.locator('#password').fill(admin.password);
-  await page.getByRole('button', { name: 'دخول' }).click();
-  await expect(page).toHaveURL(/\/schedule$/);
+  await signInReal(page, '/schedule');
   const table = page.getByRole('table', { name: 'الاشتراكات' });
   await expect(table.locator('tbody tr').first()).toBeVisible();
   await table.locator('tbody tr').first().getByRole('link').first().click();
@@ -162,27 +133,12 @@ test('real API: the N2 pages load real data (the shared schemas parse every answ
     await expect(check).toBeVisible();
     await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
   }
-  // The login budget is 5 a minute per email: the next test reuses this session.
-  await page.context().storageState({ path: SESSION_FILE });
 });
 
 test('real API: open a class with a lesson report; tests and progress load (N3)', async ({
   page,
 }) => {
-  const admin = seedAdmin();
-  if (existsSync(SESSION_FILE)) {
-    const saved = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as {
-      cookies: Parameters<BrowserContext['addCookies']>[0];
-    };
-    await page.context().addCookies(saved.cookies);
-  }
-  await page.goto('/lesson-reports');
-  if (/\/login/.test(page.url())) {
-    await page.getByLabel('البريد الإلكتروني').fill(admin.email);
-    await page.locator('#password').fill(admin.password);
-    await page.getByRole('button', { name: 'دخول' }).click();
-  }
-  await expect(page).toHaveURL(/\/lesson-reports$/);
+  await signInReal(page, '/lesson-reports');
 
   // The seed's reports: a class whose report was sent (on time or late).
   const table = page.getByRole('table', { name: 'تقارير الحصص' });
@@ -220,20 +176,7 @@ test('real API: open a class with a lesson report; tests and progress load (N3)'
 test('real API: the N4 support centre — inbox, a ticket, triage, settings, «تواصل معنا» → «طلباتي»', async ({
   page,
 }) => {
-  const admin = seedAdmin();
-  if (existsSync(SESSION_FILE)) {
-    const saved = JSON.parse(readFileSync(SESSION_FILE, 'utf8')) as {
-      cookies: Parameters<BrowserContext['addCookies']>[0];
-    };
-    await page.context().addCookies(saved.cookies);
-  }
-  await page.goto('/support');
-  if (/\/login/.test(page.url())) {
-    await page.getByLabel('البريد الإلكتروني').fill(admin.email);
-    await page.locator('#password').fill(admin.password);
-    await page.getByRole('button', { name: 'دخول' }).click();
-  }
-  await expect(page).toHaveURL(/\/support$/);
+  await signInReal(page, '/support');
 
   // The seed's demo tickets, with the queue tabs and their counts (the shared schemas parse them).
   await expect(page.getByRole('heading', { level: 1, name: 'صندوق الطلبات' })).toBeVisible();
