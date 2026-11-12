@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  reassignTaskSchema,
   TASK_STATUS_LABELS,
   type TaskDetailDto,
   type TaskEventDto,
@@ -8,6 +9,15 @@ import {
 } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@qarabic/ui/components/dropdown-menu';
+import { Field, FieldError, FieldLabel } from '@qarabic/ui/components/field';
+import { Label } from '@qarabic/ui/components/label';
 import { Spinner } from '@qarabic/ui/components/spinner';
 import { Textarea } from '@qarabic/ui/components/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -15,23 +25,26 @@ import {
   BanIcon,
   CheckCheckIcon,
   CheckIcon,
+  EllipsisIcon,
   PencilIcon,
   RotateCcwIcon,
+  SearchXIcon,
   SendIcon,
   UserRoundPenIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useId, useState } from 'react';
+import { Controller, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { FormRow } from '@/components/billing/billing-bits';
+import { TextareaField } from '@/components/forms/fields';
 import { FormDialog } from '@/components/payroll/payroll-bits';
 import { InfoSection, ProfileSkeleton } from '@/components/people/detail';
 import { PageHeader } from '@/components/page-header';
 import { ReasonDialog } from '@/components/sessions/reason-dialog';
 import { useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
-import { ErrorState, ForbiddenState } from '@/components/states';
+import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
 import {
   commentOnTask,
@@ -42,13 +55,17 @@ import {
   type TaskAction,
 } from '@/lib/api/operations';
 import { can } from '@/lib/auth/use-me';
+import { applyServerErrors } from '@/lib/forms/server-errors';
+import { useSchemaResolver } from '@/lib/forms/validation-messages';
+import { subjectHref } from '@/lib/operations/time';
+import { useDirection } from '@/lib/use-direction';
 import { dayAndClock, relativeTime } from '@/lib/schedule-time';
 import {
   AssigneePicker,
   PriorityBadge,
-  subjectHref,
   TaskStatusBadge,
   useOperationsError,
+  ViewerTime,
 } from './ops-bits';
 import { TaskDialog } from './task-dialog';
 
@@ -64,17 +81,30 @@ function useTaskWrite(id: number, done: () => void) {
 
 function ReassignDialog({ task, onClose }: { task: TaskDetailDto; onClose: () => void }) {
   const t = useTranslations('operations.tasks');
+  const tv = useTranslations('validation');
   const message = useOperationsError();
-  const ids = { who: useId(), note: useId() };
+  const whoId = useId();
   const [who, setWho] = useState<{ id: number; name: string } | null>(null);
-  const [note, setNote] = useState('');
-  const [touched, setTouched] = useState(false);
+  const [banner, setBanner] = useState<string | null>(null);
+  const resolver = useSchemaResolver(reassignTaskSchema);
+  const form = useForm<{ assigneeId: number | null; note: string | null }>({
+    resolver: resolver as never,
+    mode: 'onTouched',
+    defaultValues: { assigneeId: null, note: null },
+  });
   const done = useTaskWrite(task.id, onClose);
   const save = useMutation({
-    mutationFn: () => reassignTask(task.id, who!.id, note.trim()),
+    mutationFn: (v: { assigneeId: number | null; note: string | null }) =>
+      reassignTask(task.id, v.assigneeId!, v.note ?? ''),
     onSuccess: (x) => done(t('reassigned', { name: x.assignee.name }))(x),
+    onError: (e) => {
+      if (!applyServerErrors(form, e, (k) => tv(k), ['assigneeId', 'note'])) setBanner(message(e));
+    },
   });
-  const err = touched && !who ? t('form.assigneeRequired') : null;
+  const submit = form.handleSubmit((v) => {
+    setBanner(null);
+    save.mutate(v);
+  });
   return (
     <FormDialog
       open
@@ -83,27 +113,36 @@ function ReassignDialog({ task, onClose }: { task: TaskDetailDto; onClose: () =>
       description={t('reassignHint', { name: task.assignee.name })}
       submitLabel={t('reassign')}
       busy={save.isPending}
-      error={save.isError ? message(save.error) : null}
-      summary={err}
-      onSubmit={() => {
-        setTouched(true);
-        if (who) save.mutate();
-      }}
+      error={banner}
+      summary={Object.keys(form.formState.errors).length ? t('form.fixErrors') : null}
+      onSubmit={() => void submit()}
     >
-      <FormRow id={ids.who} label={t('newAssignee')} required error={err}>
-        <AssigneePicker id={ids.who} value={who} onChange={setWho} invalid={!!err} />
-      </FormRow>
-      <FormRow id={ids.note} label={t('note')}>
-        <Textarea
-          id={ids.note}
-          dir="auto"
-          rows={2}
-          maxLength={2000}
-          value={note}
-          onChange={(e) => setNote(e.target.value)}
-          className="md:text-[0.9375rem]"
-        />
-      </FormRow>
+      <Controller
+        control={form.control}
+        name="assigneeId"
+        render={({ field, fieldState }) => (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={whoId}>{t('newAssignee')}</FieldLabel>
+            <AssigneePicker
+              id={whoId}
+              value={who}
+              onChange={(p) => {
+                setWho(p);
+                field.onChange(p?.id ?? null);
+              }}
+              invalid={fieldState.invalid}
+            />
+            {fieldState.invalid && (
+              <FieldError>
+                {fieldState.error?.type === 'server'
+                  ? fieldState.error.message
+                  : t('form.assigneeRequired')}
+              </FieldError>
+            )}
+          </Field>
+        )}
+      />
+      <TextareaField control={form.control} name="note" label={t('note')} rows={2} />
     </FormDialog>
   );
 }
@@ -157,11 +196,10 @@ function EventItem({ e }: { e: TaskEventDto }) {
  */
 export function TaskView({ id }: { id: number }) {
   const t = useTranslations('operations.tasks');
-  const locale = useUiLocale();
-  const tz = useViewerTz();
   const me = useCurrentUser();
   const message = useOperationsError();
   const commentId = useId();
+  const dir = useDirection();
   const [dialog, setDialog] = useState<TaskAction | 'reassign' | 'edit' | null>(null);
   const [comment, setComment] = useState('');
   const query = useQuery({
@@ -190,6 +228,25 @@ export function TaskView({ id }: { id: number }) {
       </>
     );
   }
+  if (isApiError(query.error, 404)) {
+    // Outside my boxes or gone: retrying cannot help.
+    return (
+      <>
+        <PageHeader title={t('detailTitle')} back={back} />
+        <EmptyState
+          icon={SearchXIcon}
+          role="alert"
+          title={t('notFound')}
+          description={t('notFoundHint')}
+          action={
+            <Button variant="outline" asChild>
+              <Link href="/tasks">{t('backToTasks')}</Link>
+            </Button>
+          }
+        />
+      </>
+    );
+  }
   if (query.isError) {
     return (
       <>
@@ -200,24 +257,25 @@ export function TaskView({ id }: { id: number }) {
   }
   if (!query.data) return <ProfileSkeleton />;
   const x = query.data;
-  const actions: {
-    key: TaskAction | 'reassign' | 'edit';
-    icon: typeof CheckIcon;
-    primary?: boolean;
-  }[] = [
-    ...(x.can.submit ? [{ key: 'submit' as const, icon: SendIcon, primary: true }] : []),
-    ...(x.can.complete
-      ? [{ key: 'complete' as const, icon: CheckCheckIcon, primary: !x.can.submit }]
+  type Act = { key: TaskAction | 'reassign' | 'edit'; icon: typeof CheckIcon };
+  // The one primary action goes in the header; the rest in «⋯» with «إغلاق» last (destructive).
+  const primary: Act | null = x.can.submit
+    ? { key: 'submit', icon: SendIcon }
+    : x.can.complete
+      ? { key: 'complete', icon: CheckCheckIcon }
+      : null;
+  const more: Act[] = [
+    ...(x.can.complete && primary?.key !== 'complete'
+      ? [{ key: 'complete' as const, icon: CheckCheckIcon }]
       : []),
     ...(x.can.reopen ? [{ key: 'reopen' as const, icon: RotateCcwIcon }] : []),
     ...(x.can.reassign ? [{ key: 'reassign' as const, icon: UserRoundPenIcon }] : []),
     ...(x.can.edit ? [{ key: 'edit' as const, icon: PencilIcon }] : []),
-    ...(x.can.close ? [{ key: 'close' as const, icon: BanIcon }] : []),
   ];
   const needsReason = dialog === 'reopen' || dialog === 'close';
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <PageHeader
         title={x.title}
         back={back}
@@ -227,22 +285,54 @@ export function TaskView({ id }: { id: number }) {
             <PriorityBadge priority={x.priority} />
           </span>
         }
+        actions={
+          (primary || more.length > 0 || x.can.close) && (
+            <div className="flex flex-wrap items-center gap-2">
+              {primary && (
+                <Button className="h-10" onClick={() => setDialog(primary.key)}>
+                  <primary.icon />
+                  {t(`action.${primary.key}`)}
+                </Button>
+              )}
+              {(more.length > 0 || x.can.close) && (
+                <DropdownMenu dir={dir}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="h-10" aria-label={t('moreActions')}>
+                      <EllipsisIcon />
+                      {primary ? null : t('moreActions')}
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="min-w-52">
+                    {more.map((a) => (
+                      <DropdownMenuItem
+                        key={a.key}
+                        className="min-h-10"
+                        onSelect={() => setDialog(a.key)}
+                      >
+                        <a.icon />
+                        {t(`action.${a.key}`)}
+                      </DropdownMenuItem>
+                    ))}
+                    {x.can.close && (
+                      <>
+                        {more.length > 0 && <DropdownMenuSeparator />}
+                        <DropdownMenuItem
+                          variant="destructive"
+                          className="min-h-10"
+                          onSelect={() => setDialog('close')}
+                        >
+                          <BanIcon />
+                          {t('action.close')}
+                        </DropdownMenuItem>
+                      </>
+                    )}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
+            </div>
+          )
+        }
       />
-      {actions.length > 0 && (
-        <div className="flex flex-wrap gap-2" role="group" aria-label={t('actions')}>
-          {actions.map((a) => (
-            <Button
-              key={a.key}
-              variant={a.primary ? 'default' : 'outline'}
-              className="h-10"
-              onClick={() => setDialog(a.key)}
-            >
-              <a.icon />
-              {t(`action.${a.key}`)}
-            </Button>
-          ))}
-        </div>
-      )}
       <InfoSection
         title={t('details')}
         rows={[
@@ -251,9 +341,10 @@ export function TaskView({ id }: { id: number }) {
           {
             label: t('fields.due'),
             value: x.dueAt && (
-              <span className={x.overdue ? 'font-semibold text-destructive' : undefined}>
-                {dayAndClock(x.dueAt, tz, locale)}
-              </span>
+              <ViewerTime
+                at={x.dueAt}
+                className={x.overdue ? 'font-semibold text-destructive' : undefined}
+              />
             ),
           },
           {
@@ -290,9 +381,9 @@ export function TaskView({ id }: { id: number }) {
               if (comment.trim()) post.mutate();
             }}
           >
-            <label htmlFor={commentId} className="font-semibold">
+            <Label htmlFor={commentId} className="font-semibold">
               {t('addComment')}
-            </label>
+            </Label>
             <Textarea
               id={commentId}
               dir="auto"
@@ -300,9 +391,12 @@ export function TaskView({ id }: { id: number }) {
               maxLength={5000}
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              className="md:text-[0.9375rem]"
             />
-            {post.isError && <p className="text-sm text-destructive">{message(post.error)}</p>}
+            {post.isError && (
+              <p role="alert" className="text-sm text-destructive">
+                {message(post.error)}
+              </p>
+            )}
             <Button
               type="submit"
               className="h-10 self-end"

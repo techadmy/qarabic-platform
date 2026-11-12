@@ -4,6 +4,8 @@ import { describe, expect, it } from 'vitest';
 import { AnnouncementsView } from '@/components/operations/announcements-view';
 import { TaskView } from '@/components/operations/task-view';
 import { TasksView } from '@/components/operations/tasks-view';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/mocks/node';
 import { odb } from '@/mocks/operations-db';
 import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
@@ -42,7 +44,10 @@ describe('Tasks list', () => {
     await user.click(await within(dialog).findByRole('combobox', { name: 'من قالب' }));
     await user.click(await screen.findByRole('option', { name: 'مراجعة فاتورة' }));
     expect(within(dialog).getByLabelText(/^المهمة/)).toHaveValue('مراجعة فاتورة');
-    expect(within(dialog).getByLabelText('تاريخ الاستحقاق')).not.toHaveValue('');
+    // The template's due date fills the date picker (written with the month name, D32).
+    expect(within(dialog).getByRole('button', { name: 'الموعد النهائي' }).textContent).toMatch(
+      /\d{4}/,
+    );
     await user.click(within(dialog).getByRole('combobox', { name: /المكلّف/ }));
     await user.click(await screen.findByRole('option', { name: /Accounts Officer/ }));
     await user.click(within(dialog).getByRole('button', { name: 'إسناد المهمة' }));
@@ -66,10 +71,10 @@ describe('Task detail', () => {
     });
     expect(await screen.findByRole('heading', { level: 1, name: task.title })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'اعتماد الإنجاز' })).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'أنجزت المهمة' }));
+    await user.click(screen.getByRole('button', { name: 'تسليم للمراجعة' }));
     const dialog = await screen.findByRole('dialog');
     await user.type(within(dialog).getByRole('textbox'), 'Called twice, confirmed.');
-    await user.click(within(dialog).getByRole('button', { name: 'أنجزت المهمة' }));
+    await user.click(within(dialog).getByRole('button', { name: 'تسليم للمراجعة' }));
     await waitFor(() => expect(task.status).toBe('awaiting'));
     unmount();
 
@@ -81,7 +86,8 @@ describe('Task detail', () => {
       within(await screen.findByRole('dialog')).getByRole('button', { name: 'اعتماد الإنجاز' }),
     );
     await waitFor(() => expect(task.status).toBe('completed'));
-    expect(await screen.findByRole('button', { name: 'إعادة فتح' })).toBeInTheDocument();
+    await user.click(await screen.findByRole('button', { name: 'إجراءات أخرى' }));
+    expect(await screen.findByRole('menuitem', { name: 'إعادة فتح' })).toBeInTheDocument();
   });
 
   it('close needs a reason; comments go on the timeline', async () => {
@@ -95,7 +101,9 @@ describe('Task detail', () => {
     expect(
       await within(screen.getByRole('list', { name: 'سجل المهمة' })).findByText('Any update?'),
     ).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'إغلاق المهمة' }));
+    // «إغلاق» sits last in the «⋯» menu (destructive).
+    await user.click(screen.getByRole('button', { name: 'إجراءات أخرى' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'إغلاق المهمة' }));
     const dialog = await screen.findByRole('alertdialog');
     await user.click(within(dialog).getByRole('button', { name: 'إغلاق المهمة' }));
     expect(task.status).toBe('pending');
@@ -105,10 +113,41 @@ describe('Task detail', () => {
     expect(task.closeReason).toBe('No longer needed');
   });
 
-  it('a task outside my boxes is not found', async () => {
+  it('a task outside my boxes is not found, with no retry', async () => {
     const task = odb.tasks.find((t) => t.assignee.id !== 12 && t.createdBy.id !== 12)!;
     renderPage(<TaskView id={task.id} />, { as: MONITOR, path: `/tasks/${task.id}` });
-    expect((await screen.findAllByText(/تعذّر|لم يُعثر/)).length).toBeGreaterThan(0);
+    expect(await screen.findByText('لم يُعثر على المهمة')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /إعادة المحاولة/ })).toBeNull();
+    expect(screen.getByRole('link', { name: 'العودة إلى المهام' })).toHaveAttribute(
+      'href',
+      '/tasks',
+    );
+  });
+
+  it('a server refusal on the new task lands on its field', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post('*/api/v1/tasks', () =>
+        HttpResponse.json(
+          {
+            message: 'Invalid',
+            code: 'validation_failed',
+            errors: { title: ['The title has already been taken.'] },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    renderPage(<TasksView />, { as: MONITOR, path: '/tasks' });
+    await user.click(await screen.findByRole('button', { name: 'مهمة جديدة' }));
+    const dialog = await screen.findByRole('dialog', { name: 'مهمة جديدة' });
+    await user.type(within(dialog).getByLabelText(/^المهمة/), 'Call the family');
+    await user.click(within(dialog).getByRole('combobox', { name: /المكلّف/ }));
+    await user.click(await screen.findByRole('option', { name: /Accounts Officer/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'إسناد المهمة' }));
+    await waitFor(() =>
+      expect(within(dialog).getByLabelText(/^المهمة/)).toHaveAttribute('aria-invalid', 'true'),
+    );
   });
 });
 
@@ -141,6 +180,26 @@ describe('Announcements', () => {
     const a = odb.announcements.at(-1)!;
     expect(a).toMatchObject({ status: 'draft', audience: ['parent'] });
     await user.click(await screen.findByRole('button', { name: 'نشر: Ramadan timetable' }));
+    // Publishing asks first and names the audience.
+    const confirm = await screen.findByRole('alertdialog', { name: 'نشر «Ramadan timetable»؟' });
+    expect(within(confirm).getByText(/ولي أمر/)).toBeInTheDocument();
+    expect(a.status).toBe('draft');
+    await user.click(within(confirm).getByRole('button', { name: 'نشر' }));
     await waitFor(() => expect(a.status).toBe('published'));
+  });
+
+  it('archiving asks first, with the title; cancel keeps it published', async () => {
+    const user = userEvent.setup();
+    const a = odb.announcements.find((x) => x.status === 'published')!;
+    renderPage(<AnnouncementsView />, { path: '/announcements?tab=manage' });
+    await user.click(await screen.findByRole('button', { name: `أرشفة ${a.title}` }));
+    const confirm = await screen.findByRole('alertdialog', { name: `أرشفة «${a.title}»؟` });
+    await user.click(within(confirm).getByRole('button', { name: 'إلغاء' }));
+    expect(a.status).toBe('published');
+    await user.click(screen.getByRole('button', { name: `أرشفة ${a.title}` }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'أرشفة' }),
+    );
+    await waitFor(() => expect(a.status).toBe('archived'));
   });
 });

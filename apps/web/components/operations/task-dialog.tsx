@@ -1,12 +1,16 @@
 'use client';
 
 import {
+  createTaskSchema,
   TASK_PRIORITIES,
   TASK_PRIORITY_LABELS,
+  updateTaskSchema,
   type TaskDetailDto,
   type TaskPriority,
+  type TaskSubjectType,
 } from '@qarabic/shared';
-import { Input } from '@qarabic/ui/components/input';
+import { Button } from '@qarabic/ui/components/button';
+import { Field, FieldError, FieldLabel } from '@qarabic/ui/components/field';
 import {
   Select,
   SelectContent,
@@ -14,32 +18,101 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@qarabic/ui/components/select';
-import { Textarea } from '@qarabic/ui/components/textarea';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
+import { Controller, useForm, type Control } from 'react-hook-form';
 import { toast } from 'sonner';
-import { FormRow, NUMBER_INPUT } from '@/components/billing/billing-bits';
+import { DatePicker, TimeSelect } from '@/components/forms/date-time';
+import { SelectField, TextareaField, TextField } from '@/components/forms/fields';
 import { FormDialog } from '@/components/payroll/payroll-bits';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { createTask, fetchTaskTemplates, operationsKeys, updateTask } from '@/lib/api/operations';
-import { addDays, dateKeyIn, zonedInstant } from '@/lib/schedule-time';
+import { applyServerErrors } from '@/lib/forms/server-errors';
+import { useSchemaResolver } from '@/lib/forms/validation-messages';
+import { dueInstant, splitInstant } from '@/lib/operations/time';
+import { addDays, dateKeyIn } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 import { AssigneePicker, useOperationsError } from './ops-bits';
 
+/** The task form: the body of `POST /tasks` (shared `createTaskSchema`), due as an ISO instant. */
+type Values = {
+  title: string;
+  description: string | null;
+  assigneeId: number | null;
+  priority: TaskPriority;
+  dueAt: string | null;
+  templateId?: number;
+  subjectType?: TaskSubjectType | null;
+  subjectId?: number | null;
+};
+const FIELDS = ['title', 'description', 'assigneeId', 'priority', 'dueAt'];
 const NONE = '__none__';
-const TIME = /^\d{2}:\d{2}$/;
 
-/** The due date and time of a task as the viewer typed them (their zone, D30) → ISO. */
-export function dueInstant(date: string, time: string, tz: string): string | null {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
-  return zonedInstant(date, TIME.test(time) ? time : '17:00', tz);
+/**
+ * The due time: a date (shadcn DatePicker) and a time every 15 minutes, both in the viewer's zone
+ * and labelled with it (D30); clearing the date removes the due time.
+ */
+export function DueAtField<T extends { dueAt: string | null }>({
+  control,
+  label,
+}: {
+  control: Control<T>;
+  label: string;
+}) {
+  const t = useTranslations('operations.tasks');
+  const locale = useUiLocale();
+  const tz = useViewerTz();
+  const dateId = useId();
+  const timeId = useId();
+  return (
+    <Controller
+      control={control as unknown as Control<{ dueAt: string | null }>}
+      name="dueAt"
+      render={({ field, fieldState }) => {
+        const { date, time } = splitInstant(field.value, tz);
+        const set = (d: string, tm: string) => field.onChange(dueInstant(d, tm, tz));
+        return (
+          <Field data-invalid={fieldState.invalid}>
+            <FieldLabel htmlFor={dateId}>{label}</FieldLabel>
+            <div className="grid gap-2 sm:grid-cols-[1fr_10rem_auto]">
+              <DatePicker id={dateId} value={date} onChange={(d) => set(d, time)} />
+              <TimeSelect
+                id={timeId}
+                label={t('fields.dueTime', { city: cityOf(tz, locale) })}
+                value={time}
+                onChange={(tm) => set(date || dateKeyIn(tz), tm)}
+              />
+              {date && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-lg"
+                  aria-label={t('clearDue')}
+                  onClick={() => field.onChange(null)}
+                >
+                  <XIcon />
+                </Button>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {t('dueHint', { city: cityOf(tz, locale) })}
+            </p>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        );
+      }}
+    />
+  );
 }
 
 /**
  * «مهمة جديدة» / «تعديل المهمة» (M8, old Given / Issued tasks): title, details, who does it,
  * priority and the due time in the viewer's zone; a template fills the title, details, priority
- * and due date. `subject` links the task to a record (from that record's page).
+ * and due date. `subject` links the task to a record (from that record's page). Validated with
+ * the shared schemas; a 422 lands on its field.
  */
 export function TaskDialog({
   open,
@@ -51,91 +124,86 @@ export function TaskDialog({
   onOpenChange: (open: boolean) => void;
   /** Edit this task (title, details, priority, due) instead of creating one. */
   task?: TaskDetailDto;
-  subject?: { type: TaskDetailDto['subjectType'] & string; id: number; label: string };
+  subject?: { type: TaskSubjectType; id: number; label: string };
 }) {
   const t = useTranslations('operations.tasks');
+  const tv = useTranslations('validation');
+  const tf = useTranslations('form');
   const locale = useUiLocale();
   const tz = useViewerTz();
   const router = useRouter();
   const queryClient = useQueryClient();
   const message = useOperationsError();
-  const ids = {
-    template: useId(),
-    title: useId(),
-    description: useId(),
-    assignee: useId(),
-    priority: useId(),
-    date: useId(),
-    time: useId(),
-  };
+  const ids = { template: useId(), assignee: useId() };
+  const [banner, setBanner] = useState<string | null>(null);
   const [templateId, setTemplateId] = useState<number | null>(null);
-  const [title, setTitle] = useState(task?.title ?? '');
-  const [description, setDescription] = useState(task?.description ?? '');
+  const resolver = useSchemaResolver(task ? updateTaskSchema : createTaskSchema);
+  const form = useForm<Values>({
+    resolver: resolver as never,
+    mode: 'onTouched',
+    defaultValues: {
+      title: task?.title ?? '',
+      description: task?.description ?? null,
+      assigneeId: task?.assignee.id ?? null,
+      priority: task?.priority ?? 'normal',
+      dueAt: task?.dueAt ?? null,
+      ...(subject ? { subjectType: subject.type, subjectId: subject.id } : {}),
+    },
+  });
   const [assignee, setAssignee] = useState<{ id: number; name: string } | null>(
     task?.assignee ?? null,
   );
-  const [priority, setPriority] = useState<TaskPriority>(task?.priority ?? 'normal');
-  const [date, setDate] = useState(task?.dueAt ? dateKeyIn(tz, new Date(task.dueAt)) : '');
-  const [time, setTime] = useState(
-    task?.dueAt
-      ? new Intl.DateTimeFormat('en-GB', {
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false,
-          timeZone: tz,
-        }).format(new Date(task.dueAt))
-      : '',
-  );
-  const [touched, setTouched] = useState(false);
   const templates = useQuery({
     queryKey: operationsKeys.templates,
     queryFn: ({ signal }) => fetchTaskTemplates(signal),
     enabled: open && !task,
   });
-  const errors = {
-    title: title.trim().length >= 3 ? null : 'titleRequired',
-    assignee: task || assignee ? null : 'assigneeRequired',
-  };
-  const err = (k: keyof typeof errors) => (touched && errors[k] ? t(`form.${errors[k]}`) : null);
-  const ok = !errors.title && !errors.assignee;
   const save = useMutation({
-    mutationFn: () => {
-      const dueAt = dueInstant(date, time, tz);
-      return task
+    mutationFn: (v: Values) =>
+      task
         ? updateTask(task.id, {
-            title: title.trim(),
-            description: description.trim() || null,
-            priority,
-            dueAt,
+            title: v.title,
+            description: v.description,
+            priority: v.priority,
+            dueAt: v.dueAt,
           })
         : createTask({
-            title: title.trim(),
-            description: description.trim() || null,
-            assigneeId: assignee!.id,
-            priority,
-            dueAt,
-            ...(subject ? { subjectType: subject.type, subjectId: subject.id } : {}),
+            ...v,
+            assigneeId: v.assigneeId!,
             ...(templateId ? { templateId } : {}),
-          });
-    },
+          }),
     onSuccess: (x) => {
       void queryClient.invalidateQueries({ queryKey: operationsKeys.all });
       toast.success(task ? t('saved') : t('created', { name: x.assignee.name }));
       onOpenChange(false);
       if (!task) router.push(`/tasks/${x.id}`);
     },
+    onError: (e) => {
+      if (!applyServerErrors(form, e, (k) => tv(k), FIELDS)) setBanner(message(e));
+    },
   });
+  const submit = form.handleSubmit(
+    (v) => {
+      setBanner(null);
+      save.mutate(v);
+    },
+    () => setBanner(null),
+  );
 
   function applyTemplate(v: string) {
     const tpl = templates.data?.find((x) => String(x.id) === v);
     setTemplateId(tpl?.id ?? null);
     if (!tpl) return;
-    setTitle(tpl.title);
-    setDescription(tpl.description ?? '');
-    setPriority(tpl.priority);
-    if (tpl.dueInDays !== null) setDate(addDays(dateKeyIn(tz), tpl.dueInDays));
+    const opts = { shouldDirty: true, shouldValidate: form.formState.isSubmitted };
+    form.setValue('title', tpl.title, opts);
+    form.setValue('description', tpl.description, opts);
+    form.setValue('priority', tpl.priority, opts);
+    if (tpl.dueInDays !== null) {
+      form.setValue('dueAt', dueInstant(addDays(dateKeyIn(tz), tpl.dueInDays), '', tz), opts);
+    }
   }
 
+  const c = form.control as unknown as Control<Values>;
   return (
     <FormDialog
       open={open}
@@ -144,17 +212,15 @@ export function TaskDialog({
       description={subject ? t('aboutSubject', { label: subject.label }) : undefined}
       submitLabel={task ? t('save') : t('create')}
       busy={save.isPending}
-      error={save.isError ? message(save.error) : null}
-      summary={touched && !ok ? t('form.fixErrors') : null}
-      onSubmit={() => {
-        setTouched(true);
-        if (ok) save.mutate();
-      }}
+      error={banner}
+      summary={Object.keys(form.formState.errors).length ? t('form.fixErrors') : null}
+      onSubmit={() => void submit()}
     >
       {!task && (templates.data?.length ?? 0) > 0 && (
-        <FormRow id={ids.template} label={t('template')} hint={t('templateHint')}>
+        <Field>
+          <FieldLabel htmlFor={ids.template}>{t('template')}</FieldLabel>
           <Select value={templateId ? String(templateId) : NONE} onValueChange={applyTemplate}>
-            <SelectTrigger id={ids.template} className="h-10! w-full md:text-[0.9375rem]">
+            <SelectTrigger id={ids.template} className="h-10! w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper">
@@ -166,82 +232,44 @@ export function TaskDialog({
               ))}
             </SelectContent>
           </Select>
-        </FormRow>
+          <p className="text-sm text-muted-foreground">{t('templateHint')}</p>
+        </Field>
       )}
-      <FormRow id={ids.title} label={t('fields.title')} required error={err('title')}>
-        <Input
-          id={ids.title}
-          dir="auto"
-          maxLength={200}
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          aria-invalid={!!err('title')}
-          aria-describedby={err('title') ? `${ids.title}-error` : undefined}
-          className="h-10 md:text-[0.9375rem]"
-        />
-      </FormRow>
-      <FormRow id={ids.description} label={t('fields.description')}>
-        <Textarea
-          id={ids.description}
-          dir="auto"
-          rows={3}
-          maxLength={5000}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          className="md:text-[0.9375rem]"
-        />
-      </FormRow>
+      <TextField control={c} name="title" label={t('fields.title')} required />
+      <TextareaField control={c} name="description" label={t('fields.description')} rows={3} />
       {!task && (
-        <FormRow id={ids.assignee} label={t('fields.assignee')} required error={err('assignee')}>
-          <AssigneePicker
-            id={ids.assignee}
-            value={assignee}
-            onChange={setAssignee}
-            invalid={!!err('assignee')}
-          />
-        </FormRow>
+        <Controller
+          control={c}
+          name="assigneeId"
+          render={({ field, fieldState }) => (
+            <Field data-invalid={fieldState.invalid}>
+              <FieldLabel htmlFor={ids.assignee}>
+                {t('fields.assignee')}
+                <span className="text-destructive" aria-label={tf('required')}>
+                  *
+                </span>
+              </FieldLabel>
+              <AssigneePicker
+                id={ids.assignee}
+                value={assignee}
+                onChange={(p) => {
+                  setAssignee(p);
+                  field.onChange(p?.id ?? null);
+                }}
+                invalid={fieldState.invalid}
+              />
+              {fieldState.invalid && <FieldError>{t('form.assigneeRequired')}</FieldError>}
+            </Field>
+          )}
+        />
       )}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <FormRow id={ids.priority} label={t('fields.priority')}>
-          <Select value={priority} onValueChange={(v) => setPriority(v as TaskPriority)}>
-            <SelectTrigger id={ids.priority} className="h-10! w-full md:text-[0.9375rem]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent position="popper">
-              {TASK_PRIORITIES.map((p) => (
-                <SelectItem key={p} value={p}>
-                  {TASK_PRIORITY_LABELS[p][locale]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </FormRow>
-        <FormRow id={ids.date} label={t('fields.dueDate')}>
-          <Input
-            id={ids.date}
-            type="date"
-            dir="ltr"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className={NUMBER_INPUT}
-          />
-        </FormRow>
-        <FormRow
-          id={ids.time}
-          label={t('fields.dueTime')}
-          hint={date && !time ? t('defaultTime') : undefined}
-        >
-          <Input
-            id={ids.time}
-            type="time"
-            dir="ltr"
-            value={time}
-            disabled={!date}
-            onChange={(e) => setTime(e.target.value)}
-            className={NUMBER_INPUT}
-          />
-        </FormRow>
-      </div>
+      <SelectField
+        control={c}
+        name="priority"
+        label={t('fields.priority')}
+        options={TASK_PRIORITIES.map((p) => ({ value: p, label: TASK_PRIORITY_LABELS[p][locale] }))}
+      />
+      <DueAtField control={c} label={t('fields.due')} />
     </FormDialog>
   );
 }

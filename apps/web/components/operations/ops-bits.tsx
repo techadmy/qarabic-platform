@@ -6,7 +6,6 @@ import {
   TASK_STATUS_LABELS,
   type TaskPriority,
   type TaskStatus,
-  type TaskSubjectType,
 } from '@qarabic/shared';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -24,7 +23,10 @@ import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Combobox } from '@/components/forms/fields';
 import { ToneBadge, type Tone } from '@/components/sessions/badges';
-import { useUiLocale } from '@/components/sessions/times';
+import { useUiLocale, useViewerTz } from '@/components/sessions/times';
+import { dayAndClock } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
+import { cn } from '@qarabic/ui/lib/utils';
 import { isApiError } from '@/lib/api/client';
 import { fetchTaskAssignees, operationsKeys } from '@/lib/api/operations';
 
@@ -86,22 +88,19 @@ export function PriorityBadge({ priority }: { priority: TaskPriority }) {
   );
 }
 
-/** Where a task's subject lives in the app. */
-export function subjectHref(type: TaskSubjectType, id: number): string {
-  switch (type) {
-    case 'family':
-      return `/families/${id}`;
-    case 'student':
-      return `/students/${id}`;
-    case 'teacher':
-      return `/teachers/${id}`;
-    case 'lead':
-      return `/leads/${id}`;
-    case 'invoice':
-      return `/invoices/${id}`;
-    case 'session':
-      return `/today?session=${id}`;
-  }
+/**
+ * An instant in the viewer's zone with the zone named (D30, docs/15 §5.12):
+ * «الجمعة، 13 نوفمبر، 10:30 ص (القاهرة)».
+ */
+export function ViewerTime({ at, className }: { at: string; className?: string }) {
+  const locale = useUiLocale();
+  const tz = useViewerTz();
+  return (
+    <span className={cn('whitespace-nowrap', className)}>
+      <bdi>{dayAndClock(at, tz, locale)}</bdi>{' '}
+      <span className="text-muted-foreground">({cityOf(tz, locale)})</span>
+    </span>
+  );
 }
 
 /** Active staff to give a task to (`GET /tasks/assignees`, searched on the server). */
