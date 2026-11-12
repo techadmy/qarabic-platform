@@ -75,12 +75,14 @@ export function ConvertDialog({
   const [plans, setPlans] = useState<Record<number, Plan>>(() =>
     Object.fromEntries(
       lead.students.map((s) => {
-        const trial = lead.trials.find((x) => x.student.id === s.id) ?? lead.trials[0];
+        // A child without their own trial borrows a sibling's teacher and length, never its course.
+        const own = lead.trials.find((x) => x.student.id === s.id);
+        const trial = own ?? lead.trials[0];
         return [
           s.id,
           {
             include: true,
-            courseId: String(trial?.course?.id ?? s.courseId ?? ''),
+            courseId: String(own?.course?.id ?? s.courseId ?? trial?.course?.id ?? ''),
             teacherId: trial ? String(trial.teacher.id) : null,
             startsOn: today,
             minutes: String(trial?.durationMinutes ?? 30),
@@ -355,6 +357,7 @@ function StudentPlan({
                       </Select>
                       <div className="w-32" aria-label={t('time', { n: i + 1 })} role="group">
                         <TimeSelect
+                          label={t('time', { n: i + 1 })}
                           value={slot.time}
                           onChange={(v) => setSlot({ time: v })}
                           invalid={touched && plan.include && !slot.time}

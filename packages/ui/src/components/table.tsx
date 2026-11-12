@@ -7,7 +7,10 @@ function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // Focusable so keyboard users can scroll a wide table sideways (WCAG 2.1.1, axe
+      // scrollable-region-focusable).
+      tabIndex={0}
+      className="relative w-full overflow-x-auto rounded-[inherit] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
     >
       <table
         data-slot="table"

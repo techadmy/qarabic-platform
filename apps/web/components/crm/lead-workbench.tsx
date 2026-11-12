@@ -746,6 +746,7 @@ function ActivityPanel({
                     />
                     <TimeSelect
                       id={ids.time}
+                      label={t('followUpTime')}
                       value={time}
                       onChange={setTime}
                       invalid={touched && !!errors.time}

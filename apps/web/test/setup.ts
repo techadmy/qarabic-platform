@@ -47,7 +47,12 @@ afterEach(() => {
   routerMock.reset();
   document.cookie = 'XSRF-TOKEN=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
 });
-afterAll(() => server.close());
+afterAll(async () => {
+  server.close();
+  // sonner removes a closed toast 200 ms later (TIME_BEFORE_UNMOUNT); let that timer run while
+  // jsdom still exists, or it throws "window is not defined" after teardown under a loaded runner.
+  await new Promise((resolve) => setTimeout(resolve, 250));
+});
 
 // jsdom lacks these; Radix and the shadcn sidebar use them.
 if (!window.matchMedia) {

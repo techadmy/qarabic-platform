@@ -50,6 +50,7 @@
     "genericError": "Something went wrong. Please try again."
   },
   "validation": {
+    "phoneOrEmail": "Enter a phone number or an email address.",
     "required": "This field is required",
     "email": "Enter a valid email",
     "passwordMin": "{count, plural, one {At least # character} other {At least # characters}}",
@@ -2058,6 +2059,7 @@
     },
     "funnel": {
       "title": "Conversion report",
+      "groupBy": "Group by",
       "bySource": "By source",
       "byAssignee": "By staff member",
       "source": "Source",
@@ -2168,6 +2170,7 @@
       "sendHint": "Ctrl + Enter to log",
       "followUp": "Next follow-up",
       "followUpHelp": "your time: {city}",
+      "followUpTime": "Follow-up time",
       "followUpDate": "Follow-up date",
       "timeRequired": "Choose the time.",
       "save": "Log",

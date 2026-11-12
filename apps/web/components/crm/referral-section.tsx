@@ -26,6 +26,7 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { sendReferral } from '@/lib/api/crm';
 import { can } from '@/lib/auth/use-me';
 import { applyServerErrors } from '@/lib/forms/server-errors';
+import { useRecheckOnChange } from '@/lib/forms/recheck';
 import { useSchemaResolver } from '@/lib/forms/validation-messages';
 import { useCrmError } from './crm-bits';
 
@@ -74,6 +75,7 @@ function ReferralDialog({ onClose }: { onClose: () => void }) {
     mode: 'onTouched',
     defaultValues: { parentName: '', phone: null, email: null, childrenCount: null, message: null },
   });
+  useRecheckOnChange(form, 'email', 'phone');
   const send = useMutation({
     mutationFn: (body: ReferralInput) => sendReferral(body),
     onSuccess: () => {

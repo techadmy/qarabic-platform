@@ -50,6 +50,7 @@
     "genericError": "حدث خطأ. حاول مرة أخرى."
   },
   "validation": {
+    "phoneOrEmail": "أدخل رقم الهاتف أو البريد الإلكتروني.",
     "required": "هذا الحقل مطلوب",
     "email": "أدخل بريدًا إلكترونيًا صحيحًا",
     "passwordMin": "{count, plural, zero {# حرف على الأقل} one {حرف واحد على الأقل} two {حرفان على الأقل} few {# أحرف على الأقل} many {# حرفًا على الأقل} other {# حرف على الأقل}}",
@@ -2058,6 +2059,7 @@
     },
     "funnel": {
       "title": "تقرير التحويل",
+      "groupBy": "عرض حسب",
       "bySource": "حسب المصدر",
       "byAssignee": "حسب الموظف",
       "source": "المصدر",
@@ -2168,6 +2170,7 @@
       "sendHint": "Ctrl + Enter للتسجيل",
       "followUp": "موعد المتابعة التالية",
       "followUpHelp": "بتوقيتك: {city}",
+      "followUpTime": "وقت المتابعة",
       "followUpDate": "تاريخ المتابعة",
       "timeRequired": "اختر الوقت.",
       "save": "سجّل",

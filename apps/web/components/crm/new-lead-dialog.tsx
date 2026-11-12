@@ -28,6 +28,7 @@ import { SelectField } from '@/components/forms/fields';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { createLead, crmKeys } from '@/lib/api/crm';
 import { applyServerErrors } from '@/lib/forms/server-errors';
+import { useRecheckOnChange } from '@/lib/forms/recheck';
 import { useSchemaResolver } from '@/lib/forms/validation-messages';
 import { useCrmError } from './crm-bits';
 import { LeadFields, toLeadBody, type LeadFormValues } from './lead-fields';
@@ -75,6 +76,7 @@ export function NewLeadDialog({
       source: 'phone',
     },
   });
+  useRecheckOnChange(form, 'email', 'phone');
   const create = useMutation({
     mutationFn: (body: CreateLeadInput) => createLead(body),
     onSuccess: (lead) => {

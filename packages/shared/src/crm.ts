@@ -54,7 +54,7 @@ export const LEAD_STATUS_LABELS: Labels<LeadStatus> = {
   trial_scheduled: { ar: 'حصة تجريبية محجوزة', en: 'Trial booked' },
   trial_done: { ar: 'حضر التجريبية', en: 'Trial done' },
   converted: { ar: 'تحوّل إلى منتظم', en: 'Converted' },
-  lost: { ar: 'مفقود', en: 'Lost' },
+  lost: { ar: 'غير مهتم', en: 'Not interested' },
   spam: { ar: 'رسائل مزعجة', en: 'Spam' },
   job_applicant: { ar: 'طلب توظيف', en: 'Job applicant' },
 };

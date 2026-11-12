@@ -3,7 +3,7 @@
 import { LEAD_SOURCE_LABELS, type LeadFunnelDto } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
-import { Tabs, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
+import { ToggleGroup, ToggleGroupItem } from '@qarabic/ui/components/toggle-group';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react';
@@ -81,12 +81,25 @@ export function FunnelCard() {
           <h2>{t('title')}</h2>
         </CardTitle>
         <div className="flex flex-wrap items-center gap-2">
-          <Tabs value={by} onValueChange={(v) => setBy(v as typeof by)}>
-            <TabsList>
-              <TabsTrigger value="source">{t('bySource')}</TabsTrigger>
-              <TabsTrigger value="assignee">{t('byAssignee')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            spacing={0}
+            value={by}
+            onValueChange={(v) => {
+              if (v) setBy(v as typeof by);
+            }}
+            aria-label={t('groupBy')}
+            className="bg-card"
+          >
+            <ToggleGroupItem value="source" className="h-9 px-3 data-[state=on]:bg-accent">
+              {t('bySource')}
+            </ToggleGroupItem>
+            <ToggleGroupItem value="assignee" className="h-9 px-3 data-[state=on]:bg-accent">
+              {t('byAssignee')}
+            </ToggleGroupItem>
+          </ToggleGroup>
           <Button
             variant="ghost"
             size="icon"
