@@ -63,7 +63,7 @@ import { InvoiceLines, PackageUsage, PaymentsList, Section } from './invoice-par
 const CONFIRM_POLL_MS = 3_000;
 const CONFIRM_GIVE_UP_MS = 120_000;
 
-function useInvoiceTitle() {
+export function useInvoiceTitle() {
   const t = useTranslations('billing.parent');
   const locale = useUiLocale();
   return (inv: Pick<InvoiceDto, 'periodStart' | 'kind'>) => {

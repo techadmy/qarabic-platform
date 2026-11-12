@@ -34,6 +34,8 @@ import {
   MegaphoneIcon,
   BookOpenTextIcon,
   LandmarkIcon,
+  ChartColumnIcon,
+  LockKeyholeIcon,
   ListTreeIcon,
   ReceiptIcon,
   type LucideIcon,
@@ -82,6 +84,8 @@ export type NavKey =
   | 'journal'
   | 'vouchers'
   | 'chartOfAccounts'
+  | 'financialReports'
+  | 'periods'
   | 'ticket'
   | 'account';
 
@@ -295,6 +299,18 @@ export const STAFF_NAV: NavEntry[] = [
         key: 'chartOfAccounts',
         href: '/accounting/accounts',
         icon: ListTreeIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'financialReports',
+        href: '/accounting/reports',
+        icon: ChartColumnIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'periods',
+        href: '/accounting/periods',
+        icon: LockKeyholeIcon,
         permission: 'accounting.view',
       },
     ],
