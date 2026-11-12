@@ -28,6 +28,33 @@ async function pickTomorrow(page: Page, scope: Locator, tz: string) {
   await page.getByRole('button', { name: new RegExp(label) }).click();
 }
 
+/** The Arabic month names the shared month picker shows (`ar-EG`, long). */
+const AR_MONTHS = Array.from({ length: 12 }, (_, i) =>
+  new Intl.DateTimeFormat('ar-EG', { month: 'long', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(2000, i, 1)),
+  ),
+);
+
+/** `YYYY-MM` shown on a month picker's button («ديسمبر 2026»). */
+async function monthOf(trigger: Locator) {
+  const text = (await trigger.textContent())!.trim();
+  const index = AR_MONTHS.findIndex((m) => text.includes(m));
+  const year = text.match(/\d{4}/)![0];
+  return `${year}-${String(index + 1).padStart(2, '0')}`;
+}
+
+/** Chooses `key` (`YYYY-MM`) in the shared month picker opened by `trigger`. */
+async function pickMonth(page: Page, trigger: Locator, key: string) {
+  const [year, month] = key.split('-').map(Number) as [number, number];
+  await trigger.click();
+  const shown = async () =>
+    Number(await page.getByRole('group', { name: /^\d{4}$/ }).getAttribute('aria-label'));
+  while ((await shown()) < year) await page.getByRole('button', { name: 'السنة التالية' }).click();
+  while ((await shown()) > year) await page.getByRole('button', { name: 'السنة السابقة' }).click();
+  await page.getByRole('button', { name: `${AR_MONTHS[month - 1]} ${year}`, exact: true }).click();
+  await expect(trigger).toContainText(`${AR_MONTHS[month - 1]} ${year}`);
+}
+
 /**
  * Picks a time in `combo` that the live schedule check does not block («لا يمكن الحفظ»): earlier
  * runs left trials and weekly times on the same teacher, so it steps through the list until clear.
@@ -236,15 +263,15 @@ test('real API (N6): monthly invoice run → an invoice → a manual payment →
   // seed, later months on re-runs (no family is invoiced twice for the same period).
   await page.getByRole('button', { name: 'إصدار فواتير الشهر' }).click();
   const run = page.getByRole('dialog', { name: 'إصدار الفواتير الشهرية' });
-  const monthBox = run.getByRole('textbox', { name: /^الشهر/ });
-  const first = await monthBox.inputValue();
+  const monthButton = run.getByRole('button', { name: /^الشهر/ });
+  const first = await monthOf(monthButton);
   const issue = run.getByRole('button', { name: /^أصدر / });
   const none = run.getByRole('button', { name: 'لا فواتير للإصدار' });
   for (let offset = 0; ; offset++) {
     expect(offset, 'a month with invoices to issue in the next two years').toBeLessThan(24);
     const d = new Date(`${first}-01T00:00:00Z`);
     d.setUTCMonth(d.getUTCMonth() + offset);
-    await monthBox.fill(d.toISOString().slice(0, 7));
+    await pickMonth(page, monthButton, d.toISOString().slice(0, 7));
     await run.getByRole('button', { name: 'معاينة' }).click();
     await expect(run.getByRole('status')).toContainText(
       new Intl.DateTimeFormat('ar', {
@@ -312,7 +339,7 @@ test('real API (N7): payroll run → review → approve → record the payment �
   const preview = create.getByRole('table', { name: 'معاينة القسائم' });
   for (let offset = 0; ; offset++) {
     expect(offset, 'a month without a payroll run in the last two years').toBeLessThan(24);
-    await create.getByLabel(/شهر المسيّر/).fill(month(offset));
+    await pickMonth(page, create.getByRole('button', { name: /^شهر المسيّر/ }), month(offset));
     await create.getByRole('button', { name: 'معاينة' }).click();
     await expect(preview).toBeVisible();
     // The preview stores nothing; «already has a run» is the create's answer.
