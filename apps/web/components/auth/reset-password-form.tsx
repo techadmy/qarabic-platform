@@ -81,7 +81,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
                 <AlertTitle>{t('resetDoneTitle')}</AlertTitle>
                 <AlertDescription>{t('resetDone')}</AlertDescription>
               </Alert>
-              <Button asChild className="h-11 text-[0.9375rem] font-semibold">
+              <Button asChild className="h-11 text-body font-semibold">
                 <Link href="/login">{t('login')}</Link>
               </Button>
             </FieldGroup>
@@ -150,7 +150,7 @@ export function ResetPasswordForm({ token }: { token: string }) {
                 <Field>
                   <Button
                     type="submit"
-                    className="h-11 text-[0.9375rem] font-semibold"
+                    className="h-11 text-body font-semibold"
                     disabled={mutation.isPending || linkMalformed}
                   >
                     {mutation.isPending && <Spinner />}

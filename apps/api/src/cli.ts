@@ -4,6 +4,7 @@ import { OutboxService } from './accounting/outbox.service.js';
 import { AppModule } from './app.module.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
+import { runLegacy } from './legacy/legacy-cli.js';
 import { Period } from './payroll/period.js';
 import { PayrollRunsService } from './payroll/runs.service.js';
 import { SessionJobs } from './sessions/jobs.js';
@@ -36,6 +37,13 @@ import { TicketCli } from './support/ticket-cli.js';
  *                                                    (--dry-run | --due=YYYY-MM-DD)
  *   pnpm --filter @qarabic/api cli billing:reminders   (a no-op while billing.notify_parents is off)
  *
+ * N8 data move from the Laravel MySQL database (docs/34 §5, docs/37). Refuses a target database
+ * whose name does not end in _rehearsal, _dev or _test without --i-know-this-is-production:
+ *
+ *   pnpm --filter @qarabic/api cli legacy:import [--source=mysql://…] [--only=people,billing,…]
+ *                                                [--dry-run] [--report=file.md] [--seed=N]
+ *   pnpm --filter @qarabic/api cli legacy:verify [--only=…] [--report=file.md] [--seed=N]
+ *
  * The CLI never starts the cron (`SCHEDULER_ENABLED=false`).
  */
 process.env.SCHEDULER_ENABLED = 'false';
@@ -47,6 +55,12 @@ function option(args: string[], name: string): string | undefined {
 
 async function main(): Promise<number> {
   const [command, ...args] = process.argv.slice(2);
+  if (command === 'legacy:import' || command === 'legacy:verify') {
+    // No Nest app: only DATABASE_URL, APP_ENCRYPTION_KEY and the LEGACY_* variables are needed.
+    const result = await runLegacy({ command, args, env: process.env });
+    (result.code === 0 ? console.log : console.error)(result.out.join('\n'));
+    return result.code;
+  }
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
     const jobs = app.get(SessionJobs);

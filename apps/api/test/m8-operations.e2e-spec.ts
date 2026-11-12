@@ -179,6 +179,16 @@ describe('tasks', () => {
     expect((await manager.client.post(`/tasks/${third.id}/close`, { reason: 'x' })).status).toBe(
       422,
     );
+    // Undo of close (D31): the issuer reopens it; the assignee cannot.
+    expect(
+      (await b.client.post(`/tasks/${third.id}/reopen`, { reason: 'Not a duplicate' })).status,
+    ).toBe(403);
+    const undone = await a.client.post(`/tasks/${third.id}/reopen`, { reason: 'Not a duplicate' });
+    expect(undone.body.data).toMatchObject({
+      status: 'pending',
+      closedAt: null,
+      closeReason: null,
+    });
 
     const edited = await a.client.patch(`/tasks/${t.id}`, { title: 'Check the December invoice' });
     expect(edited.body.data.title).toBe('Check the December invoice');
@@ -306,6 +316,27 @@ describe('announcements', () => {
     expect((await teacherClient.get('/announcements')).body.data).toEqual([]);
     await admin.client.post(`/announcements/${id}/archive`);
     expect((await admin.client.patch(`/announcements/${id}`, { title: 'Again' })).status).toBe(409);
+
+    // Undo of archive (D31): back to published; only from archived; managers only; audited.
+    expect((await csr.client.post(`/announcements/${id}/unarchive`)).status).toBe(403);
+    expect((await teacherClient.post(`/announcements/${id}/unarchive`)).status).toBe(403);
+    const restored = await admin.client.post(`/announcements/${id}/unarchive`);
+    expect(restored.status).toBe(200);
+    expect(restored.body.data.status).toBe('published');
+    expect((await admin.client.post(`/announcements/${id}/unarchive`)).status).toBe(409);
+    expect((await admin.client.post('/announcements/9999/unarchive')).status).toBe(404);
+    expect(
+      await ctx.prisma.auditLog.count({
+        where: { action: 'announcement_unarchived', subjectId: id },
+      }),
+    ).toBe(1);
+    const draftOnly = (
+      await admin.client.post('/announcements', { title: 'Never sent', body: 'Draft' })
+    ).body.data.id;
+    await admin.client.post(`/announcements/${draftOnly}/archive`);
+    expect(
+      (await admin.client.post(`/announcements/${draftOnly}/unarchive`)).body.data.status,
+    ).toBe('draft');
   });
 });
 

@@ -199,6 +199,24 @@ export class AnnouncementsService {
     });
   }
 
+  /** Undo of archive (D31): back to published if it had been published, else to draft. */
+  async unarchive(id: number, by: AuthUser): Promise<void> {
+    const row = await this.find(id, by);
+    if (row.status !== 'archived') throw opsError('invalid_announcement_status');
+    const status = row.publishedAt ? 'published' : 'draft';
+    await this.prisma.announcement.update({
+      where: { id },
+      data: { status, updatedAt: this.clock.now() },
+    });
+    await this.audit.record({
+      actorId: by.id,
+      action: 'announcement_unarchived',
+      subjectType: 'announcement',
+      subjectId: id,
+      after: { status },
+    });
+  }
+
   async markRead(id: number, viewer: AuthUser): Promise<void> {
     const row = await this.prisma.announcement.findFirst({
       where: { AND: [{ id }, this.current(viewer)] },
