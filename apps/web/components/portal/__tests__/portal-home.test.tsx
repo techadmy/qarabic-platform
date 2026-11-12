@@ -5,6 +5,7 @@ import { HomeView } from '@/app/(app)/home-view';
 import { TeacherHomeView } from '@/components/portal/teacher-home';
 import { pickHeroClass, upcomingDays } from '@/lib/sessions/teacher-home';
 import { JoinClassButton, ParentHomeView } from '@/components/support/parent-home-view';
+import { RowActions } from '@/components/sessions/row-actions';
 import { renderPage } from '@/test/people';
 
 const TEACHER = 'teacher@qarabic.test';
@@ -122,5 +123,35 @@ describe('Parent home additions (M9)', () => {
     );
     await screen.findByText('ready');
     expect(screen.queryByRole('button', { name: /ادخل الحصة/ })).toBeNull();
+  });
+});
+
+describe('M9 part 2', () => {
+  it('the parent home shows what is due, with «ادفع الآن» to that invoice', async () => {
+    renderPage(<ParentHomeView />, { as: PARENT, path: '/' });
+    const due = await screen.findByRole('region', { name: 'المستحق عليكم' });
+    const pay = within(due).getAllByRole('link', { name: /^ادفع الآن/ });
+    expect(pay.length).toBeGreaterThan(0);
+    expect(pay[0]).toHaveAttribute('href', expect.stringMatching(/^\/invoices\/\d+\?pay=1$/));
+    expect(within(due).getByRole('link', { name: /كل الفواتير/ })).toHaveAttribute(
+      'href',
+      '/invoices',
+    );
+  });
+
+  it('a parent joins a class from the class list with a labelled button, not «تابع الحصة»', async () => {
+    const s = {
+      ...cls(1, 'scheduled', 30),
+      allowedActions: [],
+      student: { id: 1, name: 'Omar', timezone: 'America/New_York' },
+      teacher: { id: 1, name: 'Ahmed', timezone: 'Africa/Cairo', phone: null },
+      course: { id: 1, nameAr: 'تلاوة', nameEn: 'Recitation' },
+      zoom: { status: 'ready', joinAvailable: true },
+      pendingRequests: [],
+      attention: [],
+    } as unknown as SessionDto;
+    renderPage(<RowActions session={s} />, { as: PARENT, path: '/my-classes' });
+    expect(await screen.findByRole('button', { name: 'ادخل الحصة: Omar' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /تابع الحصة/ })).toBeNull();
   });
 });

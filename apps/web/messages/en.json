@@ -676,7 +676,8 @@
       "observe": "Watch in the meeting",
       "blocked": "The browser blocked the meeting window. Allow pop-ups and try again.",
       "retry": "Create the meeting again",
-      "retried": "The meeting is being created again"
+      "retried": "The meeting is being created again",
+      "join": "Join the class"
     },
     "done": {
       "activate": "{name}'s class activated",
@@ -2715,7 +2716,10 @@
       "paidThanks": "Thank you. The receipt is in the payments list.",
       "cancelledTitle": "Payment cancelled",
       "cancelled": "Nothing was charged; you can pay later.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "homeDue": "Amount due",
+      "allInvoices": "All invoices",
+      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}"
     },
     "pay": {
       "title": "Choose how to pay",

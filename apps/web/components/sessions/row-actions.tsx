@@ -97,6 +97,7 @@ export function RowActions({
   const [ticket, setTicket] = useState(false);
   const allowed = session.allowedActions;
   const ownTeacher = can(me, 'sessions.conduct') && !can(me, 'sessions.manage');
+  const parent = me.role?.kind === 'parent';
   // «ابدأ الحصة» / «أنهِ الحصة» as buttons for the class's own teacher; staff use the menu.
   const primaryActions =
     primary && ownTeacher ? (['activate', 'end'] as const).filter((a) => allowed.includes(a)) : [];
@@ -171,7 +172,15 @@ export function RowActions({
           <span className="sr-only">: {name}</span>
         </Button>
       ))}
-      {session.zoom.joinAvailable && (
+      {session.zoom.joinAvailable && parent && (
+        // A parent joins the class: a labelled button, not the staff «observe» icon (docs/15 §2.6 P1).
+        <Button size="sm" className="me-1" onClick={() => actions.openMeeting('join')}>
+          <VideoIcon />
+          {t('meeting.join')}
+          <span className="sr-only">: {name}</span>
+        </Button>
+      )}
+      {session.zoom.joinAvailable && !parent && (
         <Tooltip>
           <TooltipTrigger asChild>
             <Button

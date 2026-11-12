@@ -10,6 +10,7 @@ import { ChevronLeftIcon, UsersRoundIcon, VideoIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { KeyFacts } from '@/components/people/detail';
+import { ParentDueCard } from '@/components/billing/parent-due-card';
 import { ReferralSection } from '@/components/crm/referral-section';
 import { PageHeader } from '@/components/page-header';
 import { HifzLine, RatingStars } from '@/components/reports/report-bits';
@@ -258,6 +259,8 @@ export function ParentHomeView() {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
       {header}
+      {/* What is due comes first: one tap to pay (docs/15 §2.6 P3). */}
+      <ParentDueCard />
       <section aria-labelledby="home-requests" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="home-requests" className="text-lg font-bold">
