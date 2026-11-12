@@ -16,6 +16,11 @@ const PAGES = [
   '/accounting/vouchers/1',
   '/accounting/accounts',
   '/accounting/accounts/4',
+  '/accounting/reports',
+  '/accounting/reports?report=profit-and-loss',
+  '/accounting/reports?report=balance-sheet',
+  '/accounting/reports?report=cash',
+  '/accounting/periods',
 ] as const;
 
 async function signIn(page: Page, path: string) {
@@ -103,4 +108,14 @@ test('accounts: the chart opens a statement', async ({ page }) => {
   await page.getByRole('link', { name: 'البنك', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: /كشف حساب 1120/ })).toBeVisible();
   await expect(page.getByText('الرصيد الافتتاحي')).toBeVisible();
+});
+
+test('accounts: reports switch by tab and keep the currency in the URL', async ({ page }) => {
+  await signIn(page, '/accounting/reports');
+  await expect(page.getByRole('table', { name: 'ميزان المراجعة' })).toBeVisible();
+  await page.getByRole('tab', { name: 'قائمة الدخل' }).click();
+  await expect(page).toHaveURL(/report=profit-and-loss/);
+  await expect(page.getByText(/صافي (الربح|الخسارة)/)).toBeVisible();
+  await page.getByRole('tab', { name: 'النقدية' }).click();
+  await expect(page.getByRole('table', { name: /النقدية بعملة/ }).first()).toBeVisible();
 });

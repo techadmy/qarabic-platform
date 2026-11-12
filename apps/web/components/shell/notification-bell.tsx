@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  LEAD_NOTIFICATION_LABELS,
-  type LeadNotificationEvent,
-  type NotificationDto,
-} from '@qarabic/shared';
+import type { NotificationDto } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@qarabic/ui/components/popover';
 import { cn } from '@qarabic/ui/lib/utils';
@@ -12,23 +8,28 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useState } from 'react';
-import { useNow, useUiLocale } from '@/components/sessions/times';
+import { useState, type ReactNode } from 'react';
+import { useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
+import { useCurrentUser } from '@/components/shell/app-shell';
 import {
   fetchNotifications,
   markAllNotificationsRead,
   markNotificationRead,
   notificationKeys,
 } from '@/lib/api/notifications';
-import { relativeTime } from '@/lib/schedule-time';
+import { bellHref, bellText } from '@/lib/operations/notifications';
+import { dayAndClock, relativeTime } from '@/lib/schedule-time';
 
 /**
  * The bell in the top bar (`/me/notifications`): the unread count on the button, the latest alerts
- * in a shadcn `Popover`; opening one marks it read. N5 writes the lead alerts.
+ * in a shadcn `Popover`; opening one marks it read. N5 writes the lead alerts; M8 the task,
+ * announcement and class-reminder ones (each opens its record).
  */
 export function NotificationBell() {
   const t = useTranslations('bell');
   const locale = useUiLocale();
+  const tz = useViewerTz();
+  const me = useCurrentUser();
   const now = useNow(60_000);
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -43,14 +44,27 @@ export function NotificationBell() {
   const unread = list.data?.meta.unread ?? 0;
   const rows = list.data?.data ?? [];
 
-  const text = (n: NotificationDto) => {
-    const name = typeof n.data.parentName === 'string' ? n.data.parentName : '';
-    if (n.kind === 'lead' && n.event in LEAD_NOTIFICATION_LABELS)
-      return `${LEAD_NOTIFICATION_LABELS[n.event as LeadNotificationEvent][locale]}: ${name}`;
-    return t('other');
+  // Names and titles sit in <bdi> so a Latin name keeps its place in an Arabic sentence.
+  const bdi = (chunks: ReactNode) => <bdi>{chunks}</bdi>;
+  const text = (n: NotificationDto): ReactNode => {
+    const x = bellText(n);
+    if (x.kind === 'lead')
+      return (
+        <>
+          {x.label[locale]}: <bdi>{x.name}</bdi>
+        </>
+      );
+    if (x.kind === 'other') return t('other');
+    const { startsAt, ...values } = x.values;
+    return t.rich(x.key, {
+      ...values,
+      ...(startsAt !== undefined
+        ? { when: startsAt ? dayAndClock(startsAt, tz, locale) : '' }
+        : {}),
+      bdi,
+    });
   };
-  const href = (n: NotificationDto) =>
-    n.kind === 'lead' && typeof n.data.leadId === 'number' ? `/leads/${n.data.leadId}` : null;
+  const href = (n: NotificationDto) => bellHref(n, me.role?.kind);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
