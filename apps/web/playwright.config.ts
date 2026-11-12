@@ -4,7 +4,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Default: E2E against a production build (`next build && next start`) with the MSW mocks on.
  * The build goes to `.next-e2e`, so it never replaces the real `.next` build.
  *
- * `E2E_REAL_API=1`: runs only `e2e/real-api.spec.ts` against the real NestJS API (apps/api, its
+ * `E2E_REAL_API=1`: runs only `e2e/real-api*.spec.ts` against the real NestJS API (apps/api, its
  * `.env` dev database, port 3001) and the web app on http://localhost:3000 (the API's WEB_ORIGIN).
  */
 const REAL_API = process.env.E2E_REAL_API === '1';
@@ -18,9 +18,11 @@ const BASE_PATH = process.env.E2E_BASE_PATH ?? '';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: REAL_API ? 'real-api.spec.ts' : BASE_PATH ? 'base-path.spec.ts' : undefined,
-  testIgnore: REAL_API || BASE_PATH ? undefined : ['real-api.spec.ts', 'base-path.spec.ts'],
+  testMatch: REAL_API ? /real-api.*\.spec\.ts$/ : BASE_PATH ? 'base-path.spec.ts' : undefined,
+  testIgnore: REAL_API || BASE_PATH ? undefined : [/real-api.*\.spec\.ts$/, 'base-path.spec.ts'],
   fullyParallel: !REAL_API,
+  // One shared dev database and a 5-a-minute login budget: the real-API specs run one at a time.
+  workers: REAL_API ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
