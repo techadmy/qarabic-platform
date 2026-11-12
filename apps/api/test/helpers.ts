@@ -3,6 +3,7 @@ import { type Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { seedChart } from '../src/accounting/chart.js';
 import { AppModule } from '../src/app.module.js';
 import { configureApp } from '../src/app.setup.js';
 import { PasswordsService } from '../src/auth/passwords.service.js';
@@ -56,6 +57,8 @@ export async function resetState(ctx: TestContext): Promise<void> {
   ).filter((t) => !REFERENCE_TABLES.includes(t.tablename));
   const list = tables.map((t) => `"public"."${t.tablename}"`).join(', ');
   if (list) await ctx.prisma.$executeRawUnsafe(`TRUNCATE ${list} RESTART IDENTITY CASCADE`);
+  // M7: the migration-seeded chart of accounts, back to its seeded state.
+  await seedChart(ctx.prisma);
   await syncRolesAndPermissions(ctx.prisma);
   ctx.limiter.reset();
   ctx.mailer.clear();

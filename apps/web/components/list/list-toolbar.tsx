@@ -41,7 +41,7 @@ export function ListToolbar({
     <div className="flex flex-col gap-3 border-b p-4">
       <div role="search" className="flex flex-wrap items-end gap-3">
         <div className="flex min-w-0 flex-[1_1_18rem] flex-col gap-1.5">
-          <Label htmlFor={id} className="text-[0.8125rem] text-muted-foreground">
+          <Label htmlFor={id} className="text-caption text-muted-foreground">
             {search.label}
           </Label>
           <InputGroup className="h-10 bg-card">
@@ -54,7 +54,7 @@ export function ListToolbar({
               value={search.value}
               placeholder={search.placeholder}
               onChange={(e) => search.onChange(e.target.value)}
-              className="md:text-[0.9375rem]"
+              className="md:text-body"
             />
             {search.value && (
               <InputGroupAddon align="inline-end">
@@ -134,7 +134,7 @@ export function FilterSelect({
   const ALL = '__all__';
   return (
     <div className={className ?? 'flex min-w-40 flex-col gap-1.5'}>
-      <Label htmlFor={id} className="text-[0.8125rem] text-muted-foreground">
+      <Label htmlFor={id} className="text-caption text-muted-foreground">
         {label}
       </Label>
       <Select

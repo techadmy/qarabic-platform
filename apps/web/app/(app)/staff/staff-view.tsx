@@ -41,7 +41,7 @@ export function StaffView() {
       id: 'role',
       header: tp('fields.role'),
       cell: ({ row }) => (
-        <Badge variant="outline" className="h-6 rounded-md text-[0.8125rem]">
+        <Badge variant="outline" className="h-6 rounded-md text-caption">
           {roleLabel(row.original.role, locale)}
         </Badge>
       ),

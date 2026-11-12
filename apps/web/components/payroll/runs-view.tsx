@@ -4,7 +4,6 @@ import type { PayrollRunDto, RunPreviewDto } from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
-import { Input } from '@qarabic/ui/components/input';
 import { Spinner } from '@qarabic/ui/components/spinner';
 import {
   Table,
@@ -35,14 +34,8 @@ import { can } from '@/lib/auth/use-me';
 import { monthLabel } from '@/lib/billing/labels';
 import { useListParams } from '@/lib/list-params';
 import { ACADEMY_TZ, defaultRunPeriod, isPeriod, periodIn } from '@/lib/payroll/labels';
-import {
-  FormDialog,
-  FormRow,
-  Money,
-  NUMBER_INPUT,
-  RunStatusBadge,
-  usePayrollError,
-} from './payroll-bits';
+import { FormDialog, FormRow, Money, RunStatusBadge, usePayrollError } from './payroll-bits';
+import { MonthPicker } from '@/components/forms/date-time';
 
 export const runHref = (r: Pick<PayrollRunDto, 'id'>) => `/payroll/runs/${r.id}`;
 
@@ -297,18 +290,16 @@ export function NewRunDialog({
         required
         error={touched && !valid ? t('newRun.monthInvalid') : null}
       >
-        <Input
+        <MonthPicker
           id={monthId}
-          type="month"
-          dir="ltr"
           max={current}
           value={period}
-          onChange={(e) => {
-            setPeriod(e.target.value);
+          onChange={(v) => {
+            setPeriod(v);
             setPreview(null);
           }}
-          aria-invalid={touched && !valid}
-          className={NUMBER_INPUT}
+          invalid={touched && !valid}
+          className="w-full sm:w-56"
         />
       </FormRow>
       {preview && preview.period === period && <PreviewTable preview={preview} />}

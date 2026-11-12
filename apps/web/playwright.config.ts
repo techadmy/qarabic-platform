@@ -13,11 +13,13 @@ const PORT = Number(process.env.E2E_PORT) || (REAL_API ? 3000 : 3200);
 const API_PORT = Number(process.env.E2E_API_PORT) || 3001;
 /** `E2E_BASE_URL`: run against a server you started yourself (e.g. `pnpm dev:mocks`); no build. */
 const BASE_URL = process.env.E2E_BASE_URL;
+/** `E2E_BASE_PATH=/app`: build and serve under a path (N8: the app stays at api.qarabic.com/app/). */
+const BASE_PATH = process.env.E2E_BASE_PATH ?? '';
 
 export default defineConfig({
   testDir: './e2e',
-  testMatch: REAL_API ? /real-api.*\.spec\.ts$/ : undefined,
-  testIgnore: REAL_API ? undefined : /real-api.*\.spec\.ts$/,
+  testMatch: REAL_API ? /real-api.*\.spec\.ts$/ : BASE_PATH ? 'base-path.spec.ts' : undefined,
+  testIgnore: REAL_API || BASE_PATH ? undefined : [/real-api.*\.spec\.ts$/, 'base-path.spec.ts'],
   fullyParallel: !REAL_API,
   // One shared dev database and a 5-a-minute login budget: the real-API specs run one at a time.
   workers: REAL_API ? 1 : undefined,
@@ -57,13 +59,14 @@ export default defineConfig({
         ]
       : {
           command: `next build && next start --port ${PORT}`,
-          url: `http://localhost:${PORT}/login`,
+          url: `http://localhost:${PORT}${BASE_PATH}/login`,
           reuseExistingServer: !process.env.CI,
           timeout: 240_000,
           env: {
             NEXT_PUBLIC_ENABLE_MOCKS: 'true',
             NEXT_PUBLIC_API_URL: '',
-            NEXT_DIST_DIR: '.next-e2e',
+            NEXT_PUBLIC_BASE_PATH: BASE_PATH,
+            NEXT_DIST_DIR: BASE_PATH ? '.next-e2e-base' : '.next-e2e',
             NEXT_TELEMETRY_DISABLED: '1',
           },
         },

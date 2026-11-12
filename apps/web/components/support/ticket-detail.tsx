@@ -158,7 +158,7 @@ function TimelineItem({ row, ticket }: { row: TicketCommentDto; ticket: TicketDe
       className={cn(
         'flex flex-col gap-1 rounded-md border p-3',
         row.internal
-          ? 'border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950'
+          ? 'border-status-amber-border bg-status-amber'
           : row.byReporter
             ? 'bg-muted/50'
             : 'bg-card',
@@ -170,7 +170,7 @@ function TimelineItem({ row, ticket }: { row: TicketCommentDto; ticket: TicketDe
           <bdi>{dayAndClock(row.createdAt, tz, locale)}</bdi>
         </span>
         {row.internal && (
-          <span className="rounded-sm border border-amber-300 px-1.5 text-xs font-medium text-amber-900 dark:text-amber-300">
+          <span className="rounded-sm border border-status-brown-border px-1.5 text-xs font-medium text-status-brown-foreground">
             {t('internalTag')}
           </span>
         )}
@@ -364,7 +364,7 @@ function ConfirmFix({ ticket }: { ticket: TicketDetailDto }) {
     onError: (e) => toast.error(message(e)),
   });
   return (
-    <Alert className="border-teal-300 bg-teal-50 dark:border-teal-900 dark:bg-teal-950">
+    <Alert className="border-status-teal-border bg-status-teal">
       <CircleCheckIcon />
       <AlertTitle className="font-bold">{t('confirmTitle')}</AlertTitle>
       <AlertDescription className="flex flex-col gap-3">

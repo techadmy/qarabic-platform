@@ -158,7 +158,7 @@ export function FinesView() {
           <span className="flex flex-col items-start gap-1">
             <AdjustmentStatusBadge status={a.status} />
             {a.locked && (
-              <span className="flex items-center gap-1 text-[0.8125rem] text-muted-foreground">
+              <span className="flex items-center gap-1 text-caption text-muted-foreground">
                 <LockIcon className="size-3.5" aria-hidden />
                 {t('fines.locked')}
               </span>
