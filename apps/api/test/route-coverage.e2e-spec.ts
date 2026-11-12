@@ -306,6 +306,53 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every N7 route needs the permission of the Laravel M6 routes (api_v1_payroll.php)', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    const fineStaff = 'any:fines.request|fines.manage|fines.approve|payroll.manage';
+    const payrollStaff = 'any:payroll.manage|payroll.review|payroll.approve';
+    expect(byRoute).toMatchObject({
+      'GET attendance/today': 'all:attendance.request',
+      'POST attendance/check-in': 'all:attendance.request',
+      'POST attendance/check-out': 'all:attendance.request',
+      'GET attendance': 'any:attendance.request|attendance.view',
+      'PUT attendance/:userId/:date': 'all:attendance.manage',
+      'GET leave-requests': 'any:attendance.request|attendance.manage',
+      'POST leave-requests': 'any:attendance.request|attendance.manage',
+      'GET leave-requests/:id': 'any:attendance.request|attendance.manage',
+      'POST leave-requests/:id/approve': 'all:attendance.manage',
+      'POST leave-requests/:id/reject': 'all:attendance.manage',
+      'POST leave-requests/:id/cancel': 'any:attendance.request|attendance.manage',
+      'GET payroll/adjustments': 'any:fines.view|payroll.view',
+      'POST payroll/adjustments': fineStaff,
+      'GET payroll/adjustments/:id': 'any:fines.view|payroll.view',
+      'POST payroll/adjustments/:id/approve': 'any:fines.approve|payroll.manage',
+      'POST payroll/adjustments/:id/reject': 'any:fines.approve|payroll.manage',
+      'POST payroll/adjustments/:id/cancel': fineStaff,
+      'GET payroll/people':
+        'any:fines.request|fines.manage|fines.approve|payroll.manage|attendance.manage',
+      'GET salary-profiles': 'all:payroll.manage',
+      'GET salary-profiles/:userId': 'all:payroll.manage',
+      'PUT salary-profiles/:userId': 'all:payroll.manage',
+      'GET payroll/runs': payrollStaff,
+      'GET payroll/runs/preview': payrollStaff,
+      'POST payroll/runs': 'all:payroll.manage',
+      'GET payroll/runs/:id': payrollStaff,
+      'POST payroll/runs/:id/recompute': 'all:payroll.manage',
+      'POST payroll/runs/:id/review': 'all:payroll.review',
+      'POST payroll/runs/:id/approve': 'all:payroll.approve',
+      'POST payroll/runs/:id/reopen': 'all:payroll.approve',
+      'GET payslips/:id': 'any:payroll.view|payroll.manage|payroll.review|payroll.approve',
+      'POST payslips/:id/payments': 'all:payroll.manage',
+      'GET me/payslips': 'all:payroll.view',
+      'GET me/wallet': 'all:wallet.view',
+      'GET wallets': 'all:wallet.manage',
+      'GET pay-rule-sets': 'all:settings.view',
+      'POST pay-rule-sets': 'all:settings.manage',
+    });
+  });
+
   it('answers 403 to a signed-in user with no role on every permission route', async () => {
     const { client } = await signedIn(ctx, null);
     for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
@@ -402,6 +449,9 @@ describe('platform', () => {
         '/api/v1/invoices',
         '/api/v1/invoices/{id}/checkout',
         '/api/v1/invoice-runs/preview',
+        '/api/v1/payroll/runs/{id}/approve',
+        '/api/v1/attendance/check-in',
+        '/api/v1/salary-profiles/{userId}',
       ]),
     );
   });

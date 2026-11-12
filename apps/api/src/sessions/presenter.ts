@@ -257,6 +257,15 @@ export class SessionPresenter {
         studentJoinedAt: isoZ(s.studentJoinedAt),
       },
       report: { submitted: s.report !== null, editableUntil: isoZ(reportEditableUntil(s, st)) },
+      ...(viewer?.permissions.has('payroll.view') || viewer?.permissions.has('sessions.manage')
+        ? {
+            pay: {
+              hours: s.payHours?.toFixed(2) ?? null,
+              ruleKey: s.payRuleKey,
+              billable: s.billable,
+            },
+          }
+        : {}),
       attention: computed.attention,
       pendingRequests: s.requests.map((r) => ({ id: r.id, type: r.type })),
       allowedActions: computed.allowedActions,

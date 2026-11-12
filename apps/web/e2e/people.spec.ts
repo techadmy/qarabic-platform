@@ -103,6 +103,8 @@ test('a teacher gets «طلابي» with only their students', async ({ page }) 
     'طلابي',
     'جدولي',
     'الاختبارات',
+    'حضوري وإجازاتي',
+    'راتبي',
     'طلباتي',
   ]);
   await menu.getByRole('link', { name: 'طلابي' }).click();

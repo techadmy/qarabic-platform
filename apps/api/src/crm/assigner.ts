@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { AttendanceService } from '../payroll/attendance.service.js';
 import { Clock } from '../common/clock.js';
 import type { Tx } from '../people/people.common.js';
 import type { SettingsMap } from '../settings/settings.service.js';
@@ -18,7 +19,10 @@ export type PickReason = 'round_robin' | 'lead_admin' | 'disabled' | 'nobody';
  */
 @Injectable()
 export class LeadAssigner {
-  constructor(private readonly clock: Clock) {}
+  constructor(
+    private readonly clock: Clock,
+    private readonly attendance: AttendanceService,
+  ) {}
 
   async pick(
     tx: Tx,
@@ -55,8 +59,12 @@ export class LeadAssigner {
     switch (s['crm.shift_source']) {
       case 'hours':
         return WorkingHours.fromSettings(s).contains(this.clock.nowMs()) ? users : [];
-      case 'attendance':
-        return [];
+      case 'attendance': {
+        // Only staff checked in now (N7 attendance) and not on approved leave.
+        const at = this.clock.now();
+        const on = await Promise.all(users.map((u) => this.attendance.isOnShift(u.id, at)));
+        return users.filter((_, i) => on[i]);
+      }
       default:
         return users;
     }

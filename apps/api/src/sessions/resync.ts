@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Clock } from '../common/clock.js';
+import { CLEARED_PAY, PayRuleEngine } from '../payroll/pay-rules.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { holidayOn } from '../schedule/conflicts.js';
 import { addDays, fromDbDate, localDate, toUtc } from '../schedule/time.js';
@@ -55,6 +56,7 @@ export class ResyncService {
     private readonly clock: Clock,
     private readonly generator: SessionGenerator,
     private readonly zoom: ZoomMeetings,
+    private readonly pay: PayRuleEngine,
   ) {}
 
   /** Never throws: the change itself is saved; a failed re-sync is logged and healed hourly. */
@@ -171,6 +173,19 @@ export class ResyncService {
             stageReason: reason,
             markedAt: stage === 'cancelled' ? now : null,
             markedById: null,
+            // N7 pay snapshot: a system cancellation is decided (paid holiday), a revert clears it.
+            ...(stage === 'cancelled'
+              ? await this.pay.snapshot(
+                  {
+                    kind: s.kind,
+                    stage,
+                    stageReason: reason,
+                    durationMinutes: s.durationMinutes,
+                    startsAt: s.startsAt,
+                  },
+                  tx,
+                )
+              : CLEARED_PAY),
             lockVersion: { increment: 1 },
             updatedAt: now,
           },

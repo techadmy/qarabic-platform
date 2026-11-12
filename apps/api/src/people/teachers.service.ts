@@ -16,6 +16,7 @@ import { conflict, notFound, rule } from '../common/errors.js';
 import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains, phoneDigits, searchId } from '../common/search.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { syncTeacherPayProfile, teacherRate } from '../payroll/teacher-pay-rate.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AccountsService } from './accounts.service.js';
@@ -51,6 +52,8 @@ const include = {
   statusChangedBy: byUser,
   archivedBy: byUser,
   _count: { select: { students: { where: activeStudentsWhere } } },
+  // N7: the hourly rate lives on the pay profile (D89).
+  payProfile: { select: { hourlyRate: true, currency: true } },
 } satisfies Prisma.TeacherInclude;
 
 type Row = Prisma.TeacherGetPayload<{ include: typeof include }>;
@@ -70,8 +73,8 @@ function snapshot(row: Row): Record<string, unknown> {
     countryCode: row.countryCode,
     timezone: row.timezone,
     age: row.age,
-    hourlyRate: row.hourlyRate?.toFixed(2) ?? null,
-    hourlyRateCurrency: row.hourlyRateCurrency,
+    hourlyRate: row.payProfile?.hourlyRate.toFixed(2) ?? null,
+    hourlyRateCurrency: row.payProfile?.currency ?? null,
     courseIds: row.courses.map((c) => c.course.id),
     qualification: row.qualification,
     experience: row.experience,
@@ -120,13 +123,14 @@ export class TeachersService {
       q.sort === 'name'
         ? [{ firstName: order }, { lastName: { sort: order, nulls: 'first' } }, { id: order }]
         : [{ [q.sort]: order }, { id: order }];
-    const [rows, total, groups] = await Promise.all([
+    const [rows, total, groups, currency] = await Promise.all([
       this.prisma.teacher.findMany({ where: listWhere, include, orderBy, ...pageArgs(q) }),
       this.prisma.teacher.count({ where: listWhere }),
       this.prisma.teacher.groupBy({ by: ['status'], where, _count: { _all: true } }),
+      this.settings.get('payroll.default_currency'),
     ]);
     return {
-      data: rows.map((r) => this.toDto(r)),
+      data: rows.map((r) => this.toDto(r, currency)),
       meta: pageMeta(q, total, statusCounts(ACTIVE_STATUSES, groups)),
     };
   }
@@ -134,7 +138,11 @@ export class TeachersService {
   async show(id: number): Promise<TeacherDetailDto> {
     const row = await this.prisma.teacher.findUnique({ where: { id }, include });
     if (!row) throw notFound();
-    return { ...this.toDto(row), statusHistory: await statusHistory(this.prisma, 'teacher', id) };
+    const currency = await this.settings.get('payroll.default_currency');
+    return {
+      ...this.toDto(row, currency),
+      statusHistory: await statusHistory(this.prisma, 'teacher', id),
+    };
   }
 
   async create(input: z.output<typeof createTeacherSchema>, actor: AuthUser): Promise<number> {
@@ -155,10 +163,10 @@ export class TeachersService {
             userId: user.id,
             firstName: input.firstName,
             timezone: input.timezone,
-            hourlyRateCurrency: currency,
             ...this.fields(input),
           },
         });
+        await syncTeacherPayProfile(tx, this.audit, created, input.hourlyRate, currency, actor.id);
         if (input.courseIds?.length) {
           await tx.teacherCourse.createMany({
             data: input.courseIds.map((courseId) => ({ teacherId: created.id, courseId })),
@@ -185,10 +193,7 @@ export class TeachersService {
     input: z.output<typeof updateTeacherSchema>,
     actor: AuthUser,
   ): Promise<void> {
-    const currency =
-      input.hourlyRateCurrency !== undefined
-        ? await this.currency(input.hourlyRateCurrency)
-        : undefined;
+    const currency = await this.currency(input.hourlyRateCurrency);
     await this.prisma
       .$transaction(async (tx) => {
         await lockRow(tx, 'teachers', id);
@@ -202,10 +207,10 @@ export class TeachersService {
           data: {
             ...(input.firstName !== undefined ? { firstName: input.firstName } : {}),
             ...(input.timezone !== undefined ? { timezone: input.timezone } : {}),
-            ...(currency !== undefined ? { hourlyRateCurrency: currency } : {}),
             ...this.fields(input),
           },
         });
+        await syncTeacherPayProfile(tx, this.audit, before, input.hourlyRate, currency, actor.id);
         const nameChanged = input.firstName !== undefined || input.lastName !== undefined;
         await tx.user.update({
           where: { id: before.userId },
@@ -350,7 +355,7 @@ export class TeachersService {
     });
   }
 
-  /** Teachers are paid in the academy's pay currency (EGP); payroll (N7) sets any other. */
+  /** Teachers are paid in the academy's pay currency (EGP); only payroll sets another (N7). */
   private async currency(requested: string | undefined): Promise<string> {
     const fallback = await this.settings.get('payroll.default_currency');
     if (requested !== undefined && requested !== fallback) {
@@ -367,7 +372,6 @@ export class TeachersService {
       'nationality',
       'countryCode',
       'age',
-      'hourlyRate',
       'qualification',
       'experience',
       'address',
@@ -385,7 +389,7 @@ export class TeachersService {
     if (found !== ids.length) throw invalid('courseIds', 'The selected courses are invalid.');
   }
 
-  private toDto(row: Row): TeacherDto {
+  private toDto(row: Row, defaultCurrency: string): TeacherDto {
     return {
       id: row.id,
       userId: row.userId,
@@ -400,8 +404,7 @@ export class TeachersService {
       countryCode: row.countryCode,
       timezone: row.timezone,
       age: row.age,
-      hourlyRate: row.hourlyRate?.toFixed(2) ?? null,
-      hourlyRateCurrency: row.hourlyRateCurrency,
+      ...teacherRate(row.payProfile, defaultCurrency),
       courses: row.courses.map((c) => c.course),
       qualification: row.qualification,
       experience: row.experience,
