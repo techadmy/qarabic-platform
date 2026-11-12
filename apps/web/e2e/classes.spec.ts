@@ -113,13 +113,17 @@ test('parent requests a leave → staff approves it', async ({ page }) => {
   // The child's class that starts in 90 minutes (too late for an automatic approval).
   const minute = Math.floor(Date.now() / 60_000) * 60_000;
   const times = [-1, 0, 1].map((d) => cairoClock(minute + (90 + d) * 60_000));
-  let row = page.locator('tr[data-session-id]').filter({ hasText: times[1]! });
-  if (!(await row.count()))
-    row = page.locator('tr[data-session-id]').filter({ hasText: times[0]! });
+  // count() does not wait: let the week's classes render first, or every count reads 0 and the
+  // test jumps to next week while this week's rows are still arriving (CI flake).
+  const rows = page.locator('tr[data-session-id]');
+  await expect(rows.first()).toBeVisible();
+  let row = rows.filter({ hasText: times[1]! });
+  if (!(await row.count())) row = rows.filter({ hasText: times[0]! });
   if (!(await row.count())) {
     // Late in the week the class can fall into the next week.
     await page.getByRole('button', { name: 'الأسبوع التالي' }).click();
-    row = page.locator('tr[data-session-id]').filter({ hasText: new RegExp(times.join('|')) });
+    row = rows.filter({ hasText: new RegExp(times.join('|')) });
+    await expect(row.first()).toBeVisible();
   }
   row = row.first();
   const name = (await row.getByRole('button').first().textContent())!.trim();
