@@ -311,7 +311,12 @@ describe('Fines and pay items', () => {
     const t = await table('الغرامات والبنود');
     expect(screen.getByRole('heading', { level: 1, name: 'غراماتي' })).toBeInTheDocument();
     expect(within(t).getAllByRole('row')).toHaveLength(2);
-    expect(within(t).queryByRole('button')).not.toBeInTheDocument();
+    // Read-only: no action buttons (the column chooser is the only control in the table).
+    expect(
+      within(t)
+        .queryAllByRole('button')
+        .filter((b) => b.getAttribute('aria-label') !== 'اختيار الأعمدة'),
+    ).toHaveLength(0);
     expect(screen.queryByRole('button', { name: /غرامة|بندًا/ })).not.toBeInTheDocument();
   });
 });

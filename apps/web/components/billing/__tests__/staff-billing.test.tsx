@@ -18,16 +18,25 @@ async function table(name = 'الفواتير') {
 }
 
 describe('Invoices list (staff)', () => {
-  it('shows the amounts per currency, the status tabs with counts and the rows', async () => {
+  it('shows the amounts per currency (summary, closed by default), the views with counts and the rows', async () => {
+    const user = userEvent.setup();
     renderPage(<InvoicesView />, { path: '/invoices' });
     const t = await table();
     // 12 invoices in the mock + the header row.
     expect(within(t).getAllByRole('row')).toHaveLength(13);
-    const tabs = screen.getByRole('radiogroup', { name: 'حالة الفاتورة' });
-    expect(within(tabs).getByRole('radio', { name: /^الكل\s*\(12\)$/ })).toBeChecked();
-    expect(within(tabs).getByRole('radio', { name: /^متأخرة\s*\(2\)$/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole('radio', { name: /^غير مسددة\s*\(7\)$/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole('radio', { name: /^مسودة\s*\(1\)$/ })).toBeInTheDocument();
+    // Nine views live in the title's views menu (D141 §2).
+    const h1 = screen.getByRole('heading', { level: 1 });
+    await user.click(within(h1).getByRole('button', { name: /^الكل\s*\(12\)\s*تغيير العرض$/ }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitemradio', { name: /^متأخرة\s*2$/ })).toBeInTheDocument();
+    expect(
+      within(menu).getByRole('menuitemradio', { name: /^غير مسددة\s*7$/ }),
+    ).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitemradio', { name: /^مسودة\s*1$/ })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
+    // The summary is closed; its hint keeps the overdue amounts visible (D141 §8).
+    expect(await screen.findByText(/متأخر:/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /إظهار التفاصيل/ }));
     const kpi = await screen.findByRole('region', { name: 'ملخص المبالغ حسب العملة' });
     expect(within(kpi).getByRole('heading', { name: 'USD' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'إصدار فواتير الشهر' })).toBeInTheDocument();
@@ -39,11 +48,12 @@ describe('Invoices list (staff)', () => {
     expect(within(t).getAllByText('متأخرة')).toHaveLength(2);
   });
 
-  it('puts the tab and the month in the URL', async () => {
+  it('puts the view and the month in the URL', async () => {
     const user = userEvent.setup();
     renderPage(<InvoicesView />, { path: '/invoices' });
     await table();
-    await user.click(screen.getByRole('radio', { name: /^متأخرة/ }));
+    await user.click(screen.getByRole('button', { name: /تغيير العرض$/ }));
+    await user.click(await screen.findByRole('menuitemradio', { name: /^متأخرة/ }));
     expect(lastReplacedUrl().searchParams.get('status')).toBe('overdue');
   });
 

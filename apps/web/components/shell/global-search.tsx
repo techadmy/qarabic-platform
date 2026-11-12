@@ -21,7 +21,7 @@ import { useQuery } from '@tanstack/react-query';
 import { SearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { SPLIT_VIEW_QUERY } from '@/components/list/split-view';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { useViewerTz } from '@/components/sessions/times';
@@ -98,6 +98,15 @@ export function GlobalSearch() {
   const [section, setSection] = useState<SearchSection | null>(here);
   const [input, setInput] = useState('');
   const [q, setQ] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // The dialog's focus trap focuses its first control (the section picker) on open; the field is
+  // what `/` is for, so focus it once the dialog has mounted.
+  useEffect(() => {
+    if (!open) return;
+    const frame = requestAnimationFrame(() => inputRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [open]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -177,10 +186,10 @@ export function GlobalSearch() {
             </Select>
             <div className="min-w-0 flex-1 [&_[data-slot=command-input-wrapper]]:p-0">
               <CommandInput
+                ref={inputRef}
                 value={input}
                 onValueChange={setInput}
                 placeholder={t('placeholder', { section: scopeLabel })}
-                autoFocus
               />
             </div>
           </div>

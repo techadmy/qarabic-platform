@@ -53,6 +53,8 @@ import { useDirection } from '@/lib/use-direction';
 import { LineDialog, RecordPaymentDialog, SplitDialog } from './action-dialogs';
 import { InvoiceStatusBadge, Money, useBillingError } from './billing-bits';
 import { InvoiceLines, PackageUsage, PaymentsList, Section } from './invoice-parts';
+import { cn } from '@qarabic/ui/lib/utils';
+import { useRecordPane } from '@/components/list/split-view';
 
 type Open = null | 'issue' | 'payment' | 'adjustment' | 'discount' | 'split' | 'void';
 
@@ -64,6 +66,7 @@ type Open = null | 'issue' | 'payment' | 'adjustment' | 'discount' | 'split' | '
  * needs a reason (D31). The buttons follow the API's `can` flags; nothing changes from a link.
  */
 export function InvoiceDetailView({ id }: { id: number }) {
+  const pane = useRecordPane();
   const t = useTranslations('billing');
   const locale = useUiLocale();
   const tz = useViewerTz();
@@ -324,8 +327,14 @@ export function InvoiceDetailView({ id }: { id: number }) {
         ]}
       />
 
-      <div className="grid items-start gap-4 lg:grid-cols-12">
-        <Section title={t('detail.lines')} className="lg:col-span-7">
+      <div
+        className={cn(
+          'grid items-start gap-4',
+          // In the split view's pane the columns follow the pane (D141 §1).
+          pane ? '@5xl:grid-cols-12' : 'lg:grid-cols-12',
+        )}
+      >
+        <Section title={t('detail.lines')} className={pane ? '@5xl:col-span-7' : 'lg:col-span-7'}>
           <InvoiceLines invoice={inv} />
           {inv.notes && (
             <p className="mt-3 text-sm break-words text-muted-foreground" dir="auto">
@@ -333,7 +342,7 @@ export function InvoiceDetailView({ id }: { id: number }) {
             </p>
           )}
         </Section>
-        <div className="flex flex-col gap-4 lg:col-span-5">
+        <div className={cn('flex flex-col gap-4', pane ? '@5xl:col-span-5' : 'lg:col-span-5')}>
           <Section title={t('detail.payments')}>
             <PaymentsList
               payments={inv.payments}

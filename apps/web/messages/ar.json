@@ -2489,7 +2489,8 @@
       "title": "ملخص المبالغ حسب العملة",
       "due": "المستحق ({count, plural, zero {لا فواتير} one {فاتورة} two {فاتورتان} few {# فواتير} many {# فاتورة} other {# فاتورة}})",
       "overdue": "المتأخر ({count, plural, zero {لا فواتير} one {فاتورة} two {فاتورتان} few {# فواتير} many {# فاتورة} other {# فاتورة}})",
-      "collected": "المحصّل في {month}"
+      "collected": "المحصّل في {month}",
+      "overdueShort": "متأخر"
     },
     "run": {
       "open": "إصدار فواتير الشهر",

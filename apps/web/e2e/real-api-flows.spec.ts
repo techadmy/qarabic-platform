@@ -317,6 +317,9 @@ test('real API (N6): monthly invoice run → an invoice → a manual payment →
   const table = page.getByRole('table', { name: 'الفواتير' });
   await expect(table).not.toHaveAttribute('aria-busy');
   await table.getByRole('row').nth(1).getByRole('link').first().click();
+  // From 1024 px the invoice opens in the split view (D141 §1); its own page is one click on.
+  await expect(page).toHaveURL(/[?&]id=\d+/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page.getByRole('heading', { level: 1, name: /INV-\d{4}-\d{6}/ })).toBeVisible();
   await expect(page.locator('main h1')).toContainText('مستحقة');
 

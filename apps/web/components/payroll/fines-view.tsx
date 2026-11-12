@@ -13,13 +13,15 @@ import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { BanIcon, CheckIcon, FileWarningIcon, LockIcon, PlusIcon, XIcon } from 'lucide-react';
+import { BanIcon, CheckIcon, FileWarningIcon, LockIcon, XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
 import { FilterSelect, StatusTabs } from '@/components/list/list-toolbar';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
+import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { ReasonDialog } from '@/components/sessions/reason-dialog';
@@ -63,6 +65,7 @@ export function FinesView() {
   const t = useTranslations('payroll');
   const locale = useUiLocale();
   const me = useCurrentUser();
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(`fines:${me.id}`);
   const params = useListParams();
   const queryClient = useQueryClient();
   const message = usePayrollError();
@@ -206,12 +209,11 @@ export function FinesView() {
       <PageHeader
         title={title}
         actions={
-          types.length > 0 && (
-            <Button className="h-10" onClick={() => setAdding(true)}>
-              <PlusIcon />
-              {addLabel}
-            </Button>
-          )
+          <ListActions
+            create={
+              types.length > 0 ? { label: addLabel, onClick: () => setAdding(true) } : undefined
+            }
+          />
         }
       />
       <Card className="gap-0 py-0 shadow-none">
@@ -258,12 +260,14 @@ export function FinesView() {
           </div>
         ) : (
           <ResponsiveList
-            columns={columns}
+            columns={fixFirstColumn(columns)}
             rows={rows}
             loading={list.isPending}
             label={t('fines.table')}
             emptyText={t('fines.none')}
             getRowId={(a) => a.id}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
             renderCard={(a) => (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-2">

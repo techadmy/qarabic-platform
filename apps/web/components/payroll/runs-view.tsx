@@ -15,7 +15,7 @@ import {
 } from '@qarabic/ui/components/table';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { BanknoteIcon, CalendarPlusIcon, InfoIcon } from 'lucide-react';
+import { BanknoteIcon, InfoIcon, WalletIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -23,7 +23,10 @@ import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
+import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
+import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
 import { PageHeader } from '@/components/page-header';
 import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -36,6 +39,7 @@ import { useListParams } from '@/lib/list-params';
 import { ACADEMY_TZ, defaultRunPeriod, isPeriod, periodIn } from '@/lib/payroll/labels';
 import { FormDialog, FormRow, Money, RunStatusBadge, usePayrollError } from './payroll-bits';
 import { MonthPicker } from '@/components/forms/date-time';
+import { RunView } from './run-view';
 
 export const runHref = (r: Pick<PayrollRunDto, 'id'>) => `/payroll/runs/${r.id}`;
 
@@ -60,6 +64,10 @@ export function RunsView() {
   const t = useTranslations('payroll');
   const locale = useUiLocale();
   const me = useCurrentUser();
+  const split = useSplitView('/payroll');
+  // The run's own page is /payroll/runs/:id; from 1024 px it opens beside the list (`?id=`).
+  const rowHref = (r: Pick<PayrollRunDto, 'id'>) => (split.wide ? split.hrefFor(r.id) : runHref(r));
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(`payroll-runs:${me.id}`);
   const params = useListParams();
   const allowed =
     can(me, 'payroll.manage') || can(me, 'payroll.review') || can(me, 'payroll.approve');
@@ -74,57 +82,56 @@ export function RunsView() {
   });
   const rows = useMemo(() => list.data?.data ?? [], [list.data]);
   const meta = list.data?.meta;
-  const columns = useMemo<ColumnDef<PayrollRunDto, unknown>[]>(
-    () => [
-      {
-        id: 'month',
-        header: t('month'),
-        cell: ({ row: { original: r } }) => (
-          <Link href={runHref(r)} className="font-semibold text-primary hover:underline">
-            {monthLabel(r.period, locale)}
-          </Link>
+  // Rebuilt each render: the row link follows the split view (`?id=` on wide screens).
+  const columns: ColumnDef<PayrollRunDto, unknown>[] = [
+    {
+      id: 'month',
+      header: t('month'),
+      enableHiding: false,
+      cell: ({ row: { original: r } }) => (
+        <Link href={rowHref(r)} className="font-semibold text-primary hover:underline">
+          {monthLabel(r.period, locale)}
+        </Link>
+      ),
+    },
+    {
+      id: 'status',
+      header: t('status'),
+      cell: ({ row: { original: r } }) => <RunStatusBadge status={r.status} />,
+    },
+    {
+      id: 'people',
+      header: t('runs.people'),
+      meta: { numeric: true } satisfies ColumnMeta,
+      cell: ({ row: { original: r } }) => <bdi>{r.people}</bdi>,
+    },
+    {
+      id: 'net',
+      header: t('runs.net'),
+      cell: ({ row: { original: r } }) => <TotalsInline totals={r.totals} />,
+    },
+    {
+      id: 'paid',
+      header: t('runs.paidPeople'),
+      meta: { numeric: true } satisfies ColumnMeta,
+      cell: ({ row: { original: r } }) => (
+        <bdi>{t('runs.paidOf', { paid: r.paidPeople, total: r.people })}</bdi>
+      ),
+    },
+    {
+      id: 'issues',
+      header: t('runs.issues'),
+      meta: { numeric: true } satisfies ColumnMeta,
+      cell: ({ row: { original: r } }) =>
+        r.errorCount || r.warningCount ? (
+          <bdi className={r.errorCount ? 'font-semibold text-destructive' : undefined}>
+            {r.errorCount} / {r.warningCount}
+          </bdi>
+        ) : (
+          '—'
         ),
-      },
-      {
-        id: 'status',
-        header: t('status'),
-        cell: ({ row: { original: r } }) => <RunStatusBadge status={r.status} />,
-      },
-      {
-        id: 'people',
-        header: t('runs.people'),
-        meta: { numeric: true } satisfies ColumnMeta,
-        cell: ({ row: { original: r } }) => <bdi>{r.people}</bdi>,
-      },
-      {
-        id: 'net',
-        header: t('runs.net'),
-        cell: ({ row: { original: r } }) => <TotalsInline totals={r.totals} />,
-      },
-      {
-        id: 'paid',
-        header: t('runs.paidPeople'),
-        meta: { numeric: true } satisfies ColumnMeta,
-        cell: ({ row: { original: r } }) => (
-          <bdi>{t('runs.paidOf', { paid: r.paidPeople, total: r.people })}</bdi>
-        ),
-      },
-      {
-        id: 'issues',
-        header: t('runs.issues'),
-        meta: { numeric: true } satisfies ColumnMeta,
-        cell: ({ row: { original: r } }) =>
-          r.errorCount || r.warningCount ? (
-            <bdi className={r.errorCount ? 'font-semibold text-destructive' : undefined}>
-              {r.errorCount} / {r.warningCount}
-            </bdi>
-          ) : (
-            '—'
-          ),
-      },
-    ],
-    [t, locale],
-  );
+    },
+  ];
 
   if (!allowed || isApiError(list.error, 403)) {
     return (
@@ -135,27 +142,75 @@ export function RunsView() {
     );
   }
 
+  const header = (
+    <PageHeader
+      title={t('runs.title')}
+      meta={meta ? t('runs.count', { count: meta.total }) : undefined}
+      actions={
+        <ListActions
+          create={manage ? { label: t('runs.new'), onClick: () => setCreating(true) } : undefined}
+          more={
+            can(me, 'payroll.view')
+              ? [{ label: t('runs.mine'), icon: WalletIcon, href: '/payroll/me' }]
+              : []
+          }
+        />
+      }
+    />
+  );
+  const pagination = meta && rows.length > 0 && meta.lastPage > 1 && (
+    <ListPagination
+      meta={meta}
+      onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
+      onPerPage={() => undefined}
+    />
+  );
+
+  if (split.selectedId) {
+    return (
+      <>
+        {header}
+        <SplitView
+          selectedId={split.selectedId}
+          wide={split.wide}
+          detailLabel={t('runs.title')}
+          onClose={split.close}
+          fullHref={`/payroll/runs/${split.selectedId}`}
+          list={
+            <SplitList
+              rows={rows}
+              loading={list.isPending}
+              label={t('runs.table')}
+              emptyText={t('runs.none')}
+              getRowId={(r) => r.id}
+              hrefFor={split.hrefFor}
+              selectedId={split.selectedId}
+              footer={pagination}
+              renderItem={(r) => (
+                <span className="flex flex-col gap-1">
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{monthLabel(r.period, locale)}</span>
+                    <RunStatusBadge status={r.status} />
+                  </span>
+                  <span className="line-clamp-1 text-sm text-muted-foreground">
+                    <TotalsInline totals={r.totals} />
+                  </span>
+                </span>
+              )}
+            />
+          }
+          detail={<RunView key={split.selectedId} id={Number(split.selectedId)} />}
+        />
+        {creating && (
+          <NewRunDialog open onOpenChange={setCreating} existing={rows.map((r) => r.period)} />
+        )}
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader
-        title={t('runs.title')}
-        meta={meta ? t('runs.count', { count: meta.total }) : undefined}
-        actions={
-          <>
-            {can(me, 'payroll.view') && (
-              <Button variant="outline" className="h-10" asChild>
-                <Link href="/payroll/me">{t('runs.mine')}</Link>
-              </Button>
-            )}
-            {manage && (
-              <Button className="h-10" onClick={() => setCreating(true)}>
-                <CalendarPlusIcon />
-                {t('runs.new')}
-              </Button>
-            )}
-          </>
-        }
-      />
+      {header}
       <p className="flex items-start gap-2 text-sm text-muted-foreground">
         <InfoIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
         {t('runs.noMoneyMoves')}
@@ -180,13 +235,15 @@ export function RunsView() {
           </div>
         ) : (
           <ResponsiveList
-            columns={columns}
+            columns={fixFirstColumn(columns)}
             rows={rows}
             loading={list.isPending}
             label={t('runs.table')}
             emptyText={t('runs.none')}
             getRowId={(r) => r.id}
-            getRowHref={runHref}
+            getRowHref={rowHref}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
             renderCard={(r) => (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-2">
@@ -204,13 +261,7 @@ export function RunsView() {
             )}
           />
         )}
-        {meta && rows.length > 0 && meta.lastPage > 1 && (
-          <ListPagination
-            meta={meta}
-            onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
-            onPerPage={() => undefined}
-          />
-        )}
+        {pagination}
       </Card>
       {creating && (
         <NewRunDialog open onOpenChange={setCreating} existing={rows.map((r) => r.period)} />
