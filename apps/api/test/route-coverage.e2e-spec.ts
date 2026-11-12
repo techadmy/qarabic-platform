@@ -69,8 +69,11 @@ describe('route permission coverage', () => {
     const routes = auditRoutes(ctx.app);
     expect(routes.filter((r) => r.access === 'public').map((r) => r.route)).toEqual(PUBLIC_ROUTES);
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
+      // Mobile readiness: the user's own push devices (docs/17 §5).
+      'DELETE me/devices/:id',
       'GET auth/me',
       'GET me',
+      'GET me/devices',
       // M8: the user's own notification channels per kind.
       'GET me/notification-preferences',
       // The bell: the user's own notifications only (N5).
@@ -79,6 +82,7 @@ describe('route permission coverage', () => {
       'GET quran/surahs',
       'PATCH me',
       'POST auth/logout',
+      'POST me/devices',
       'POST me/notifications/:id/read',
       'POST me/notifications/read-all',
       'PUT me/notification-preferences',

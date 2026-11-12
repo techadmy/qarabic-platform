@@ -246,11 +246,12 @@ export const updateAnnouncementSchema = saveAnnouncementSchema
 
 // ------------------------------------------------------------------ notification centre
 
-export const NOTIFICATION_CHANNELS = ['in_app', 'email', 'whatsapp'] as const;
+export const NOTIFICATION_CHANNELS = ['in_app', 'email', 'push', 'whatsapp'] as const;
 export type NotificationChannel = (typeof NOTIFICATION_CHANNELS)[number];
 export const NOTIFICATION_CHANNEL_LABELS: Labels<NotificationChannel> = {
   in_app: { ar: 'داخل النظام', en: 'In the app' },
   email: { ar: 'البريد الإلكتروني', en: 'Email' },
+  push: { ar: 'إشعارات تطبيق الجوال', en: 'Mobile app push' },
   whatsapp: { ar: 'واتساب', en: 'WhatsApp' },
 };
 
@@ -267,6 +268,8 @@ export const NOTIFICATION_KIND_LABELS: Labels<NotificationKind> = {
 export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {
   in_app: true,
   email: false,
+  /** Only reaches people who registered a phone (`/me/devices`). */
+  push: true,
   whatsapp: false,
 };
 
@@ -286,6 +289,8 @@ export const notificationPreferenceSchema = z.object({
   kind: z.enum(NOTIFICATION_KINDS),
   inApp: z.boolean(),
   email: z.boolean(),
+  /** Mobile push (docs/17 §5); optional on input for older clients (default on). */
+  push: z.boolean().default(true),
   whatsapp: z.boolean(),
 });
 export type NotificationPreferenceDto = z.infer<typeof notificationPreferenceSchema>;

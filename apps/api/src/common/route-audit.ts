@@ -1,5 +1,6 @@
 import { RequestMethod } from '@nestjs/common';
-import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants.js';
+import { RouteParamtypes } from '@nestjs/common/enums/route-paramtypes.enum.js';
+import { METHOD_METADATA, PATH_METADATA, ROUTE_ARGS_METADATA } from '@nestjs/common/constants.js';
 import { ModulesContainer, Reflector } from '@nestjs/core';
 import type { INestApplicationContext } from '@nestjs/common';
 import {
@@ -15,6 +16,8 @@ export interface RouteAccess {
   permissions: string[];
   /** `all` = `@Can` (every listed permission), `any` = `@CanAny` (one of them). */
   mode?: 'all' | 'any';
+  /** The handler reads a request body (`@Body`, e.g. `@ZodBody`). */
+  body: boolean;
 }
 
 const join = (...parts: Array<string | string[] | undefined>) =>
@@ -51,8 +54,14 @@ export function auditRoutes(app: INestApplicationContext): RouteAccess[] {
             : reflector.getAllAndOverride<boolean>(AUTHENTICATED_KEY, targets)
               ? 'authenticated'
               : 'none';
+        const args = (Reflect.getMetadata(ROUTE_ARGS_METADATA, cls, name) ?? {}) as Record<
+          string,
+          unknown
+        >;
+        const body = Object.keys(args).some((k) => k.startsWith(`${RouteParamtypes.BODY}:`));
         out.push({
           route: `${RequestMethod[method]} ${join(base, path)}`,
+          body,
           access,
           permissions: perms ?? [],
           ...(perms?.length ? { mode: all ? ('all' as const) : ('any' as const) } : {}),

@@ -436,7 +436,7 @@ export const operationsHandlers: HttpHandler[] = [
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const mine = odb.prefs.get(g.me.id) ?? {};
     for (const p of parsed.data.preferences) {
-      mine[p.kind] = { inApp: p.inApp, email: p.email, whatsapp: p.whatsapp };
+      mine[p.kind] = { inApp: p.inApp, email: p.email, push: p.push, whatsapp: p.whatsapp };
     }
     odb.prefs.set(g.me.id, mine);
     return HttpResponse.json(preferencesOf(g.me));
@@ -501,8 +501,10 @@ function preferencesOf(me: MockUser) {
       kind,
       inApp: mine[kind]?.inApp ?? NOTIFICATION_DEFAULTS.in_app,
       email: mine[kind]?.email ?? NOTIFICATION_DEFAULTS.email,
+      push: mine[kind]?.push ?? NOTIFICATION_DEFAULTS.push,
       whatsapp: mine[kind]?.whatsapp ?? NOTIFICATION_DEFAULTS.whatsapp,
     })),
-    channels: { in_app: true, email: true, whatsapp: false },
+    // No push driver in the mock (`PUSH_DRIVER=none`), like a fresh install.
+    channels: { in_app: true, email: true, push: false, whatsapp: false },
   };
 }

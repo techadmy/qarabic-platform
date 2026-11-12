@@ -46,8 +46,29 @@ export const envSchema = z
       .enum(['true', 'false', '1', '0'])
       .default('true')
       .transform((v) => v === 'true' || v === '1'),
-    /** Private files (ticket screenshots, N4): `local` disk now; S3 / Spaces later. */
-    STORAGE_DRIVER: z.enum(['local']).default('local'),
+    /**
+     * Private files (ticket screenshots, attachments): `local` disk (default) or `s3` (any
+     * S3-compatible store, e.g. DigitalOcean Spaces) with the `S3_*` keys below.
+     */
+    STORAGE_DRIVER: z.enum(['local', 's3']).default('local'),
+    /** `s3` driver: endpoint (e.g. `https://fra1.digitaloceanspaces.com`), region, bucket, keys. */
+    S3_ENDPOINT: z.preprocess((v) => (v === '' ? undefined : v), url.optional()),
+    S3_REGION: z.string().min(1).default('us-east-1'),
+    S3_BUCKET: optionalSecret,
+    S3_ACCESS_KEY_ID: optionalSecret,
+    S3_SECRET_ACCESS_KEY: optionalSecret,
+    /** Lifetime of a temporary download link from the `s3` driver, in seconds. */
+    S3_SIGNED_URL_TTL: z.coerce.number().int().min(60).max(604_800).default(300),
+    /**
+     * Mobile push (docs/17 §5): `none` (default: nothing is sent), `fake` (kept in memory: tests,
+     * local) or `fcm` (Firebase Cloud Messaging HTTP v1, Android + iOS) with the service account
+     * below. No real keys are committed.
+     */
+    PUSH_DRIVER: z.enum(['none', 'fake', 'fcm']).default('none'),
+    FCM_PROJECT_ID: optionalSecret,
+    /** The service account's `client_email` and `private_key` (PEM, `\n` allowed). */
+    FCM_CLIENT_EMAIL: optionalSecret,
+    FCM_PRIVATE_KEY: optionalSecret,
     /** Folder of the `local` storage driver (outside the web root; not committed). */
     STORAGE_LOCAL_DIR: z.string().min(1).default('storage/private'),
     /**
@@ -134,6 +155,29 @@ export const envSchema = z
         path: ['APP_ENCRYPTION_KEY'],
         message: 'Use a real random key.',
       });
+    }
+    if (env.STORAGE_DRIVER === 's3') {
+      for (const key of [
+        'S3_ENDPOINT',
+        'S3_BUCKET',
+        'S3_ACCESS_KEY_ID',
+        'S3_SECRET_ACCESS_KEY',
+      ] as const) {
+        if (!env[key]) {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: 'Required with STORAGE_DRIVER=s3.',
+          });
+        }
+      }
+    }
+    if (env.PUSH_DRIVER === 'fcm') {
+      for (const key of ['FCM_PROJECT_ID', 'FCM_CLIENT_EMAIL', 'FCM_PRIVATE_KEY'] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Required with PUSH_DRIVER=fcm.' });
+        }
+      }
     }
     if (env.FORMS_CAPTCHA_DRIVER === 'turnstile' && !env.TURNSTILE_SECRET_KEY) {
       ctx.addIssue({

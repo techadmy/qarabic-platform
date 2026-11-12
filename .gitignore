@@ -15,3 +15,4 @@ next-env.d.ts
 *.tsbuildinfo
 apps/api/storage/
 apps/api/legacy-reports/
+apps/api/openapi.json

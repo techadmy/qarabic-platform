@@ -177,6 +177,7 @@ model User {
   announcementReads       AnnouncementRead[]
   notificationPreferences NotificationPreference[]
   classReminders          ClassReminder[]
+  devices                 DeviceToken[]
 
   @@index([roleId])
   @@index([archivedAt])
@@ -2408,6 +2409,7 @@ model NotificationPreference {
   kind     String  @db.VarChar(32)
   inApp    Boolean @default(true) @map("in_app")
   email    Boolean @default(false)
+  push     Boolean @default(true)
   whatsapp Boolean @default(false)
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -2426,4 +2428,29 @@ model ClassReminder {
 
   @@id([sessionId, userId])
   @@map("class_reminders")
+}
+
+// ====================================================================== Mobile readiness
+// Push device tokens (docs/17 §5): one row per token; a token moves to whoever registers it last.
+
+enum DevicePlatform {
+  ios
+  android
+  web
+}
+
+model DeviceToken {
+  id         Int            @id @default(autoincrement())
+  userId     Int            @map("user_id")
+  token      String         @unique @db.VarChar(512)
+  platform   DevicePlatform
+  appVersion String?        @map("app_version") @db.VarChar(32)
+  deviceName String?        @map("device_name") @db.VarChar(80)
+  lastSeenAt DateTime       @map("last_seen_at") @db.Timestamptz(6)
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("device_tokens")
 }
