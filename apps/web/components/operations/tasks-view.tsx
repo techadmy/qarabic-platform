@@ -17,14 +17,12 @@ import { Card } from '@qarabic/ui/components/card';
 import { Label } from '@qarabic/ui/components/label';
 import { Switch } from '@qarabic/ui/components/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
-import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import { ClipboardListIcon, MessageSquareIcon, PlusIcon, SearchXIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useId, useMemo, useState } from 'react';
-import { DataTable } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
 import {
   ClearFiltersButton,
@@ -35,19 +33,28 @@ import {
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { Highlight } from '@/components/people/people-list';
-import { useUiLocale, useViewerTz } from '@/components/sessions/times';
+import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
 import { fetchTasks, operationsKeys } from '@/lib/api/operations';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
-import { dayAndClock } from '@/lib/schedule-time';
 import { useDirection } from '@/lib/use-direction';
-import { PriorityBadge, TaskStatusBadge } from './ops-bits';
+import { PriorityBadge, TaskStatusBadge, ViewerTime } from './ops-bits';
 import { TaskDialog } from './task-dialog';
 
 type StatusTab = TaskStatus | 'open' | 'all';
+
+const href = (x: TaskDto) => `/tasks/${x.id}`;
+
+/** The due time in the viewer's zone (D30); overdue in the destructive colour. */
+function DueCell({ task: x }: { task: TaskDto }) {
+  if (!x.dueAt) return <span className="text-muted-foreground">—</span>;
+  return (
+    <ViewerTime at={x.dueAt} className={x.overdue ? 'font-semibold text-destructive' : undefined} />
+  );
+}
 
 /**
  * «المهام» (M8; the old Given / Issued boxes, docs/03 §11): «المسندة إليّ», «التي أصدرتها» and,
@@ -58,11 +65,9 @@ type StatusTab = TaskStatus | 'open' | 'all';
 export function TasksView() {
   const t = useTranslations('operations.tasks');
   const locale = useUiLocale();
-  const tz = useViewerTz();
   const dir = useDirection();
   const me = useCurrentUser();
   const params = useListParams();
-  const isMobile = useIsMobile();
   const overdueId = useId();
   const [creating, setCreating] = useState(false);
   const allowed = can(me, 'tasks.view');
@@ -97,30 +102,19 @@ export function TasksView() {
   const rows = useMemo(() => list.data?.data ?? [], [list.data]);
   const meta = list.data?.meta;
   const filtersOn = !!(params.q || priority || overdue);
-  const href = (x: TaskDto) => `/tasks/${x.id}`;
-  const other = (x: TaskDto) => (box === 'given' ? x.createdBy : x.assignee);
-  const due = (x: TaskDto) =>
-    x.dueAt ? (
-      <span className={x.overdue ? 'font-semibold text-destructive' : undefined}>
-        {dayAndClock(x.dueAt, tz, locale)}
-      </span>
-    ) : (
-      <span className="text-muted-foreground">—</span>
-    );
-
   const columns = useMemo<ColumnDef<TaskDto, unknown>[]>(
     () => [
       {
         id: 'title',
         header: t('fields.title'),
         cell: ({ row: { original: x } }) => (
-          <span className="flex min-w-56 flex-col gap-0.5">
+          <span className="flex min-w-56 flex-col gap-1">
             <Link href={href(x)} className="font-semibold text-primary hover:underline">
               <Highlight text={x.title} query={params.q} />
             </Link>
             {x.comments > 0 && (
               <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                <MessageSquareIcon className="size-3.5" aria-hidden />
+                <MessageSquareIcon className="size-4" aria-hidden />
                 {t('comments', { count: x.comments })}
               </span>
             )}
@@ -130,7 +124,7 @@ export function TasksView() {
       {
         id: 'person',
         header: box === 'given' ? t('fields.createdBy') : t('fields.assignee'),
-        cell: ({ row: { original: x } }) => other(x).name,
+        cell: ({ row: { original: x } }) => (box === 'given' ? x.createdBy : x.assignee).name,
       },
       {
         id: 'priority',
@@ -140,7 +134,7 @@ export function TasksView() {
       {
         id: 'due',
         header: t('fields.due'),
-        cell: ({ row: { original: x } }) => <span className="whitespace-nowrap">{due(x)}</span>,
+        cell: ({ row: { original: x } }) => <DueCell task={x} />,
       },
       {
         id: 'status',
@@ -150,8 +144,7 @@ export function TasksView() {
         ),
       },
     ],
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [t, locale, tz, params.q, box],
+    [t, params.q, box],
   );
 
   if (!allowed || isApiError(list.error, 403)) {
@@ -272,7 +265,7 @@ export function TasksView() {
                       }
                     />
                   </div>
-                ) : isMobile ? (
+                ) : (
                   <ResponsiveList
                     columns={columns}
                     rows={rows}
@@ -282,7 +275,7 @@ export function TasksView() {
                     getRowId={(x) => x.id}
                     getRowHref={href}
                     renderCard={(x) => (
-                      <div className="flex flex-col gap-1.5">
+                      <div className="flex flex-col gap-2">
                         <div className="flex items-start justify-between gap-2">
                           <span className="min-w-0 font-semibold text-primary">{x.title}</span>
                           <TaskStatusBadge status={x.status} overdue={x.overdue} />
@@ -293,21 +286,11 @@ export function TasksView() {
                             : t('to', { name: x.assignee.name })}
                         </span>
                         <span className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                          {due(x)}
+                          <DueCell task={x} />
                           <PriorityBadge priority={x.priority} />
                         </span>
                       </div>
                     )}
-                  />
-                ) : (
-                  <DataTable
-                    bare
-                    columns={columns}
-                    data={rows}
-                    label={t('title')}
-                    emptyText={t('empty')}
-                    loading={list.isPending}
-                    getRowHref={href}
                   />
                 )}
                 {meta && rows.length > 0 && (

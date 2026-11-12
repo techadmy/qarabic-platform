@@ -3164,8 +3164,7 @@
         "createdBy": "Given by",
         "priority": "Priority",
         "due": "Due",
-        "dueDate": "Due date",
-        "dueTime": "Time",
+        "dueTime": "Time ({city} time)",
         "status": "Status",
         "subject": "About"
       },
@@ -3179,7 +3178,6 @@
       "template": "From a template",
       "templateHint": "Fills the title, details, priority and due date.",
       "noTemplate": "No template",
-      "defaultTime": "5:00 PM if left empty.",
       "pickAssignee": "Choose a staff member",
       "searchAssignee": "Search by name",
       "form": {
@@ -3191,7 +3189,7 @@
       "details": "Task details",
       "closeReason": "Close reason",
       "action": {
-        "submit": "Mark as done",
+        "submit": "Hand in for review",
         "complete": "Confirm done",
         "reopen": "Reopen",
         "reassign": "Give to someone else",
@@ -3242,7 +3240,13 @@
         "lead": "Lead #{id}",
         "session": "Class #{id}",
         "invoice": "Invoice #{id}"
-      }
+      },
+      "clearDue": "Remove the due time",
+      "dueHint": "In your time ({city}). Without a time it is due at 5:00 PM.",
+      "notFound": "Task not found",
+      "notFoundHint": "It may have been removed, or it is not one of your tasks.",
+      "backToTasks": "Back to tasks",
+      "moreActions": "More actions"
     },
     "announcements": {
       "title": "Announcements",
@@ -3287,7 +3291,25 @@
         "titleRequired": "Write the title (at least 3 characters).",
         "bodyRequired": "Write the text (at least 3 characters).",
         "fixErrors": "Fix the marked fields, then try again."
-      }
+      },
+      "clearExpires": "Remove the end date",
+      "discardTitle": "Discard changes?",
+      "discardHint": "What you wrote in this announcement is not saved.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard changes",
+      "draftedOn": "Draft since {date}",
+      "noneWithStatus": "No announcements with this status",
+      "noneWithStatusHint": "Pick another status or show all.",
+      "noneYet": "No announcements yet",
+      "noneYetHint": "Create one, then publish it to the roles you choose.",
+      "showAll": "Show all",
+      "readBy": "{count, plural, =0 {Read by no one} one {Read by # person} other {Read by # people}}",
+      "publishTitle": "Publish “{title}”?",
+      "publishHint": "The announcement goes live and an alert goes to: {audience}.",
+      "archiveTitle": "Archive “{title}”?",
+      "archiveHint": "It disappears for its audience and cannot be published again after archiving.",
+      "archive": "Archive",
+      "cancel": "Cancel"
     }
   }
 }

@@ -51,8 +51,8 @@ test('monitor on a phone: opens a given task and hands it in', async ({ page }) 
     .first()
     .click();
   await expect(page).toHaveURL(/\/tasks\/\d+$/);
-  await page.getByRole('button', { name: 'أنجزت المهمة' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'أنجزت المهمة' }).click();
+  await page.getByRole('button', { name: 'تسليم للمراجعة' }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'تسليم للمراجعة' }).click();
   await expect(page.getByText('بانتظار المراجعة').first()).toBeVisible();
   await expectNoHorizontalScroll(page);
 });
