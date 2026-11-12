@@ -18,6 +18,8 @@ export async function expectNoHorizontalScroll(page: Page) {
 
 /** axe: no serious or critical WCAG 2.2 AA violations on the current page. */
 export async function expectNoSeriousA11yViolations(page: Page) {
+  // Next streams <title> with the page metadata; under load axe could run before it arrives.
+  await expect(page).toHaveTitle(/\S/);
   const { default: AxeBuilder } = await import('@axe-core/playwright');
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])

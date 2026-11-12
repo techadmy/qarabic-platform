@@ -60,6 +60,8 @@ function buildUsers(): MockUser[] {
     user(1, 'مدير النظام', 'admin@qarabic.test', 'admin'),
     user(2, 'معلم تجريبي', 'teacher@qarabic.test', 'teacher'),
     user(3, 'ولي أمر تجريبي', 'parent@qarabic.test', 'parent'),
+    // N7: a monitor proposes fines and marks attendance (people-db staff row 12).
+    user(12, 'Rana Monitor', 'monitor@qarabic.test', 'monitor'),
     {
       id: 4,
       name: 'مشرف تجريبي',
