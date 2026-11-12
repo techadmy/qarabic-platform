@@ -38,7 +38,7 @@ function NextStep({ item }: { item: MyRequestItemDto }) {
         className={cn(
           'font-semibold',
           item.nextStep === 'reply_needed' || item.nextStep === 'confirm_fix'
-            ? 'text-orange-800 dark:text-orange-300'
+            ? 'text-status-orange-emphasis'
             : undefined,
         )}
       >
