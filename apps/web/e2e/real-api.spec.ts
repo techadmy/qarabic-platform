@@ -116,6 +116,9 @@ test('real API: the N2 pages load real data (the shared schemas parse every answ
   const seeded = table.locator('tbody tr').filter({ hasText: 'منتظم' }).first();
   await expect(seeded).toBeVisible();
   await seeded.getByRole('link').first().click();
+  // From 1024 px the enrollment opens in the split view (D141 §1); its own page is one click on.
+  await expect(page).toHaveURL(/[?&]id=\d+/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/schedule\/\d+$/);
   await expect(page.getByRole('list', { name: 'المواعيد الأسبوعية' })).toBeVisible();
   await page.getByRole('link', { name: 'جدول المعلم' }).click();
@@ -183,13 +186,20 @@ test('real API: the N4 support centre — inbox, a ticket, triage, settings, «�
 }) => {
   await signInReal(page, '/support');
 
-  // The seed's demo tickets, with the queue tabs and their counts (the shared schemas parse them).
-  await expect(page.getByRole('heading', { level: 1, name: 'صندوق الطلبات' })).toBeVisible();
-  await expect(page.getByRole('radio', { name: /^الجدولة \(\d+\)/ })).toBeVisible();
+  // The seed's demo tickets, with the queue views and their counts (the shared schemas parse them).
+  // More than five queues → the views menu in the title (D141 §2).
+  const h1 = page.getByRole('heading', { level: 1, name: /صندوق الطلبات/ });
+  await expect(h1).toBeVisible();
+  await h1.getByRole('button', { name: /تغيير العرض$/ }).click();
+  await expect(page.getByRole('menuitemradio', { name: /^الجدولة.*\d+$/ })).toBeVisible();
+  await page.keyboard.press('Escape');
   const list = page.getByRole('list', { name: 'صندوق الطلبات' });
   await expect(list.getByRole('listitem').first()).toBeVisible();
   await expect(page.getByText('تعذّر تحميل البيانات')).toHaveCount(0);
-  await list.locator('a[href^="/tickets/"]').first().click();
+  // From 1024 px a ticket opens in the split view; its own page is one click on.
+  await list.locator('a[href*="id="], a[href^="/tickets/"]').first().click();
+  await expect(page).toHaveURL(/[?&]id=\d+/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/tickets\/\d+$/);
   await expect(page.getByRole('heading', { level: 1, name: /#\d+/ })).toBeVisible();
   await expect(page.getByText('معالجة الطلب')).toBeVisible();

@@ -34,10 +34,9 @@ describe('Enrollments list', () => {
     expect(
       within(table).getAllByText(/(السبت|الأحد|الإثنين|الثلاثاء|الأربعاء|الخميس|الجمعة) \d/).length,
     ).toBeGreaterThan(0);
-    expect(screen.getByRole('link', { name: 'اشتراك جديد' })).toHaveAttribute(
-      'href',
-      '/schedule/new',
-    );
+    // D141: the create action is the ListActions button; it opens the new-enrollment page.
+    await userEvent.setup().click(screen.getByRole('button', { name: 'اشتراك جديد' }));
+    expect(routerMock.push).toHaveBeenLastCalledWith('/schedule/new');
   });
 });
 
