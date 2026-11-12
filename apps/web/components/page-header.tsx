@@ -25,8 +25,10 @@ export function PageHeader({
   leading?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-      <div className="flex min-w-0 items-start gap-3">
+    // From `sm` the actions sit beside the title and wrap below it when they don't fit; the title
+    // keeps at least 16rem so wide actions (search + filters) never squeeze it to one letter.
+    <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between">
+      <div className="flex min-w-0 items-start gap-3 sm:shrink-0 sm:grow sm:basis-64">
         {back && (
           <Button variant="ghost" size="icon-lg" asChild className="mt-0.5 shrink-0">
             <Link href={back.href} aria-label={back.label} onClick={back.onClick}>
@@ -41,7 +43,7 @@ export function PageHeader({
           {meta && <div className="text-sm text-muted-foreground">{meta}</div>}
         </div>
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 sm:shrink-0">{actions}</div>}
+      {actions && <div className="flex min-w-0 flex-wrap items-center gap-2">{actions}</div>}
     </div>
   );
 }

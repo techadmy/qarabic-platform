@@ -203,7 +203,7 @@ export function EnrollmentView({ id }: { id: number }) {
       />
 
       {affected.length > 0 && (
-        <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100">
+        <Alert variant="warning">
           <TriangleAlertIcon />
           <AlertTitle>{t('affected', { count: affected.length })}</AlertTitle>
           <AlertDescription className="text-inherit">{t('affectedHint')}</AlertDescription>

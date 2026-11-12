@@ -135,7 +135,7 @@ export function BoardTiles({
           <div
             role="group"
             aria-label={t('tiles.attention')}
-            className="flex shrink-0 items-center gap-1 rounded-lg border border-amber-300 bg-amber-50 px-2 py-1 text-amber-950 lg:ms-auto dark:border-amber-900 dark:bg-amber-950 dark:text-amber-100"
+            className="flex shrink-0 items-center gap-1 rounded-lg border border-warning-border bg-warning px-2 py-1 text-warning-foreground lg:ms-auto"
           >
             <TriangleAlertIcon aria-hidden className="size-4" />
             <span className="text-sm font-semibold whitespace-nowrap">{t('tiles.attention')}:</span>
@@ -145,7 +145,7 @@ export function BoardTiles({
                   size="sm"
                   pressed={selected === k}
                   onPressedChange={(on) => onSelect(on ? k : null)}
-                  className="h-8 text-sm hover:bg-amber-100 data-[state=on]:bg-amber-200 data-[state=on]:underline dark:hover:bg-amber-900 dark:data-[state=on]:bg-amber-900"
+                  className="h-8 text-sm hover:bg-warning-hover data-[state=on]:bg-warning-active data-[state=on]:underline"
                 >
                   <bdi className="font-bold">{value(k)}</bdi> {label(k)}
                 </Toggle>
@@ -156,7 +156,7 @@ export function BoardTiles({
                         asChild
                         variant="ghost"
                         size="icon-sm"
-                        className="hover:bg-amber-100 dark:hover:bg-amber-900"
+                        className="hover:bg-warning-hover"
                       >
                         <Link href={reportsHref} aria-label={t('tiles.allMissingReports')}>
                           <ListChecksIcon />
