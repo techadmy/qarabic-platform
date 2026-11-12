@@ -1,10 +1,11 @@
 import { type INestApplication, RequestMethod } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { Logger } from 'nestjs-pino';
 import { CSRF_HEADER } from './auth/cookies.js';
+import { buildOpenApiDocument } from './common/openapi.js';
 import { ENV, type Env } from './config/env.js';
 
 export const API_PREFIX = 'api/v1';
@@ -30,12 +31,7 @@ export function configureApp(app: NestExpressApplication): INestApplication {
   app.enableShutdownHooks();
 
   if (env.NODE_ENV !== 'production') {
-    const config = new DocumentBuilder()
-      .setTitle('Qarabic API')
-      .setVersion('1')
-      .addCookieAuth('qarabic_session')
-      .build();
-    SwaggerModule.setup('api/docs', app, () => SwaggerModule.createDocument(app, config));
+    SwaggerModule.setup('api/docs', app, () => buildOpenApiDocument(app));
   }
   return app;
 }

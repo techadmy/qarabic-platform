@@ -11,6 +11,9 @@ import { AuthModule } from './auth/auth.module.js';
 import { BillingModule } from './billing/billing.module.js';
 import { ClockModule } from './common/clock.js';
 import { CryptoModule } from './common/crypto.js';
+import { DevicesModule } from './devices/devices.module.js';
+import { PushModule } from './common/push.js';
+import { StorageModule } from './common/storage.js';
 import { HttpExceptionFilter } from './common/http-exception.filter.js';
 import { ConfigModule } from './config/config.module.js';
 import { CrmModule } from './crm/crm.module.js';
@@ -59,6 +62,8 @@ export const REDACT = [
     PrismaModule,
     ClockModule,
     CryptoModule,
+    StorageModule,
+    PushModule,
     MailModule,
     AuditModule,
     SettingsModule,
@@ -77,6 +82,7 @@ export const REDACT = [
     AccountingModule,
     NotificationCentreModule,
     OperationsModule,
+    DevicesModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_FILTER, useClass: HttpExceptionFilter }],

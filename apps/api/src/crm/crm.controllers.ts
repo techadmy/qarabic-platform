@@ -422,6 +422,29 @@ export class LegacyClassRequestController {
   @CrmThrottle('trial-form')
   @Post()
   @HttpCode(200)
+  @ApiBody({
+    description:
+      'The old form fields, read leniently (any case of the listed names); unknown fields are ignored.',
+    schema: {
+      type: 'object',
+      properties: {
+        Name: { type: 'string', description: 'Also `parent_name` or `name`.' },
+        Age: { type: 'string', description: 'Also `age`.' },
+        Gender: { type: 'string', description: 'Also `gender`.' },
+        Country: { type: 'string', description: 'Also `country` or `country_code`.' },
+        Email: { type: 'string', description: 'Also `email`.' },
+        Phone: { type: 'string', description: 'Also `phone`.' },
+        timezone: { type: 'string' },
+        'Lead Source': { type: 'string', description: 'Also `lead_source`.' },
+        utm_source: { type: 'string' },
+        utm_medium: { type: 'string' },
+        utm_campaign: { type: 'string' },
+        referral_id: { type: 'string' },
+        children: { type: 'array', items: { type: 'object' }, maxItems: 10 },
+      },
+      additionalProperties: true,
+    },
+  })
   async store(@Body() raw: unknown, @Req() req: Request): Promise<{ success: true; data: null }> {
     const input = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
     const trap = input[this.config.honeypotField];

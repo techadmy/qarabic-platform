@@ -345,11 +345,18 @@ describe('notification centre', () => {
     const a = await staff('csr');
     const b = await staff('monitor');
     const prefs = await b.client.get('/me/notification-preferences');
-    expect(prefs.body.channels).toEqual({ in_app: true, email: true, whatsapp: false });
+    // `push` is off while PUSH_DRIVER is `none` (the default).
+    expect(prefs.body.channels).toEqual({
+      in_app: true,
+      email: true,
+      push: false,
+      whatsapp: false,
+    });
     expect(prefs.body.data.find((p: { kind: string }) => p.kind === 'task')).toEqual({
       kind: 'task',
       inApp: true,
       email: false,
+      push: true,
       whatsapp: false,
     });
 

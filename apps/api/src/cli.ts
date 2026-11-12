@@ -1,7 +1,11 @@
 import 'reflect-metadata';
+import { writeFile } from 'node:fs/promises';
 import { NestFactory } from '@nestjs/core';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { OutboxService } from './accounting/outbox.service.js';
 import { AppModule } from './app.module.js';
+import { configureApp } from './app.setup.js';
+import { buildOpenApiDocument } from './common/openapi.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
 import { runLegacy } from './legacy/legacy-cli.js';
@@ -20,6 +24,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
  *   pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]       (N7; default: this month)
+ *   pnpm --filter @qarabic/api cli openapi:export [--out=openapi.json]   (the whole API as OpenAPI 3)
  *   pnpm --filter @qarabic/api cli ledger:post   (M7: post the billing/payroll outbox to the journal)
  *
  * The support ticket queue (docs/22 §7, Laravel `tickets:*`), writes recorded as "Claude":
@@ -60,6 +65,23 @@ async function main(): Promise<number> {
     const result = await runLegacy({ command, args, env: process.env });
     (result.code === 0 ? console.log : console.error)(result.out.join('\n'));
     return result.code;
+  }
+  if (command === 'openapi:export') {
+    // The full HTTP app (routes), never listening: the document is written and the app closed.
+    const out = option(args, 'out') ?? 'openapi.json';
+    const http = await NestFactory.create<NestExpressApplication>(AppModule, {
+      logger: ['error', 'warn'],
+      bufferLogs: true,
+    });
+    try {
+      configureApp(http);
+      const doc = buildOpenApiDocument(http);
+      await writeFile(out, `${JSON.stringify(doc, null, 2)}\n`);
+      console.log(`OpenAPI: ${Object.keys(doc.paths).length} paths written to ${out}.`);
+      return 0;
+    } finally {
+      await http.close();
+    }
   }
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
@@ -165,7 +187,8 @@ async function main(): Promise<number> {
       default:
         console.error(
           'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, ' +
-            'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, payroll:compute',
+            'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, payroll:compute, ' +
+            'ledger:post, openapi:export, legacy:import, legacy:verify',
         );
         return 2;
     }

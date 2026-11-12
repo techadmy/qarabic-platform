@@ -10,6 +10,7 @@ import { PasswordsService } from '../src/auth/passwords.service.js';
 import { RateLimiterService } from '../src/auth/rate-limiter.service.js';
 import type { AuthUser } from '../src/auth/auth.types.js';
 import { Clock } from '../src/common/clock.js';
+import { NonePush, PushGateway } from '../src/common/push.js';
 import { Crypto } from '../src/common/crypto.js';
 import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
 import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
@@ -65,6 +66,8 @@ export async function resetState(ctx: TestContext): Promise<void> {
   ctx.app.get(Clock).set(null);
   ctx.app.get(ZoomDriver).use(new NoneZoomClient());
   ctx.app.get(WhatsAppConfig).reset();
+  // No push leaves a test unless it swaps in the fake driver.
+  ctx.app.get(PushGateway).use(new NonePush());
 }
 
 let seq = 0;

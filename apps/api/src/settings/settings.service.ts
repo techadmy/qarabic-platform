@@ -66,6 +66,8 @@ export const SETTING_DEFAULTS = {
   // M8 notification centre.
   /** Email notices to staff (the mailer stays in memory until SMTP, B31). */
   'notifications.email_enabled': true as boolean,
+  /** Phone push notices (only with a push driver, `PUSH_DRIVER`, docs/17 §5). */
+  'notifications.push_enabled': true as boolean,
   /** WhatsApp notices: off until Meta credentials exist (B50). */
   'notifications.whatsapp_enabled': false as boolean,
   /** Remind the teacher of each class N minutes before it starts. */

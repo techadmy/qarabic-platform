@@ -3,7 +3,6 @@ import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { InboxService } from './inbox.service.js';
 import { SupportContext } from './policy.js';
-import { AppFileStorage, FileStorage } from './storage.js';
 import {
   FeedbackController,
   SupportController,
@@ -27,13 +26,12 @@ import { WhatsAppConfig, WhatsAppIntake, WhatsAppWebhookController } from './wha
   ],
   providers: [
     SupportContext,
-    { provide: FileStorage, useClass: AppFileStorage },
     TicketsService,
     InboxService,
     TicketCli,
     WhatsAppConfig,
     WhatsAppIntake,
   ],
-  exports: [TicketsService, TicketCli, WhatsAppConfig, FileStorage],
+  exports: [TicketsService, TicketCli, WhatsAppConfig],
 })
 export class SupportModule {}
