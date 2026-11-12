@@ -71,6 +71,8 @@ describe('route permission coverage', () => {
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
       'GET me',
+      // M8: the user's own notification channels per kind.
+      'GET me/notification-preferences',
       // The bell: the user's own notifications only (N5).
       'GET me/notifications',
       // The Quran reference (Laravel: any signed-in user).
@@ -79,6 +81,7 @@ describe('route permission coverage', () => {
       'POST auth/logout',
       'POST me/notifications/:id/read',
       'POST me/notifications/read-all',
+      'PUT me/notification-preferences',
     ]);
   });
 
@@ -387,6 +390,39 @@ describe('route permission coverage', () => {
       'POST accounting/periods/:period/reopen': 'all:accounting.manage',
       'POST accounting/vouchers': 'all:accounting.manage',
       'POST accounting/vouchers/:id/void': 'all:accounting.manage',
+    });
+  });
+
+  it('every M8 operations route (tasks, templates, announcements, dashboard) has its permission', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    // Task actions need tasks.view; who may act on which task (issuer, assignee, tasks.oversee) is
+    // checked by the service (other people's tasks answer 404).
+    expectDocumented(byRoute, {
+      'GET announcements': 'all:announcements.view',
+      'GET announcements/:id': 'all:announcements.view',
+      'GET dashboard/summary': 'all:reports.view',
+      'GET task-templates': 'all:tasks.manage',
+      'GET tasks': 'all:tasks.view',
+      'GET tasks/:id': 'all:tasks.view',
+      'GET tasks/assignees': 'all:tasks.manage',
+      'PATCH announcements/:id': 'all:announcements.manage',
+      'PATCH tasks/:id': 'all:tasks.manage',
+      'POST announcements': 'all:announcements.manage',
+      'POST announcements/:id/archive': 'all:announcements.manage',
+      'POST announcements/:id/publish': 'all:announcements.manage',
+      'POST announcements/:id/read': 'all:announcements.view',
+      'POST announcements/:id/unarchive': 'all:announcements.manage',
+      'POST task-templates': 'all:tasks.oversee',
+      'POST tasks': 'all:tasks.manage',
+      'POST tasks/:id/close': 'all:tasks.view',
+      'POST tasks/:id/comments': 'all:tasks.view',
+      'POST tasks/:id/complete': 'all:tasks.view',
+      'POST tasks/:id/reassign': 'all:tasks.view',
+      'POST tasks/:id/reopen': 'all:tasks.view',
+      'POST tasks/:id/submit': 'all:tasks.view',
+      'PUT task-templates/:id': 'all:tasks.oversee',
     });
   });
 

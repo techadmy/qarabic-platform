@@ -122,7 +122,8 @@
     "salaryProfiles": "ملفات الرواتب",
     "wallets": "المحافظ",
     "mySalary": "راتبي",
-    "payRules": "قواعد الأجر"
+    "payRules": "قواعد الأجر",
+    "addIn": "إضافة في «{section}»"
   },
   "home": {
     "title": "الرئيسية",
@@ -556,7 +557,13 @@
     "noChildren": "لا يوجد أبناء في هذه العائلة بعد.",
     "childrenTable": "أبناء العائلة",
     "noFamilyTitle": "لا توجد عائلة مرتبطة بحسابك",
-    "noFamily": "تواصل مع الأكاديمية لربط حسابك بعائلتك."
+    "noFamily": "تواصل مع الأكاديمية لربط حسابك بعائلتك.",
+    "tabs": {
+      "overview": "نظرة عامة",
+      "schedule": "الجدول",
+      "billing": "الفوترة",
+      "history": "السجل"
+    }
   },
   "students": {
     "title": "الطلاب",
@@ -3166,5 +3173,17 @@
       "createdBy": "أضافه {name}"
     },
     "pageTitle": "الرواتب"
+  },
+  "search": {
+    "trigger": "بحث في «{section}»",
+    "title": "البحث",
+    "description": "ابحث في قسم واختر نتيجة لفتح السجل.",
+    "section": "قسم البحث",
+    "placeholder": "ابحث في «{section}»…",
+    "results": "نتائج «{section}»",
+    "hint": "اكتب حرفين على الأقل.",
+    "loading": "جارٍ البحث…",
+    "error": "تعذّر البحث. حاول مرة أخرى.",
+    "none": "لا نتائج مطابقة لـ «{q}»"
   }
 }

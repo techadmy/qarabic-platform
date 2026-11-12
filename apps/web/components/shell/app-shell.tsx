@@ -18,6 +18,7 @@ import { loginPathFor } from '@/lib/auth/redirect';
 import { useMe } from '@/lib/auth/use-me';
 import { currentPage } from '@/lib/navigation';
 import { useSwitchLocale } from '@/hooks/use-switch-locale';
+import { GlobalSearch } from '@/components/shell/global-search';
 import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
 import { ContactButton } from '@/components/support/contact-button';
@@ -117,6 +118,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
               </BreadcrumbList>
             </Breadcrumb>
             <div className="ms-auto flex shrink-0 items-center gap-1">
+              <GlobalSearch />
               <ContactButton />
               <NotificationBell />
               <LanguageSwitch persist />
