@@ -24,6 +24,12 @@ import {
   ReceiptTextIcon,
   WalletIcon,
   UsersIcon,
+  BanknoteIcon,
+  CalendarCheck2Icon,
+  FileWarningIcon,
+  IdCardIcon,
+  ScaleIcon,
+  WalletCardsIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -57,6 +63,14 @@ export type NavKey =
   | 'packages'
   | 'billingSettings'
   | 'myInvoices'
+  | 'attendance'
+  | 'myAttendance'
+  | 'fines'
+  | 'payrollRuns'
+  | 'salaryProfiles'
+  | 'wallets'
+  | 'mySalary'
+  | 'payRules'
   | 'ticket'
   | 'account';
 
@@ -67,15 +81,19 @@ export type NavItem = {
   icon: LucideIcon;
   /** Shown only to users who have this permission. */
   permission?: string;
+  /** Shown to users who have any of these permissions (instead of `permission`). */
+  anyPermission?: string[];
   /** A live count beside the item (K3: badge counts in the sidebar items). */
   badge?: 'pendingRequests' | 'supportOpen' | 'triageNew' | 'mineUpdates' | 'leads';
   /** Other paths that belong to this item (a teacher's student profile under «طلابي»). */
   also?: string[];
+  /** Active only on `href` itself (and `also`), not on its sub-paths («ملفات الرواتب» under /payroll). */
+  exact?: boolean;
 };
 
 export type NavGroup = {
   /** Message key under `nav.groups`. */
-  group: 'users' | 'billing' | 'settings';
+  group: 'users' | 'billing' | 'payroll' | 'settings';
   icon: LucideIcon;
   items: NavItem[];
 };
@@ -169,6 +187,44 @@ export const STAFF_NAV: NavEntry[] = [
     ],
   },
   {
+    group: 'payroll',
+    icon: BanknoteIcon,
+    items: [
+      {
+        key: 'attendance',
+        href: '/attendance',
+        icon: CalendarCheck2Icon,
+        permission: 'attendance.request',
+      },
+      {
+        key: 'fines',
+        href: '/fines',
+        icon: FileWarningIcon,
+        anyPermission: ['fines.view', 'payroll.manage'],
+      },
+      {
+        key: 'payrollRuns',
+        href: '/payroll',
+        icon: BanknoteIcon,
+        anyPermission: ['payroll.manage', 'payroll.review', 'payroll.approve'],
+        exact: true,
+        also: ['/payroll/runs', '/payroll/payslips'],
+      },
+      {
+        key: 'salaryProfiles',
+        href: '/payroll/profiles',
+        icon: IdCardIcon,
+        permission: 'payroll.manage',
+      },
+      {
+        key: 'wallets',
+        href: '/payroll/wallets',
+        icon: WalletCardsIcon,
+        permission: 'wallet.manage',
+      },
+    ],
+  },
+  {
     group: 'settings',
     icon: ShieldCheckIcon,
     items: [
@@ -197,6 +253,12 @@ export const STAFF_NAV: NavEntry[] = [
         icon: WalletIcon,
         permission: 'settings.view',
       },
+      {
+        key: 'payRules',
+        href: '/settings/pay-rules',
+        icon: ScaleIcon,
+        permission: 'settings.view',
+      },
       { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },
     ],
   },
@@ -223,6 +285,20 @@ export const TEACHER_NAV: NavEntry[] = [
     permission: 'sessions.conduct',
   },
   { key: 'myTests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
+  {
+    key: 'myAttendance',
+    href: '/attendance',
+    icon: CalendarCheck2Icon,
+    permission: 'attendance.request',
+  },
+  {
+    key: 'mySalary',
+    href: '/payroll',
+    icon: WalletIcon,
+    permission: 'payroll.view',
+    exact: true,
+    also: ['/payroll/payslips'],
+  },
   MY_REQUESTS,
 ];
 
@@ -247,6 +323,7 @@ const OTHER_PAGES: NavItem[] = [
 ];
 
 function allowed(me: Pick<Me, 'permissions'>, item: NavItem) {
+  if (item.anyPermission) return item.anyPermission.some((p) => me.permissions.includes(p));
   return !item.permission || me.permissions.includes(item.permission);
 }
 
@@ -266,9 +343,13 @@ export function navItemsFor(me: Pick<Me, 'permissions' | 'role'>): NavItem[] {
   return navFor(me).flatMap((e) => (isGroup(e) ? e.items : [e]));
 }
 
-export function isActive(item: Pick<NavItem, 'href' | 'also'>, pathname: string): boolean {
+export function isActive(
+  item: Pick<NavItem, 'href' | 'also' | 'exact'>,
+  pathname: string,
+): boolean {
   if (item.href === '/') return pathname === '/';
-  return [item.href, ...(item.also ?? [])].some(
+  if (item.exact && pathname === item.href) return true;
+  return [...(item.exact ? [] : [item.href]), ...(item.also ?? [])].some(
     (href) => pathname === href || pathname.startsWith(`${href}/`),
   );
 }

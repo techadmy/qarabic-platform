@@ -25,6 +25,7 @@ describe('navFor', () => {
       'myRequests',
       'users',
       'billing',
+      'payroll',
       'settings',
     ]);
     expect(navItemsFor(as('admin')).map((i) => i.key)).toEqual([
@@ -44,11 +45,17 @@ describe('navFor', () => {
       'staff',
       'invoices',
       'packages',
+      'attendance',
+      'fines',
+      'payrollRuns',
+      'salaryProfiles',
+      'wallets',
       'holidays',
       'sessionSettings',
       'supportSettings',
       'crmSettings',
       'billingSettings',
+      'payRules',
       'roles',
     ]);
   });
@@ -70,14 +77,29 @@ describe('navFor', () => {
       'students',
       'teachers',
       'packages',
+      'attendance',
+      'fines',
       'holidays',
     ]);
-    // Accounts (N6): the invoices under «الحسابات»; no packages, users or settings.
+    // Accounts (N6, N7): the invoices under «الحسابات»; attendance, pay items, runs, salary
+    // profiles and wallets under «الرواتب والحضور»; no packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'supportInbox',
       'myRequests',
       'billing',
+      'payroll',
+    ]);
+    expect(navItemsFor(as('accounts')).map((i) => i.key)).toEqual([
+      'home',
+      'supportInbox',
+      'myRequests',
+      'invoices',
+      'attendance',
+      'fines',
+      'payrollRuns',
+      'salaryProfiles',
+      'wallets',
     ]);
   });
 
@@ -89,6 +111,8 @@ describe('navFor', () => {
       'myStudents',
       'mySchedule',
       'myTests',
+      'myAttendance',
+      'mySalary',
       'myRequests',
     ]);
     expect(navItemsFor(as('parent')).map((i) => i.key)).toEqual([
@@ -118,6 +142,16 @@ describe('navFor', () => {
     expect(currentPage(as('admin'), '/invoices/3')?.key).toBe('invoices');
     expect(currentPage(as('parent'), '/invoices/3/receipts/2')?.key).toBe('myInvoices');
     expect(currentPage(as('admin'), '/settings/billing')?.key).toBe('billingSettings');
+    // N7: a run and a payslip stay under «مسيّرات الرواتب»; profiles and wallets have their own
+    // items (the runs item is exact, so it is not lit on its siblings); a teacher's payslip
+    // stays under «راتبي».
+    expect(currentPage(as('admin'), '/payroll/runs/3')?.key).toBe('payrollRuns');
+    expect(currentPage(as('admin'), '/payroll/payslips/9')?.key).toBe('payrollRuns');
+    expect(currentPage(as('admin'), '/payroll/profiles')?.key).toBe('salaryProfiles');
+    expect(currentPage(as('admin'), '/payroll/wallets')?.key).toBe('wallets');
+    expect(currentPage(as('admin'), '/settings/pay-rules')?.key).toBe('payRules');
+    expect(currentPage(as('teacher'), '/payroll/payslips/9')?.key).toBe('mySalary');
+    expect(currentPage(as('teacher'), '/attendance')?.key).toBe('myAttendance');
   });
 });
 
@@ -127,6 +161,10 @@ describe('isActive / currentPage', () => {
     expect(isActive({ href: '/' }, '/roles')).toBe(false);
     expect(isActive({ href: '/roles' }, '/roles/5')).toBe(true);
     expect(isActive({ href: '/staff' }, '/staffing')).toBe(false);
+    const runs = { href: '/payroll', exact: true, also: ['/payroll/runs'] };
+    expect(isActive(runs, '/payroll')).toBe(true);
+    expect(isActive(runs, '/payroll/runs/2')).toBe(true);
+    expect(isActive(runs, '/payroll/profiles')).toBe(false);
   });
 
   it('names the top bar from the sidebar or the account page', () => {
