@@ -222,13 +222,17 @@ describe('«طلباتي» and the ticket', () => {
 });
 
 describe('«صندوق الطلبات»', () => {
-  it('shows the queue tabs with counts, overdue first, and takes a ticket', async () => {
+  it('shows the queues with counts in the views menu, overdue first, and takes a ticket', async () => {
     const user = userEvent.setup();
     renderPage(<InboxView />, { as: 'admin@qarabic.test', path: '/support' });
-    const tabs = await screen.findByRole('radiogroup', { name: 'الأقسام' });
+    // Seven queue views (all + six) live in the title's views menu (D141 §2).
+    await screen.findByRole('list', { name: 'صندوق الطلبات' });
+    const h1 = screen.getByRole('heading', { level: 1 });
+    await user.click(within(h1).getByRole('button', { name: /كل الأقسام\s*تغيير العرض/ }));
     expect(
-      await within(tabs).findByRole('radio', { name: 'الحسابات والفواتير (1) · متأخرة: 1' }),
+      await screen.findByRole('menuitemradio', { name: 'الحسابات والفواتير (1) · متأخرة: 1' }),
     ).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     const list = await screen.findByRole('list', { name: 'صندوق الطلبات' });
     const first = within(list).getAllByRole('listitem')[0]!;
     expect(first).toHaveTextContent(/#2 · I paid the November invoice/);

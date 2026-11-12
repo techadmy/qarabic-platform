@@ -13,10 +13,14 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { CalendarPlusIcon, CalendarRangeIcon, SearchXIcon, UserSearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { ListPagination } from '@/components/list/list-pagination';
 import { ClearFiltersButton, ListToolbar, StatusTabs } from '@/components/list/list-toolbar';
 import { ResponsiveList } from '@/components/list/responsive-list';
+import { useColumnVisibility } from '@/components/list/column-chooser';
+import { ListActions } from '@/components/list/list-actions';
+import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
 import { PageHeader } from '@/components/page-header';
 import { Highlight, RecordCell } from '@/components/people/people-list';
 import { useSlotsText } from '@/components/schedule/use-slots-text';
@@ -29,12 +33,14 @@ import { fetchEnrollments, scheduleKeys } from '@/lib/api/schedule';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { cityOf } from '@/lib/time';
+import { EnrollmentView } from './[id]/enrollment-view';
 
 /**
  * «الجدول» — enrollments (student × course × teacher) with their weekly times (docs/15 §6.3; the
  * current app's `EnrollmentsPage`): the list standard of N1 — header with the count, «ابحث عن
  * معلم متاح» and the one primary «اشتراك جديد», search, status tabs with counts, the table or
- * phone cards, server pagination. State in the URL.
+ * phone cards, server pagination. State in the URL. D141 (docs/15 §5.4.2): `ListActions` («اشتراك
+ * جديد» + «⋯» with the availability search), the column chooser and the split view.
  */
 export function ScheduleView() {
   const t = useTranslations('schedule');
@@ -43,6 +49,9 @@ export function ScheduleView() {
   const me = useCurrentUser();
   const params = useListParams();
   const slotsText = useSlotsText();
+  const router = useRouter();
+  const split = useSplitView('/schedule');
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(`enrollments:${me.id}`);
   const status = params.get('status');
   const allowed = can(me, 'schedule.view') || can(me, 'sessions.conduct');
   const canManage = can(me, 'schedule.manage');
@@ -74,12 +83,13 @@ export function ScheduleView() {
   const rows = list.data?.data ?? [];
   const filtered = !!params.q || !!status || !!query.teacherId || !!query.studentId;
   const course = (e: EnrollmentDto) => (locale === 'ar' ? e.course.nameAr : e.course.nameEn);
-  const href = (e: EnrollmentDto) => `/schedule/${e.id}`;
+  const href = (e: EnrollmentDto) => split.hrefFor(e.id);
 
   const columns: ColumnDef<EnrollmentDto, unknown>[] = [
     {
       id: 'student',
       header: t('columns.student'),
+      enableHiding: false,
       cell: ({ row }) => (
         <RecordCell
           href={href(row.original)}
@@ -162,6 +172,8 @@ export function ScheduleView() {
         emptyText={tl('noResults')}
         getRowId={(e) => e.id}
         getRowHref={href}
+        columnVisibility={columnVisibility}
+        onColumnVisibilityChange={setColumnVisibility}
         renderCard={(e) => (
           <div className="flex flex-col gap-1">
             <div className="flex items-start justify-between gap-2">
@@ -180,38 +192,82 @@ export function ScheduleView() {
     );
   }
 
+  const header = (
+    <PageHeader
+      title={t('title')}
+      meta={meta ? tl('results', { count: meta.total }) : t('description')}
+      actions={
+        canManage && (
+          <ListActions
+            create={{ label: t('newEnrollment'), onClick: () => router.push('/schedule/new') }}
+            more={[
+              { label: t('availability'), icon: UserSearchIcon, href: '/schedule/availability' },
+            ]}
+          />
+        )
+      }
+    />
+  );
+  const search = {
+    label: t('search'),
+    placeholder: t('searchHint'),
+    value: params.searchInput,
+    onChange: params.setSearchInput,
+  };
+  const pagination = meta && rows.length > 0 && (
+    <ListPagination
+      meta={meta}
+      onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
+      onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
+    />
+  );
+
+  if (split.selectedId) {
+    return (
+      <>
+        {header}
+        <SplitView
+          selectedId={split.selectedId}
+          wide={split.wide}
+          detailLabel={t('title')}
+          onClose={split.close}
+          fullHref={split.fullHref}
+          list={
+            <SplitList
+              rows={rows}
+              loading={list.isPending}
+              label={t('tableLabel')}
+              emptyText={tl('noResults')}
+              getRowId={(e) => e.id}
+              hrefFor={split.hrefFor}
+              selectedId={split.selectedId}
+              header={<ListToolbar search={search} />}
+              footer={pagination}
+              renderItem={(e) => (
+                <span className="flex flex-col gap-1">
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{e.student.name}</span>
+                    <EnrollmentStatusBadge status={e.status} />
+                  </span>
+                  <span className="line-clamp-1 text-sm text-muted-foreground">
+                    {course(e)} · {e.teacher.name}
+                  </span>
+                </span>
+              )}
+            />
+          }
+          detail={<EnrollmentView key={split.selectedId} id={Number(split.selectedId)} />}
+        />
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader
-        title={t('title')}
-        meta={meta ? tl('results', { count: meta.total }) : t('description')}
-        actions={
-          canManage ? (
-            <>
-              <Button variant="outline" className="h-10" asChild>
-                <Link href="/schedule/availability">
-                  <UserSearchIcon />
-                  {t('availability')}
-                </Link>
-              </Button>
-              <Button className="h-10 px-4" asChild>
-                <Link href="/schedule/new">
-                  <CalendarPlusIcon />
-                  {t('newEnrollment')}
-                </Link>
-              </Button>
-            </>
-          ) : undefined
-        }
-      />
+      {header}
       <Card className="gap-0 py-0 shadow-none">
         <ListToolbar
-          search={{
-            label: t('search'),
-            placeholder: t('searchHint'),
-            value: params.searchInput,
-            onChange: params.setSearchInput,
-          }}
+          search={search}
           filters={
             filtered ? (
               <ClearFiltersButton onClick={() => params.clear(['teacherId', 'studentId'])} />
@@ -234,13 +290,7 @@ export function ScheduleView() {
           }
         />
         {body}
-        {meta && rows.length > 0 && (
-          <ListPagination
-            meta={meta}
-            onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
-            onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
-          />
-        )}
+        {pagination}
       </Card>
     </>
   );
