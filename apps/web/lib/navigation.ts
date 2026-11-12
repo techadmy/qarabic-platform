@@ -18,6 +18,8 @@ import {
   UsersRoundIcon,
   ShieldCheckIcon,
   UserCogIcon,
+  UserSearchIcon,
+  ContactRoundIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -46,6 +48,8 @@ export type NavKey =
   | 'supportInbox'
   | 'feedbackTriage'
   | 'supportSettings'
+  | 'leads'
+  | 'crmSettings'
   | 'ticket'
   | 'account';
 
@@ -57,7 +61,7 @@ export type NavItem = {
   /** Shown only to users who have this permission. */
   permission?: string;
   /** A live count beside the item (K3: badge counts in the sidebar items). */
-  badge?: 'pendingRequests' | 'supportOpen' | 'triageNew' | 'mineUpdates';
+  badge?: 'pendingRequests' | 'supportOpen' | 'triageNew' | 'mineUpdates' | 'leads';
   /** Other paths that belong to this item (a teacher's student profile under «طلابي»). */
   also?: string[];
 };
@@ -103,6 +107,13 @@ export const STAFF_NAV: NavEntry[] = [
     icon: CalendarClockIcon,
     permission: 'session_requests.view',
     badge: 'pendingRequests',
+  },
+  {
+    key: 'leads',
+    href: '/leads',
+    icon: UserSearchIcon,
+    permission: 'leads.view',
+    badge: 'leads',
   },
   {
     key: 'lessonReports',
@@ -157,6 +168,12 @@ export const STAFF_NAV: NavEntry[] = [
         key: 'supportSettings',
         href: '/settings/support',
         icon: HeadsetIcon,
+        permission: 'settings.view',
+      },
+      {
+        key: 'crmSettings',
+        href: '/settings/crm',
+        icon: ContactRoundIcon,
         permission: 'settings.view',
       },
       { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },

@@ -10,6 +10,7 @@ import { ChevronLeftIcon, UsersRoundIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { KeyFacts } from '@/components/people/detail';
+import { ReferralSection } from '@/components/crm/referral-section';
 import { PageHeader } from '@/components/page-header';
 import { HifzLine, RatingStars } from '@/components/reports/report-bits';
 import { StageBadge } from '@/components/sessions/badges';
@@ -289,6 +290,7 @@ export function ParentHomeView() {
           </ul>
         )}
       </section>
+      <ReferralSection />
       <SessionSheet />
     </div>
   );

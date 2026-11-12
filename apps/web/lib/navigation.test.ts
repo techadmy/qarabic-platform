@@ -17,6 +17,7 @@ describe('navFor', () => {
       'today',
       'schedule',
       'requests',
+      'leads',
       'lessonReports',
       'tests',
       'supportInbox',
@@ -30,6 +31,7 @@ describe('navFor', () => {
       'today',
       'schedule',
       'requests',
+      'leads',
       'lessonReports',
       'tests',
       'supportInbox',
@@ -42,6 +44,7 @@ describe('navFor', () => {
       'holidays',
       'sessionSettings',
       'supportSettings',
+      'crmSettings',
       'roles',
     ]);
   });

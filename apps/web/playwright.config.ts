@@ -8,7 +8,11 @@ import { defineConfig, devices } from '@playwright/test';
  * `.env` dev database, port 3001) and the web app on http://localhost:3000 (the API's WEB_ORIGIN).
  */
 const REAL_API = process.env.E2E_REAL_API === '1';
-const PORT = REAL_API ? 3000 : 3200;
+/** Ports can be moved when another checkout already serves 3000/3001/3200 (`E2E_PORT`, `E2E_API_PORT`). */
+const PORT = Number(process.env.E2E_PORT) || (REAL_API ? 3000 : 3200);
+const API_PORT = Number(process.env.E2E_API_PORT) || 3001;
+/** `E2E_BASE_URL`: run against a server you started yourself (e.g. `pnpm dev:mocks`); no build. */
+const BASE_URL = process.env.E2E_BASE_URL;
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,44 +23,46 @@ export default defineConfig({
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: BASE_URL ?? `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
     locale: 'ar-EG',
     timezoneId: 'Africa/Cairo',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: REAL_API
-    ? [
-        {
-          command: 'pnpm build && node --env-file-if-exists=.env dist/main.js',
-          cwd: '../api',
-          url: 'http://localhost:3001/api/v1/health',
-          reuseExistingServer: true,
-          timeout: 120_000,
-        },
-        {
+  webServer: BASE_URL
+    ? undefined
+    : REAL_API
+      ? [
+          {
+            command: 'pnpm build && node --env-file-if-exists=.env dist/main.js',
+            cwd: '../api',
+            url: `http://localhost:${API_PORT}/api/v1/health`,
+            reuseExistingServer: true,
+            timeout: 120_000,
+          },
+          {
+            command: `next build && next start --port ${PORT}`,
+            url: `http://localhost:${PORT}/login`,
+            reuseExistingServer: true,
+            timeout: 240_000,
+            env: {
+              NEXT_PUBLIC_ENABLE_MOCKS: 'false',
+              NEXT_PUBLIC_API_URL: `http://localhost:${API_PORT}`,
+              NEXT_DIST_DIR: '.next-real',
+              NEXT_TELEMETRY_DISABLED: '1',
+            },
+          },
+        ]
+      : {
           command: `next build && next start --port ${PORT}`,
           url: `http://localhost:${PORT}/login`,
-          reuseExistingServer: true,
+          reuseExistingServer: !process.env.CI,
           timeout: 240_000,
           env: {
-            NEXT_PUBLIC_ENABLE_MOCKS: 'false',
-            NEXT_PUBLIC_API_URL: 'http://localhost:3001',
-            NEXT_DIST_DIR: '.next-real',
+            NEXT_PUBLIC_ENABLE_MOCKS: 'true',
+            NEXT_PUBLIC_API_URL: '',
+            NEXT_DIST_DIR: '.next-e2e',
             NEXT_TELEMETRY_DISABLED: '1',
           },
         },
-      ]
-    : {
-        command: `next build && next start --port ${PORT}`,
-        url: `http://localhost:${PORT}/login`,
-        reuseExistingServer: !process.env.CI,
-        timeout: 240_000,
-        env: {
-          NEXT_PUBLIC_ENABLE_MOCKS: 'true',
-          NEXT_PUBLIC_API_URL: '',
-          NEXT_DIST_DIR: '.next-e2e',
-          NEXT_TELEMETRY_DISABLED: '1',
-        },
-      },
 });
