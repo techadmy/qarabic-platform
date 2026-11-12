@@ -146,9 +146,9 @@ test('real API (N4): staff reply to a ticket; the reply is on the ticket', async
   await expect(list.getByRole('listitem').first()).toBeVisible();
   await expectLoaded(page);
   const item = list.getByRole('listitem').first();
-  const number = (await item.locator('a[href^="/tickets/"]').first().textContent())!.match(
-    /#(\d+)/,
-  )![1]!;
+  // The ticket link: the split view (`?id=`) from 1024 px, the ticket page below (D141 §1).
+  const link = item.locator('a[href*="id="], a[href^="/tickets/"]').first();
+  const number = (await link.textContent())!.match(/#(\d+)/)![1]!;
 
   const text = `E2E reply ${runTag()}`;
   await item.getByRole('button', { name: new RegExp(`^رد\\s?: #${number}$`) }).click();
