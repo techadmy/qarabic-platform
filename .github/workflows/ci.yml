@@ -90,8 +90,9 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U qarabic" --health-interval 5s --health-timeout 5s --health-retries 10
+    # No NODE_ENV here: `next build` needs its own (production); the API and the seed default to
+    # development.
     env:
-      NODE_ENV: development
       DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_dev
       WEB_ORIGIN: http://localhost:3000
       APP_URL: http://localhost:3000
