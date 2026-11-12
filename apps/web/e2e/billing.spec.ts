@@ -15,6 +15,8 @@ async function signIn(page: Page, email = 'admin@qarabic.test', path = '/invoice
 test('monthly run → open an invoice → record a manual payment → paid', async ({ page }) => {
   await signIn(page);
   await expect(page.getByRole('heading', { level: 1, name: 'الفواتير' })).toBeVisible();
+  // D141: the amounts per currency sit in the summary, closed by default.
+  await page.getByRole('button', { name: /إظهار التفاصيل/ }).click();
   await expect(page.getByRole('region', { name: 'ملخص المبالغ حسب العملة' })).toBeVisible();
 
   await page.getByRole('button', { name: 'إصدار فواتير الشهر' }).click();
@@ -32,6 +34,8 @@ test('monthly run → open an invoice → record a manual payment → paid', asy
   // The newest invoice is first; open it from its number.
   const table = page.getByRole('table', { name: 'الفواتير' });
   await table.getByRole('row').nth(1).getByRole('link').first().click();
+  // D141: from 1024 px it opens beside the list; continue on the invoice's own page.
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page.getByRole('heading', { level: 1, name: /INV-\d{4}-\d{6}/ })).toBeVisible();
   await expect(page.locator('main h1')).toContainText('مستحقة');
 
@@ -83,13 +87,16 @@ test('void an invoice: the reason is required; the invoice stays, marked void', 
 
 test('list: status tab, month and search live in the URL', async ({ page }) => {
   await signIn(page);
-  const tabs = page.getByRole('radiogroup', { name: 'حالة الفاتورة' });
-  await tabs.getByRole('radio', { name: /^متأخرة \(\d+\)$/ }).click();
+  // D141: nine views live in the title's views menu.
+  await page.getByRole('button', { name: /تغيير العرض$/ }).click();
+  await page.getByRole('menuitemradio', { name: /^متأخرة/ }).click();
   await expect(page).toHaveURL(/status=overdue/);
   const table = page.getByRole('table', { name: 'الفواتير' });
   await expect(table.getByRole('row')).toHaveCount(3);
   await page.reload();
-  await expect(tabs.getByRole('radio', { name: /^متأخرة \(\d+\)$/ })).toBeChecked();
+  await expect(
+    page.getByRole('button', { name: /^متأخرة\s*\(\d+\)\s*تغيير العرض$/ }),
+  ).toBeVisible();
   await page.getByRole('searchbox', { name: 'البحث' }).fill('Yusuf');
   await expect(page).toHaveURL(/q=Yusuf/);
   await expect(table.getByRole('row')).toHaveCount(2);
