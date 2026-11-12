@@ -284,7 +284,9 @@
       "title": "Summary",
       "show": "Show details",
       "hide": "Hide details"
-    }
+    },
+    "activeFilters": "Filters:",
+    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}"
   },
   "time": {
     "dayAhead": "next day",
