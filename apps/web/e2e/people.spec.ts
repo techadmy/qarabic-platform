@@ -63,6 +63,8 @@ test('family: add → in the list → profile → edit → status with reason �
   await status.getByLabel(/السبب/).fill('Finished the course');
   await status.getByRole('button', { name: 'ألغِ تفعيل الحساب' }).click();
   await expect(status).toBeHidden();
+  // The status history is the profile's «السجل» tab (D141 §7).
+  await page.getByRole('tab', { name: 'السجل' }).click();
   await expect(page.getByText('من «منتظمة» إلى «غير نشطة»')).toBeVisible();
 
   // Archive with a reason → read-only banner → restore.

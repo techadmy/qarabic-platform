@@ -10,13 +10,14 @@ import {
   SidebarGroupContent,
   SidebarGroupLabel,
   SidebarMenu,
+  SidebarMenuAction,
   SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   useSidebar,
 } from '@qarabic/ui/components/sidebar';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronDownIcon } from 'lucide-react';
+import { ChevronDownIcon, PlusIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -24,12 +25,21 @@ import { crmKeys, fetchLeadSummary } from '@/lib/api/crm';
 import { fetchRequestCounts, requestKeys } from '@/lib/api/requests';
 import { fetchFeedbackSummary, fetchSupportSummary, supportKeys } from '@/lib/api/support';
 import { useViewerTz } from '@/components/sessions/times';
+import { useCurrentUser } from '@/components/shell/app-shell';
+import { can } from '@/lib/auth/use-me';
+import { cn } from '@qarabic/ui/lib/utils';
 import { isActive, isGroup, type NavEntry, type NavItem } from '@/lib/navigation';
 
-function CountBadge({ n, suffix }: { n: number; suffix: string }) {
+function CountBadge({ n, suffix, shifted }: { n: number; suffix: string; shifted?: boolean }) {
   if (!n) return null;
   return (
-    <SidebarMenuBadge className="top-3! rounded-full bg-accent text-accent-foreground peer-hover/menu-button:text-accent-foreground peer-data-active/menu-button:text-accent-foreground">
+    <SidebarMenuBadge
+      className={cn(
+        // Beside the «+» (D141 §6) the count moves one slot inwards.
+        shifted && 'end-8',
+        'top-3! rounded-full bg-accent text-accent-foreground peer-hover/menu-button:text-accent-foreground peer-data-active/menu-button:text-accent-foreground',
+      )}
+    >
       {n}
       <span className="sr-only"> {suffix}</span>
     </SidebarMenuBadge>
@@ -37,18 +47,18 @@ function CountBadge({ n, suffix }: { n: number; suffix: string }) {
 }
 
 /** «طلبات الحصص (4)»: pending requests, refreshed every minute (K3). */
-function PendingBadge() {
+function PendingBadge({ shifted }: { shifted?: boolean }) {
   const t = useTranslations('nav');
   const counts = useQuery({
     queryKey: requestKeys.counts,
     queryFn: ({ signal }) => fetchRequestCounts(signal),
     refetchInterval: 60_000,
   });
-  return <CountBadge n={counts.data?.pending ?? 0} suffix={t('pendingSuffix')} />;
+  return <CountBadge n={counts.data?.pending ?? 0} suffix={t('pendingSuffix')} shifted={shifted} />;
 }
 
 /** «العملاء المحتملون»: new leads + follow-ups due today (docs/26 §9), in the viewer's zone. */
-function LeadsBadge() {
+function LeadsBadge({ shifted }: { shifted?: boolean }) {
   const t = useTranslations('nav');
   const tz = useViewerTz();
   const summary = useQuery({
@@ -57,18 +67,18 @@ function LeadsBadge() {
     refetchInterval: 60_000,
   });
   const n = (summary.data?.new ?? 0) + (summary.data?.followUpsDue ?? 0);
-  return <CountBadge n={n} suffix={t('leadsSuffix')} />;
+  return <CountBadge n={n} suffix={t('leadsSuffix')} shifted={shifted} />;
 }
 
 /** «صندوق الطلبات»: open requests of my queues (`/support/summary`). */
-function SupportBadge() {
+function SupportBadge({ shifted }: { shifted?: boolean }) {
   const t = useTranslations('nav');
   const summary = useQuery({
     queryKey: supportKeys.summary,
     queryFn: ({ signal }) => fetchSupportSummary(signal),
     refetchInterval: 60_000,
   });
-  return <CountBadge n={summary.data?.openTotal ?? 0} suffix={t('openSuffix')} />;
+  return <CountBadge n={summary.data?.openTotal ?? 0} suffix={t('openSuffix')} shifted={shifted} />;
 }
 
 /** «طلباتي» (requests with news) and «فرز البلاغات» (new reports) from `/feedback/summary`. */
@@ -106,10 +116,12 @@ function Items({ items, tooltipSide }: { items: NavItem[]; tooltipSide: 'left' |
   const t = useTranslations('nav');
   const pathname = usePathname();
   const { isMobile, setOpenMobile } = useSidebar();
+  const me = useCurrentUser();
   return (
     <SidebarMenu className="gap-0.5">
       {items.map((item) => {
         const active = isActive(item, pathname);
+        const create = !!item.create && can(me, item.create);
         return (
           <SidebarMenuItem key={item.key}>
             <SidebarMenuButton
@@ -128,9 +140,27 @@ function Items({ items, tooltipSide }: { items: NavItem[]; tooltipSide: 'left' |
                 <span>{t(item.key)}</span>
               </Link>
             </SidebarMenuButton>
-            {item.badge === 'pendingRequests' && <PendingBadge />}
-            {item.badge === 'supportOpen' && <SupportBadge />}
-            {item.badge === 'leads' && <LeadsBadge />}
+            {create && (
+              // D141 §6: «+» beside sections with a create action. shadcn `SidebarMenuAction`
+              // (`showOnHover`): visible on hover, keyboard focus and the active item; on phones
+              // always visible.
+              <SidebarMenuAction
+                asChild
+                showOnHover
+                className="top-2.5! size-6 peer-data-active/menu-button:opacity-100"
+              >
+                <Link
+                  href={`${item.href}?new=1`}
+                  aria-label={t('addIn', { section: t(item.key) })}
+                  onClick={() => isMobile && setOpenMobile(false)}
+                >
+                  <PlusIcon />
+                </Link>
+              </SidebarMenuAction>
+            )}
+            {item.badge === 'pendingRequests' && <PendingBadge shifted={create} />}
+            {item.badge === 'supportOpen' && <SupportBadge shifted={create} />}
+            {item.badge === 'leads' && <LeadsBadge shifted={create} />}
             {(item.badge === 'mineUpdates' || item.badge === 'triageNew') && (
               <FeedbackBadge kind={item.badge} />
             )}
