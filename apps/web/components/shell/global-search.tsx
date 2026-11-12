@@ -201,7 +201,7 @@ export function GlobalSearch() {
                     <span className="flex min-w-0 flex-col">
                       <span className="truncate font-medium">{h.title}</span>
                       {h.sub && (
-                        <bdi className="truncate text-sm text-muted-foreground">{h.sub}</bdi>
+                        <bdi className="truncate text-caption text-muted-foreground">{h.sub}</bdi>
                       )}
                     </span>
                   </CommandItem>

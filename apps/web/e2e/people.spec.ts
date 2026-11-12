@@ -163,8 +163,10 @@ test.describe('mobile 375 px', () => {
   });
 });
 
+// Nine axe runs used to share one test and outgrew the 30 s budget on the CI runner (it failed on
+// main): the lists and the profile flows are two tests now.
 test.describe('accessibility (axe)', () => {
-  test('lists, profile, sheet, status dialog, roles and account', async ({ page }) => {
+  test('lists: families, students, teachers, staff, roles', async ({ page }) => {
     await signIn(page, 'admin@qarabic.test', '/families');
     await expect(page.getByRole('table', { name: 'العائلات' }).getByRole('row')).toHaveCount(26);
     await expectNoSeriousA11yViolations(page);
@@ -179,7 +181,10 @@ test.describe('accessibility (axe)', () => {
       await page.waitForLoadState('networkidle');
       await expectNoSeriousA11yViolations(page);
     }
-    await page.goto('/families/2');
+  });
+
+  test('profile, edit sheet, status dialog, a role and the account', async ({ page }) => {
+    await signIn(page, 'admin@qarabic.test', '/families/2');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Yusuf Hassan');
     await page.waitForLoadState('networkidle');
     await expectNoSeriousA11yViolations(page);

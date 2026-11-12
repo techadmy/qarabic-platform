@@ -329,7 +329,7 @@ function PackageDialog({
                 onChange={(e) => setV((s) => ({ ...s, name: e.target.value }))}
                 aria-invalid={!!err('name')}
                 aria-required
-                className="h-10 md:text-[0.9375rem]"
+                className="h-10 md:text-body"
               />
             </FormRow>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -371,7 +371,7 @@ function PackageDialog({
                 maxLength={500}
                 value={v.description}
                 onChange={(e) => setV((s) => ({ ...s, description: e.target.value }))}
-                className="md:text-[0.9375rem]"
+                className="md:text-body"
               />
             </FormRow>
             <fieldset className="flex flex-col gap-3">

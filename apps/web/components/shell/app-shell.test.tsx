@@ -98,6 +98,10 @@ describe('AppShell', () => {
     routerMock.pathname = '/roles';
     renderShell();
     const menu = await sidebarMenu();
+    // One main landmark (SidebarInset is a div) and the top bar is the banner.
+    expect(screen.getAllByRole('main')).toHaveLength(1);
+    expect(screen.getByRole('main')).toHaveAttribute('id', 'main');
+    expect(screen.getByRole('banner')).toBeInTheDocument();
     expect(menu.getByRole('link', { name: 'الأدوار والصلاحيات' })).toHaveAttribute(
       'aria-current',
       'page',
