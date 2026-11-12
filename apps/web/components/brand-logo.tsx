@@ -1,4 +1,5 @@
 import { cn } from '@qarabic/ui/lib/utils';
+import { BASE_PATH } from '@/lib/base-path';
 import Image from 'next/image';
 
 /**
@@ -9,7 +10,7 @@ export function BrandLogo({ className, priority }: { className?: string; priorit
   return (
     <>
       <Image
-        src="/brand/logo.png"
+        src={`${BASE_PATH}/brand/logo.png`}
         width={394}
         height={112}
         alt="Qarabic"
@@ -17,7 +18,7 @@ export function BrandLogo({ className, priority }: { className?: string; priorit
         className={cn('h-auto dark:hidden', className)}
       />
       <Image
-        src="/brand/logo-white.png"
+        src={`${BASE_PATH}/brand/logo-white.png`}
         width={210}
         height={56}
         alt="Qarabic"
@@ -32,7 +33,7 @@ export function BrandLogo({ className, priority }: { className?: string; priorit
 export function BrandMark({ className }: { className?: string }) {
   return (
     <Image
-      src="/brand/mark.png"
+      src={`${BASE_PATH}/brand/mark.png`}
       width={100}
       height={100}
       alt="Qarabic"
