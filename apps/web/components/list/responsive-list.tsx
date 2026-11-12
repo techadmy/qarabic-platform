@@ -3,7 +3,7 @@
 import { Card } from '@qarabic/ui/components/card';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
-import type { ColumnDef } from '@tanstack/react-table';
+import type { ColumnDef, VisibilityState } from '@tanstack/react-table';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { DataTable } from '@/components/data-table';
@@ -11,6 +11,7 @@ import { DataTable } from '@/components/data-table';
 /**
  * Table on tablet/desktop, one compact shadcn `Card` per row on phones (< 768 px), like the current
  * app's mobile lists (docs/15 §5.3): no horizontal scrolling, the whole card opens the record.
+ * Pass `columnVisibility` + `onColumnVisibilityChange` for the D141 column chooser.
  */
 export function ResponsiveList<T>({
   columns,
@@ -21,6 +22,8 @@ export function ResponsiveList<T>({
   getRowId,
   getRowHref,
   renderCard,
+  columnVisibility,
+  onColumnVisibilityChange,
 }: {
   columns: ColumnDef<T, unknown>[];
   rows: T[];
@@ -30,6 +33,9 @@ export function ResponsiveList<T>({
   getRowId: (row: T) => string | number;
   getRowHref?: (row: T) => string;
   renderCard: (row: T) => ReactNode;
+  /** The column chooser on the desktop table (D141 §3; phones show cards, so it has no effect). */
+  columnVisibility?: VisibilityState;
+  onColumnVisibilityChange?: (next: VisibilityState) => void;
 }) {
   const isMobile = useIsMobile();
   if (!isMobile) {
@@ -42,6 +48,9 @@ export function ResponsiveList<T>({
         emptyText={emptyText}
         loading={loading}
         getRowHref={getRowHref}
+        getRowId={(row) => String(getRowId(row))}
+        columnVisibility={columnVisibility}
+        onColumnVisibilityChange={onColumnVisibilityChange}
       />
     );
   }

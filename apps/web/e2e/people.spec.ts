@@ -44,6 +44,9 @@ test('family: add → in the list → profile → edit → status with reason �
     .getByRole('link', { name: 'E2E Parent' });
   await expect(row).toBeVisible();
   await row.click();
+  // From 1024 px the name opens the split view (D141 §1); the record's own page is one click on.
+  await expect(page).toHaveURL(/[?&]id=100/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/families\/100$/);
 
   // Edit one field.

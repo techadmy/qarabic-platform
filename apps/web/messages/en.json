@@ -129,7 +129,9 @@
     "addIn": "Add to “{section}”",
     "journal": "Journal",
     "vouchers": "Receipts and payments",
-    "chartOfAccounts": "Chart of accounts"
+    "chartOfAccounts": "Chart of accounts",
+    "financialReports": "Financial reports",
+    "periods": "Accounting periods"
   },
   "home": {
     "title": "Home",
@@ -286,7 +288,9 @@
       "title": "Summary",
       "show": "Show details",
       "hide": "Hide details"
-    }
+    },
+    "activeFilters": "Filters:",
+    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}"
   },
   "time": {
     "dayAhead": "next day",
@@ -2721,7 +2725,11 @@
       "paidThanks": "Thank you. The receipt is in the payments list.",
       "cancelledTitle": "Payment cancelled",
       "cancelled": "Nothing was charged; you can pay later.",
-      "dismiss": "Dismiss"
+      "dismiss": "Dismiss",
+      "homeDue": "Amount due",
+      "allInvoices": "All invoices",
+      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}",
+      "homeDueError": "Couldn’t load what is due."
     },
     "pay": {
       "title": "Choose how to pay",
@@ -3578,6 +3586,89 @@
       "forbidden": "You do not have permission for this.",
       "invalid": "Some data is not valid. Check the fields."
     },
-    "badRange": "The start date is after the end date. Fix the period."
+    "badRange": "The start date is after the end date. Fix the period.",
+    "reports": {
+      "title": "Financial reports",
+      "trial-balance": "Trial balance",
+      "profit-and-loss": "Profit and loss",
+      "balance-sheet": "Balance sheet",
+      "tb": {
+        "opening": "Opening balance",
+        "period": "Period movement",
+        "closing": "Closing balance"
+      },
+      "total": "Total",
+      "balanced": "Balanced",
+      "notBalanced": "Not balanced",
+      "noRows": "No balances.",
+      "totalIncome": "Total income",
+      "totalExpense": "Total expenses",
+      "netProfit": "Net profit",
+      "netLoss": "Net loss",
+      "totalAssets": "Total assets",
+      "totalLiabilities": "Total liabilities",
+      "totalEquity": "Total equity",
+      "retainedEarnings": "Earnings to date",
+      "totalLiabilitiesAndEquity": "Total liabilities and equity",
+      "cashIn": "Cash in {currency}",
+      "noCash": "No cash movements",
+      "noCashHint": "Change the currency or the period.",
+      "asOf": "As of",
+      "asOfLine": "As of {date}",
+      "rangeLine": "From {from} to {to}",
+      "badRange": "The start date is after the end date. Fix the period.",
+      "perCurrencyNote": "The books are kept per currency; nothing is converted between currencies.",
+      "cashCols": {
+        "opening": "Opening",
+        "inflow": "Received",
+        "outflow": "Paid",
+        "closing": "Closing"
+      },
+      "cash": "Cash"
+    },
+    "periods": {
+      "title": "Accounting periods",
+      "description": "Closing a month stops any posting dated in it. A month closes after it ends and once its automatic entries are posted.",
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "tableLabel": "Months of {year}",
+      "month": "Month",
+      "status": "Status",
+      "entries": "Entries",
+      "closedBy": "Closed by",
+      "actions": "Actions",
+      "current": "current",
+      "close": "Close period",
+      "reopen": "Reopen",
+      "reopenedBecause": "Reopened: {reason}",
+      "closeTitle": "Close {month}?",
+      "closeHint": "After closing, no entry, voucher or void dated in this month is accepted until it is reopened.",
+      "reopenTitle": "Reopen {month}?",
+      "reopenHint": "Write why it is reopened; it is kept with the period.",
+      "reason": "Reason",
+      "cancel": "Cancel",
+      "closed": "{month} closed.",
+      "reopened": "{month} reopened.",
+      "entriesCount": "{count, plural, =0 {No entries} one {# entry} other {# entries}}",
+      "undo": "Undo",
+      "undoReason": "Close undone right away",
+      "closedByLine": "{name} · {when}"
+    },
+    "outbox": {
+      "title": "Automatic entries waiting",
+      "hint": "Invoice and payroll entries post automatically every 5 minutes.",
+      "processNow": "Post now",
+      "processed": "{posted, plural, =0 {Nothing posted} one {# entry posted} other {# entries posted}}, {failed, plural, =0 {none failed.} one {# failed.} other {# failed.}}",
+      "pending": {
+        "billing": "From invoices",
+        "payroll": "From payroll"
+      },
+      "oldest": "Oldest waiting",
+      "failed": "Failed",
+      "failures": "Entries that failed",
+      "attempts": "{count, plural, one {# attempt} other {# attempts}}, last {when}",
+      "failureReason": "The automatic entry for this event could not be made. Check its accounts, then post again.",
+      "technicalDetails": "Technical details"
+    }
   }
 }

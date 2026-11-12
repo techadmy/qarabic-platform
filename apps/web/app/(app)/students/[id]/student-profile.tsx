@@ -1,5 +1,7 @@
 'use client';
 
+import { useRecordPane } from '@/components/list/split-view';
+import { cn } from '@qarabic/ui/lib/utils';
 import {
   countryName,
   GENDER_LABELS,
@@ -25,6 +27,7 @@ import { StudentTests } from '@/components/tests/student-tests';
 
 /** Student profile: Student · Study plan · Family · Remarks (docs/28 §5). */
 export function StudentProfile({ id }: { id: number }) {
+  const pane = useRecordPane();
   const t = useTranslations('students');
   const tp = useTranslations('people');
   const locale = useLocale() === 'en' ? 'en' : 'ar';
@@ -80,7 +83,13 @@ export function StudentProfile({ id }: { id: number }) {
                 },
               ]}
             />
-            <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div
+              className={cn(
+                'grid items-start gap-4',
+                // In the split view's pane the columns follow the pane, not the screen (D141 §1).
+                pane ? '@5xl:grid-cols-2' : 'lg:grid-cols-2',
+              )}
+            >
               <InfoSection
                 title={tp('sections.student')}
                 onEdit={editable ? () => edit('profile') : undefined}
