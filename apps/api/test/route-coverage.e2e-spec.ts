@@ -31,10 +31,18 @@ const PUBLIC_ROUTES = [
   'GET health',
   // N4: Meta's WhatsApp webhook (404 while FEEDBACK_WHATSAPP_ENABLED is off; POST signed with
   // the app secret, GET answers only the verify token). Reviewed in the N4 PR.
+  // N5 public intake (docs/33 §3.1): the trial form's course list, the trial form (honeypot,
+  // optional captcha, 5/min per IP), the old class-request form (D105) and the website's WPForms
+  // webhook (HMAC signature + 5-minute timestamp window + entry-id idempotency, 503 without a
+  // secret). No session, no CSRF token. Reviewed in the N5 PR.
+  'GET public/courses',
   'GET webhooks/whatsapp',
+  'POST api/class-request',
   'POST auth/forgot-password',
   'POST auth/login',
   'POST auth/reset-password',
+  'POST public/trial-requests',
+  'POST public/web-leads/wpforms',
   'POST webhooks/whatsapp',
 ];
 
@@ -52,10 +60,14 @@ describe('route permission coverage', () => {
     expect(routes.filter((r) => r.access === 'authenticated').map((r) => r.route)).toEqual([
       'GET auth/me',
       'GET me',
+      // The bell: the user's own notifications only (N5).
+      'GET me/notifications',
       // The Quran reference (Laravel: any signed-in user).
       'GET quran/surahs',
       'PATCH me',
       'POST auth/logout',
+      'POST me/notifications/:id/read',
+      'POST me/notifications/read-all',
     ]);
   });
 
@@ -231,6 +243,33 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every N5 route needs the permission of the Laravel CRM routes (api_v1_crm.php)', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expect(byRoute).toMatchObject({
+      'GET leads/summary': 'all:leads.view',
+      'GET leads/assignees': 'all:leads.view',
+      'GET leads/funnel': 'all:leads.view',
+      'POST leads/bulk/assign': 'all:leads.assign',
+      'POST leads/bulk/status': 'all:leads.manage',
+      'GET leads': 'all:leads.view',
+      'POST leads': 'all:leads.manage',
+      'GET leads/:id': 'all:leads.view',
+      'PATCH leads/:id': 'all:leads.manage',
+      'POST leads/:id/activities': 'all:leads.manage',
+      'POST leads/:id/assign': 'all:leads.manage',
+      'POST leads/:id/status': 'all:leads.manage',
+      'POST leads/:id/account': 'all:leads.manage|families.manage',
+      'POST leads/:id/trials': 'all:leads.manage|schedule.manage',
+      'POST leads/:id/trial-outcome': 'all:leads.manage',
+      'POST leads/:id/convert': 'all:leads.manage|families.manage|schedule.manage',
+      'POST me/referrals': 'all:leads.refer',
+      'GET settings/crm': 'all:settings.view',
+      'PUT settings/crm': 'all:settings.manage',
+    });
+  });
+
   it('answers 403 to a signed-in user with no role on every permission route', async () => {
     const { client } = await signedIn(ctx, null);
     for (const { route } of auditRoutes(ctx.app).filter((r) => r.access === 'permission')) {
@@ -321,6 +360,9 @@ describe('platform', () => {
         '/api/v1/feedback/tickets',
         '/api/v1/support/inbox',
         '/api/v1/parent/home',
+        '/api/v1/leads/{id}/convert',
+        '/api/v1/public/web-leads/wpforms',
+        '/api/v1/me/notifications',
       ]),
     );
   });

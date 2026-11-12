@@ -101,7 +101,10 @@ export function TimeSelect({
   invalid,
   className,
   times = QUARTER_TIMES,
+  label,
 }: {
+  /** Accessible name when the visible label points at another control (e.g. a date + time pair). */
+  label?: string;
   id?: string;
   value: string;
   onChange: (value: string) => void;
@@ -113,7 +116,12 @@ export function TimeSelect({
   const options = times.includes(value) || !value ? times : [...times, value].sort();
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger id={id} aria-invalid={invalid} className={cn('h-10! w-full', className)}>
+      <SelectTrigger
+        id={id}
+        aria-label={label}
+        aria-invalid={invalid}
+        className={cn('h-10! w-full', className)}
+      >
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper" className="max-h-72">

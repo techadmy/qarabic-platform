@@ -530,7 +530,7 @@ function conflict(
 }
 
 /** A weekly slot against the teacher's and student's other weekly times. */
-function checkSlot(input: {
+export function checkSlot(input: {
   studentId: number;
   teacherId: number;
   weekday: number;

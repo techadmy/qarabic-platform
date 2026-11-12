@@ -59,6 +59,7 @@ const SCHEMA_MESSAGES: Record<string, string> = {
   'Enter your current password.': 'currentPasswordRequired',
   'Choose the permissions or a role to copy.': 'invalid',
   'Unknown permission.': 'invalid',
+  'Enter a phone number or an email address.': 'phoneOrEmail',
 };
 
 function translateErrors(errors: FieldErrors, t: (key: string) => string) {

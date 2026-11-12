@@ -272,3 +272,98 @@ pnpm --filter @qarabic/api cli tickets:reply <id> --body="…" [--internal]
   `whatsapp_inbound_messages` (one row per Meta message id).
 - Queues, their member roles, restricted queues, SLA targets and the working week are settings
   (`support.*` in `app_settings`), as in Laravel.
+
+## Endpoints (N5: CRM — leads, trial, conversion, public intake)
+
+Ported from the Laravel M4 CRM + Leads T1 (`api_v1_crm.php`, the public routes of `api_v1.php`)
+with the same permissions (docs/26, docs/33 §3; D105–D111, D136, D137, D140). Contract in
+`@qarabic/shared` (`crm.ts`). Every staff member with `leads.view` sees every lead (D108).
+
+| Method    | Path                                                        | Permission                                             | Notes                                                                                                                                                                                                                                            |
+| --------- | ----------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| GET       | `/leads`                                                    | `leads.view`                                           | `leadListQuerySchema`: `status` (`open` default, `all`, or one), `q` (name / email / phone digits ≥ 4 / id), `assigned` (`me`, `none`, id), `source`, `followUp=due` + `tz`, `awaitingOutcome`, `uncontacted`; `meta.counts` per status + `open` |
+| GET       | `/leads/summary`                                            | `leads.view`                                           | today tiles in `tz` (else the viewer's zone): new, follow-ups due, trials today, awaiting outcome, converted / lost this month, open, unassigned, uncontacted, first-response overdue                                                            |
+| GET       | `/leads/funnel`                                             | `leads.view`                                           | `from`/`to` (academy dates, ≤ 366 days else 422 `range_too_long`): created / contacted / trial / converted / lost / spam, by source and by assignee                                                                                              |
+| GET       | `/leads/assignees`                                          | `leads.view`                                           | active `leads.manage` holders + open-lead count                                                                                                                                                                                                  |
+| POST      | `/leads`                                                    | `leads.manage`                                         | `createLeadSchema` (manual sources only; phone or email); assigned to the creator unless `assignedTo` (someone else: `leads.assign`, else 403); never merged — duplicates show on the workbench                                                  |
+| GET       | `/leads/:id`                                                | `leads.view`                                           | `LeadDetailDto`: timeline (200), trials (both local times), family students + live enrollments, duplicates, `allowedActions`, unanswered-attempt streak                                                                                          |
+| PATCH     | `/leads/:id`                                                | `leads.manage`                                         | `updateLeadSchema`: contact data, children, `nextFollowUpAt`                                                                                                                                                                                     |
+| POST      | `/leads/:id/activities`                                     | `leads.manage`                                         | note / call (`callResult` required) / whatsapp / email; a contact sets `firstResponseAt`, counts the attempt, moves `new` → `contacted`; optional `nextFollowUpAt`                                                                               |
+| POST      | `/leads/:id/assign`                                         | `leads.manage`                                         | `{ userId \| null }`: take a free lead or release your own; anyone else needs `leads.assign` (403); 422 `userId` when the person cannot work leads                                                                                               |
+| POST      | `/leads/bulk/assign`                                        | `leads.assign`                                         | `{ ids ≤ 100, userId }` → `{ updated, failed: [{ id, code }] }`                                                                                                                                                                                  |
+| POST      | `/leads/:id/status`                                         | `leads.manage`                                         | `lost` (+ `lostReason`) / `spam` / `job_applicant` (open leads; cancel the booked trial), `reopen` (parked only), `contacted` (new only); else 422 `invalid_transition`                                                                          |
+| POST      | `/leads/bulk/status`                                        | `leads.manage`                                         | `lost` / `spam` only, per-row result                                                                                                                                                                                                             |
+| POST      | `/leads/:id/account`                                        | `leads.manage` + `families.manage`                     | trial family + parent login (random password, no mail) + children; 409 `already_has_family`; 422 `email_taken` + `data.familyId` (resend with `familyId` to add the children to that family)                                                     |
+| POST      | `/leads/:id/trials`                                         | `leads.manage` + `schedule.manage`                     | `bookTrialSchema` in the family's wall time (DST gap / past → 422 `localTime`); conflicts like N2 (409 / 422 warnings); rebook moves the earlier trial out; `meta.trial` with both local times                                                   |
+| POST      | `/leads/:id/trial-outcome`                                  | `leads.manage`                                         | interested → `trial_done`, no_show → `contacted`, not_interested → `lost` (cancels the booked trial)                                                                                                                                             |
+| POST      | `/leads/:id/convert`                                        | `leads.manage` + `families.manage` + `schedule.manage` | one transaction (D110): regular enrollment + weekly slots per student, trial enrollment ends the day before, family `regular`, lead `converted`; `meta.enrollmentIds`; `sendWelcome: true` mails a set-password link                             |
+| POST      | `/me/referrals`                                             | `leads.refer`                                          | a parent recommends a friend (10/hour per parent); `{ data: { received: true } }` whether new or merged                                                                                                                                          |
+| GET       | `/me/notifications`                                         | signed in (own rows)                                   | the bell: `notificationListQuerySchema` (`unread`, `limit` ≤ 50), newest first; `meta.unread`                                                                                                                                                    |
+| POST      | `/me/notifications/:id/read` · `/me/notifications/read-all` | signed in (own rows)                                   | 204 (another user's id → 404) · `{ data: { updated } }`                                                                                                                                                                                          |
+| GET · PUT | `/settings/crm`                                             | `settings.view` · `settings.manage`                    | `crm.*` flat keys (`CRM_SETTING_RULES`)                                                                                                                                                                                                          |
+| GET       | `/public/courses`                                           | public                                                 | active courses: id, names, category (60/min per IP)                                                                                                                                                                                              |
+| POST      | `/public/trial-requests`                                    | public, no CSRF                                        | the app's trial form (`publicTrialRequestSchema`); honeypot `website` → 200 and nothing stored; captcha when `FORMS_CAPTCHA_DRIVER=turnstile`; 5/min per IP; 201 `{ received: true }`                                                            |
+| POST      | `/public/web-leads/wpforms`                                 | public, no CSRF, signed                                | the website webhook (below)                                                                                                                                                                                                                      |
+| POST      | `/api/class-request`                                        | public, no CSRF                                        | the developer's old form endpoint, same URL and field names (`Name`, `Email`, `Phone`, `Country`, …), always 200 `{ success: true }` (D105)                                                                                                      |
+
+Refusal codes: `invalid_transition` (422), `already_has_family` (409), `email_taken`, `no_family`,
+`already_enrolled`, `range_too_long`, `unknown_form`, `captcha_failed` (422), `forbidden` (403),
+`invalid_signature` (401), `webhook_disabled` (503), `too_many_requests` (429), plus the N2
+`schedule_conflict` (409) / `warnings_not_acknowledged` (422) from the trial and conversion.
+
+### Website webhook contract (WordPress snippet, unchanged at cut-over)
+
+`POST /api/v1/public/web-leads/wpforms`, JSON body built by the snippet
+(`docs/integrations/wpforms-webhook.php` in the Laravel repo):
+`{ form_id, entry_id, submitted_at, page_url, referer, fields: { name, email, phone, course_for,
+children_count, student_age, course, notes } }` — WPForms field ids on form 4823: 1 name, 3 email,
+5 phone, 11 «Course for», 12 children count, 13 age, 10 course, 9 notes.
+
+- `X-Qarabic-Timestamp`: unix seconds, within 300 s of the server clock (401 otherwise).
+- `X-Qarabic-Signature`: `sha256=` + hex `HMAC_SHA256(WEB_LEADS_WEBHOOK_SECRET, "{timestamp}.{raw body}")`,
+  compared in constant time over the raw bytes (the API keeps `rawBody`). Bad / missing → 401
+  `invalid_signature`; no secret configured → 503 `webhook_disabled`.
+- Forms allowed: `WEB_LEADS_WPFORMS_FORM_IDS` (default `4823`), else 422 `unknown_form`.
+- Replay protection / idempotency: the entry is keyed `wpforms:<form>:<entry>` (`leads.external_ref`,
+  unique, or the `resubmitted` entry of a merged duplicate) under an advisory lock: a replay
+  answers 200 `{ received: true, duplicate: true }`; a new entry 201 `duplicate: false`.
+- Course label → course: `WEB_LEADS_COURSE_MAP` (JSON, lower-case labels), then an exact course
+  name, else kept as text in `courseInterest`. Country from the phone's calling code; zone from
+  the country. 30 calls/min per IP. No message to the family unless `crm.web_lead_confirmation`.
+
+### Intake rules (D107, T1)
+
+- Spam score (links / HTML, SQL, odd name, bad email, no contact, > 3 submissions an hour from the
+  same IP hash) ≥ 50 → `spam` (own tab, never assigned); the answer is the same.
+- Same email or phone digits on an open lead created in the last 30 days → merged (`submissions`
+  +1, blank fields filled, a `resubmitted` entry), never a second lead.
+- New non-spam leads are auto-assigned (D136/D137): round-robin by user id over active
+  `leads.manage` holders of `crm.auto_assign_roles` (default `csr`) on shift (`crm.shift_source`:
+  `any` default, `hours` = inside the CRM working hours, `attendance` = nobody until staff
+  attendance exists in N6), else `crm.lead_admin_user_id`, else the `leads.assign` holders are told.
+- Staff alerts (`notifications` row for the bell + an email to the staff member, parent name only):
+  `assigned`, `unassigned`, `follow_up_due` (once per follow-up time), `sla_breach` (no contact
+  within `crm.first_response_minutes` working minutes, 10:00–22:00 Cairo; leads of the last 3 days).
+- Families get nothing by default (D140): `crm.trial_form_confirmation` and
+  `crm.web_lead_confirmation` are off; the conversion welcome (set-password link) only with
+  `sendWelcome: true`.
+
+## CRM job (N5)
+
+`leads:notify` every 5 minutes in the API process (`SCHEDULER_ENABLED`), idempotent (each alert is
+claimed with a conditional update first). From the command line (after `build`):
+
+```sh
+pnpm --filter @qarabic/api cli leads:notify
+```
+
+## Data model notes (N5)
+
+- `leads` (status, source, contact as submitted + `phone_digits`, children JSON, preferences,
+  `external_ref` unique, family / referral family / owner / creator / converter, follow-up and SLA
+  stamps, spam score + flags, salted IP hash, `submissions`), `lead_activities` (append-only: a
+  trigger refuses UPDATE / DELETE), `notifications` (in-app alerts per user; the one table for
+  every module's bell — N4 had no notification store, its alerts wait for the notification centre).
+- A referral is a lead with `source=referral` + `referral_family_id`. A lead's trials are the
+  `kind=trial` classes of its family's students (as in Laravel); the trial enrollment is
+  `kind=trial` and ends when the student converts (past trial classes keep their kind, D110).

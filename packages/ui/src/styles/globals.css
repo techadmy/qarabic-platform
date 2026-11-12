@@ -80,7 +80,9 @@
   --muted-foreground: #5c5552; /* ink3, 7:1 */
   --accent: #f6e9e9; /* brand-soft */
   --accent-foreground: #4e1517; /* brand hover */
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: oklch(
+    0.52 0.21 27.3
+  ); /* darker than shadcn default: ≥ 4.5:1 on white and the canvas */
   --border: #e4e1de; /* line */
   --input: #e4e1de;
   --ring: #2f6fde; /* focus */
