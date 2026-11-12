@@ -249,9 +249,9 @@ export class PayrollRunsService {
       });
   }
 
-  async recompute(id: number): Promise<void> {
+  async recompute(id: number, expectedUpdatedAt?: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const run = await this.lock(tx, id, ['draft', 'reviewed']);
+      const run = await this.lock(tx, id, ['draft', 'reviewed'], expectedUpdatedAt);
       await this.backToDraft(tx, run);
       await this.compute(tx, run);
     });
@@ -347,9 +347,9 @@ export class PayrollRunsService {
     });
   }
 
-  async review(id: number, by: AuthUser): Promise<void> {
+  async review(id: number, by: AuthUser, expectedUpdatedAt?: string): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const run = await this.lock(tx, id, ['draft']);
+      const run = await this.lock(tx, id, ['draft'], expectedUpdatedAt);
       await this.compute(tx, run);
       await this.assertNoErrors(tx, run.id);
       await tx.payrollRun.update({
@@ -374,9 +374,9 @@ export class PayrollRunsService {
     });
   }
 
-  async approve(id: number, by: AuthUser): Promise<void> {
+  async approve(id: number, by: AuthUser, expectedUpdatedAt?: string): Promise<void> {
     const approved = await this.prisma.$transaction(async (tx) => {
-      const run = await this.lock(tx, id, ['reviewed']);
+      const run = await this.lock(tx, id, ['reviewed'], expectedUpdatedAt);
       await this.assertNoErrors(tx, run.id);
       const now = this.clock.now();
       const totalsBy: Record<string, string> = {};
@@ -513,9 +513,14 @@ export class PayrollRunsService {
     });
   }
 
-  async reopen(id: number, reason: string, by: AuthUser): Promise<void> {
+  async reopen(
+    id: number,
+    reason: string,
+    by: AuthUser,
+    expectedUpdatedAt?: string,
+  ): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
-      const run = await this.lock(tx, id, ['approved']);
+      const run = await this.lock(tx, id, ['approved'], expectedUpdatedAt);
       const slips = await tx.payslip.findMany({ where: { runId: id }, include: { lines: true } });
       if (slips.some((s) => s.status === 'paid' && cents(s.net) > 0)) {
         throw payrollError(HttpStatus.CONFLICT, 'payslips_paid');
@@ -616,9 +621,26 @@ export class PayrollRunsService {
     });
   }
 
-  private async lock(tx: Tx, id: number, allowed: RunStatus[]): Promise<PayrollRun> {
+  /**
+   * Locks the run row; 409 `stale_run` when the client saw an older version (`expectedUpdatedAt`),
+   * else 409 `invalid_run_status` when the action does not fit the status.
+   */
+  private async lock(
+    tx: Tx,
+    id: number,
+    allowed: RunStatus[],
+    expectedUpdatedAt?: string,
+  ): Promise<PayrollRun> {
     if (!(await lockPayrollRow(tx, 'payroll_runs', id))) throw notFound();
     const run = await tx.payrollRun.findUniqueOrThrow({ where: { id } });
+    if (
+      expectedUpdatedAt !== undefined &&
+      new Date(expectedUpdatedAt).getTime() !== run.updatedAt.getTime()
+    ) {
+      throw payrollError(HttpStatus.CONFLICT, 'stale_run', {
+        data: { status: run.status, updatedAt: run.updatedAt.toISOString() },
+      });
+    }
     if (!allowed.includes(run.status)) {
       throw payrollError(HttpStatus.CONFLICT, 'invalid_run_status', {
         data: { status: run.status },
