@@ -1526,6 +1526,22 @@
       "emptyHint": "Students appear here when the office assigns them to you.",
       "noResults": "No matching results",
       "noResultsHint": "Try another name."
+    },
+    "home": {
+      "title": "Hello, {name}",
+      "current": "Class in progress",
+      "minutes": "minutes",
+      "startsIn": "Starts {when}",
+      "details": "Class details",
+      "noNext": "No upcoming classes",
+      "noNextHint": "Your next class shows here once it is scheduled.",
+      "restOfToday": "Today's schedule",
+      "noMoreToday": "No other classes today.",
+      "openWeek": "Open “My classes”",
+      "upcoming": "Next five days",
+      "facts": {
+        "today": "Today's classes"
+      }
     }
   },
   "support": {
@@ -1923,7 +1939,9 @@
       "tajweed": "Tajweed notes",
       "rating": "Rating: {n} of 5",
       "hifz": "Memorisation and revision",
-      "reportBy": "{teacher} · {when}"
+      "reportBy": "{teacher} · {when}",
+      "join": "Join the class",
+      "childProfile": "{name}'s lessons and progress"
     },
     "errors": {
       "generic": "That did not work. Try again.",
