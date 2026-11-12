@@ -152,9 +152,12 @@ export async function saveAnnouncement(
   ).data;
 }
 
+/** Announcement transitions; `unarchive` is the undo of `archive` (D31). */
+export type AnnouncementAction = 'publish' | 'archive' | 'unarchive';
+
 export async function announcementAction(
   id: number,
-  action: 'publish' | 'archive',
+  action: AnnouncementAction,
 ): Promise<AnnouncementDto> {
   return (
     await apiFetch(`/announcements/${id}/${action}`, {

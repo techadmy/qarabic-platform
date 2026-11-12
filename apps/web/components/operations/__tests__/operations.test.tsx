@@ -188,18 +188,15 @@ describe('Announcements', () => {
     await waitFor(() => expect(a.status).toBe('published'));
   });
 
-  it('archiving asks first, with the title; cancel keeps it published', async () => {
+  it('archiving acts at once; «تراجع» in the toast brings it back (D31)', async () => {
     const user = userEvent.setup();
     const a = odb.announcements.find((x) => x.status === 'published')!;
     renderPage(<AnnouncementsView />, { path: '/announcements?tab=manage' });
     await user.click(await screen.findByRole('button', { name: `أرشفة ${a.title}` }));
-    const confirm = await screen.findByRole('alertdialog', { name: `أرشفة «${a.title}»؟` });
-    await user.click(within(confirm).getByRole('button', { name: 'إلغاء' }));
-    expect(a.status).toBe('published');
-    await user.click(screen.getByRole('button', { name: `أرشفة ${a.title}` }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'أرشفة' }),
-    );
     await waitFor(() => expect(a.status).toBe('archived'));
+    expect(screen.queryByRole('alertdialog')).toBeNull();
+    await user.click(await screen.findByRole('button', { name: 'تراجع' }));
+    await waitFor(() => expect(a.status).toBe('published'));
+    expect(await screen.findByText('أُعيد الإعلان كما كان.')).toBeInTheDocument();
   });
 });

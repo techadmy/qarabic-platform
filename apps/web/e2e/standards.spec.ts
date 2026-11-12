@@ -17,6 +17,7 @@ const PAGES = [
   '/payroll',
   '/attendance',
   '/tasks',
+  '/accounting/journal',
   // Profiles with the «الحصص القادمة» table: it widened the page by ~500 px at 768 (audit 2026-11-12).
   '/students/1',
   '/teachers/1',

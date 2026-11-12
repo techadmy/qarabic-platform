@@ -32,6 +32,10 @@ import {
   WalletCardsIcon,
   ListTodoIcon,
   MegaphoneIcon,
+  BookOpenTextIcon,
+  LandmarkIcon,
+  ListTreeIcon,
+  ReceiptIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -75,6 +79,9 @@ export type NavKey =
   | 'payRules'
   | 'tasks'
   | 'announcements'
+  | 'journal'
+  | 'vouchers'
+  | 'chartOfAccounts'
   | 'ticket'
   | 'account';
 
@@ -102,7 +109,7 @@ export type NavItem = {
 
 export type NavGroup = {
   /** Message key under `nav.groups`. */
-  group: 'users' | 'billing' | 'payroll' | 'settings';
+  group: 'users' | 'billing' | 'payroll' | 'accounting' | 'settings';
   icon: LucideIcon;
   items: NavItem[];
 };
@@ -265,6 +272,30 @@ export const STAFF_NAV: NavEntry[] = [
         href: '/payroll/wallets',
         icon: WalletCardsIcon,
         permission: 'wallet.manage',
+      },
+    ],
+  },
+  {
+    group: 'accounting',
+    icon: LandmarkIcon,
+    items: [
+      {
+        key: 'journal',
+        href: '/accounting/journal',
+        icon: BookOpenTextIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'vouchers',
+        href: '/accounting/vouchers',
+        icon: ReceiptIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'chartOfAccounts',
+        href: '/accounting/accounts',
+        icon: ListTreeIcon,
+        permission: 'accounting.view',
       },
     ],
   },

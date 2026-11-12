@@ -17,6 +17,8 @@ import {
   toMe,
   type MockUser,
 } from './data';
+import { accountingHandlers } from './accounting-handlers';
+import { resetAccountingDb } from './accounting-db';
 import { billingHandlers } from './billing-handlers';
 import { operationsHandlers } from './operations-handlers';
 import { resetOperationsDb } from './operations-db';
@@ -70,6 +72,7 @@ export function resetMockState() {
   resetCrmDb();
   resetBillingDb();
   resetOperationsDb();
+  resetAccountingDb();
   resetPayrollDb();
 }
 
@@ -309,6 +312,7 @@ export const handlers: HttpHandler[] = [
   ...crmHandlers,
   ...billingHandlers,
   ...operationsHandlers,
+  ...accountingHandlers,
   ...payrollHandlers,
   ...peopleHandlers,
   ...teachingHandlers,

@@ -34,7 +34,6 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import type { ColumnDef } from '@tanstack/react-table';
 import {
   ArchiveIcon,
-  BanIcon,
   CheckIcon,
   CircleCheckIcon,
   FilePenLineIcon,
@@ -64,12 +63,14 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import {
   announcementAction,
+  type AnnouncementAction,
   fetchAnnouncements,
   markAnnouncementRead,
   operationsKeys,
   saveAnnouncement,
   type AnnouncementInput,
 } from '@/lib/api/operations';
+import { UNDO_MS } from '@/lib/people/use-person-actions';
 import { can } from '@/lib/auth/use-me';
 import { applyServerErrors } from '@/lib/forms/server-errors';
 import { useBeforeUnload } from '@/lib/forms/use-unsaved-guard';
@@ -372,8 +373,8 @@ function Feed() {
 
 /**
  * Every announcement for `announcements.manage`: drafts, published (with read counts), archived.
- * «نشر» names the audience before it notifies them; «أرشفة» confirms with the title (the API has
- * no unarchive yet, so there is no undo: D31).
+ * «نشر» names the audience before it notifies them; «أرشفة» acts at once with «تراجع» in the toast
+ * (`POST /announcements/:id/unarchive`: back to published, or draft if it never was; D31).
  */
 function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
   const t = useTranslations('operations.announcements');
@@ -383,10 +384,7 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
   const queryClient = useQueryClient();
   const message = useOperationsError();
   const audienceText = useAudienceText();
-  const [confirm, setConfirm] = useState<{
-    a: AnnouncementDto;
-    action: 'publish' | 'archive';
-  } | null>(null);
+  const [confirm, setConfirm] = useState<AnnouncementDto | null>(null);
   const statusParam = params.get('status') as AnnouncementStatus;
   const status = ANNOUNCEMENT_STATUSES.includes(statusParam) ? statusParam : undefined;
   const query = { scope: 'manage' as const, status, page: params.page, perPage: params.perPage };
@@ -396,12 +394,26 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
     placeholderData: keepPreviousData,
   });
   const act = useMutation({
-    mutationFn: (v: { id: number; action: 'publish' | 'archive' }) =>
+    mutationFn: (v: { id: number; action: AnnouncementAction }) =>
       announcementAction(v.id, v.action),
     onSuccess: (_, v) => {
       void queryClient.invalidateQueries({ queryKey: operationsKeys.all });
       setConfirm(null);
-      toast.success(t(v.action === 'publish' ? 'published' : 'archived'));
+      if (v.action === 'archive') {
+        toast.success(t('archived'), {
+          duration: UNDO_MS,
+          action: {
+            label: t('undo'),
+            onClick: () => act.mutate({ id: v.id, action: 'unarchive' }),
+          },
+        });
+      } else {
+        toast.success(t(v.action === 'publish' ? 'published' : 'unarchived'));
+      }
+    },
+    // The publish dialog shows its own error; archive and its undo say it in a toast.
+    onError: (e, v) => {
+      if (v.action !== 'publish') toast.error(message(e));
     },
   });
   const rows = useMemo(() => list.data?.data ?? [], [list.data]);
@@ -420,7 +432,7 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
     a.status === 'archived' ? null : (
       <span className="flex justify-end gap-1">
         {a.status === 'draft' && (
-          <Button size="sm" className="h-9" onClick={() => setConfirm({ a, action: 'publish' })}>
+          <Button size="sm" className="h-9" onClick={() => setConfirm(a)}>
             <SendIcon />
             {t('publish')}
             <span className="sr-only">: {a.title}</span>
@@ -438,7 +450,8 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
           variant="ghost"
           size="icon-lg"
           aria-label={t('archiveOf', { title: a.title })}
-          onClick={() => setConfirm({ a, action: 'archive' })}
+          disabled={act.isPending}
+          onClick={() => act.mutate({ id: a.id, action: 'archive' })}
         >
           <ArchiveIcon />
         </Button>
@@ -575,15 +588,9 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              {c &&
-                t(c.action === 'publish' ? 'publishTitle' : 'archiveTitle', { title: c.a.title })}
-            </AlertDialogTitle>
+            <AlertDialogTitle>{c && t('publishTitle', { title: c.title })}</AlertDialogTitle>
             <AlertDialogDescription>
-              {c &&
-                (c.action === 'publish'
-                  ? t('publishHint', { audience: audienceText(c.a.audience) })
-                  : t('archiveHint'))}
+              {c && t('publishHint', { audience: audienceText(c.audience) })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           {act.isError && (
@@ -594,16 +601,14 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
           <AlertDialogFooter>
             <AlertDialogCancel disabled={act.isPending}>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
-              variant={c?.action === 'archive' ? 'destructive' : 'default'}
               disabled={act.isPending}
               onClick={(e) => {
                 e.preventDefault();
-                if (c) act.mutate({ id: c.a.id, action: c.action });
+                if (c) act.mutate({ id: c.id, action: 'publish' });
               }}
             >
-              {act.isPending && <Spinner />}
-              {c?.action === 'archive' ? <BanIcon /> : <SendIcon />}
-              {c && t(c.action === 'publish' ? 'publish' : 'archive')}
+              {act.isPending ? <Spinner /> : <SendIcon />}
+              {t('publish')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
