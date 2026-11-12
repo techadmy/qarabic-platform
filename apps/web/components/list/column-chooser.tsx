@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger,
 } from '@qarabic/ui/components/dropdown-menu';
 import type { Table, VisibilityState } from '@tanstack/react-table';
+import type { ColumnDef } from '@tanstack/react-table';
 import { Columns3Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { usePersistedState } from '@/hooks/use-persisted-state';
@@ -72,4 +73,9 @@ export function ColumnChooser<T>({ table }: { table: Table<T> }) {
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+/** The record's name (the first column) stays when columns are hidden (D141 §3). */
+export function fixFirstColumn<T>(columns: ColumnDef<T, unknown>[]): ColumnDef<T, unknown>[] {
+  return columns.map((c, i) => (i === 0 ? { ...c, enableHiding: false } : c));
 }

@@ -46,6 +46,8 @@ import { useTranslations } from 'next-intl';
 import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
+import { useColumnVisibility } from '@/components/list/column-chooser';
+import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { ToneBadge } from '@/components/sessions/badges';
@@ -89,6 +91,7 @@ const formOf = (p: FeePackageDto): PackageForm => ({
 export function PackagesView() {
   const t = useTranslations('billing.packages');
   const me = useCurrentUser();
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(`packages:${me.id}`);
   const allowed = can(me, 'packages.view');
   const manage = can(me, 'packages.manage');
   const [editing, setEditing] = useState<{ id?: number; form: PackageForm } | null>(null);
@@ -102,6 +105,7 @@ export function PackagesView() {
     const cols: ColumnDef<FeePackageDto, unknown>[] = [
       {
         id: 'name',
+        enableHiding: false,
         header: t('name'),
         cell: ({ row: { original: p } }) => (
           <span className="flex flex-col">
@@ -171,12 +175,11 @@ export function PackagesView() {
         title={t('title')}
         description={t('subtitle')}
         actions={
-          manage && (
-            <Button className="h-10" onClick={() => setEditing({ form: EMPTY })}>
-              <PlusIcon />
-              {t('add')}
-            </Button>
-          )
+          <ListActions
+            create={
+              manage ? { label: t('add'), onClick: () => setEditing({ form: EMPTY }) } : undefined
+            }
+          />
         }
       />
       <Card className="gap-0 py-0 shadow-none">
@@ -205,6 +208,8 @@ export function PackagesView() {
             label={t('title')}
             emptyText={t('empty')}
             getRowId={(p) => p.id}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
             renderCard={(p) => (
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-2">

@@ -36,6 +36,7 @@ import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
 import { DataTable } from '@/components/data-table';
 import { FilterSelect, StatusTabs } from '@/components/list/list-toolbar';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { KeyFacts } from '@/components/people/detail';
@@ -222,6 +223,10 @@ export function LeaveList({ mine }: { mine?: boolean }) {
   const locale = useUiLocale();
   const queryClient = useQueryClient();
   const message = usePayrollError();
+  const me = useCurrentUser();
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(
+    `leave${mine ? '-mine' : ''}:${me.id}`,
+  );
   const [status, setStatus] = useState<LeaveStatus | ''>('');
   const [acting, setActing] = useState<LeaveAction | null>(null);
   const query = { status: status || undefined, perPage: 50 };
@@ -341,12 +346,14 @@ export function LeaveList({ mine }: { mine?: boolean }) {
         </div>
       ) : (
         <ResponsiveList
-          columns={columns}
+          columns={fixFirstColumn(columns)}
           rows={rows}
           loading={list.isPending}
           label={t('leave.table')}
           emptyText={t('leave.none')}
           getRowId={(l) => l.id}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
           renderCard={(l) => (
             <div className="flex flex-col gap-2">
               <div className="flex items-start justify-between gap-2">

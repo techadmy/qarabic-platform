@@ -23,7 +23,7 @@ import {
   ListToolbar,
   StatusTabs,
 } from '@/components/list/list-toolbar';
-import { useColumnVisibility } from '@/components/list/column-chooser';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
@@ -48,11 +48,6 @@ export type ListText = {
   empty: string;
   emptyDescription: string;
 };
-
-/** The record name (first column) stays when columns are hidden (D141 §3). */
-function fixFirst<T>(columns: ColumnDef<T, unknown>[]): ColumnDef<T, unknown>[] {
-  return columns.map((c, i) => (i === 0 ? { ...c, enableHiding: false } : c));
-}
 
 /**
  * One People list (docs/15 §5.4.1, with the D141 patterns of §5.4.2: views menu over five views,
@@ -169,7 +164,7 @@ export function PeopleList<K extends PeopleKind>({
   } else {
     body = (
       <ResponsiveList
-        columns={fixFirst(columns(params))}
+        columns={fixFirstColumn(columns(params))}
         rows={rows}
         loading={list.isPending}
         label={text.tableLabel}
