@@ -45,6 +45,7 @@ import { useDirection } from '@/lib/use-direction';
 import { upsertSession } from '@/lib/sessions/cache';
 import { useClassError } from '@/lib/sessions/errors';
 import { RescheduleDialog } from './reschedule-dialog';
+import { JoinClassButton } from './join-class-button';
 import { useOpenSession } from './session-sheet';
 import { useUiLocale, useViewerTz } from './times';
 import { useSessionActions } from './use-session-actions';
@@ -172,13 +173,9 @@ export function RowActions({
           <span className="sr-only">: {name}</span>
         </Button>
       ))}
-      {session.zoom.joinAvailable && parent && (
+      {parent && (
         // A parent joins the class: a labelled button, not the staff «observe» icon (docs/15 §2.6 P1).
-        <Button size="sm" className="me-1" onClick={() => actions.openMeeting('join')}>
-          <VideoIcon />
-          {t('meeting.join')}
-          <span className="sr-only">: {name}</span>
-        </Button>
+        <JoinClassButton session={session} compact />
       )}
       {session.zoom.joinAvailable && !parent && (
         <Tooltip>

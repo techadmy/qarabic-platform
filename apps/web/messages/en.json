@@ -680,8 +680,7 @@
       "observe": "Watch in the meeting",
       "blocked": "The browser blocked the meeting window. Allow pop-ups and try again.",
       "retry": "Create the meeting again",
-      "retried": "The meeting is being created again",
-      "join": "Join the class"
+      "retried": "The meeting is being created again"
     },
     "done": {
       "activate": "{name}'s class activated",
@@ -2723,7 +2722,8 @@
       "dismiss": "Dismiss",
       "homeDue": "Amount due",
       "allInvoices": "All invoices",
-      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}"
+      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}",
+      "homeDueError": "Couldn’t load what is due."
     },
     "pay": {
       "title": "Choose how to pay",

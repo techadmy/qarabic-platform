@@ -1,5 +1,6 @@
 import type { SessionDto } from '@qarabic/shared';
 import { screen, within } from '@testing-library/react';
+import { http, HttpResponse, delay } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { HomeView } from '@/app/(app)/home-view';
 import { TeacherHomeView } from '@/components/portal/teacher-home';
@@ -7,6 +8,7 @@ import { pickHeroClass, upcomingDays } from '@/lib/sessions/teacher-home';
 import { JoinClassButton, ParentHomeView } from '@/components/support/parent-home-view';
 import { RowActions } from '@/components/sessions/row-actions';
 import { renderPage } from '@/test/people';
+import { server } from '@/mocks/node';
 
 const TEACHER = 'teacher@qarabic.test';
 const PARENT = 'parent@qarabic.test';
@@ -130,7 +132,7 @@ describe('M9 part 2', () => {
   it('the parent home shows what is due, with «ادفع الآن» to that invoice', async () => {
     renderPage(<ParentHomeView />, { as: PARENT, path: '/' });
     const due = await screen.findByRole('region', { name: 'المستحق عليكم' });
-    const pay = within(due).getAllByRole('link', { name: /^ادفع الآن/ });
+    const pay = await within(due).findAllByRole('link', { name: /^ادفع الآن/ });
     expect(pay.length).toBeGreaterThan(0);
     expect(pay[0]).toHaveAttribute('href', expect.stringMatching(/^\/invoices\/\d+\?pay=1$/));
     expect(within(due).getByRole('link', { name: /كل الفواتير/ })).toHaveAttribute(
@@ -151,7 +153,28 @@ describe('M9 part 2', () => {
       attention: [],
     } as unknown as SessionDto;
     renderPage(<RowActions session={s} />, { as: PARENT, path: '/my-classes' });
-    expect(await screen.findByRole('button', { name: 'ادخل الحصة: Omar' })).toBeInTheDocument();
+    const join = await screen.findByRole('button', { name: 'ادخل الحصة: Omar' });
+    // 44 px on a parent's phone (docs/15 §5.15).
+    expect(join).toHaveClass('h-11');
     expect(screen.queryByRole('button', { name: /تابع الحصة/ })).toBeNull();
+  });
+
+  it('the due card holds its place while loading and offers a retry when the load fails', async () => {
+    server.use(
+      http.get('*/api/v1/invoices', async () => {
+        await delay('infinite');
+        return HttpResponse.json({});
+      }),
+    );
+    const { unmount } = renderPage(<ParentHomeView />, { as: PARENT, path: '/' });
+    const busy = await screen.findByRole('region', { name: 'المستحق عليكم' });
+    expect(busy).toHaveAttribute('aria-busy', 'true');
+    unmount();
+
+    server.use(http.get('*/api/v1/invoices', () => HttpResponse.json({}, { status: 500 })));
+    renderPage(<ParentHomeView />, { as: PARENT, path: '/' });
+    const due = await screen.findByRole('region', { name: 'المستحق عليكم' });
+    expect(await within(due).findByRole('alert')).toHaveTextContent('تعذّر تحميل المستحق عليكم.');
+    expect(within(due).getByRole('button', { name: 'حاول مرة أخرى' })).toBeInTheDocument();
   });
 });

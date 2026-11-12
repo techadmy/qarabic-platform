@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components
 import { Separator } from '@qarabic/ui/components/separator';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { useQuery } from '@tanstack/react-query';
-import { ChevronLeftIcon, UsersRoundIcon, VideoIcon } from 'lucide-react';
+import { ChevronLeftIcon, UsersRoundIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { KeyFacts } from '@/components/people/detail';
@@ -17,34 +17,20 @@ import { HifzLine, RatingStars } from '@/components/reports/report-bits';
 import { StageBadge } from '@/components/sessions/badges';
 import { SessionSheet, useOpenSession } from '@/components/sessions/session-sheet';
 import { BothClassTimes, OtherTime, useUiLocale, useViewerTz } from '@/components/sessions/times';
-import { useSessionActions } from '@/components/sessions/use-session-actions';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState } from '@/components/states';
 import { fetchParentHome, supportKeys } from '@/lib/api/support';
 import { clock, dateKeyIn, dayAndClock, dayLabel } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
 import { SessionActionsMenu } from './session-actions-menu';
+import { JoinClassButton } from '@/components/sessions/join-class-button';
+
+export { JoinClassButton };
 
 /**
  * «ادخل الحصة» (docs/15 §2.6 P1, the old «Join To Classroom»): one tap opens the meeting, shown
  * only inside the join window (`zoom.joinAvailable`); the link comes from `/zoom/join`.
  */
-export function JoinClassButton({ session, compact }: { session: SessionDto; compact?: boolean }) {
-  const t = useTranslations('support.parentHome');
-  const actions = useSessionActions(session);
-  if (!session.zoom.joinAvailable) return null;
-  return (
-    <Button
-      className={compact ? 'h-10' : 'h-12 px-6 text-base'}
-      onClick={() => actions.openMeeting('join')}
-    >
-      <VideoIcon />
-      {t('join')}
-      <span className="sr-only">: {session.student.name}</span>
-    </Button>
-  );
-}
-
 function ChildCard({
   child,
   next,

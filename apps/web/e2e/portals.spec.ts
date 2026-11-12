@@ -71,3 +71,16 @@ test('parent: a child card opens that child’s lessons and progress', async ({ 
   await expect(page).toHaveURL(/\/students\/\d+$/);
   await expect(page.locator('main h1').first()).toBeVisible();
 });
+
+test('parent (phone): «المستحق عليكم» leads to paying that invoice', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'parent@qarabic.test');
+  const due = page.getByRole('region', { name: 'المستحق عليكم' });
+  await expect(due).toBeVisible();
+  const pay = due.getByRole('link', { name: /^ادفع الآن/ }).first();
+  // A thumb-sized target on the phone (docs/15 §5.15).
+  expect((await pay.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await pay.click();
+  await expect(page).toHaveURL(/\/invoices\/\d+\?pay=1$/);
+  await expect(page.locator('main h1').first()).toBeVisible();
+});
