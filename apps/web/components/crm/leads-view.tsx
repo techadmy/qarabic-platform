@@ -48,6 +48,7 @@ import { ListPagination } from '@/components/list/list-pagination';
 import { CollapsibleSummary } from '@/components/list/collapsible-summary';
 import { useColumnVisibility } from '@/components/list/column-chooser';
 import { ListActions } from '@/components/list/list-actions';
+import { useOpenFromUrl } from '@/components/list/open-from-url';
 import { ClearFiltersButton, FilterSelect, ListToolbar } from '@/components/list/list-toolbar';
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
 import { ViewsMenu } from '@/components/list/views-menu';
@@ -143,6 +144,7 @@ export function LeadsView() {
   const [selected, setSelected] = useState<number[]>([]);
   const [bulk, setBulk] = useState<Bulk | null>(null);
   const split = useSplitView('/leads');
+  useOpenFromUrl(manage && allowed, () => setAdding(true));
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(`leads:${me.id}`);
 
   const query: LeadListQuery = {
