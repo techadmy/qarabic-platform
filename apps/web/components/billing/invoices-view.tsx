@@ -8,6 +8,7 @@ import {
   type InvoiceListQuery,
   type InvoiceTab,
 } from '@qarabic/shared';
+import { Badge } from '@qarabic/ui/components/badge';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { Input } from '@qarabic/ui/components/input';
@@ -22,7 +23,7 @@ import { useId, useMemo, useState } from 'react';
 import type { ColumnMeta } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
 import { CollapsibleSummary } from '@/components/list/collapsible-summary';
-import { useColumnVisibility } from '@/components/list/column-chooser';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { ListActions } from '@/components/list/list-actions';
 import { ClearFiltersButton, ListToolbar } from '@/components/list/list-toolbar';
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
@@ -65,6 +66,7 @@ type Tab = (typeof TABS)[number];
  */
 export function InvoicesView() {
   const t = useTranslations('billing');
+  const tl = useTranslations('list');
   const locale = useUiLocale();
   const me = useCurrentUser();
   const params = useListParams();
@@ -242,7 +244,19 @@ export function InvoicesView() {
               getRowId={(x) => x.id}
               hrefFor={split.hrefFor}
               selectedId={split.selectedId}
-              header={<ListToolbar search={search} />}
+              header={
+                <>
+                  <ListToolbar search={search} />
+                  {period && (
+                    // The month filter is not in the narrowed list: say it, with the way out.
+                    <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm">
+                      <span className="text-muted-foreground">{tl('activeFilters')}</span>
+                      <Badge variant="secondary">{monthLabel(period, locale)}</Badge>
+                      <ClearFiltersButton onClick={() => params.set({ period: null })} />
+                    </div>
+                  )}
+                </>
+              }
               footer={pagination}
               renderItem={(x) => (
                 <span className="flex flex-col gap-1">
@@ -337,7 +351,7 @@ export function InvoicesView() {
           </div>
         ) : (
           <ResponsiveList
-            columns={columns}
+            columns={fixFirstColumn(columns)}
             rows={rows}
             loading={list.isPending}
             label={t('invoices.title')}

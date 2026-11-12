@@ -74,7 +74,8 @@ test('staff: Today board → mark a class → undo', async ({ page }) => {
 
 test('staff: create an enrollment with weekly times (warning acknowledged)', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', '/schedule');
-  await page.getByRole('link', { name: 'اشتراك جديد' }).click();
+  // D141: «اشتراك جديد» is the ListActions create button.
+  await page.getByRole('button', { name: 'اشتراك جديد' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'اشتراك جديد' })).toBeVisible();
 
   // Step 1: the demo parent's child Ali (New York) with Ahmed Fathy.

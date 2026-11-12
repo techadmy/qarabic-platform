@@ -23,7 +23,7 @@ import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
-import { useColumnVisibility } from '@/components/list/column-chooser';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
@@ -235,7 +235,7 @@ export function RunsView() {
           </div>
         ) : (
           <ResponsiveList
-            columns={columns}
+            columns={fixFirstColumn(columns)}
             rows={rows}
             loading={list.isPending}
             label={t('runs.table')}

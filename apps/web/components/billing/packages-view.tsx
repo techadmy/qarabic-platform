@@ -46,7 +46,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import type { ColumnMeta } from '@/components/data-table';
-import { useColumnVisibility } from '@/components/list/column-chooser';
+import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { ListActions } from '@/components/list/list-actions';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
@@ -202,7 +202,7 @@ export function PackagesView() {
           </div>
         ) : (
           <ResponsiveList
-            columns={columns}
+            columns={fixFirstColumn(columns)}
             rows={rows}
             loading={query.isPending}
             label={t('title')}

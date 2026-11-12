@@ -33,6 +33,20 @@ const OPS = [
     link: (page: Page) => page.locator('#main a[href*="id="], #main a[href^="/tickets/"]').first(),
     full: /\/tickets\/\d+$/,
   },
+  {
+    path: '/invoices',
+    link: (page: Page) =>
+      page
+        .locator('#main a[href*="id="], #main a[href^="/invoices/"]:not([href*="settings"])')
+        .first(),
+    full: /\/invoices\/\d+$/,
+  },
+  {
+    path: '/payroll',
+    link: (page: Page) =>
+      page.locator('#main a[href*="id="], #main a[href^="/payroll/runs/"]').first(),
+    full: /\/payroll\/runs\/\d+$/,
+  },
 ] as const;
 
 const CLOSE = { ar: 'إغلاق والعودة إلى القائمة', en: 'Close and go back to the list' } as const;
@@ -145,4 +159,16 @@ test('support split view: a class opened from the ticket is one sheet', async ({
     .click();
   await expect(page).toHaveURL(/session=\d+/);
   await expect(page.getByRole('dialog')).toHaveCount(1);
+});
+
+test('invoices split view: the month filter shows as a chip with «مسح الكل»', async ({ page }) => {
+  await open(page, '/invoices', 1440);
+  const month = new Date().toISOString().slice(0, 7);
+  await page.goto(`/invoices?period=${month}`);
+  await OPS[2].link(page).click();
+  await expect(page).toHaveURL(/id=\d+/);
+  await expect(page.getByText('عوامل التصفية:')).toBeVisible();
+  await page.getByRole('button', { name: 'مسح الكل' }).click();
+  await expect(page).not.toHaveURL(/period=/);
+  await expect(page).toHaveURL(/id=\d+/);
 });
