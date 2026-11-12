@@ -34,3 +34,13 @@ describe('split view on the operations lists', () => {
     expect(within(current).getByText('#2', { exact: false })).toBeInTheDocument();
   });
 });
+
+describe('narrow screens keep the record pages', () => {
+  it('support inbox: below 1024 px a ticket links to /tickets/:id (not /support/:id)', async () => {
+    window.matchMedia = original;
+    renderPage(<InboxView />, { as: 'admin@qarabic.test', path: '/support' });
+    const list = await screen.findByRole('list', { name: 'صندوق الطلبات' });
+    const link = await within(list).findByRole('link', { name: /#2 · / });
+    expect(link).toHaveAttribute('href', '/tickets/2');
+  });
+});
