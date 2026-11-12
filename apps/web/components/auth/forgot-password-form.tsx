@@ -83,7 +83,7 @@ export function ForgotPasswordForm() {
                         autoComplete="email"
                         autoFocus
                         placeholder="name@example.com"
-                        className="h-10 md:text-[0.9375rem]"
+                        className="h-10 md:text-body"
                         aria-invalid={fieldState.invalid}
                       />
                       {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
@@ -93,7 +93,7 @@ export function ForgotPasswordForm() {
                 <Field>
                   <Button
                     type="submit"
-                    className="h-11 text-[0.9375rem] font-semibold"
+                    className="h-11 text-body font-semibold"
                     disabled={mutation.isPending}
                   >
                     {mutation.isPending && <Spinner />}

@@ -202,7 +202,7 @@ export function InvoicesView() {
           filters={
             <>
               <div className="flex min-w-40 flex-col gap-1.5">
-                <Label htmlFor={monthId} className="text-[0.8125rem] text-muted-foreground">
+                <Label htmlFor={monthId} className="text-caption text-muted-foreground">
                   {t('invoices.month')}
                 </Label>
                 <Input

@@ -248,7 +248,7 @@ export function ReportForm({
               rows={3}
               aria-required
               aria-invalid={fieldState.invalid}
-              className="md:text-[0.9375rem]"
+              className="md:text-body"
             />
             <FieldDescription>{L('summaryHint')}</FieldDescription>
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}

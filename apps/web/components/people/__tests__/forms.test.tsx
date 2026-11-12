@@ -58,6 +58,8 @@ describe('Add / edit sheet', () => {
     await user.click(await screen.findByRole('option', { name: /المملكة المتحدة \(\+44\)/ }));
     await user.type(within(sheet).getByLabelText(/^الهاتف/), '07700 900555');
     await user.click(within(sheet).getByRole('combobox', { name: /المنطقة الزمنية/ }));
+    // The cmdk listbox is named in the UI language, not cmdk's English «Suggestions».
+    expect(await screen.findByRole('listbox', { name: 'الخيارات' })).toBeInTheDocument();
     await user.type(await screen.findByPlaceholderText('ابحث باسم المدينة'), 'لندن');
     await user.click(await screen.findByRole('option', { name: /لندن/ }));
     await user.click(screen.getByRole('button', { name: 'إنشاء' }));

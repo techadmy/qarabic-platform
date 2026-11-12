@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@qarabic/ui/lib/utils"
 
 import { Button } from "@qarabic/ui/components/button"
 import { Input } from "@qarabic/ui/components/input"
