@@ -3362,10 +3362,10 @@
       "readBy": "{count, plural, zero {لم يقرأه أحد} one {قرأه شخص واحد} two {قرأه شخصان} few {قرأه # أشخاص} many {قرأه # شخصًا} other {قرأه # شخص}}",
       "publishTitle": "نشر «{title}»؟",
       "publishHint": "يُنشر الإعلان ويصل تنبيه إلى: {audience}.",
-      "archiveTitle": "أرشفة «{title}»؟",
-      "archiveHint": "يختفي الإعلان من صفحات الجمهور، ولا يمكن إعادة نشره بعد الأرشفة.",
       "archive": "أرشفة",
-      "cancel": "إلغاء"
+      "cancel": "إلغاء",
+      "unarchived": "أُعيد الإعلان كما كان.",
+      "undo": "تراجع"
     }
   },
   "search": {

@@ -414,6 +414,10 @@ export const operationsHandlers: HttpHandler[] = [
     } else if (params.action === 'archive') {
       if (a.status === 'archived') return refuse('invalid_announcement_status', 409);
       a.status = 'archived';
+    } else if (params.action === 'unarchive') {
+      // As the API: back to published if it had been published, else to draft.
+      if (a.status !== 'archived') return refuse('invalid_announcement_status', 409);
+      a.status = a.publishedAt ? 'published' : 'draft';
     } else return notFound();
     return HttpResponse.json({ data: presentAnnouncement(a, g.me, true) });
   }),

@@ -3362,10 +3362,10 @@
       "readBy": "{count, plural, =0 {Read by no one} one {Read by # person} other {Read by # people}}",
       "publishTitle": "Publish “{title}”?",
       "publishHint": "The announcement goes live and an alert goes to: {audience}.",
-      "archiveTitle": "Archive “{title}”?",
-      "archiveHint": "It disappears for its audience and cannot be published again after archiving.",
       "archive": "Archive",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "unarchived": "The announcement is back as it was.",
+      "undo": "Undo"
     }
   },
   "search": {
