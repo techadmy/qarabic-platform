@@ -161,7 +161,7 @@ test('a teacher sees only their own classes', async ({ page }) => {
   const week = page.waitForResponse(
     (r) => /\/api\/v1\/teacher-portal\/week/.test(r.url()) && r.status() === 200,
   );
-  await page.getByRole('link', { name: 'حصصي' }).click();
+  await page.getByRole('link', { name: 'حصصي', exact: true }).click();
   const body = (await (await week).json()) as {
     data: { days: { sessions: { teacher: { id: number } }[] }[] };
   };
