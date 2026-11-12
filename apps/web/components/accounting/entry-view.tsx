@@ -174,7 +174,10 @@ export function EntryView({ id }: { id: number }) {
           {
             label: t('entry.createdBy'),
             value: e.createdBy
-              ? `${e.createdBy.name} · ${formatInstant(e.createdAt, tz, locale)}`
+              ? t('entry.createdLine', {
+                  name: e.createdBy.name,
+                  when: formatInstant(e.createdAt, tz, locale) ?? '',
+                })
               : t('entry.automatic'),
           },
           ...(e.voucherId

@@ -1,4 +1,13 @@
-import type { CreateJournalEntryInput, CreateVoucherInput, VoucherType } from '@qarabic/shared';
+import {
+  createJournalEntrySchema,
+  createVoucherSchema,
+  type CreateJournalEntryInput,
+  type CreateVoucherInput,
+  type VoucherType,
+} from '@qarabic/shared';
+import type { z } from 'zod';
+import { isApiError } from '@/lib/api/client';
+import { serverMessageKey } from '@/lib/forms/server-errors';
 import { ACADEMY_TZ } from '@/lib/billing/labels';
 import { parseAmount, toAmount } from '@/lib/billing/money';
 import { addDays, dateKeyIn } from '@/lib/schedule-time';
@@ -34,11 +43,64 @@ export type JournalForm = {
   lines: JournalLineForm[];
 };
 
-type LineErrors = { accountId?: string; amount?: string };
+type LineErrors = { accountId?: string; amount?: string; description?: string };
+
+/**
+ * Field errors as message keys: `form.*` keys of the accounting messages, or `server.*` keys of the
+ * shared `validation` messages (from a 422). Lines are keyed by the form line's key.
+ */
+export type PlacedErrors = {
+  errors: Record<string, string>;
+  lineErrors: Record<string, LineErrors>;
+};
+
+/** Puts one error on its field: `lines.2.debit` → the third sent line's amount. */
+function place(path: PropertyKey[], key: string, lineKeys: string[], out: PlacedErrors) {
+  const [head, index, leaf] = path;
+  if (head === 'lines' && typeof index === 'number' && lineKeys[index]) {
+    const k = lineKeys[index]!;
+    const field =
+      leaf === 'accountId' ? 'accountId' : leaf === 'description' ? 'description' : 'amount';
+    out.lineErrors[k] = { ...out.lineErrors[k], [field]: key };
+  } else if (typeof head === 'string') {
+    out.errors[head] ??= key;
+  }
+}
+
+/**
+ * The body checked by the shared schema too (the API's own rules), so the screen and the API
+ * cannot drift: anything the local checks let through lands on its field as «القيمة غير صحيحة».
+ */
+export function sharedSchemaErrors(
+  schema: z.ZodType,
+  body: unknown,
+  lineKeys: string[],
+): PlacedErrors {
+  const out: PlacedErrors = { errors: {}, lineErrors: {} };
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) for (const i of parsed.error.issues) place(i.path, 'invalid', lineKeys, out);
+  return out;
+}
+
+/** A 422 from the API mapped onto the fields (`lines.0.accountId`, `code`, …); null otherwise. */
+export function serverFieldErrors(error: unknown, lineKeys: string[] = []): PlacedErrors | null {
+  if (!isApiError(error, 422) || !error.error?.errors) return null;
+  const out: PlacedErrors = { errors: {}, lineErrors: {} };
+  for (const [key, messages] of Object.entries(error.error.errors)) {
+    const path = key.split('.').map((p) => (/^\d+$/.test(p) ? Number(p) : p));
+    place(path, `server.${serverMessageKey(messages[0])}`, lineKeys, out);
+  }
+  return Object.keys(out.errors).length || Object.keys(out.lineErrors).length ? out : null;
+}
+
+const hasAny = (e: PlacedErrors) =>
+  Object.keys(e.errors).length > 0 || Object.keys(e.lineErrors).length > 0;
 
 export type JournalCheck = {
   errors: { date?: string; currency?: string; memo?: string; lines?: string };
   lineErrors: Record<string, LineErrors>;
+  /** The keys of the lines that are sent, in order (`lines.N` of the body). */
+  lineKeys: string[];
   totals: { debit: number; credit: number; difference: number };
   body: CreateJournalEntryInput | null;
 };
@@ -88,12 +150,24 @@ export function checkJournal(form: JournalForm): JournalCheck {
   }
   if (used.length < 2) errors.lines = 'twoLines';
   else if (debit !== credit) errors.lines = 'unbalanced';
-  const ok = !Object.keys(errors).length && !Object.keys(lineErrors).length;
+  let ok = !Object.keys(errors).length && !Object.keys(lineErrors).length;
+  const body = { date: form.date, currency: form.currency, memo: form.memo.trim(), lines };
+  if (ok) {
+    const shared = sharedSchemaErrors(
+      createJournalEntrySchema,
+      body,
+      used.map((l) => l.key),
+    );
+    Object.assign(errors, shared.errors);
+    Object.assign(lineErrors, shared.lineErrors);
+    ok = !hasAny(shared);
+  }
   return {
     errors,
     lineErrors,
+    lineKeys: used.map((l) => l.key),
     totals: { debit, credit, difference: debit - credit },
-    body: ok ? { date: form.date, currency: form.currency, memo: form.memo.trim(), lines } : null,
+    body: ok ? body : null,
   };
 }
 
@@ -119,8 +193,10 @@ export type VoucherForm = {
 export type VoucherCheck = {
   errors: Partial<
     Record<'date' | 'currency' | 'cashAccountId' | 'party' | 'description' | 'lines', string>
-  >;
+  > &
+    Record<string, string | undefined>;
   lineErrors: Record<string, LineErrors>;
+  lineKeys: string[];
   total: number;
   body: CreateVoucherInput | null;
 };
@@ -158,23 +234,27 @@ export function checkVoucher(form: VoucherForm): VoucherCheck {
       });
   }
   if (used.length === 0) errors.lines = 'oneLine';
-  const ok = !Object.keys(errors).length && !Object.keys(lineErrors).length;
-  return {
-    errors,
-    lineErrors,
-    total,
-    body: ok
-      ? {
-          type: form.type,
-          date: form.date,
-          currency: form.currency,
-          cashAccountId: form.cashAccountId!,
-          party: form.party.trim(),
-          description: form.description.trim(),
-          ...(form.reference.trim() ? { reference: form.reference.trim() } : {}),
-          ...(form.chequeNumber.trim() ? { chequeNumber: form.chequeNumber.trim() } : {}),
-          lines,
-        }
-      : null,
+  let ok = !Object.keys(errors).length && !Object.keys(lineErrors).length;
+  const body: CreateVoucherInput = {
+    type: form.type,
+    date: form.date,
+    currency: form.currency,
+    cashAccountId: form.cashAccountId ?? 0,
+    party: form.party.trim(),
+    description: form.description.trim(),
+    ...(form.reference.trim() ? { reference: form.reference.trim() } : {}),
+    ...(form.chequeNumber.trim() ? { chequeNumber: form.chequeNumber.trim() } : {}),
+    lines,
   };
+  if (ok) {
+    const shared = sharedSchemaErrors(
+      createVoucherSchema,
+      body,
+      used.map((l) => l.key),
+    );
+    Object.assign(errors, shared.errors);
+    Object.assign(lineErrors, shared.lineErrors);
+    ok = !hasAny(shared);
+  }
+  return { errors, lineErrors, lineKeys: used.map((l) => l.key), total, body: ok ? body : null };
 }

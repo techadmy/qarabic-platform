@@ -3,6 +3,10 @@
 import {
   ACCOUNT_TYPE_LABELS,
   ACCOUNT_TYPES,
+  createAccountSchema,
+  updateAccountSchema,
+  type CreateAccountInput,
+  type UpdateAccountInput,
   type AccountType,
   type LedgerAccountDto,
 } from '@qarabic/shared';
@@ -50,6 +54,8 @@ import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { accountingKeys, createAccount, fetchAccounts, updateAccount } from '@/lib/api/accounting';
 import { isApiError } from '@/lib/api/client';
 import { can } from '@/lib/auth/use-me';
+import { serverFieldErrors, sharedSchemaErrors, type PlacedErrors } from '@/lib/accounting/forms';
+import { depths, filterAccounts } from '@/lib/accounting/tree';
 import { useListParams } from '@/lib/list-params';
 import {
   accountLabel,
@@ -57,23 +63,9 @@ import {
   FormRow,
   NUMBER_INPUT,
   useAccountingError,
+  useFormMessage,
 } from './accounting-bits';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
-
-/** Depth of each account in its tree (0 = a top heading), for the indentation. */
-export function depths(accounts: LedgerAccountDto[]): Map<number, number> {
-  const byId = new Map(accounts.map((a) => [a.id, a]));
-  const out = new Map<number, number>();
-  const depth = (a: LedgerAccountDto, guard = 0): number => {
-    if (out.has(a.id)) return out.get(a.id)!;
-    const parent = a.parentId ? byId.get(a.parentId) : undefined;
-    const d = parent && guard < 10 ? depth(parent, guard + 1) + 1 : 0;
-    out.set(a.id, d);
-    return d;
-  };
-  accounts.forEach((a) => depth(a));
-  return out;
-}
 
 /** Tree indentation on the spacing scale (16 / 32 / 48 px). */
 const INDENT = ['ps-0', 'ps-4', 'ps-8', 'ps-12'] as const;
@@ -119,40 +111,66 @@ function AccountDialog({
   const [isCash, setIsCash] = useState(current?.isCash ?? false);
   const [isActive, setIsActive] = useState(current?.isActive ?? true);
   const [touched, setTouched] = useState(false);
+  const [server, setServer] = useState<PlacedErrors | null>(null);
+  const msg = useFormMessage();
   const errors = {
     code: current || /^\d{1,10}$/.test(code.trim()) ? null : 'codeInvalid',
     nameAr: nameAr.trim().length >= 2 ? null : 'nameRequired',
     nameEn: nameEn.trim().length >= 2 ? null : 'nameRequired',
   };
-  const err = (k: keyof typeof errors) => (touched && errors[k] ? t(`form.${errors[k]}`) : null);
-  const ok = !Object.values(errors).some(Boolean);
+  const body = current
+    ? {
+        nameAr: nameAr.trim(),
+        nameEn: nameEn.trim(),
+        parentId,
+        isCash,
+        isActive,
+        description: description.trim() || null,
+      }
+    : {
+        code: code.trim(),
+        type,
+        parentId,
+        nameAr: nameAr.trim(),
+        nameEn: nameEn.trim(),
+        isGroup,
+        isCash,
+        currency: currency || null,
+        description: description.trim() || null,
+      };
+  // The API's own rules too (shared schemas), so the dialog and the API cannot drift.
+  const shared = sharedSchemaErrors(
+    current ? updateAccountSchema : createAccountSchema,
+    body,
+    [],
+  ).errors;
+  const err = (k: string) => {
+    const key =
+      (touched ? ((errors as Record<string, string | null>)[k] ?? shared[k]) : undefined) ??
+      server?.errors[k];
+    return key ? msg(key) : null;
+  };
+  const ok = !Object.values(errors).some(Boolean) && Object.keys(shared).length === 0;
   const groups = accounts.filter((a) => a.isGroup && a.type === type && a.id !== current?.id);
   const save = useMutation({
     mutationFn: () =>
       current
-        ? updateAccount(current.id, {
-            nameAr: nameAr.trim(),
-            nameEn: nameEn.trim(),
-            parentId,
-            isCash,
-            isActive,
-            description: description.trim() || null,
-          })
-        : createAccount({
-            code: code.trim(),
-            type,
-            parentId,
-            nameAr: nameAr.trim(),
-            nameEn: nameEn.trim(),
-            isGroup,
-            isCash,
-            currency: currency || null,
-            description: description.trim() || null,
-          }),
+        ? updateAccount(current.id, body as UpdateAccountInput)
+        : createAccount(body as CreateAccountInput),
     onSuccess: (a) => {
       void queryClient.invalidateQueries({ queryKey: accountingKeys.all });
       toast.success(current ? t('accounts.saved') : t('accounts.created', { code: a.code }));
       onClose();
+    },
+    onError: (e) => {
+      // A taken code is a field error, not a banner.
+      const placed = serverFieldErrors(e);
+      setServer(
+        placed ??
+          (isApiError(e) && e.code === 'code_taken'
+            ? { errors: { code: 'codeTaken' }, lineErrors: {} }
+            : null),
+      );
     },
   });
   const NONE = '__none__';
@@ -165,7 +183,7 @@ function AccountDialog({
       description={current?.systemKey ? t('accounts.systemHint') : undefined}
       submitLabel={current ? t('accounts.save') : t('accounts.create')}
       busy={save.isPending}
-      error={save.isError ? message(save.error) : null}
+      error={save.isError && !server ? message(save.error) : null}
       summary={touched && !ok ? t('form.fixErrors') : null}
       onSubmit={() => {
         setTouched(true);
@@ -324,17 +342,8 @@ export function AccountsView() {
   });
   const all = useMemo(() => query.data ?? [], [query.data]);
   const depth = useMemo(() => depths(all), [all]);
-  const needle = params.q.trim().toLowerCase();
-  const rows = all
-    .filter((a) => a.isActive !== params.archived)
-    .filter((a) => !type || a.type === type)
-    .filter(
-      (a) =>
-        !needle ||
-        a.code.startsWith(needle) ||
-        a.nameAr.includes(params.q.trim()) ||
-        a.nameEn.toLowerCase().includes(needle),
-    );
+  const needle = params.q.trim();
+  const rows = filterAccounts(all, { q: params.q, type, archived: params.archived });
   const filtersOn = !!(params.q || type || params.archived);
 
   if (!allowed || isApiError(query.error, 403)) {

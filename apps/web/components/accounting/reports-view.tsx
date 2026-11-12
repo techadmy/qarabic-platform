@@ -49,8 +49,7 @@ import { minorOf } from '@/lib/billing/money';
 import { useListParams } from '@/lib/list-params';
 import { formatDate } from '@/lib/time';
 import { useDirection } from '@/lib/use-direction';
-import { accountLabel, CurrencySelect, Money } from './accounting-bits';
-import { DateRangeFilters } from './journal-view';
+import { accountLabel, CurrencySelect, DateRangeFilters, Money } from './accounting-bits';
 
 export const REPORTS = ['trial-balance', 'profit-and-loss', 'balance-sheet', 'cash'] as const;
 export type ReportName = (typeof REPORTS)[number];

@@ -150,7 +150,12 @@ export function VoucherView({ id }: { id: number }) {
           },
           {
             label: t('entry.createdBy'),
-            value: v.createdBy && `${v.createdBy.name} · ${formatInstant(v.createdAt, tz, locale)}`,
+            value:
+              v.createdBy &&
+              t('entry.createdLine', {
+                name: v.createdBy.name,
+                when: formatInstant(v.createdAt, tz, locale) ?? '',
+              }),
           },
           {
             label: t('voucher.entry'),
