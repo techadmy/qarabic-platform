@@ -459,6 +459,25 @@ function build(): CrmDb {
       readAt: iso(now - DAY),
       createdAt: iso(now - DAY - HOUR),
     },
+    // M8: a task alert and a published announcement for the accounts user (rows open their record).
+    {
+      id: 90,
+      userId: 13,
+      kind: 'task',
+      event: 'assigned',
+      data: { taskId: 7, title: 'متابعة طلب إجازة المعلم Ahmed', by: 'Rana Monitor' },
+      readAt: null,
+      createdAt: iso(now - 3 * 60 * MIN),
+    },
+    {
+      id: 91,
+      userId: 13,
+      kind: 'announcement',
+      event: 'published',
+      data: { announcementId: 3, title: 'إجازة نصف العام' },
+      readAt: null,
+      createdAt: iso(now - 3 * 60 * MIN - MIN),
+    },
   ];
 
   return {

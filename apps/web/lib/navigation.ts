@@ -30,8 +30,12 @@ import {
   IdCardIcon,
   ScaleIcon,
   WalletCardsIcon,
+  ListTodoIcon,
+  MegaphoneIcon,
   BookOpenTextIcon,
   LandmarkIcon,
+  ChartColumnIcon,
+  LockKeyholeIcon,
   ListTreeIcon,
   ReceiptIcon,
   type LucideIcon,
@@ -75,9 +79,13 @@ export type NavKey =
   | 'wallets'
   | 'mySalary'
   | 'payRules'
+  | 'tasks'
+  | 'announcements'
   | 'journal'
   | 'vouchers'
   | 'chartOfAccounts'
+  | 'financialReports'
+  | 'periods'
   | 'ticket'
   | 'account';
 
@@ -115,6 +123,14 @@ export type NavEntry = NavItem | NavGroup;
 export const isGroup = (entry: NavEntry): entry is NavGroup => 'group' in entry;
 
 const HOME: NavItem = { key: 'home', href: '/', icon: LayoutDashboardIcon };
+
+/** «الإعلانات» (M8): what the academy published for the viewer's role. */
+const ANNOUNCEMENTS: NavItem = {
+  key: 'announcements',
+  href: '/announcements',
+  icon: MegaphoneIcon,
+  permission: 'announcements.view',
+};
 
 /**
  * «طلباتي» for parents and teachers (N4, docs/32 S2): support requests and class requests in one
@@ -181,6 +197,8 @@ export const STAFF_NAV: NavEntry[] = [
     permission: 'feedback.request',
     badge: 'mineUpdates',
   },
+  { key: 'tasks', href: '/tasks', icon: ListTodoIcon, permission: 'tasks.view' },
+  ANNOUNCEMENTS,
   {
     group: 'users',
     icon: UsersIcon,
@@ -283,6 +301,18 @@ export const STAFF_NAV: NavEntry[] = [
         icon: ListTreeIcon,
         permission: 'accounting.view',
       },
+      {
+        key: 'financialReports',
+        href: '/accounting/reports',
+        icon: ChartColumnIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'periods',
+        href: '/accounting/periods',
+        icon: LockKeyholeIcon,
+        permission: 'accounting.view',
+      },
     ],
   },
   {
@@ -361,6 +391,7 @@ export const TEACHER_NAV: NavEntry[] = [
     also: ['/payroll/payslips'],
   },
   MY_REQUESTS,
+  ANNOUNCEMENTS,
 ];
 
 /** Parent portal: the children's classes, own requests, own family. */
@@ -375,6 +406,7 @@ export const PARENT_NAV: NavEntry[] = [
   { key: 'myInvoices', href: '/invoices', icon: ReceiptTextIcon, permission: 'invoices.view' },
   MY_REQUESTS,
   { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
+  ANNOUNCEMENTS,
 ];
 
 /** Pages outside the sidebar that still name the top bar. */

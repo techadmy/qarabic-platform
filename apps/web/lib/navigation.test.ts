@@ -23,6 +23,8 @@ describe('navFor', () => {
       'supportInbox',
       'feedbackTriage',
       'myRequests',
+      'tasks',
+      'announcements',
       'users',
       'billing',
       'payroll',
@@ -40,6 +42,8 @@ describe('navFor', () => {
       'supportInbox',
       'feedbackTriage',
       'myRequests',
+      'tasks',
+      'announcements',
       'families',
       'students',
       'teachers',
@@ -54,6 +58,8 @@ describe('navFor', () => {
       'journal',
       'vouchers',
       'chartOfAccounts',
+      'financialReports',
+      'periods',
       'holidays',
       'sessionSettings',
       'supportSettings',
@@ -77,6 +83,8 @@ describe('navFor', () => {
       'tests',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'families',
       'students',
       'teachers',
@@ -92,6 +100,8 @@ describe('navFor', () => {
       'home',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'billing',
       'payroll',
       'accounting',
@@ -100,6 +110,8 @@ describe('navFor', () => {
       'home',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'invoices',
       'attendance',
       'fines',
@@ -109,6 +121,8 @@ describe('navFor', () => {
       'journal',
       'vouchers',
       'chartOfAccounts',
+      'financialReports',
+      'periods',
     ]);
   });
 
@@ -123,6 +137,7 @@ describe('navFor', () => {
       'myAttendance',
       'mySalary',
       'myRequests',
+      'announcements',
     ]);
     expect(navItemsFor(as('parent')).map((i) => i.key)).toEqual([
       'home',
@@ -130,6 +145,7 @@ describe('navFor', () => {
       'myInvoices',
       'myRequests',
       'myFamily',
+      'announcements',
     ]);
   });
 
