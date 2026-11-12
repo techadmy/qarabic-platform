@@ -15,8 +15,8 @@ import { alerts, crmAt, crmLead, resetCrm, setSetting } from './n5-helpers.js';
 | Port of Laravel tests/Feature/Crm/{LeadsT1AssignmentTest, LeadsT1AlertsTest} (docs/33 §3.2–3.3,
 | B80, B84, D136, D137): round-robin among the CSR pool, lead-admin fallback, the leads.assign
 | holders told when nobody can take a lead; first-response SLA and follow-up alerts (idempotent).
-| Staff attendance and leave arrive with N6: until then `crm.shift_source=attendance` finds nobody
-| on shift (the Laravel check-in / leave cases wait for N6).
+| `crm.shift_source=attendance` uses N7 staff attendance: checked in now, not checked out, no
+| approved leave that day (Laravel check-in / leave cases).
 */
 
 let ctx: TestContext;
@@ -103,9 +103,38 @@ describe('Leads T1: automatic assignment', () => {
     expect((await intake('2')).assignedToId).toBeNull();
   });
 
-  it('finds nobody on shift by attendance until staff attendance exists (N6)', async () => {
+  it('uses N7 attendance as the shift: only CSRs checked in now and not on approved leave', async () => {
     await setSetting(ctx, 'crm.shift_source', 'attendance');
+    // Nobody checked in yet → nobody on shift.
     expect((await intake('1')).assignedToId).toBeNull();
+
+    const day = new Date('2026-11-16T00:00:00Z');
+    const checkIn = (userId: number, checkInAt: string, checkOutAt: string | null = null) =>
+      ctx.prisma.staffAttendance.create({
+        data: {
+          userId,
+          workDate: day,
+          status: 'present',
+          checkInAt: new Date(checkInAt),
+          checkOutAt: checkOutAt ? new Date(checkOutAt) : null,
+        },
+      });
+    await checkIn(a.id, '2026-11-16T07:00:00Z'); // on shift
+    await checkIn(b.id, '2026-11-16T06:00:00Z', '2026-11-16T08:00:00Z'); // already checked out
+    await checkIn(c.id, '2026-11-16T07:30:00Z'); // checked in, but on approved leave today
+    await ctx.prisma.leaveRequest.create({
+      data: {
+        userId: c.id,
+        startsOn: day,
+        endsOn: day,
+        days: 1,
+        leaveType: 'paid',
+        reason: 'Family matter',
+        status: 'approved',
+      },
+    });
+    expect((await intake('2')).assignedToId).toBe(a.id);
+    expect((await intake('3')).assignedToId).toBe(a.id);
   });
 
   it('falls back to the lead admin when nobody is on shift', async () => {
