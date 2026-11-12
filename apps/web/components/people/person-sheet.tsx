@@ -426,7 +426,10 @@ function FamilyForm({ record, ...props }: BodyProps & { record?: FamilyDetailDto
   const locale = useUiLocale();
   const lookups = useLookups();
   const schema = record ? updateFamilySchema : createFamilySchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  // An edit of a record with no phone keeps it optional (the update schemas allow it missing).
+  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>, {
+    blankAsMissing: record && !record.phone ? ['phone'] : [],
+  });
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',
@@ -716,7 +719,10 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
   const locale = useUiLocale();
   const lookups = useLookups();
   const schema = record ? updateTeacherSchema : createTeacherSchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  // An edit of a record with no phone keeps it optional (the update schemas allow it missing).
+  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>, {
+    blankAsMissing: record && !record.phone ? ['phone'] : [],
+  });
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',
@@ -847,7 +853,10 @@ function StaffForm({ record, ...props }: BodyProps & { record?: StaffDto }) {
   const me = useCurrentUser();
   const lookups = useLookups();
   const schema = record ? updateStaffSchema : createStaffSchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  // An edit of a record with no phone keeps it optional (the update schemas allow it missing).
+  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>, {
+    blankAsMissing: record && !record.phone ? ['phone'] : [],
+  });
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',
