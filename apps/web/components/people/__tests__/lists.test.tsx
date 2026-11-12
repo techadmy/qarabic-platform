@@ -129,3 +129,34 @@ describe('Students, teachers and staff lists', () => {
     expect(await screen.findByRole('radio', { name: /^الكل\s*\(8\)$/ })).toBeInTheDocument();
   });
 });
+
+describe('D141 on the people lists', () => {
+  it('students keep their status tabs (three views); the table has the column chooser', async () => {
+    renderPage(<StudentsView />, { path: '/students' });
+    await table('الطلاب');
+    expect(screen.getByRole('radiogroup', { name: 'تصفية حسب الحالة' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'اختيار الأعمدة' })).toBeInTheDocument();
+  });
+
+  it('from 1024 px a family opens beside the list, with «إغلاق» back to it', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query.includes('min-width: 1024px'),
+    })) as typeof window.matchMedia;
+    try {
+      renderPage(<FamiliesView />, { path: '/families?id=2' });
+      expect(
+        await screen.findByRole('heading', { level: 2, name: /Yusuf Hassan/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('العائلات');
+      expect(screen.getByRole('link', { name: 'فتح في صفحة كاملة' })).toHaveAttribute(
+        'href',
+        '/families/2',
+      );
+      expect(screen.getByRole('link', { name: /Yusuf Hassan/ })).toHaveAttribute('aria-current');
+    } finally {
+      window.matchMedia = original;
+    }
+  });
+});

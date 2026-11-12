@@ -12,6 +12,7 @@ import {
 import { CircleAlertIcon, LockIcon, type LucideIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
+import { useRecordPane } from '@/components/list/split-view';
 
 /** Empty, error and no-access states, all from the shadcn `Empty` component (docs/15 §5.8), on a white card with a hairline border like the current app's surfaces. */
 export function EmptyState({
@@ -27,6 +28,15 @@ export function EmptyState({
   action?: ReactNode;
   role?: 'alert' | 'status';
 }) {
+  const t = useTranslations('list.split');
+  // Not found / no access / failed inside the split view's pane: the record header (with its
+  // «إغلاق») is not there, so the state offers the way back to the list itself.
+  const pane = useRecordPane();
+  const close = role === 'alert' && pane && (
+    <Button variant="outline" onClick={pane.onClose}>
+      {t('close')}
+    </Button>
+  );
   return (
     <Empty className="border border-solid bg-card" role={role}>
       <EmptyHeader>
@@ -36,7 +46,12 @@ export function EmptyState({
         <EmptyTitle>{title}</EmptyTitle>
         <EmptyDescription>{description}</EmptyDescription>
       </EmptyHeader>
-      {action && <EmptyContent>{action}</EmptyContent>}
+      {(action || close) && (
+        <EmptyContent className="flex-row flex-wrap justify-center">
+          {action}
+          {close}
+        </EmptyContent>
+      )}
     </Empty>
   );
 }
