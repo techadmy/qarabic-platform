@@ -168,6 +168,16 @@ model User {
   vouchersVoided        Voucher[]          @relation("VoucherVoidedBy")
   periodsClosed         AccountingPeriod[] @relation("PeriodClosedBy")
 
+  // M8 operations back-relations.
+  tasksAssigned           Task[]                   @relation("TaskAssignee")
+  tasksCreated            Task[]                   @relation("TaskCreatedBy")
+  taskEvents              TaskEvent[]
+  taskTemplatesCreated    TaskTemplate[]
+  announcementsCreated    Announcement[]
+  announcementReads       AnnouncementRead[]
+  notificationPreferences NotificationPreference[]
+  classReminders          ClassReminder[]
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -2263,4 +2273,157 @@ model LedgerOutboxFailure {
 
   @@unique([source, eventId])
   @@map("ledger_outbox_failures")
+}
+
+// ====================================================================== M8: operations
+// Tasks (given / issued, docs/03 §11), announcements, notification preferences and class reminder
+// claims (docs/09 M16–M17). Complaints stay in the N4 support centre (restricted queue).
+
+enum TaskStatus {
+  pending
+  awaiting
+  completed
+  closed
+}
+
+enum TaskPriority {
+  low
+  normal
+  high
+}
+
+enum AnnouncementStatus {
+  draft
+  published
+  archived
+}
+
+/// A task given by one staff member to another (or to themself). Never deleted: closed with a reason.
+model Task {
+  id            Int          @id @default(autoincrement())
+  title         String       @db.VarChar(200)
+  description   String?
+  status        TaskStatus   @default(pending)
+  priority      TaskPriority @default(normal)
+  dueAt         DateTime?    @map("due_at") @db.Timestamptz(6)
+  assigneeId    Int          @map("assignee_id")
+  createdById   Int          @map("created_by")
+  /// family, student, teacher, lead, session, invoice (no FK: a link shown on the task).
+  subjectType   String?      @map("subject_type") @db.VarChar(16)
+  subjectId     Int?         @map("subject_id")
+  templateId    Int?         @map("template_id")
+  submittedAt   DateTime?    @map("submitted_at") @db.Timestamptz(6)
+  completedAt   DateTime?    @map("completed_at") @db.Timestamptz(6)
+  closedAt      DateTime?    @map("closed_at") @db.Timestamptz(6)
+  closeReason   String?      @map("close_reason") @db.VarChar(2000)
+  dueNotifiedAt DateTime?    @map("due_notified_at") @db.Timestamptz(6)
+  createdAt     DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  assignee  User          @relation("TaskAssignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdBy User          @relation("TaskCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  template  TaskTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  events    TaskEvent[]
+
+  @@index([assigneeId, status])
+  @@index([createdById, status])
+  @@index([status, dueAt])
+  @@index([subjectType, subjectId])
+  @@map("tasks")
+}
+
+/// The task timeline (comments, status changes, reassignments): append-only.
+model TaskEvent {
+  id        Int      @id @default(autoincrement())
+  taskId    Int      @map("task_id")
+  kind      String   @db.VarChar(16)
+  body      String?
+  data      Json     @default("{}")
+  authorId  Int?     @map("author_id")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  task   Task  @relation(fields: [taskId], references: [id], onDelete: Restrict)
+  author User? @relation(fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, id])
+  @@map("task_events")
+}
+
+/// A reusable task (old `task_string`).
+model TaskTemplate {
+  id          Int          @id @default(autoincrement())
+  title       String       @db.VarChar(200)
+  description String?
+  priority    TaskPriority @default(normal)
+  dueInDays   Int?         @map("due_in_days")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdById Int?         @map("created_by")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  tasks     Task[]
+
+  @@map("task_templates")
+}
+
+/// An announcement to some roles (empty audience = everyone with `announcements.view`).
+model Announcement {
+  id          Int                @id @default(autoincrement())
+  title       String             @db.VarChar(200)
+  body        String
+  /// Role names.
+  audience    String[]           @default([])
+  pinned      Boolean            @default(false)
+  status      AnnouncementStatus @default(draft)
+  publishedAt DateTime?          @map("published_at") @db.Timestamptz(6)
+  expiresAt   DateTime?          @map("expires_at") @db.Timestamptz(6)
+  createdById Int?               @map("created_by")
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User?              @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  reads     AnnouncementRead[]
+
+  @@index([status, publishedAt])
+  @@map("announcements")
+}
+
+model AnnouncementRead {
+  announcementId Int      @map("announcement_id")
+  userId         Int      @map("user_id")
+  readAt         DateTime @map("read_at") @db.Timestamptz(6)
+
+  announcement Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([announcementId, userId])
+  @@index([userId])
+  @@map("announcement_reads")
+}
+
+/// A person's channels for one notification kind (no row = the defaults).
+model NotificationPreference {
+  userId   Int     @map("user_id")
+  kind     String  @db.VarChar(32)
+  inApp    Boolean @default(true) @map("in_app")
+  email    Boolean @default(false)
+  whatsapp Boolean @default(false)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, kind])
+  @@map("notification_preferences")
+}
+
+/// One reminder per class and person (the claim makes the job idempotent).
+model ClassReminder {
+  sessionId Int      @map("session_id")
+  userId    Int      @map("user_id")
+  sentAt    DateTime @map("sent_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([sessionId, userId])
+  @@map("class_reminders")
 }
