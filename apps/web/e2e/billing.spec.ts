@@ -15,6 +15,8 @@ async function signIn(page: Page, email = 'admin@qarabic.test', path = '/invoice
 test('monthly run → open an invoice → record a manual payment → paid', async ({ page }) => {
   await signIn(page);
   await expect(page.getByRole('heading', { level: 1, name: 'الفواتير' })).toBeVisible();
+  // D141: the amounts per currency sit in the summary, closed by default.
+  await page.getByRole('button', { name: /إظهار التفاصيل/ }).click();
   await expect(page.getByRole('region', { name: 'ملخص المبالغ حسب العملة' })).toBeVisible();
 
   await page.getByRole('button', { name: 'إصدار فواتير الشهر' }).click();
