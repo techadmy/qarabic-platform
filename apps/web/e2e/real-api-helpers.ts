@@ -37,7 +37,7 @@ export async function signInReal(page: Page, path: string) {
   }
   await page.goto(path);
   // The sign-in redirect may happen on the client: wait for either the form or the app's heading.
-  await expect(page.locator('#password').or(page.locator('main h1').first())).toBeVisible();
+  await expect(page.locator('#password').or(page.locator('main h1')).first()).toBeVisible();
   if (/\/login/.test(page.url())) {
     const admin = seedAdmin();
     await page.getByLabel('البريد الإلكتروني').fill(admin.email);
