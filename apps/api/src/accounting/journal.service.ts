@@ -6,11 +6,12 @@ import type {
   JournalListQuery,
   Paginated,
 } from '@qarabic/shared';
+import { JOURNAL_SOURCES } from '@qarabic/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { AuditService } from '../audit/audit.service.js';
 import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
-import { pageArgs, pageMeta } from '../common/pagination.js';
+import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains } from '../common/search.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { cents, fromCents } from '../payroll/money.js';
@@ -49,9 +50,9 @@ export class JournalService {
   }
 
   async list(q: JournalListQuery): Promise<Paginated<JournalEntryRowDto>> {
-    const where: Prisma.JournalEntryWhereInput = {
+    // The source tabs count over the same filters, ignoring `source`.
+    const base: Prisma.JournalEntryWhereInput = {
       ...(q.currency ? { currency: q.currency } : {}),
-      ...(q.source ? { source: q.source } : {}),
       ...(q.accountId ? { lines: { some: { accountId: q.accountId } } } : {}),
       ...(q.from || q.to
         ? {
@@ -67,7 +68,8 @@ export class JournalService {
           }
         : {}),
     };
-    const [rows, total] = await Promise.all([
+    const where = { ...base, ...(q.source ? { source: q.source } : {}) };
+    const [rows, total, groups] = await Promise.all([
       this.prisma.journalEntry.findMany({
         where,
         include: entryInclude,
@@ -75,10 +77,18 @@ export class JournalService {
         ...pageArgs(q),
       }),
       this.prisma.journalEntry.count({ where }),
+      this.prisma.journalEntry.groupBy({ by: ['source'], where: base, _count: { _all: true } }),
     ]);
     return {
       data: rows.map((r) => withoutLines(present(r))),
-      meta: pageMeta(q, total, {}),
+      meta: pageMeta(
+        q,
+        total,
+        statusCounts(
+          JOURNAL_SOURCES,
+          groups.map((g) => ({ status: g.source, _count: g._count })),
+        ),
+      ),
     };
   }
 
