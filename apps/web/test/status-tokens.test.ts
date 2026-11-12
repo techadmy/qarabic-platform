@@ -7,7 +7,10 @@ import { resolve } from 'node:path';
  * canvas ≥ 4.5:1. The chip border is decorative (the text and icon carry the meaning).
  */
 // Vitest runs from apps/web (turbo and `pnpm test` both).
-const css = readFileSync(resolve(process.cwd(), '../../packages/ui/src/styles/globals.css'), 'utf8');
+const css = readFileSync(
+  resolve(process.cwd(), '../../packages/ui/src/styles/globals.css'),
+  'utf8',
+);
 
 function block(selector: string): Record<string, string> {
   const start = css.indexOf(`${selector} {\n  --background`);
@@ -74,7 +77,9 @@ describe.each([
   ['dark', block('.dark')],
 ])('status tokens (%s)', (_theme, vars) => {
   it.each(TONES)('%s chip text on its fill ≥ 4.5:1', (tone) => {
-    expect(contrast(vars[`status-${tone}-foreground`]!, vars[`status-${tone}`]!)).toBeGreaterThanOrEqual(4.5);
+    expect(
+      contrast(vars[`status-${tone}-foreground`]!, vars[`status-${tone}`]!),
+    ).toBeGreaterThanOrEqual(4.5);
   });
   it.each(TONES)('%s emphasis on the card and the canvas ≥ 4.5:1', (tone) => {
     const emphasis = vars[`status-${tone}-emphasis`]!;

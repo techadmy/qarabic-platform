@@ -137,9 +137,7 @@ export function TeacherWeekView() {
           {
             label: TEACHER_PORTAL_LABELS.needsReport[locale],
             value: (
-              <span
-                className={w?.summary.needsReport ? 'text-status-orange-emphasis' : ''}
-              >
+              <span className={w?.summary.needsReport ? 'text-status-orange-emphasis' : ''}>
                 {w?.summary.needsReport ?? '—'}
               </span>
             ),
