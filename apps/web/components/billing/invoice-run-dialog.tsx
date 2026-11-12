@@ -41,6 +41,7 @@ import { ACADEMY_TZ, monthLabel, nextMonth, runDueDate, warningLabel } from '@/l
 import { dateKeyIn, isDateKey } from '@/lib/schedule-time';
 import { formatDate } from '@/lib/time';
 import { FormRow, Money, NUMBER_INPUT, useBillingError } from './billing-bits';
+import { MonthPicker } from '@/components/forms/date-time';
 
 /**
  * «إصدار فواتير الشهر» (docs/20 §4.2, the current app's `InvoiceRunDialog`): month, billing day
@@ -101,18 +102,16 @@ export function InvoiceRunDialog({
             required
             error={periodOk ? null : tf('required')}
           >
-            <Input
+            <MonthPicker
               id={ids.month}
-              type="month"
-              dir="ltr"
               value={period}
-              onChange={(e) => {
-                setPeriod(e.target.value);
-                if (e.target.value) setDue(runDueDate(e.target.value, today));
+              onChange={(v) => {
+                setPeriod(v);
+                if (v) setDue(runDueDate(v, today));
                 reset();
               }}
-              aria-invalid={!periodOk}
-              className={NUMBER_INPUT}
+              invalid={!periodOk}
+              className="w-full"
             />
           </FormRow>
           <FormRow id={ids.day} label={t('day')} required>

@@ -346,15 +346,15 @@ function StudentSearch({ onPick }: { onPick: (b: Behalf) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground">{t('intro')}</p>
-      <Command shouldFilter={false} className="rounded-lg border">
+      {/* cmdk names its input from `label` (an aria-label on the input is overridden). */}
+      <Command shouldFilter={false} label={t('search')} className="rounded-lg border">
         <CommandInput
           value={input}
           onValueChange={setInput}
           placeholder={t('placeholder')}
-          aria-label={t('search')}
           autoFocus
         />
-        <CommandList>
+        <CommandList label={t('results')}>
           {!students.isPending && <CommandEmpty>{t('none')}</CommandEmpty>}
           <CommandGroup>
             {rows.map((s) => (

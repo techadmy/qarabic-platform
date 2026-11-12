@@ -12,7 +12,6 @@ import {
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
-import { Input } from '@qarabic/ui/components/input';
 import { Label } from '@qarabic/ui/components/label';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { Spinner } from '@qarabic/ui/components/spinner';
@@ -68,6 +67,7 @@ import { dateKeyIn } from '@/lib/schedule-time';
 import { formatDate, zoneLabel } from '@/lib/time';
 import { LeaveRequestDialog, MarkDayDialog } from './dialogs';
 import { AttendanceStatusBadge, LeaveStatusBadge, usePayrollError } from './payroll-bits';
+import { MonthPicker } from '@/components/forms/date-time';
 
 /**
  * Staff attendance and leave (docs/21 §5, §13; the current app's `AttendancePage`). Managers
@@ -420,14 +420,7 @@ function MonthInput({ value, onChange }: { value: string; onChange: (v: string) 
       <Label htmlFor={id} className="text-caption text-muted-foreground">
         {t('month')}
       </Label>
-      <Input
-        id={id}
-        type="month"
-        dir="ltr"
-        value={value}
-        onChange={(e) => e.target.value && onChange(e.target.value)}
-        className="h-10 bg-card text-start"
-      />
+      <MonthPicker id={id} value={value} onChange={onChange} />
     </div>
   );
 }
