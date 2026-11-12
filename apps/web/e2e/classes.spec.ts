@@ -42,7 +42,11 @@ async function signOut(page: Page) {
 
 test('staff: Today board → mark a class → undo', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', `/today?date=${cairoKey(1)}`);
-  const row = (await boardRows(page)).first();
+  // The first «مجدولة» class (the mock day can open with a held one), pinned by its id so the
+  // locator survives the status change.
+  const rows = await boardRows(page);
+  const id = await rows.filter({ hasText: 'مجدولة' }).first().getAttribute('data-session-id');
+  const row = rows.and(page.locator(`[data-session-id="${id}"]`));
   const name = (await row.getByRole('button').first().textContent())!.trim();
   await expect(row.getByText('مجدولة')).toBeVisible();
   await row.getByRole('button', { name: `إجراءات أخرى: ${name}` }).click();
@@ -162,7 +166,7 @@ test('a teacher sees only their own classes', async ({ page }) => {
   const week = page.waitForResponse(
     (r) => /\/api\/v1\/teacher-portal\/week/.test(r.url()) && r.status() === 200,
   );
-  await page.getByRole('link', { name: 'حصصي' }).click();
+  await page.getByRole('link', { name: 'حصصي', exact: true }).click();
   const body = (await (await week).json()) as {
     data: { days: { sessions: { teacher: { id: number } }[] }[] };
   };
