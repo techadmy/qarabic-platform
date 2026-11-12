@@ -259,7 +259,27 @@
     "all": "All",
     "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
     "sort": "Sort by",
-    "statusFilter": "Filter by status"
+    "statusFilter": "Filter by status",
+    "viewsChange": "Change view",
+    "columns": {
+      "trigger": "Choose columns",
+      "title": "Visible columns",
+      "hidden": "{count, plural, one {# column hidden} other {# columns hidden}}",
+      "showAll": "Show all columns"
+    },
+    "split": {
+      "close": "Close and go back to the list",
+      "openFull": "Open in full page"
+    },
+    "actions": {
+      "moreCreate": "Other create actions",
+      "more": "More actions"
+    },
+    "summary": {
+      "title": "Summary",
+      "show": "Show details",
+      "hide": "Hide details"
+    }
   },
   "time": {
     "dayAhead": "next day",
