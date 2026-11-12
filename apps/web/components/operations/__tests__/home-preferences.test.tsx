@@ -5,6 +5,10 @@ import { HomeView } from '@/app/(app)/home-view';
 import { PreferencesCard } from '@/components/operations/preferences-card';
 import { NotificationBell } from '@/components/shell/notification-bell';
 import { odb } from '@/mocks/operations-db';
+import { http, HttpResponse } from 'msw';
+import { MyClassesView } from '@/app/(app)/my-classes/my-classes-view';
+import { server } from '@/mocks/node';
+import { sdb } from '@/mocks/schedule-db';
 import { renderPage } from '@/test/people';
 
 describe('Staff home (dashboard)', () => {
@@ -56,11 +60,75 @@ describe('Bell', () => {
       await screen.findAllByRole('button', { name: /الإشعارات|التنبيهات/ }).then((b) => b.at(-1)!),
     );
     expect(
-      await screen.findByRole('link', { name: /أسند إليك مهمة: متابعة طلب إجازة/ }),
+      await screen.findByRole('link', {
+        name: /مهمة جديدة مسندة إليك من Rana Monitor: متابعة طلب إجازة/,
+      }),
     ).toHaveAttribute('href', '/tasks/7');
     expect(screen.getByRole('link', { name: /إعلان جديد: إجازة نصف العام/ })).toHaveAttribute(
       'href',
-      '/announcements',
+      '/announcements#ann-3',
     );
+  });
+});
+
+describe('Dashboard review fixes (#32)', () => {
+  it('a failed background refresh keeps the numbers and says so quietly', async () => {
+    const { queryClient } = renderPage(<HomeView />, { path: '/' });
+    expect(await screen.findByRole('region', { name: 'تحتاج إجراء' })).toBeInTheDocument();
+    server.use(
+      http.get('*/api/v1/dashboard/summary', () => HttpResponse.json({}, { status: 500 })),
+    );
+    await queryClient.refetchQueries({ queryKey: ['operations', 'dashboard'] });
+    expect(await screen.findByText(/تعذّر تحديث الأرقام/)).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'تحتاج إجراء' })).toBeInTheDocument();
+  });
+
+  it('urgent tiles say so in words, not only in red', async () => {
+    renderPage(<HomeView />, { path: '/' });
+    const queues = await screen.findByRole('region', { name: 'تحتاج إجراء' });
+    expect(within(queues).getByRole('link', { name: /شكاوى مفتوحة/ })).toHaveTextContent(
+      'يحتاج انتباهًا',
+    );
+  });
+
+  it('nothing to see: an empty state, not a bare header', async () => {
+    server.use(
+      http.get('*/api/v1/dashboard/summary', () =>
+        HttpResponse.json({
+          data: {
+            generatedAt: new Date().toISOString(),
+            today: '2026-11-12',
+            people: null,
+            classesToday: null,
+            queues: {
+              myTasks: null,
+              myOverdueTasks: null,
+              sessionRequests: null,
+              leaveRequests: null,
+              proposedFines: null,
+              newLeads: null,
+              trialsToday: null,
+              openTickets: null,
+              openComplaints: null,
+              unreadAnnouncements: null,
+            },
+            finance: null,
+          },
+        }),
+      ),
+    );
+    renderPage(<HomeView />, { path: '/' });
+    expect(await screen.findByText('لا توجد أرقام لك هنا')).toBeInTheDocument();
+  });
+});
+
+describe('Class reminder links', () => {
+  it('?session= on «حصصي» opens that class in the sheet', async () => {
+    const s = sdb.sessions.find((x) => x.teacherId === 1 && !x.deleted)!;
+    renderPage(<MyClassesView />, {
+      as: 'teacher@qarabic.test',
+      path: `/my-classes?session=${s.id}`,
+    });
+    expect(await screen.findByRole('dialog', { name: 'تفاصيل الحصة' })).toBeInTheDocument();
   });
 });

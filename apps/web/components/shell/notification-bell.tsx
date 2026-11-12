@@ -1,11 +1,6 @@
 'use client';
 
-import {
-  LEAD_NOTIFICATION_LABELS,
-  TASK_NOTIFICATION_EVENTS,
-  type LeadNotificationEvent,
-  type NotificationDto,
-} from '@qarabic/shared';
+import type { NotificationDto } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@qarabic/ui/components/popover';
 import { cn } from '@qarabic/ui/lib/utils';
@@ -13,7 +8,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { BellIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import {
@@ -22,9 +17,8 @@ import {
   markNotificationRead,
   notificationKeys,
 } from '@/lib/api/notifications';
+import { bellHref, bellText } from '@/lib/operations/notifications';
 import { dayAndClock, relativeTime } from '@/lib/schedule-time';
-
-const TASK_EVENTS = new Set<string>(TASK_NOTIFICATION_EVENTS);
 
 /**
  * The bell in the top bar (`/me/notifications`): the unread count on the button, the latest alerts
@@ -50,33 +44,27 @@ export function NotificationBell() {
   const unread = list.data?.meta.unread ?? 0;
   const rows = list.data?.data ?? [];
 
-  const str = (v: unknown) => (typeof v === 'string' ? v : '');
-  const text = (n: NotificationDto) => {
-    const name = str(n.data.parentName);
-    if (n.kind === 'lead' && n.event in LEAD_NOTIFICATION_LABELS)
-      return `${LEAD_NOTIFICATION_LABELS[n.event as LeadNotificationEvent][locale]}: ${name}`;
-    if (n.kind === 'task' && TASK_EVENTS.has(n.event))
-      return t(`task.${n.event}`, { title: str(n.data.title), by: str(n.data.by) });
-    if (n.kind === 'announcement') return t('announcement', { title: str(n.data.title) });
-    if (n.kind === 'class_reminder') {
-      const at = str(n.data.startsAt);
-      return t('classReminder', {
-        student: str(n.data.student),
-        when: at ? dayAndClock(at, tz, locale) : '',
-      });
-    }
-    return t('other');
+  // Names and titles sit in <bdi> so a Latin name keeps its place in an Arabic sentence.
+  const bdi = (chunks: ReactNode) => <bdi>{chunks}</bdi>;
+  const text = (n: NotificationDto): ReactNode => {
+    const x = bellText(n);
+    if (x.kind === 'lead')
+      return (
+        <>
+          {x.label[locale]}: <bdi>{x.name}</bdi>
+        </>
+      );
+    if (x.kind === 'other') return t('other');
+    const { startsAt, ...values } = x.values;
+    return t.rich(x.key, {
+      ...values,
+      ...(startsAt !== undefined
+        ? { when: startsAt ? dayAndClock(startsAt, tz, locale) : '' }
+        : {}),
+      bdi,
+    });
   };
-  const num = (v: unknown) => (typeof v === 'number' ? v : null);
-  const href = (n: NotificationDto) => {
-    const portal = me.role?.kind === 'teacher' || me.role?.kind === 'parent';
-    if (n.kind === 'lead' && num(n.data.leadId)) return `/leads/${num(n.data.leadId)}`;
-    if (n.kind === 'task' && num(n.data.taskId)) return `/tasks/${num(n.data.taskId)}`;
-    if (n.kind === 'announcement') return '/announcements';
-    if (n.kind === 'class_reminder' && num(n.data.sessionId))
-      return `${portal ? '/my-classes' : '/today'}?session=${num(n.data.sessionId)}`;
-    return null;
-  };
+  const href = (n: NotificationDto) => bellHref(n, me.role?.kind);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>

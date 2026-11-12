@@ -1,17 +1,11 @@
 'use client';
 
-import {
-  BOARD_COUNTERS,
-  SESSION_STAGE_LABELS,
-  SESSION_STAGES,
-  type DashboardSummaryDto,
-  type SessionStage,
-} from '@qarabic/shared';
+import { SESSION_STAGE_LABELS, SESSION_STAGES, type SessionStage } from '@qarabic/shared';
 import { Card } from '@qarabic/ui/components/card';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { cn } from '@qarabic/ui/lib/utils';
 import { useQuery } from '@tanstack/react-query';
-import { RefreshCwIcon } from 'lucide-react';
+import { LayoutDashboardIcon, RefreshCwIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -20,32 +14,16 @@ import { Money } from '@/components/billing/billing-bits';
 import { PageHeader } from '@/components/page-header';
 import { useNow, useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
-import { ErrorState } from '@/components/states';
+import { EmptyState, ErrorState } from '@/components/states';
 import { fetchDashboardSummary, operationsKeys } from '@/lib/api/operations';
+import {
+  boardHref,
+  isEmptyDashboard,
+  isUrgent,
+  QUEUE_LINKS,
+  visibleQueues,
+} from '@/lib/operations/dashboard';
 import { dayLabel, relativeTime } from '@/lib/schedule-time';
-
-type Queue = keyof DashboardSummaryDto['queues'];
-
-/** Where each queue number leads (the list it counts, already filtered). */
-export const QUEUE_LINKS: Record<Queue, string> = {
-  myTasks: '/tasks',
-  myOverdueTasks: '/tasks?overdue=1',
-  sessionRequests: '/requests',
-  leaveRequests: '/attendance?tab=leave',
-  proposedFines: '/fines',
-  newLeads: '/leads',
-  trialsToday: '/leads',
-  openTickets: '/support',
-  openComplaints: '/support',
-  unreadAnnouncements: '/announcements?unread=1',
-};
-
-/** Queues that are a problem when not zero (shown in the destructive colour). */
-const URGENT = new Set<Queue>(['myOverdueTasks', 'openComplaints']);
-
-/** Today board link for a stage: its tile when the board has one (`?tile=`), else the board. */
-const boardHref = (stage: string) =>
-  (BOARD_COUNTERS as readonly string[]).includes(stage) ? `/today?tile=${stage}` : '/today';
 
 function Tile({
   href,
@@ -58,14 +36,23 @@ function Tile({
   value: ReactNode;
   urgent?: boolean;
 }) {
+  const t = useTranslations('operations.home');
   return (
     <Card size="sm" className="gap-0 p-0 shadow-none transition-colors hover:bg-accent">
       <Link
         href={href}
-        className="flex flex-col gap-1 rounded-xl px-4 py-3 focus-visible:outline-2 focus-visible:outline-ring"
+        className="flex flex-col gap-1 rounded-xl px-4 py-3 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
       >
-        <span className={cn('text-lg font-bold tabular-nums', urgent && 'text-destructive')}>
-          {value}
+        <span
+          className={cn(
+            'flex items-center gap-1 text-lg font-bold tabular-nums',
+            urgent && 'text-destructive',
+          )}
+        >
+          {/* Urgent is said with an icon and words too, never by colour alone (§5.14). */}
+          {urgent && <TriangleAlertIcon className="size-4" aria-hidden />}
+          <bdi>{value}</bdi>
+          {urgent && <span className="sr-only">{t('urgent')}</span>}
         </span>
         <span className="text-sm text-muted-foreground">{label}</span>
       </Link>
@@ -111,14 +98,16 @@ export function StaffHomeView() {
           variant="ghost"
           size="icon-lg"
           aria-label={t('refresh')}
+          disabled={query.isFetching}
           onClick={() => void query.refetch()}
         >
-          <RefreshCwIcon />
+          <RefreshCwIcon className={cn(query.isFetching && 'animate-spin')} />
         </Button>
       }
     />
   );
-  if (query.isError) {
+  // A failed background refresh keeps the numbers on screen (below: a quiet note).
+  if (query.isError && !d) {
     return (
       <>
         {header}
@@ -137,11 +126,23 @@ export function StaffHomeView() {
       </>
     );
   }
-  const queues = (Object.keys(QUEUE_LINKS) as Queue[]).filter((q) => d.queues[q] !== null);
+  const queues = visibleQueues(d);
   const f = d.finance;
   return (
     <div className="flex flex-col gap-6">
       {header}
+      {query.isRefetchError && (
+        <p role="status" className="text-sm text-muted-foreground">
+          {t('stale')}
+        </p>
+      )}
+      {isEmptyDashboard(d) && (
+        <EmptyState
+          icon={LayoutDashboardIcon}
+          title={t('emptyTitle')}
+          description={t('emptyHint')}
+        />
+      )}
       {queues.length > 0 && (
         <Section id="home-queues" title={t('queuesTitle')}>
           {queues.map((q) => (
@@ -150,7 +151,7 @@ export function StaffHomeView() {
               href={QUEUE_LINKS[q]}
               label={t(`queues.${q}`)}
               value={d.queues[q]}
-              urgent={URGENT.has(q) && (d.queues[q] ?? 0) > 0}
+              urgent={isUrgent(q, d.queues[q])}
             />
           ))}
         </Section>

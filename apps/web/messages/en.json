@@ -1953,16 +1953,16 @@
     "other": "New notification",
     "unread": "Unread:",
     "task": {
-      "assigned": "{by} gave you a task: {title}",
-      "submitted": "{by} handed in a task: {title}",
-      "completed": "{by} confirmed a task done: {title}",
-      "reopened": "{by} reopened a task: {title}",
-      "closed": "{by} closed a task: {title}",
-      "commented": "{by} commented on a task: {title}",
-      "due_soon": "A task is due within the hour: {title}"
+      "assigned": "New task from <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "submitted": "Task handed in by <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "completed": "Task confirmed done by <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "reopened": "Task reopened by <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "closed": "Task closed by <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "commented": "New comment from <bdi>{by}</bdi> on a task: <bdi>{title}</bdi>",
+      "due_soon": "A task is due within the hour: <bdi>{title}</bdi>"
     },
-    "announcement": "New announcement: {title}",
-    "classReminder": "Reminder: {student}'s class at {when}"
+    "announcement": "New announcement: <bdi>{title}</bdi>",
+    "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}"
   },
   "crm": {
     "title": "Leads",
@@ -3353,7 +3353,11 @@
         "received": "Received this month",
         "payroll": "Payroll runs awaiting approval",
         "ledger": "Automatic entries waiting"
-      }
+      },
+      "urgent": "needs attention",
+      "stale": "Could not refresh the numbers; showing the last ones received.",
+      "emptyTitle": "No numbers for you here",
+      "emptyHint": "The numbers of the lists you may open show here."
     },
     "preferences": {
       "title": "Notifications",
@@ -3362,7 +3366,8 @@
       "saved": "Notification preferences saved.",
       "save": "Save preferences",
       "reset": "Undo changes",
-      "whatsappOff": "WhatsApp notifications are not switched on for the academy yet."
+      "whatsappOff": "WhatsApp notifications are not switched on for the academy yet.",
+      "switchLabel": "{kind} · {channel}"
     }
   }
 }

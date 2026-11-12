@@ -3,7 +3,6 @@
 import {
   NOTIFICATION_CHANNEL_LABELS,
   NOTIFICATION_KIND_LABELS,
-  NOTIFICATION_KINDS,
   type NotificationKind,
   type NotificationPreferenceDto,
 } from '@qarabic/shared';
@@ -29,7 +28,7 @@ import {
 } from '@qarabic/ui/components/table';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { toast } from 'sonner';
 import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -39,7 +38,8 @@ import {
   operationsKeys,
   saveNotificationPreferences,
 } from '@/lib/api/operations';
-import { can } from '@/lib/auth/use-me';
+import { useBeforeUnload } from '@/lib/forms/use-unsaved-guard';
+import { kindsFor } from '@/lib/operations/notifications';
 import { useOperationsError } from './ops-bits';
 
 const CHANNELS = [
@@ -47,19 +47,6 @@ const CHANNELS = [
   { key: 'email', channel: 'email' },
   { key: 'whatsapp', channel: 'whatsapp' },
 ] as const;
-
-/** The kinds this person can receive at all (no lead alerts without the CRM, …). */
-function kindsFor(me: { permissions: string[] }): NotificationKind[] {
-  return NOTIFICATION_KINDS.filter((k) =>
-    k === 'task'
-      ? can(me, 'tasks.view')
-      : k === 'announcement'
-        ? can(me, 'announcements.view')
-        : k === 'lead'
-          ? can(me, 'leads.view')
-          : true,
-  );
-}
 
 /**
  * «الإشعارات» on «حسابي» (M8 notification centre): per kind, in the app / by email / by WhatsApp.
@@ -86,6 +73,9 @@ export function PreferencesCard() {
     onError: (e) => toast.error(message(e)),
   });
   const kinds = kindsFor(me);
+  const waId = useId();
+  // Toggled but not saved: leaving the page asks first (§5.6).
+  useBeforeUnload(!!draft);
   const rows = (draft ?? query.data?.data ?? []).filter((p) => kinds.includes(p.kind));
   const channels = query.data?.channels;
   const set = (kind: NotificationKind, key: (typeof CHANNELS)[number]['key'], on: boolean) =>
@@ -126,13 +116,17 @@ export function PreferencesCard() {
                   </TableCell>
                   {CHANNELS.map((c) => {
                     const off = channels?.[c.channel] === false;
-                    const label = `${NOTIFICATION_KIND_LABELS[p.kind][locale]} · ${NOTIFICATION_CHANNEL_LABELS[c.channel][locale]}`;
+                    const label = t('switchLabel', {
+                      kind: NOTIFICATION_KIND_LABELS[p.kind][locale],
+                      channel: NOTIFICATION_CHANNEL_LABELS[c.channel][locale],
+                    });
                     return (
                       <TableCell key={c.key} className="text-center">
                         <Switch
                           checked={!off && p[c.key]}
-                          disabled={off}
+                          disabled={off || save.isPending}
                           aria-label={label}
+                          aria-describedby={off && c.channel === 'whatsapp' ? waId : undefined}
                           onCheckedChange={(v) => set(p.kind, c.key, v)}
                         />
                       </TableCell>
@@ -144,7 +138,9 @@ export function PreferencesCard() {
           </Table>
         )}
         {channels?.whatsapp === false && (
-          <p className="mt-3 text-sm text-muted-foreground">{t('whatsappOff')}</p>
+          <p id={waId} className="mt-3 text-sm text-muted-foreground">
+            {t('whatsappOff')}
+          </p>
         )}
       </CardContent>
       <CardFooter className="justify-end gap-2 border-t">

@@ -1953,16 +1953,16 @@
     "other": "إشعار جديد",
     "unread": "غير مقروء:",
     "task": {
-      "assigned": "{by} أسند إليك مهمة: {title}",
-      "submitted": "{by} سلّم مهمة للمراجعة: {title}",
-      "completed": "{by} اعتمد إنجاز مهمة: {title}",
-      "reopened": "{by} أعاد فتح مهمة: {title}",
-      "closed": "{by} أغلق مهمة: {title}",
-      "commented": "{by} علّق على مهمة: {title}",
-      "due_soon": "يحين موعد مهمة خلال ساعة: {title}"
+      "assigned": "مهمة جديدة مسندة إليك من <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "submitted": "سُلّمت مهمة للمراجعة من <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "completed": "اعتُمد إنجاز مهمة من <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "reopened": "أُعيد فتح مهمة من <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "closed": "أُغلقت مهمة من <bdi>{by}</bdi>: <bdi>{title}</bdi>",
+      "commented": "تعليق جديد من <bdi>{by}</bdi> على مهمة: <bdi>{title}</bdi>",
+      "due_soon": "يحين موعد مهمة خلال ساعة: <bdi>{title}</bdi>"
     },
-    "announcement": "إعلان جديد: {title}",
-    "classReminder": "تذكير: حصة {student} في {when}"
+    "announcement": "إعلان جديد: <bdi>{title}</bdi>",
+    "classReminder": "تذكير: حصة <bdi>{student}</bdi> في {when}"
   },
   "crm": {
     "title": "العملاء المحتملون",
@@ -3351,9 +3351,13 @@
       "finance": {
         "overdue": "{count, plural, one {فاتورة متأخرة} two {فاتورتان متأخرتان} few {# فواتير متأخرة} many {# فاتورة متأخرة} other {# فاتورة متأخرة}}",
         "received": "المحصّل هذا الشهر",
-        "payroll": "مسيّرات بانتظار الاعتماد",
+        "payroll": "مسيّرات رواتب بانتظار الاعتماد",
         "ledger": "قيود تلقائية منتظرة"
-      }
+      },
+      "urgent": "يحتاج انتباهًا",
+      "stale": "تعذّر تحديث الأرقام؛ تُعرض آخر بيانات وصلت.",
+      "emptyTitle": "لا توجد أرقام لك هنا",
+      "emptyHint": "تظهر هنا الأرقام الخاصة بالقوائم التي تملك صلاحية فتحها."
     },
     "preferences": {
       "title": "الإشعارات",
@@ -3362,7 +3366,8 @@
       "saved": "حُفظت تفضيلات الإشعارات.",
       "save": "حفظ التفضيلات",
       "reset": "تراجع",
-      "whatsappOff": "إشعارات واتساب غير مفعّلة في الأكاديمية بعد."
+      "whatsappOff": "إشعارات واتساب غير مفعّلة في الأكاديمية بعد.",
+      "switchLabel": "{kind} · {channel}"
     }
   }
 }
