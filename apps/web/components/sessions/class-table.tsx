@@ -240,7 +240,7 @@ export function ClassTable({
               <TableHead
                 key={c}
                 className={cn(
-                  'h-10 px-3 text-[0.8125rem] font-semibold text-muted-foreground',
+                  'h-10 px-3 text-caption font-semibold text-muted-foreground',
                   c === 'actions' && 'text-end',
                 )}
               >

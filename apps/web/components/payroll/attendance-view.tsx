@@ -417,7 +417,7 @@ function MonthInput({ value, onChange }: { value: string; onChange: (v: string) 
   const id = useId();
   return (
     <div className="flex min-w-40 flex-col gap-1.5">
-      <Label htmlFor={id} className="text-[0.8125rem] text-muted-foreground">
+      <Label htmlFor={id} className="text-caption text-muted-foreground">
         {t('month')}
       </Label>
       <Input
@@ -460,9 +460,7 @@ function DaysTable({
           <span className="flex flex-wrap items-center gap-1">
             <AttendanceStatusBadge status={r.status} />
             {r.deductible && (
-              <span className="text-[0.8125rem] text-destructive">
-                {t('attendance.deductedDay')}
-              </span>
+              <span className="text-caption text-destructive">{t('attendance.deductedDay')}</span>
             )}
           </span>
         ),

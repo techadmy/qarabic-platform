@@ -170,7 +170,7 @@ export function LessonReportsView() {
           <div role="search" className="flex flex-wrap items-end gap-3">
             {showTeachers && (
               <div className="flex w-full flex-col gap-1.5 sm:w-60">
-                <Label htmlFor="reports-teacher" className="text-[0.8125rem] text-muted-foreground">
+                <Label htmlFor="reports-teacher" className="text-caption text-muted-foreground">
                   {t('teacher')}
                 </Label>
                 <Combobox
@@ -191,7 +191,7 @@ export function LessonReportsView() {
               </div>
             )}
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="reports-from" className="text-[0.8125rem] text-muted-foreground">
+              <Label htmlFor="reports-from" className="text-caption text-muted-foreground">
                 {t('from')}
               </Label>
               <DatePicker
@@ -203,7 +203,7 @@ export function LessonReportsView() {
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="reports-to" className="text-[0.8125rem] text-muted-foreground">
+              <Label htmlFor="reports-to" className="text-caption text-muted-foreground">
                 {t('to')}
               </Label>
               <DatePicker

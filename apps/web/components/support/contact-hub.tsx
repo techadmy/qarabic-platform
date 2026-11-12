@@ -318,7 +318,7 @@ function ChoiceButton({ label, onClick }: { label: string; onClick: () => void }
     <Item variant="outline" asChild className="min-h-12 hover:bg-subtle">
       <button type="button" onClick={onClick} className="text-start">
         <ItemContent>
-          <ItemTitle className="text-[0.9375rem]">{label}</ItemTitle>
+          <ItemTitle className="text-body">{label}</ItemTitle>
         </ItemContent>
         <ItemActions>
           <ChevronLeftIcon aria-hidden className="size-4 ltr:rotate-180" />

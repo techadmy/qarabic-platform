@@ -175,18 +175,12 @@ export function InvoiceRunDialog({
                 <Table aria-label={t('previewTitle')} className="tabular-nums">
                   <TableHeader className="sticky top-0 bg-subtle">
                     <TableRow className="hover:bg-subtle">
-                      <TableHead className="text-[0.8125rem] font-semibold">
-                        {t('family')}
-                      </TableHead>
-                      <TableHead className="text-[0.8125rem] font-semibold">
-                        {t('children')}
-                      </TableHead>
-                      <TableHead className="text-end text-[0.8125rem] font-semibold">
+                      <TableHead className="text-caption font-semibold">{t('family')}</TableHead>
+                      <TableHead className="text-caption font-semibold">{t('children')}</TableHead>
+                      <TableHead className="text-end text-caption font-semibold">
                         {t('amount')}
                       </TableHead>
-                      <TableHead className="text-[0.8125rem] font-semibold">
-                        {t('result')}
-                      </TableHead>
+                      <TableHead className="text-caption font-semibold">{t('result')}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

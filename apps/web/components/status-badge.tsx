@@ -68,7 +68,7 @@ export function StatusBadge({
     <Badge
       variant="outline"
       title={label?.en}
-      className={cn('h-6 rounded-md px-2 text-[0.8125rem] font-medium', style.className, className)}
+      className={cn('h-6 rounded-md px-2 text-caption font-medium', style.className, className)}
     >
       <Icon aria-hidden />
       {label?.[locale] ?? status}

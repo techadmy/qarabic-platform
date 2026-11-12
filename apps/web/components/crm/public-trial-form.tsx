@@ -122,7 +122,7 @@ export function PublicTrialForm() {
                 <CardTitle className="text-2xl font-bold">
                   <h1>{t('title')}</h1>
                 </CardTitle>
-                <CardDescription className="text-[0.9375rem]">{t('intro')}</CardDescription>
+                <CardDescription className="text-body">{t('intro')}</CardDescription>
               </CardHeader>
               <CardContent>
                 <TrialForm onSent={setSentName} />

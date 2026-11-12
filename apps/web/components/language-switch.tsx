@@ -20,10 +20,7 @@ export function LanguageSwitch({ className, persist }: { className?: string; per
       onClick={() => switchTo(other, { persist })}
       disabled={pending}
       aria-label={t('switchToLabel')}
-      className={cn(
-        'h-9 px-3 text-[0.9375rem] font-semibold text-primary hover:text-primary',
-        className,
-      )}
+      className={cn('h-9 px-3 text-body font-semibold text-primary hover:text-primary', className)}
     >
       {t('switchTo')}
     </Button>

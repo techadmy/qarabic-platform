@@ -95,7 +95,7 @@ function FieldShell<T extends FieldValues>({
   );
 }
 
-const CONTROL = 'h-10 md:text-[0.9375rem]';
+const CONTROL = 'h-10 md:text-body';
 
 export function TextField<T extends FieldValues>({
   inputProps,
@@ -180,7 +180,7 @@ export function TextareaField<T extends FieldValues>(props: Base<T> & { rows?: n
           id={id}
           rows={props.rows ?? 3}
           aria-invalid={state.invalid}
-          className="md:text-[0.9375rem]"
+          className="md:text-body"
         />
       )}
     />
@@ -219,7 +219,7 @@ export function SelectField<T extends FieldValues>({
             id={id}
             onBlur={field.onBlur}
             aria-invalid={state.invalid}
-            className="h-10! w-full md:text-[0.9375rem]"
+            className="h-10! w-full md:text-body"
           >
             <SelectValue placeholder={placeholder ?? t('choose')} />
           </SelectTrigger>
@@ -292,7 +292,7 @@ export function Combobox({
             aria-invalid={invalid}
             aria-label={ariaLabel}
             onBlur={onBlur}
-            className="h-10 min-w-0 flex-1 justify-between bg-transparent px-3 font-normal md:text-[0.9375rem]"
+            className="h-10 min-w-0 flex-1 justify-between bg-transparent px-3 font-normal md:text-body"
           >
             <span className={cn('truncate', !selected && 'text-muted-foreground')}>
               {selected?.short ?? selected?.label ?? placeholder}
@@ -414,7 +414,7 @@ export function MultiComboboxField<T extends FieldValues>({
                 aria-expanded={open}
                 aria-invalid={state.invalid}
                 onBlur={field.onBlur}
-                className="h-auto min-h-10 w-full justify-between bg-transparent px-3 py-2 font-normal whitespace-normal md:text-[0.9375rem]"
+                className="h-auto min-h-10 w-full justify-between bg-transparent px-3 py-2 font-normal whitespace-normal md:text-body"
               >
                 <span className={cn('text-start', !chosen.length && 'text-muted-foreground')}>
                   {chosen.length ? chosen.map((o) => o.label).join('، ') : t('choose')}
