@@ -37,6 +37,10 @@ jobs:
           POSTGRES_USER: qarabic
           POSTGRES_PASSWORD: qarabic
           POSTGRES_DB: qarabic_test
+          # Not UTC on purpose: the API must store instants correctly whatever the server zone is
+          # (test/db-timezone.e2e-spec.ts).
+          TZ: Africa/Cairo
+          PGTZ: Africa/Cairo
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U qarabic" --health-interval 5s --health-timeout 5s --health-retries 10
