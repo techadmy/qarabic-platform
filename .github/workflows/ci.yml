@@ -73,6 +73,11 @@ jobs:
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e
+      # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets.
+      - run: pnpm --filter @qarabic/web test:e2e
+        env:
+          E2E_BASE_PATH: /app
+          E2E_PORT: '3250'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
