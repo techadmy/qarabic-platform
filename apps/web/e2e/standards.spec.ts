@@ -16,6 +16,7 @@ const PAGES = [
   '/invoices',
   '/payroll',
   '/attendance',
+  '/accounting/journal',
 ] as const;
 
 async function switchToEnglish(page: Page) {
