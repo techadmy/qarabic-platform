@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { PayrollModule } from '../payroll/payroll.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { LeadAlerts } from './alerts.js';
@@ -27,7 +28,7 @@ import { WebLeadMapper } from './web-lead-mapper.js';
  * module's own instances, exported from it.
  */
 @Module({
-  imports: [AuthModule, ScheduleModule],
+  imports: [AuthModule, ScheduleModule, PayrollModule],
   controllers: [
     LeadsController,
     ReferralsController,
