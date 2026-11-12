@@ -40,6 +40,7 @@ export const RULE_MESSAGES = {
   cannot_edit_own_role: 'You cannot change or delete your own role.',
   permission_not_held: 'You cannot grant a permission you do not have.',
   wrong_password: 'The current password is not correct.',
+  has_open_invoices: 'This family still has open invoices. Settle or void them first.',
 } as const;
 export type RuleCode = keyof typeof RULE_MESSAGES;
 

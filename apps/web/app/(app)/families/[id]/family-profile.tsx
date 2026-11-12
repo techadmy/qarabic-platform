@@ -24,8 +24,12 @@ import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatDate, formatInstant, zoneLabel } from '@/lib/time';
 import { ProfileSchedule } from '@/components/schedule/profile-schedule';
+import { FamilyBillingSection } from '@/components/billing/family-billing';
 
-/** Family profile (K6, docs/28 §5): header + key facts + titled sections + children + history. */
+/**
+ * Family profile (K6, docs/28 §5): header + key facts + titled sections + children + history, and
+ * for staff who see invoices the «الفوترة» sections (N6, docs/20 §12).
+ */
 export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean }) {
   const t = useTranslations('families');
   const tp = useTranslations('people');
@@ -175,6 +179,7 @@ export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean
               />
               {!mine && <StatusHistory kind="families" entries={f.statusHistory} />}
               {!f.archive && <ProfileSchedule studentIds={f.students.map((c) => c.id)} />}
+              {!mine && can(me, 'invoices.view') && <FamilyBillingSection familyId={f.id} />}
             </div>
           </>
         )

@@ -20,6 +20,9 @@ import {
   UserCogIcon,
   UserSearchIcon,
   ContactRoundIcon,
+  PackageIcon,
+  ReceiptTextIcon,
+  WalletIcon,
   UsersIcon,
   type LucideIcon,
 } from 'lucide-react';
@@ -50,6 +53,10 @@ export type NavKey =
   | 'supportSettings'
   | 'leads'
   | 'crmSettings'
+  | 'invoices'
+  | 'packages'
+  | 'billingSettings'
+  | 'myInvoices'
   | 'ticket'
   | 'account';
 
@@ -68,7 +75,7 @@ export type NavItem = {
 
 export type NavGroup = {
   /** Message key under `nav.groups`. */
-  group: 'users' | 'settings';
+  group: 'users' | 'billing' | 'settings';
   icon: LucideIcon;
   items: NavItem[];
 };
@@ -95,7 +102,7 @@ const MY_REQUESTS: NavItem = {
 /**
  * Staff sidebar, grouped like the current app (and the developer admin it copies): top items
  * («حصص اليوم», «الجدول», «طلبات الحصص» with its pending count), then «المستخدمون» and
- * «الإعدادات» (holidays, class rules, roles). Unbuilt modules are not listed (docs/15 §5.1, D34).
+ * «الحسابات» (invoices, fee packages; docs/20 §12) and «الإعدادات» (holidays, class rules, roles). Unbuilt modules are not listed (docs/15 §5.1, D34).
  */
 export const STAFF_NAV: NavEntry[] = [
   HOME,
@@ -154,6 +161,14 @@ export const STAFF_NAV: NavEntry[] = [
     ],
   },
   {
+    group: 'billing',
+    icon: WalletIcon,
+    items: [
+      { key: 'invoices', href: '/invoices', icon: ReceiptTextIcon, permission: 'invoices.view' },
+      { key: 'packages', href: '/packages', icon: PackageIcon, permission: 'packages.view' },
+    ],
+  },
+  {
     group: 'settings',
     icon: ShieldCheckIcon,
     items: [
@@ -174,6 +189,12 @@ export const STAFF_NAV: NavEntry[] = [
         key: 'crmSettings',
         href: '/settings/crm',
         icon: ContactRoundIcon,
+        permission: 'settings.view',
+      },
+      {
+        key: 'billingSettings',
+        href: '/settings/billing',
+        icon: WalletIcon,
         permission: 'settings.view',
       },
       { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },
@@ -214,6 +235,7 @@ export const PARENT_NAV: NavEntry[] = [
     icon: CalendarDaysIcon,
     permission: 'sessions.view',
   },
+  { key: 'myInvoices', href: '/invoices', icon: ReceiptTextIcon, permission: 'invoices.view' },
   MY_REQUESTS,
   { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
 ];

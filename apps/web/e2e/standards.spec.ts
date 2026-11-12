@@ -7,7 +7,7 @@ import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from '
  * violations; keyboard focus is visible; the warning surface comes from the design tokens.
  */
 const WIDTHS = { mobile: 375, tablet: 768, desktop: 1440 } as const;
-const PAGES = ['/', '/today', '/families', '/schedule', '/leads'] as const;
+const PAGES = ['/', '/today', '/families', '/schedule', '/leads', '/invoices'] as const;
 
 async function switchToEnglish(page: Page) {
   await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();

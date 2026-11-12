@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { LeadAlerts } from './crm/alerts.js';
+import { billingCommand } from './billing/cli.js';
 import { SessionJobs } from './sessions/jobs.js';
 import { TicketCli } from './support/ticket-cli.js';
 
@@ -23,6 +24,12 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli tickets:status <id> [--status=] [--priority=] [--note=] [--pr=] [--resolution=]
  *                                                    [--assign=email|none] [--area=] [--category=] [--queue=] [--as=Claude]
  *   pnpm --filter @qarabic/api cli tickets:reply <id> --body="…" [--internal] [--as=Claude]
+ *
+ * Billing (N6, Laravel `invoices:generate` and the reminders job):
+ *
+ *   pnpm --filter @qarabic/api cli invoices:generate --period=YYYY-MM [--day=1|15] [--family=ID ...]
+ *                                                    (--dry-run | --due=YYYY-MM-DD)
+ *   pnpm --filter @qarabic/api cli billing:reminders   (a no-op while billing.notify_parents is off)
  *
  * The CLI never starts the cron (`SCHEDULER_ENABLED=false`).
  */
@@ -53,6 +60,11 @@ async function main(): Promise<number> {
       const result = await run();
       (result.code === 0 ? console.log : console.error)(result.out.join('\n'));
       return result.code;
+    }
+    const billing = await billingCommand(app, command, args);
+    if (billing !== null) {
+      (billing.code === 0 ? console.log : console.error)(billing.out.join('\n'));
+      return billing.code;
     }
     switch (command) {
       case 'sessions:generate': {
@@ -109,7 +121,7 @@ async function main(): Promise<number> {
       default:
         console.error(
           'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, ' +
-            'tickets:list, tickets:show, tickets:status, tickets:reply',
+            'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders',
         );
         return 2;
     }

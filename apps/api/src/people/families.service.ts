@@ -273,8 +273,9 @@ export class FamiliesService {
 
   /**
    * Archive ("delete", D128): only a deactivated family. Its children go with it (same stamp, so a
-   * restore brings back exactly these) and the parent login closes. Open invoices will also block
-   * this once billing exists (N6).
+   * restore brings back exactly these) and the parent login closes. Refused while the family has
+   * open (issued / partially paid) invoices: 409 `has_open_invoices` + `data.openInvoices` (N6;
+   * the invoices stay locked until the commit).
    */
   async archive(id: number, reason: string, actor: AuthUser): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
@@ -282,6 +283,10 @@ export class FamiliesService {
       const family = await tx.family.findUniqueOrThrow({ where: { id } });
       if (family.archivedAt) throw conflict('archived');
       if (family.status !== 'deactivated') throw conflict('must_deactivate_first');
+      const open = await tx.$queryRaw<Array<{ id: number }>>`
+        SELECT id FROM "invoices"
+        WHERE family_id = ${id} AND status IN ('issued', 'partially_paid') FOR UPDATE`;
+      if (open.length) throw conflict('has_open_invoices', { openInvoices: open.length });
       const stamp = { archivedAt: new Date(), archivedById: actor.id, archiveReason: reason };
       await tx.family.update({ where: { id }, data: stamp });
       await tx.student.updateMany({ where: { familyId: id, archivedAt: null }, data: stamp });

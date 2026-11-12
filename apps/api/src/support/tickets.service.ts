@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { canReferenceInvoice } from '../billing/scope.js';
 import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   categoryOfType,
@@ -144,11 +145,9 @@ export class TicketsService {
 
   /** Whether `user` may attach this subject (same row scope as the rest of the API, D138). */
   async canReference(user: AuthUser, type: TicketSubjectType, id: number): Promise<boolean> {
-    if (type === 'invoice') {
-      // TODO(billing milestone): invoices do not exist in the new system yet; a family may link
-      // only its own issued invoices, a teacher never (Laravel `canReference`).
-      return false;
-    }
+    // Same rule as the billing screens (Laravel `canReference`): a family only its own issued
+    // invoices, staff with `invoices.view` any, a teacher never.
+    if (type === 'invoice') return canReferenceInvoice(this.prisma, user, id);
     const scope = await viewerScope(this.prisma, user);
     if (type === 'session') {
       const row = await this.prisma.classSession.findFirst({
@@ -201,6 +200,12 @@ export class TicketsService {
       });
       familyId ??= st?.familyId ?? null;
       teacherId = st?.teacherId ?? st?.enrollments[0]?.teacherId ?? null;
+    } else if (subjectType === 'invoice' && subjectId !== null) {
+      const inv = await db.invoice.findUnique({
+        where: { id: subjectId },
+        select: { familyId: true },
+      });
+      familyId ??= inv?.familyId ?? null;
     }
     if (reporter && isParentViewer(reporter)) {
       familyId ??=

@@ -108,6 +108,16 @@ model User {
   leadsConverted Lead[]         @relation("LeadConvertedBy")
   leadActivities LeadActivity[]
   notifications  Notification[]
+  // N6 billing
+  feePackagesCreated     FeePackage[]           @relation("FeePackageCreatedBy")
+  billingProfilesUpdated FamilyBillingProfile[] @relation("BillingProfileUpdatedBy")
+  studentPackagesUpdated StudentFeePackage[]    @relation("StudentFeePackageUpdatedBy")
+  invoicesIssued         Invoice[]              @relation("InvoiceIssuedBy")
+  invoicesVoided         Invoice[]              @relation("InvoiceVoidedBy")
+  invoicesCreated        Invoice[]              @relation("InvoiceCreatedBy")
+  invoiceLinesCreated    InvoiceLine[]          @relation("InvoiceLineCreatedBy")
+  paymentsRecorded       Payment[]              @relation("PaymentRecordedBy")
+  paymentsInitiated      Payment[]              @relation("PaymentInitiatedBy")
 
   usersStatusChanged    User[]           @relation("UserStatusChangedBy")
   usersArchived         User[]           @relation("UserArchivedBy")
@@ -266,6 +276,10 @@ model Family {
   // N5 CRM
   leads         Lead[] @relation("LeadFamily")
   referredLeads Lead[] @relation("LeadReferralFamily")
+  // N6 billing
+  billingProfile FamilyBillingProfile?
+  invoices       Invoice[]
+  payments       Payment[]
 
   @@index([status])
   @@index([managerId])
@@ -311,6 +325,10 @@ model Student {
   lessonReports    LessonReport[]
   hifzEntries      HifzEntry[]
   studentTests     StudentTest[]
+
+  // N6 billing
+  feePackage   StudentFeePackage?
+  invoiceLines InvoiceLine[]
 
   @@index([familyId])
   @@index([teacherId])
@@ -1327,4 +1345,306 @@ model Notification {
 
   @@index([userId, readAt])
   @@map("notifications")
+}
+
+// ====================================================================== N6: billing
+// Fee packages, the family billing profile, invoices, payments and the ledger outbox (docs/20,
+// D83–D88, D140). Ported from the Laravel M5 billing tables. Money is `numeric(12,2)` + an ISO
+// 4217 currency (never a float); the services work in integer minor units. Invoice lines are
+// append-only (a trigger refuses UPDATE / DELETE); adjustments and discounts are new lines.
+
+enum InvoiceKind {
+  monthly
+  manual
+  split
+}
+
+/// "Overdue" is not stored: an open invoice whose due date has passed (academy zone).
+enum InvoiceStatus {
+  draft
+  issued
+  partially_paid
+  paid
+  void
+  split
+}
+
+enum InvoiceLineType {
+  package
+  manual
+  adjustment
+  discount
+  split
+}
+
+enum PaymentMethod {
+  stripe
+  paypal
+  cash
+  bank_transfer
+  cheque
+  other
+}
+
+enum PaymentStatus {
+  pending
+  succeeded
+  failed
+  cancelled
+  refunded
+}
+
+enum WebhookEventStatus {
+  received
+  processed
+  ignored
+  failed
+}
+
+/// A monthly fee for a weekly plan (e.g. 2 classes a week × 30 min), priced per currency. Archive
+/// (`is_active = false`), never delete.
+model FeePackage {
+  id             Int      @id @default(autoincrement())
+  name           String   @db.VarChar(120)
+  classesPerWeek Int      @map("classes_per_week") @db.SmallInt
+  sessionMinutes Int      @default(30) @map("session_minutes") @db.SmallInt
+  description    String?  @db.VarChar(500)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    Int?     @map("created_by")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy User?               @relation("FeePackageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  prices    FeePackagePrice[]
+  students  StudentFeePackage[]
+  lines     InvoiceLine[]
+
+  @@index([isActive])
+  @@map("fee_packages")
+}
+
+model FeePackagePrice {
+  id            Int      @id @default(autoincrement())
+  feePackageId  Int      @map("fee_package_id")
+  currency      String   @db.Char(3)
+  monthlyAmount Decimal  @map("monthly_amount") @db.Decimal(12, 2)
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  feePackage FeePackage @relation(fields: [feePackageId], references: [id], onDelete: Cascade)
+
+  @@unique([feePackageId, currency])
+  @@map("fee_package_prices")
+}
+
+/// A family's billing profile (D84): currency, cycle day (1 or 15, old `payment_cycle`), billing
+/// on/off, a fixed custom fee (old `account.fee`) and the first billed day (proration, D85).
+model FamilyBillingProfile {
+  familyId    Int       @id @map("family_id")
+  currency    String?   @db.Char(3)
+  billingDay  Int       @default(1) @map("billing_day") @db.SmallInt
+  enabled     Boolean   @default(false)
+  customFee   Decimal?  @map("custom_fee") @db.Decimal(12, 2)
+  startsOn    DateTime? @map("starts_on") @db.Date
+  updatedById Int?      @map("updated_by")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  family    Family @relation(fields: [familyId], references: [id], onDelete: Cascade)
+  updatedBy User?  @relation("BillingProfileUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@map("family_billing_profiles")
+}
+
+/// The fee package of a child; a change applies from the next invoice (D85).
+model StudentFeePackage {
+  studentId    Int      @id @map("student_id")
+  feePackageId Int      @map("fee_package_id")
+  updatedById  Int?     @map("updated_by")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  student    Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feePackage FeePackage @relation(fields: [feePackageId], references: [id], onDelete: Restrict)
+  updatedBy  User?      @relation("StudentFeePackageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([feePackageId])
+  @@map("student_fee_packages")
+}
+
+/// A family invoice (D83). Totals and status come only from the recalculation (lines + succeeded
+/// payments). `period_key` = "family:{id}:{period_start}" for monthly invoices: one per family and
+/// period (cleared on void / split so the period can be billed again).
+model Invoice {
+  id          Int           @id @default(autoincrement())
+  number      String?       @unique @db.VarChar(32)
+  familyId    Int           @map("family_id")
+  kind        InvoiceKind
+  status      InvoiceStatus @default(draft)
+  periodStart DateTime?     @map("period_start") @db.Date
+  periodEnd   DateTime?     @map("period_end") @db.Date
+  periodKey   String?       @unique @map("period_key") @db.VarChar(48)
+  currency    String        @db.Char(3)
+  subtotal    Decimal       @default(0) @db.Decimal(12, 2)
+  adjustments Decimal       @default(0) @db.Decimal(12, 2)
+  discounts   Decimal       @default(0) @db.Decimal(12, 2)
+  total       Decimal       @default(0) @db.Decimal(12, 2)
+  paid        Decimal       @default(0) @db.Decimal(12, 2)
+  issueDate   DateTime?     @map("issue_date") @db.Date
+  dueDate     DateTime?     @map("due_date") @db.Date
+  issuedAt    DateTime?     @map("issued_at") @db.Timestamptz(6)
+  issuedById  Int?          @map("issued_by")
+  paidAt      DateTime?     @map("paid_at") @db.Timestamptz(6)
+  voidedAt    DateTime?     @map("voided_at") @db.Timestamptz(6)
+  voidedById  Int?          @map("voided_by")
+  voidReason  String?       @map("void_reason") @db.VarChar(500)
+  splitFromId Int?          @map("split_from_id")
+  notes       String?       @db.VarChar(1000)
+  createdById Int?          @map("created_by")
+  lockVersion Int           @default(0) @map("lock_version")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  family    Family            @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  issuedBy  User?             @relation("InvoiceIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
+  voidedBy  User?             @relation("InvoiceVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  createdBy User?             @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  splitFrom Invoice?          @relation("InvoiceSplit", fields: [splitFromId], references: [id], onDelete: Restrict)
+  splits    Invoice[]         @relation("InvoiceSplit")
+  lines     InvoiceLine[]
+  payments  Payment[]
+  reminders InvoiceReminder[]
+
+  @@index([familyId, status])
+  @@index([status, dueDate])
+  @@index([periodStart])
+  @@index([splitFromId])
+  @@map("invoices")
+}
+
+/// Append-only (trigger): signed amounts, discounts and credit adjustments are negative.
+model InvoiceLine {
+  id           Int             @id @default(autoincrement())
+  invoiceId    Int             @map("invoice_id")
+  type         InvoiceLineType
+  studentId    Int?            @map("student_id")
+  feePackageId Int?            @map("fee_package_id")
+  description  String          @db.VarChar(500)
+  amount       Decimal         @db.Decimal(12, 2)
+  /// Proration (`prorated`, `days`, `periodDays`, `fullAmount`), percent, split part…
+  meta         Json?
+  createdById  Int?            @map("created_by")
+  createdAt    DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  invoice    Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  student    Student?    @relation(fields: [studentId], references: [id], onDelete: SetNull)
+  feePackage FeePackage? @relation(fields: [feePackageId], references: [id], onDelete: SetNull)
+  createdBy  User?       @relation("InvoiceLineCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([studentId])
+  @@map("invoice_lines")
+}
+
+/// Gap-free yearly counter for invoice numbers (`INV-2026-000123`), taken under a row lock.
+model InvoiceSequence {
+  year       Int @id @db.SmallInt
+  lastNumber Int @default(0) @map("last_number")
+
+  @@map("invoice_sequences")
+}
+
+/// Every attempt or receipt. Online ones are completed only by the provider's confirmed outcome.
+model Payment {
+  id                Int           @id @default(autoincrement())
+  invoiceId         Int           @map("invoice_id")
+  familyId          Int           @map("family_id")
+  method            PaymentMethod
+  status            PaymentStatus @default(pending)
+  amount            Decimal       @db.Decimal(12, 2)
+  currency          String        @db.Char(3)
+  /// Stripe Checkout Session id / PayPal order id.
+  providerRef       String?       @map("provider_ref") @db.VarChar(191)
+  /// Stripe payment_intent / PayPal capture id.
+  providerPaymentId String?       @map("provider_payment_id") @db.VarChar(191)
+  checkoutUrl       String?       @map("checkout_url")
+  /// Manual: receipt / transfer / cheque number.
+  reference         String?       @db.VarChar(191)
+  note              String?       @db.VarChar(1000)
+  receivedAt        DateTime?     @map("received_at") @db.Timestamptz(6)
+  refundedAt        DateTime?     @map("refunded_at") @db.Timestamptz(6)
+  failureReason     String?       @map("failure_reason") @db.VarChar(500)
+  recordedById      Int?          @map("recorded_by")
+  initiatedById     Int?          @map("initiated_by")
+  idempotencyKey    String?       @unique @map("idempotency_key") @db.VarChar(64)
+  createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  family      Family  @relation(fields: [familyId], references: [id], onDelete: Restrict)
+  recordedBy  User?   @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  initiatedBy User?   @relation("PaymentInitiatedBy", fields: [initiatedById], references: [id], onDelete: SetNull)
+
+  @@unique([method, providerRef])
+  @@index([invoiceId, status])
+  @@index([familyId, status])
+  @@index([receivedAt])
+  @@index([method, providerPaymentId])
+  @@map("payments")
+}
+
+/// Every verified provider event, unique per (provider, event id) = idempotency (a failed one is
+/// retried on the next delivery).
+model PaymentWebhookEvent {
+  id          Int                @id @default(autoincrement())
+  provider    String             @db.VarChar(16)
+  eventId     String             @map("event_id") @db.VarChar(191)
+  type        String             @db.VarChar(96)
+  payload     Json
+  status      WebhookEventStatus @default(received)
+  error       String?            @db.VarChar(1000)
+  processedAt DateTime?          @map("processed_at") @db.Timestamptz(6)
+  createdAt   DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([provider, eventId])
+  @@index([status, createdAt])
+  @@map("payment_webhook_events")
+}
+
+/// Append-only outbox for the accounting ledger (D86): one row per money fact, written in the same
+/// transaction. The ledger sets `consumed_at` (the only column that may change).
+model BillingEvent {
+  id          Int       @id @default(autoincrement())
+  /// invoice.issued, invoice.adjusted, invoice.voided, payment.succeeded, payment.refunded
+  type        String    @db.VarChar(48)
+  subjectType String    @map("subject_type") @db.VarChar(32)
+  subjectId   Int       @map("subject_id")
+  familyId    Int       @map("family_id")
+  amount      Decimal   @db.Decimal(12, 2)
+  currency    String    @db.Char(3)
+  payload     Json?
+  occurredAt  DateTime  @map("occurred_at") @db.Timestamptz(6)
+  consumedAt  DateTime? @map("consumed_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([consumedAt, id])
+  @@index([subjectType, subjectId])
+  @@map("billing_events")
+}
+
+/// One reminder email per invoice and slot (`auto:-3`, `manual:2026120209`): the claim row makes
+/// the job idempotent (Laravel used `notifications`).
+model InvoiceReminder {
+  id        Int      @id @default(autoincrement())
+  invoiceId Int      @map("invoice_id")
+  slot      String   @db.VarChar(32)
+  status    String   @default("sending") @db.VarChar(16)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@unique([invoiceId, slot])
+  @@map("invoice_reminders")
 }
