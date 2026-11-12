@@ -314,9 +314,10 @@ export function Combobox({
         )}
       </div>
       <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
-        <Command shouldFilter={shouldFilter}>
+        {/* cmdk names its input from `label` and defaults the listbox to English «Suggestions». */}
+        <Command shouldFilter={shouldFilter} label={searchPlaceholder}>
           <CommandInput placeholder={searchPlaceholder} onValueChange={onSearch} />
-          <CommandList>
+          <CommandList label={t('options')}>
             <CommandEmpty>{loading ? t('loading') : t('noMatch')}</CommandEmpty>
             <CommandGroup>
               {options.map((o) => (
@@ -426,9 +427,9 @@ export function MultiComboboxField<T extends FieldValues>({
               className="w-(--radix-popover-trigger-width) min-w-64 p-0"
               align="start"
             >
-              <Command>
+              <Command label={t('search')}>
                 <CommandInput placeholder={t('search')} />
-                <CommandList>
+                <CommandList label={t('options')}>
                   <CommandEmpty>{t('noMatch')}</CommandEmpty>
                   <CommandGroup>
                     {options.map((o) => (
