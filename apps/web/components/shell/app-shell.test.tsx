@@ -36,7 +36,9 @@ describe('AppShell', () => {
     expect(menu.getByRole('button', { name: 'المستخدمون' })).toBeInTheDocument();
     expect(menu.getByRole('button', { name: 'الإعدادات' })).toBeInTheDocument();
     // Link names only (the requests item carries a pending-count badge beside it).
-    expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual([
+    // (The «+» beside a section, D141 §6, is a separate link with an aria-label.)
+    const pages = menu.getAllByRole('link').filter((l) => !l.getAttribute('aria-label'));
+    expect(pages.map((l) => l.textContent)).toEqual([
       'الرئيسية',
       'حصص اليوم',
       'الجدول',
