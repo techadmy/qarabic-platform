@@ -167,4 +167,4 @@ export function FormRow({
 }
 
 /** Classes for money/number inputs: left-to-right digits, start-aligned in both directions. */
-export const NUMBER_INPUT = 'h-10 text-start md:text-[0.9375rem]';
+export const NUMBER_INPUT = 'h-10 text-start md:text-body';

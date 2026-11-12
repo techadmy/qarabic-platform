@@ -162,6 +162,12 @@ model User {
   walletTxCreated       WalletTransaction[] @relation("WalletCreatedBy")
   payRuleSetsCreated    PayRuleSet[]
 
+  // M7 accounting back-relations.
+  journalEntriesCreated JournalEntry[]     @relation("JournalEntryCreatedBy")
+  vouchersCreated       Voucher[]          @relation("VoucherCreatedBy")
+  vouchersVoided        Voucher[]          @relation("VoucherVoidedBy")
+  periodsClosed         AccountingPeriod[] @relation("PeriodClosedBy")
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -2052,4 +2058,209 @@ model PayrollEvent {
 
   @@index([consumedAt, id])
   @@map("payroll_events")
+}
+
+// ====================================================================== M7: accounting
+// Chart of accounts, a double-entry journal kept per currency, vouchers and period close (docs/09
+// M14, docs/07 §أ, D2). Journal entries and lines are append-only (triggers); every entry balances
+// (a deferred constraint trigger); no line may be dated in a closed period (trigger). Automatic
+// entries come from `billing_events` and `payroll_events` (D86, D95), one entry per event at most
+// (`source_ref` unique).
+
+enum AccountType {
+  asset
+  liability
+  equity
+  income
+  expense
+}
+
+enum JournalSource {
+  manual
+  voucher
+  billing
+  payroll
+  reversal
+}
+
+enum VoucherType {
+  receipt
+  payment
+}
+
+enum VoucherStatus {
+  posted
+  void
+}
+
+/// An account of the chart (old `accounts_cat` = group accounts, `accounts_head` = postable ones).
+model LedgerAccount {
+  id          Int         @id @default(autoincrement())
+  code        String      @unique @db.VarChar(10)
+  nameAr      String      @map("name_ar") @db.VarChar(120)
+  nameEn      String      @map("name_en") @db.VarChar(120)
+  type        AccountType
+  parentId    Int?        @map("parent_id")
+  /// A heading: groups accounts, never posted to.
+  isGroup     Boolean     @default(false) @map("is_group")
+  /// Cash, bank, gateway clearing and wallets (the cash report).
+  isCash      Boolean     @default(false) @map("is_cash")
+  /// Only lines in this currency may post here; null = any currency.
+  currency    String?     @db.Char(3)
+  /// Used by the automatic entries (`receivable`, `tuition_revenue`, …): never archived.
+  systemKey   String?     @unique @map("system_key") @db.VarChar(32)
+  isActive    Boolean     @default(true) @map("is_active")
+  description String?     @db.VarChar(500)
+  createdAt   DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  parent       LedgerAccount?  @relation("AccountTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children     LedgerAccount[] @relation("AccountTree")
+  lines        JournalLine[]
+  vouchersCash Voucher[]       @relation("VoucherCashAccount")
+  voucherLines VoucherLine[]
+
+  @@index([parentId])
+  @@index([type])
+  @@map("ledger_accounts")
+}
+
+/// One balanced journal entry in one currency. Never changed or deleted: a reversal is a new entry.
+model JournalEntry {
+  id          Int           @id @default(autoincrement())
+  number      String        @unique @db.VarChar(24)
+  entryDate   DateTime      @map("entry_date") @db.Date
+  currency    String        @db.Char(3)
+  memo        String        @db.VarChar(500)
+  source      JournalSource
+  /// `billing_event:12`, `payroll_event:4`, `voucher:7`, `voucher_void:7`: one entry per source.
+  sourceRef   String?       @unique @map("source_ref") @db.VarChar(48)
+  reversesId  Int?          @unique @map("reverses_id")
+  createdById Int?          @map("created_by")
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  reverses   JournalEntry? @relation("EntryReverses", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy JournalEntry? @relation("EntryReverses")
+  createdBy  User?         @relation("JournalEntryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lines      JournalLine[]
+  voucher    Voucher?      @relation("VoucherEntry")
+  voidOf     Voucher?      @relation("VoucherVoidEntry")
+
+  @@index([entryDate, id])
+  @@index([currency, entryDate])
+  @@index([source])
+  @@index([createdById])
+  @@map("journal_entries")
+}
+
+/// A debit or a credit (exactly one is > 0). `currency` and `entry_date` copy the entry's, for reports.
+model JournalLine {
+  id          Int      @id @default(autoincrement())
+  entryId     Int      @map("entry_id")
+  accountId   Int      @map("account_id")
+  currency    String   @db.Char(3)
+  entryDate   DateTime @map("entry_date") @db.Date
+  debit       Decimal  @default(0) @db.Decimal(14, 2)
+  credit      Decimal  @default(0) @db.Decimal(14, 2)
+  description String?  @db.VarChar(500)
+  /// `family` or `user` (sub-ledger: a family's receivable, a teacher's wallet).
+  partyType   String?  @map("party_type") @db.VarChar(16)
+  partyId     Int?     @map("party_id")
+  position    Int      @default(0) @db.SmallInt
+
+  entry   JournalEntry  @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([entryId])
+  @@index([accountId, currency, entryDate])
+  @@index([currency, entryDate])
+  @@index([partyType, partyId])
+  @@map("journal_lines")
+}
+
+/// Receipt (قبض) or payment (صرف) voucher: posts one entry; voiding posts its reversal.
+model Voucher {
+  id             Int           @id @default(autoincrement())
+  number         String        @unique @db.VarChar(24)
+  type           VoucherType
+  status         VoucherStatus @default(posted)
+  voucherDate    DateTime      @map("voucher_date") @db.Date
+  currency       String        @db.Char(3)
+  amount         Decimal       @db.Decimal(14, 2)
+  cashAccountId  Int           @map("cash_account_id")
+  party          String        @db.VarChar(160)
+  description    String        @db.VarChar(500)
+  reference      String?       @db.VarChar(80)
+  chequeNumber   String?       @map("cheque_number") @db.VarChar(40)
+  journalEntryId Int           @unique @map("journal_entry_id")
+  voidEntryId    Int?          @unique @map("void_entry_id")
+  voidReason     String?       @map("void_reason") @db.VarChar(2000)
+  voidedAt       DateTime?     @map("voided_at") @db.Timestamptz(6)
+  voidedById     Int?          @map("voided_by")
+  createdById    Int?          @map("created_by")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  cashAccount  LedgerAccount @relation("VoucherCashAccount", fields: [cashAccountId], references: [id], onDelete: Restrict)
+  journalEntry JournalEntry  @relation("VoucherEntry", fields: [journalEntryId], references: [id], onDelete: Restrict)
+  voidEntry    JournalEntry? @relation("VoucherVoidEntry", fields: [voidEntryId], references: [id], onDelete: Restrict)
+  voidedBy     User?         @relation("VoucherVoidedBy", fields: [voidedById], references: [id], onDelete: SetNull)
+  createdBy    User?         @relation("VoucherCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  lines        VoucherLine[]
+
+  @@index([type, status])
+  @@index([voucherDate])
+  @@index([cashAccountId])
+  @@map("vouchers")
+}
+
+model VoucherLine {
+  id          Int     @id @default(autoincrement())
+  voucherId   Int     @map("voucher_id")
+  accountId   Int     @map("account_id")
+  amount      Decimal @db.Decimal(14, 2)
+  description String? @db.VarChar(500)
+  position    Int     @default(0) @db.SmallInt
+
+  voucher Voucher       @relation(fields: [voucherId], references: [id], onDelete: Cascade)
+  account LedgerAccount @relation(fields: [accountId], references: [id], onDelete: Restrict)
+
+  @@index([voucherId])
+  @@index([accountId])
+  @@map("voucher_lines")
+}
+
+/// A closed month (no row = open). Reopening deletes nothing: it sets `closed = false` with a reason.
+model AccountingPeriod {
+  period       String    @id @db.Char(7)
+  closed       Boolean   @default(true)
+  closedAt     DateTime? @map("closed_at") @db.Timestamptz(6)
+  closedById   Int?      @map("closed_by")
+  reopenReason String?   @map("reopen_reason") @db.VarChar(2000)
+  updatedAt    DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  closedBy User? @relation("PeriodClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+
+  @@map("accounting_periods")
+}
+
+/// Running numbers (`JE-2026`, `RV-2026`, `PV-2026` → last number).
+model AccountingSequence {
+  key  String @id @db.VarChar(16)
+  last Int    @default(0)
+
+  @@map("accounting_sequences")
+}
+
+/// An outbox event the ledger could not post (kept until it posts; the queue goes on meanwhile).
+model LedgerOutboxFailure {
+  id            Int      @id @default(autoincrement())
+  source        String   @db.VarChar(16)
+  eventId       Int      @map("event_id")
+  eventType     String   @map("event_type") @db.VarChar(48)
+  error         String   @db.VarChar(1000)
+  attempts      Int      @default(1)
+  lastAttemptAt DateTime @map("last_attempt_at") @db.Timestamptz(6)
+
+  @@unique([source, eventId])
+  @@map("ledger_outbox_failures")
 }

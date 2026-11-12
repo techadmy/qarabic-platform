@@ -137,9 +137,7 @@ export function TeacherWeekView() {
           {
             label: TEACHER_PORTAL_LABELS.needsReport[locale],
             value: (
-              <span
-                className={w?.summary.needsReport ? 'text-orange-700 dark:text-orange-400' : ''}
-              >
+              <span className={w?.summary.needsReport ? 'text-status-orange-emphasis' : ''}>
                 {w?.summary.needsReport ?? '—'}
               </span>
             ),
@@ -147,7 +145,7 @@ export function TeacherWeekView() {
         ]}
       />
       {missing && missing.length > 0 && (
-        <Alert className="border-orange-200 bg-orange-50 text-orange-950 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-100">
+        <Alert className="border-status-orange-border bg-status-orange text-status-orange-foreground">
           <FilePenLineIcon />
           <AlertDescription className="flex flex-wrap items-center gap-2 text-inherit">
             {tw('reportsDue', { count: missing.length })}
