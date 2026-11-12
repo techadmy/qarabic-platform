@@ -40,52 +40,28 @@ import { fetchTeacherStudents, fetchTeacherWeek, teachingKeys } from '@/lib/api/
 import { can } from '@/lib/auth/use-me';
 import { rangeText, shortLabel } from '@/lib/reports/format';
 import { dayLabel, relativeTime } from '@/lib/schedule-time';
+import {
+  pickHeroClass,
+  RUNNING_STAGES,
+  UPCOMING_DAYS,
+  upcomingDays,
+  type Day,
+} from '@/lib/sessions/teacher-home';
 import { cityOf } from '@/lib/time';
-
-/** How many days after today «يومي» lists (docs/15 §6.2: the next five days, collapsed). */
-export const UPCOMING_DAYS = 5;
-
-const RUNNING = new Set(['activated', 'in_progress']);
-
-type Day = { date: string; sessions: SessionDto[] };
-
-/**
- * The class «يومي» puts on top: the one running now, else the next one still ahead (today first,
- * then the coming days). Ended, marked and moved classes never qualify.
- */
-export function pickHeroClass(days: Day[], now: Date): SessionDto | null {
-  const all = days.flatMap((d) => d.sessions);
-  const running = all.find((s) => RUNNING.has(s.stage));
-  if (running) return running;
-  return (
-    all
-      .filter((s) => s.stage === 'scheduled' && Date.parse(s.endsAt) > now.getTime())
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null
-  );
-}
-
-/** The days after `today` (up to `count`), from this week and the next. */
-export function upcomingDays(days: Day[], today: string, count = UPCOMING_DAYS): Day[] {
-  return days
-    .filter((d) => d.date > today)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, count);
-}
 
 function HeroClass({ session: s, now }: { session: SessionDto; now: Date }) {
   const t = useTranslations('teacherPortal.home');
   const tc = useTranslations('classes');
-  const tr = useTranslations('reports');
   const tp = useTranslations('teacherPortal.students');
   const locale = useUiLocale();
-  const { open, openReport } = useOpenSession();
+  const { open } = useOpenSession();
   const actions = useSessionActions(s);
   const students = useQuery({
     queryKey: teachingKeys.myStudents,
     queryFn: ({ signal }) => fetchTeacherStudents(signal),
   });
   const positions = students.data?.find((st) => st.id === s.student.id)?.lastPositions ?? [];
-  const running = RUNNING.has(s.stage);
+  const running = RUNNING_STAGES.has(s.stage);
   const allowed = s.allowedActions;
   const name = s.student.name;
   const big = 'h-12 px-6 text-base';
@@ -107,13 +83,13 @@ function HeroClass({ session: s, now }: { session: SessionDto; now: Date }) {
           <div className="flex flex-col gap-1">
             <Link
               href={`/students/${s.student.id}`}
-              className="self-start text-xl font-bold text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
+              className="self-start rounded-sm text-xl font-bold text-primary outline-none hover:underline focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               {name}
             </Link>
             <p className="text-muted-foreground">
-              {locale === 'en' ? s.course.nameEn : s.course.nameAr} · <bdi>{s.durationMinutes}</bdi>{' '}
-              {t('minutes')}
+              {locale === 'en' ? s.course.nameEn : s.course.nameAr} ·{' '}
+              {tc('minutes', { count: s.durationMinutes })}
             </p>
           </div>
           <div className="flex flex-col gap-1">
@@ -175,12 +151,6 @@ function HeroClass({ session: s, now }: { session: SessionDto; now: Date }) {
                 {tc('meeting.open')}
               </Button>
             )}
-            {s.stage === 'ended' && allowed.includes('submit_report') && (
-              <Button className={big} onClick={() => openReport(s.id)}>
-                <FilePenLineIcon />
-                {tr('write')}
-              </Button>
-            )}
             <Button variant="outline" className={big} onClick={() => open(s.id)}>
               {t('details')}
             </Button>
@@ -198,24 +168,27 @@ function UpcomingDay({ day, now }: { day: Day; now: Date }) {
   const locale = useUiLocale();
   const { open } = useOpenSession();
   const [expanded, setExpanded] = useState(false);
-  const id = `upcoming-${day.date}`;
+  if (day.sessions.length === 0) {
+    // Nothing to open: plain text, not a disabled control.
+    return (
+      <div className="flex h-12 items-center justify-between rounded-lg border bg-card px-4">
+        <h3 className="text-base font-semibold">{dayLabel(day.date, locale)}</h3>
+        <span className="text-sm text-muted-foreground">{t('noClasses')}</span>
+      </div>
+    );
+  }
   return (
     <Collapsible open={expanded} onOpenChange={setExpanded} className="rounded-lg border bg-card">
-      <h3 id={id}>
+      <h3>
         <CollapsibleTrigger asChild>
           <Button
             variant="ghost"
-            className="h-12 w-full justify-between rounded-lg px-4 text-base font-semibold"
-            disabled={day.sessions.length === 0}
+            className="h-12 w-full justify-between rounded-lg px-4 text-base font-semibold aria-expanded:bg-transparent hover:aria-expanded:bg-muted"
           >
             <span>{dayLabel(day.date, locale)}</span>
             <span className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
-              {day.sessions.length > 0
-                ? t('dayCount', { count: day.sessions.length })
-                : t('noClasses')}
-              {day.sessions.length > 0 && (
-                <ChevronDownIcon className={cn('transition-transform', expanded && 'rotate-180')} />
-              )}
+              {t('dayCount', { count: day.sessions.length })}
+              <ChevronDownIcon className={cn('transition-transform', expanded && 'rotate-180')} />
             </span>
           </Button>
         </CollapsibleTrigger>
@@ -287,7 +260,7 @@ export function TeacherHomeView() {
   }
   if (!w) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+      <div className="flex flex-col gap-5">
         {header}
         <div className="flex flex-col gap-4" aria-busy="true">
           <Skeleton className="h-20" />
@@ -303,13 +276,14 @@ export function TeacherHomeView() {
   const hero = pickHeroClass(ahead, now);
   const restOfToday = todays.filter((s) => s.id !== hero?.id);
   const upcoming = upcomingDays(days, w.today);
+  // The «بلا تقرير» count (fact and alert) is the API's; `missing` only finds one to open now.
   const missing = w.days
     .flatMap((d) => d.sessions)
     .filter((s) => s.stage === 'ended' && s.allowedActions.includes('submit_report'));
   const count = (pred: (s: SessionDto) => boolean) => todays.filter(pred).length;
 
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-5">
+    <div className="flex flex-col gap-5">
       {header}
       <KeyFacts
         items={[
@@ -319,14 +293,20 @@ export function TeacherHomeView() {
           { label: TEACHER_PORTAL_LABELS.needsReport[locale], value: w.summary.needsReport },
         ]}
       />
-      {missing.length > 0 && (
+      {w.summary.needsReport > 0 && (
         <Alert variant="warning">
           <FilePenLineIcon />
           <AlertDescription className="flex flex-wrap items-center gap-2 text-inherit">
-            {tw('reportsDue', { count: missing.length })}
-            <Button size="sm" onClick={() => openReport(missing[0]!.id)}>
-              {tw('writeFirst', { name: missing[0]!.student.name })}
-            </Button>
+            {tw('reportsDue', { count: w.summary.needsReport })}
+            {missing[0] ? (
+              <Button size="sm" onClick={() => openReport(missing[0]!.id)}>
+                {tw('writeFirst', { name: missing[0].student.name })}
+              </Button>
+            ) : (
+              <Button size="sm" asChild>
+                <Link href="/lesson-reports?state=missing">{t('openMissing')}</Link>
+              </Button>
+            )}
           </AlertDescription>
         </Alert>
       )}

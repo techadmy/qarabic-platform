@@ -1530,7 +1530,6 @@
     "home": {
       "title": "Hello, {name}",
       "current": "Class in progress",
-      "minutes": "minutes",
       "startsIn": "Starts {when}",
       "details": "Class details",
       "noNext": "No upcoming classes",
@@ -1541,7 +1540,8 @@
       "upcoming": "Next five days",
       "facts": {
         "today": "Today's classes"
-      }
+      },
+      "openMissing": "Open classes without a report"
     }
   },
   "support": {

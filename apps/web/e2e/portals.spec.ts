@@ -17,6 +17,9 @@ async function signIn(page: Page, email: string) {
 async function switchToEnglish(page: Page) {
   await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  // Leave the switch button: axe must not read its hover / colour transition.
+  await page.mouse.move(0, 0);
+  await page.waitForTimeout(300);
 }
 
 for (const [name, width] of Object.entries(WIDTHS)) {

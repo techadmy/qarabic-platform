@@ -2,7 +2,8 @@ import type { SessionDto } from '@qarabic/shared';
 import { screen, within } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
 import { HomeView } from '@/app/(app)/home-view';
-import { pickHeroClass, TeacherHomeView, upcomingDays } from '@/components/portal/teacher-home';
+import { TeacherHomeView } from '@/components/portal/teacher-home';
+import { pickHeroClass, upcomingDays } from '@/lib/sessions/teacher-home';
 import { JoinClassButton, ParentHomeView } from '@/components/support/parent-home-view';
 import { renderPage } from '@/test/people';
 
@@ -79,7 +80,15 @@ describe('Teacher home «يومي»', () => {
     expect(within(hero).getByText(/الطالب/)).toBeInTheDocument();
     expect(within(hero).getByRole('button', { name: 'تفاصيل الحصة' })).toBeInTheDocument();
     expect(within(hero).getByRole('button', { name: /ابدأ الحصة|أنهِ الحصة/ })).toBeInTheDocument();
-    expect(await screen.findByText(/تنتظر تقريرك|تنتظران تقريرك/)).toBeInTheDocument();
+    expect(within(hero).getByText(/· (\d+ دقيقة|دقيقتان|\d+ دقائق)$/)).toBeInTheDocument();
+    // The alert and the «بلا تقرير» fact show the same number (the API's week summary).
+    const fact = screen.getByText('بلا تقرير').parentElement!.querySelector('dd')!.textContent!;
+    const alert = await screen.findByText(/تنتظر تقريرك|تنتظران تقريرك/);
+    expect(Number(fact)).toBeGreaterThan(0);
+    // Arabic spells out one and two («حصة واحدة», «حصتان»); from three the digits are in the text.
+    const n = Number(fact);
+    const words: Record<number, RegExp> = { 1: /حصة واحدة/, 2: /حصتان/ };
+    expect(alert.textContent).toMatch(words[n] ?? new RegExp(`${n} `));
     expect(await screen.findByRole('button', { name: 'تسجيل الحضور' })).toBeInTheDocument();
     const upcoming = screen.getByRole('region', { name: 'الأيام الخمسة القادمة' });
     expect(await within(upcoming).findAllByRole('heading', { level: 3 })).toHaveLength(5);

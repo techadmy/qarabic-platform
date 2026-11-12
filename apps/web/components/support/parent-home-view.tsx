@@ -28,13 +28,13 @@ import { SessionActionsMenu } from './session-actions-menu';
  * «ادخل الحصة» (docs/15 §2.6 P1, the old «Join To Classroom»): one tap opens the meeting, shown
  * only inside the join window (`zoom.joinAvailable`); the link comes from `/zoom/join`.
  */
-export function JoinClassButton({ session, size }: { session: SessionDto; size?: 'sm' }) {
+export function JoinClassButton({ session, compact }: { session: SessionDto; compact?: boolean }) {
   const t = useTranslations('support.parentHome');
   const actions = useSessionActions(session);
   if (!session.zoom.joinAvailable) return null;
   return (
     <Button
-      className={size === 'sm' ? 'h-10' : 'h-12 px-6 text-base'}
+      className={compact ? 'h-10' : 'h-12 px-6 text-base'}
       onClick={() => actions.openMeeting('join')}
     >
       <VideoIcon />
@@ -153,7 +153,7 @@ function WeekList({ rows }: { rows: SessionDto[] }) {
                     </span>
                   </div>
                   <div className="flex flex-wrap items-center gap-2">
-                    <JoinClassButton session={s} size="sm" />
+                    <JoinClassButton session={s} compact />
                     <SessionActionsMenu session={s} />
                   </div>
                 </li>
