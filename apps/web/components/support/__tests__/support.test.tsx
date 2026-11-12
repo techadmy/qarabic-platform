@@ -230,7 +230,7 @@ describe('«صندوق الطلبات»', () => {
     const h1 = screen.getByRole('heading', { level: 1 });
     await user.click(within(h1).getByRole('button', { name: /كل الأقسام\s*تغيير العرض/ }));
     expect(
-      await screen.findByRole('menuitemradio', { name: 'الحسابات والفواتير (1) · متأخرة: 1' }),
+      await screen.findByRole('menuitemradio', { name: /^الحسابات والفواتير\s*متأخرة: 1\s*1$/ }),
     ).toBeInTheDocument();
     await user.keyboard('{Escape}');
     const list = await screen.findByRole('list', { name: 'صندوق الطلبات' });

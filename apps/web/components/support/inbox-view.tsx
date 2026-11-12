@@ -463,7 +463,13 @@ export function InboxView() {
   const query: InboxQuery = {
     queue: TICKET_QUEUES.includes(queueParam) ? queueParam : undefined,
     status,
-    kind: kind === 'ticket' || kind === 'session_request' ? kind : undefined,
+    // The split view's narrowed list is tickets only (requests have no record view), so its count
+    // and pages are tickets' too.
+    kind: split.selectedId
+      ? 'ticket'
+      : kind === 'ticket' || kind === 'session_request'
+        ? kind
+        : undefined,
     category: category || undefined,
     priority: priority || undefined,
     assignee: assignee === 'me' || assignee === 'none' ? assignee : undefined,
@@ -506,13 +512,12 @@ export function InboxView() {
     { value: '', label: t('allQueues'), count: undefined as number | undefined },
     ...queues.map((q) => {
       const c = meta?.counts[q];
+      // The open count beside the name, the overdue count under it (in red) when there is one.
       return {
         value: q,
-        // The open count sits with the name and the overdue count after it: «الحسابات (1) · متأخرة: 1».
-        label:
-          `${TICKET_QUEUE_LABELS[q][locale]} (${c?.open ?? 0})` +
-          (c?.breached ? ` · ${t('breachedN', { count: c.breached })}` : ''),
-        count: undefined as number | undefined,
+        label: TICKET_QUEUE_LABELS[q][locale],
+        count: c?.open ?? 0,
+        hint: c?.breached ? t('breachedN', { count: c.breached }) : undefined,
       };
     }),
   ];
@@ -554,7 +559,7 @@ export function InboxView() {
   if (split.selectedId) {
     // Tickets have a record view; class requests are acted on in the list, so the narrowed list
     // shows the tickets.
-    const tickets = rows.flatMap((r) => (r.kind === 'ticket' && r.ticket ? [r.ticket] : []));
+    const tickets = rows.filter((r) => r.kind === 'ticket' && r.ticket);
     return (
       <>
         {header}
@@ -570,26 +575,27 @@ export function InboxView() {
               loading={list.isPending}
               label={t('title')}
               emptyText={tl('noResults')}
-              getRowId={(x) => x.id}
+              getRowId={(x) => x.ticket!.id}
               hrefFor={split.hrefFor}
               selectedId={split.selectedId}
               header={<ListToolbar search={search} />}
               footer={pagination}
-              renderItem={(x) => (
+              renderItem={(item) => (
                 <span className="flex flex-col gap-1">
                   <span className="flex items-start justify-between gap-2">
                     <span className="font-semibold">
-                      <bdi>{x.number}</bdi> · {x.title}
+                      <bdi>{item.ticket!.number}</bdi> · {item.ticket!.title}
                     </span>
-                    <TicketStatusBadge status={x.status} />
+                    <TicketStatusBadge status={item.ticket!.status} />
                   </span>
+                  <SlaBadge dueAt={item.slaDueAt} state={item.slaState} />
                 </span>
               )}
             />
           }
           detail={<TicketDetailView key={split.selectedId} id={Number(split.selectedId)} />}
         />
-        <SessionSheet />
+        {/* The ticket view mounts its own SessionSheet for a class opened from it. */}
       </>
     );
   }

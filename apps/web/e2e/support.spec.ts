@@ -67,7 +67,7 @@ test('staff take → reply → fixed in the inbox; the parent confirms the fix',
   // D141: seven queue views live in the title's views menu.
   await page.getByRole('button', { name: /كل الأقسام\s*تغيير العرض/ }).click();
   await expect(
-    page.getByRole('menuitemradio', { name: /الحسابات والفواتير \(1\) · متأخرة: 1/ }),
+    page.getByRole('menuitemradio', { name: /الحسابات والفواتير\s*متأخرة: 1/ }),
   ).toBeVisible();
   await page.keyboard.press('Escape');
   const list = page.getByRole('list', { name: 'صندوق الطلبات' });

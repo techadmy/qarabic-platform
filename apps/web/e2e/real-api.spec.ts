@@ -65,6 +65,9 @@ test('real API: families list → open one → edit a field (saved in the databa
   const first = table.getByRole('row').nth(1).getByRole('link').first();
   const name = (await first.textContent())!.trim();
   await first.click();
+  // From 1024 px the name opens the split view (D141 §1); the record's own page is one click on.
+  await expect(page).toHaveURL(/[?&]id=\d+/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/families\/\d+$/);
   await expect(page.getByRole('heading', { level: 1 })).toContainText(name);
 
