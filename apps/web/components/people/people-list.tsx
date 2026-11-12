@@ -1,5 +1,6 @@
 'use client';
 
+import { Badge } from '@qarabic/ui/components/badge';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@qarabic/ui/components/tooltip';
@@ -50,9 +51,12 @@ export type ListText = {
   emptyDescription: string;
 };
 
-/** The record name (first column) stays when columns are hidden (D141 §3). */
+/**
+ * The record name (first column) and the row actions stay when columns are hidden (D141 §3); the
+ * actions column has no visible header, so it is not offered in the chooser either.
+ */
 function fixFirst<T>(columns: ColumnDef<T, unknown>[]): ColumnDef<T, unknown>[] {
-  return columns.map((c, i) => (i === 0 ? { ...c, enableHiding: false } : c));
+  return columns.map((c, i) => (i === 0 || c.id === 'actions' ? { ...c, enableHiding: false } : c));
 }
 
 /**
@@ -81,7 +85,11 @@ export function PeopleList<K extends PeopleKind>({
 }: {
   kind: K;
   text: ListText;
-  columns: (params: ListParams) => ColumnDef<ListRows[K], unknown>[];
+  /** `recordHref` opens a record: in the split view when there is room, else its full page. */
+  columns: (
+    params: ListParams,
+    recordHref: (id: number) => string,
+  ) => ColumnDef<ListRows[K], unknown>[];
   renderCard: (row: ListRows[K]) => ReactNode;
   filters?: (params: ListParams) => ReactNode;
   /** URL keys of this list's filters (for «مسح الكل» and the query). */
@@ -105,6 +113,8 @@ export function PeopleList<K extends PeopleKind>({
   const [adding, setAdding] = useState(false);
   const split = useSplitView(KINDS[kind].href);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(`${kind}:${me.id}`);
+  const recordHref = (id: number) =>
+    renderDetail ? split.hrefFor(id) : `${KINDS[kind].href}/${id}`;
   useOpenFromUrl(canManage && allowed && !!text.add, () => setAdding(true));
   const status = params.get('status');
   const archived = canSeeArchived && params.archived;
@@ -171,17 +181,13 @@ export function PeopleList<K extends PeopleKind>({
   } else {
     body = (
       <ResponsiveList
-        columns={fixFirst(columns(params))}
+        columns={fixFirst(columns(params, recordHref))}
         rows={rows}
         loading={list.isPending}
         label={text.tableLabel}
         emptyText={t('noResults')}
         getRowId={(row) => (row as { id: number }).id}
-        getRowHref={(row) =>
-          renderDetail
-            ? split.hrefFor((row as { id: number }).id)
-            : `${KINDS[kind].href}/${(row as { id: number }).id}`
-        }
+        getRowHref={(row) => recordHref((row as { id: number }).id)}
         renderCard={renderCard}
         columnVisibility={columnVisibility}
         onColumnVisibilityChange={setColumnVisibility}
@@ -199,7 +205,8 @@ export function PeopleList<K extends PeopleKind>({
   ];
 
   // More than five views: they move into the title (D141 §2); five or fewer stay tabs.
-  const useViews = showStatusTabs && statusOptions.length > MAX_STATUS_TABS;
+  // «الكل» does not count (docs/15 §5.4.2): families' five statuses stay tabs.
+  const useViews = showStatusTabs && KINDS[kind].statuses.length > MAX_STATUS_TABS;
   const header = (
     <PageHeader
       title={
@@ -242,6 +249,8 @@ export function PeopleList<K extends PeopleKind>({
     <PersonSheet target={{ kind } as SheetTarget} open={adding} onOpenChange={setAdding} />
   );
 
+  const extraFilters = filterKeys.filter((k) => params.get(k)).length;
+  const activeFilters = !!status || archived || extraFilters > 0;
   if (renderDetail && split.selectedId) {
     return (
       <>
@@ -261,7 +270,30 @@ export function PeopleList<K extends PeopleKind>({
               getRowId={(row) => (row as { id: number }).id}
               hrefFor={split.hrefFor}
               selectedId={split.selectedId}
-              header={<ListToolbar search={search} />}
+              header={
+                <>
+                  <ListToolbar search={search} />
+                  {activeFilters && (
+                    // The tabs and filters are not in the narrowed list: say what narrows it and
+                    // offer the way out (D141 §1).
+                    <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2 text-sm">
+                      <span className="text-muted-foreground">{t('activeFilters')}</span>
+                      {status && (
+                        <Badge variant="secondary">{statusLabel(kind, status, locale)}</Badge>
+                      )}
+                      {archived && <Badge variant="secondary">{t('archived')}</Badge>}
+                      {extraFilters > 0 && (
+                        <Badge variant="secondary">
+                          {t('moreFilters', { count: extraFilters })}
+                        </Badge>
+                      )}
+                      <ClearFiltersButton
+                        onClick={() => params.clear([...filterKeys, 'archived'])}
+                      />
+                    </div>
+                  )}
+                </>
+              }
               footer={pagination}
               renderItem={renderSplitItem ?? renderCard}
             />

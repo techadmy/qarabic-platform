@@ -32,13 +32,16 @@ export function FamiliesView() {
   const lookups = useLookups(canManage);
   const countries = useCountryOptions();
 
-  const columns = (params: ListParams): ColumnDef<FamilyDto, unknown>[] => [
+  const columns = (
+    params: ListParams,
+    recordHref: (id: number) => string,
+  ): ColumnDef<FamilyDto, unknown>[] => [
     {
       id: 'parent',
       header: tp('fields.parent'),
       cell: ({ row }) => (
         <RecordCell
-          href={`/families/${row.original.id}`}
+          href={recordHref(row.original.id)}
           name={<Highlight text={row.original.parentName} query={params.q} />}
           secondary={<bdi dir="ltr">{row.original.email}</bdi>}
         />
@@ -90,7 +93,7 @@ export function FamiliesView() {
         ) : (
           <div className="flex justify-end gap-0.5">
             <RowShortcut
-              href={`/families/${row.original.id}`}
+              href={recordHref(row.original.id)}
               label={tp('open')}
               icon={FolderOpenIcon}
             />
