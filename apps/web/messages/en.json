@@ -126,7 +126,8 @@
     "payRules": "Pay rules",
     "journal": "Journal",
     "vouchers": "Receipts and payments",
-    "chartOfAccounts": "Chart of accounts"
+    "chartOfAccounts": "Chart of accounts",
+    "addIn": "Add to “{section}”"
   },
   "home": {
     "title": "Home",
@@ -560,7 +561,13 @@
     "noChildren": "No children in this family yet.",
     "childrenTable": "The family's children",
     "noFamilyTitle": "No family is linked to your account",
-    "noFamily": "Contact the academy to link your account to your family."
+    "noFamily": "Contact the academy to link your account to your family.",
+    "tabs": {
+      "overview": "Overview",
+      "schedule": "Schedule",
+      "billing": "Billing",
+      "history": "History"
+    }
   },
   "students": {
     "title": "Students",
@@ -3370,5 +3377,17 @@
       "invalid": "Some data is not valid. Check the fields."
     },
     "badRange": "The start date is after the end date. Fix the period."
+  },
+  "search": {
+    "trigger": "Search “{section}”",
+    "title": "Search",
+    "description": "Search a section and pick a result to open the record.",
+    "section": "Search section",
+    "placeholder": "Search “{section}”…",
+    "results": "“{section}” results",
+    "hint": "Type at least two characters.",
+    "loading": "Searching…",
+    "error": "Search failed. Try again.",
+    "none": "No results for “{q}”"
   }
 }

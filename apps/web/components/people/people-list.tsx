@@ -25,6 +25,7 @@ import {
 } from '@/components/list/list-toolbar';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
+import { useOpenFromUrl } from '@/components/list/open-from-url';
 import { PersonSheet, type SheetTarget } from '@/components/people/person-sheet';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
@@ -84,6 +85,7 @@ export function PeopleList<K extends PeopleKind>({
   const locale = useLocale() === 'en' ? 'en' : 'ar';
   const params = useListParams();
   const [adding, setAdding] = useState(false);
+  useOpenFromUrl(canManage && allowed && !!text.add, () => setAdding(true));
   const status = params.get('status');
   const archived = canSeeArchived && params.archived;
   const filterValues = Object.fromEntries(filterKeys.map((k) => [k, params.get(k) || undefined]));
