@@ -6,6 +6,7 @@ import { FamiliesView } from '@/app/(app)/families/families-view';
 import { FamilyProfile } from '@/app/(app)/families/[id]/family-profile';
 import { TeacherProfile } from '@/app/(app)/teachers/[id]/teacher-profile';
 import { server } from '@/mocks/node';
+import { db as people } from '@/mocks/people-db';
 import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
 
@@ -104,11 +105,38 @@ describe('Add / edit sheet', () => {
     await user.click(screen.getByRole('button', { name: 'متابعة التعديل' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
+  // Bug from the real-API e2e: a family converted from a lead without a phone could not be edited
+  // at all — the untouched empty phone failed the phone rule and blocked «حفظ».
+  it('edits a family that has no phone (converted from a lead) without asking for one', async () => {
+    people.families.find((f) => f.id === 2)!.phone = null;
+    let body: unknown = null;
+    server.use(
+      http.patch('*/api/v1/families/2', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ message: 'stop', code: 'generic' }, { status: 500 });
+      }),
+    );
+    renderPage(<FamilyProfile id={2} />, { path: '/families/2' });
+    const { user, sheet } = await openSheet('تعديل');
+    await user.type(within(sheet).getByLabelText(/معرّف Zoom/), '987 654');
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
+    await waitFor(() => expect(body).toEqual({ zoomId: '987 654' }));
+  });
+
+  it('still refuses to clear a phone the family has', async () => {
+    renderPage(<FamilyProfile id={3} />, { path: '/families/3' });
+    const { user, sheet } = await openSheet('تعديل');
+    const phone = within(sheet).getByRole('textbox', { name: /الهاتف/ });
+    await user.clear(phone);
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
+    expect(await within(sheet).findByText(/صحّح الحقول المحددة/)).toBeInTheDocument();
+  });
 });
 
 describe('Status dialog', () => {
   it('requires the reason the shared FAMILY_STATUSES_NEEDING_REASON lists, explains the effect, then changes it', async () => {
-    renderPage(<FamilyProfile id={2} />, { path: '/families/2' });
+    // The status history is the «السجل» tab (D141 §7).
+    renderPage(<FamilyProfile id={2} />, { path: '/families/2?tab=history' });
     const user = userEvent.setup();
     await user.click(await screen.findByRole('button', { name: 'تغيير الحالة' }));
     const dialog = await screen.findByRole('dialog', { name: 'تغيير حالة Yusuf Hassan' });

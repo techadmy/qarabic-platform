@@ -5,12 +5,17 @@ import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/page-header';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState } from '@/components/states';
+import { TeacherHomeView } from '@/components/portal/teacher-home';
 import { ParentHomeView } from '@/components/support/parent-home-view';
 
-/** The parent's home (N4, `GET /parent/home`); others keep the placeholder until their dashboards. */
+/**
+ * The parent's home (N4, `GET /parent/home`) and the teacher's «يومي» (M9); staff keep the
+ * placeholder until their dashboards.
+ */
 export function HomeView() {
   const me = useCurrentUser();
   if (me.role?.kind === 'parent') return <ParentHomeView />;
+  if (me.role?.kind === 'teacher') return <TeacherHomeView />;
   return <Placeholder />;
 }
 

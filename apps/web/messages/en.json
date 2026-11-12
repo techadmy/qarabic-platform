@@ -122,7 +122,8 @@
     "salaryProfiles": "Salary profiles",
     "wallets": "Wallets",
     "mySalary": "My salary",
-    "payRules": "Pay rules"
+    "payRules": "Pay rules",
+    "addIn": "Add to “{section}”"
   },
   "home": {
     "title": "Home",
@@ -556,7 +557,13 @@
     "noChildren": "No children in this family yet.",
     "childrenTable": "The family's children",
     "noFamilyTitle": "No family is linked to your account",
-    "noFamily": "Contact the academy to link your account to your family."
+    "noFamily": "Contact the academy to link your account to your family.",
+    "tabs": {
+      "overview": "Overview",
+      "schedule": "Schedule",
+      "billing": "Billing",
+      "history": "History"
+    }
   },
   "students": {
     "title": "Students",
@@ -1552,6 +1559,22 @@
       "emptyHint": "Students appear here when the office assigns them to you.",
       "noResults": "No matching results",
       "noResultsHint": "Try another name."
+    },
+    "home": {
+      "title": "Hello, {name}",
+      "current": "Class in progress",
+      "startsIn": "Starts {when}",
+      "details": "Class details",
+      "noNext": "No upcoming classes",
+      "noNextHint": "Your next class shows here once it is scheduled.",
+      "restOfToday": "Today's schedule",
+      "noMoreToday": "No other classes today.",
+      "openWeek": "Open “My classes”",
+      "upcoming": "Next five days",
+      "facts": {
+        "today": "Today's classes"
+      },
+      "openMissing": "Open classes without a report"
     }
   },
   "support": {
@@ -1950,7 +1973,9 @@
       "tajweed": "Tajweed notes",
       "rating": "Rating: {n} of 5",
       "hifz": "Memorisation and revision",
-      "reportBy": "{teacher} · {when}"
+      "reportBy": "{teacher} · {when}",
+      "join": "Join the class",
+      "childProfile": "{name}'s lessons and progress"
     },
     "errors": {
       "generic": "That did not work. Try again.",
@@ -3149,5 +3174,17 @@
       "createdBy": "Added by {name}"
     },
     "pageTitle": "Payroll"
+  },
+  "search": {
+    "trigger": "Search “{section}”",
+    "title": "Search",
+    "description": "Search a section and pick a result to open the record.",
+    "section": "Search section",
+    "placeholder": "Search “{section}”…",
+    "results": "“{section}” results",
+    "hint": "Type at least two characters.",
+    "loading": "Searching…",
+    "error": "Search failed. Try again.",
+    "none": "No results for “{q}”"
   }
 }

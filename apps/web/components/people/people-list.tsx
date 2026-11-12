@@ -30,6 +30,7 @@ import { SplitList, SplitView, useSplitView } from '@/components/list/split-view
 import { MAX_STATUS_TABS, ViewsMenu } from '@/components/list/views-menu';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { PageHeader } from '@/components/page-header';
+import { useOpenFromUrl } from '@/components/list/open-from-url';
 import { PersonSheet, type SheetTarget } from '@/components/people/person-sheet';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
@@ -99,6 +100,7 @@ export function PeopleList<K extends PeopleKind>({
   const [adding, setAdding] = useState(false);
   const split = useSplitView(KINDS[kind].href);
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(`${kind}:${me.id}`);
+  useOpenFromUrl(canManage && allowed && !!text.add, () => setAdding(true));
   const status = params.get('status');
   const archived = canSeeArchived && params.archived;
   const filterValues = Object.fromEntries(filterKeys.map((k) => [k, params.get(k) || undefined]));

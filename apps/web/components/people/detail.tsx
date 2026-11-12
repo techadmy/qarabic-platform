@@ -6,11 +6,16 @@ import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/aler
 import { Avatar, AvatarFallback } from '@qarabic/ui/components/avatar';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@qarabic/ui/components/collapsible';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { cn } from '@qarabic/ui/lib/utils';
-import { ArchiveIcon, PencilIcon } from 'lucide-react';
+import { ArchiveIcon, ChevronDownIcon, PencilIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import type { PeopleKind } from '@/lib/api/people';
 import { statusLabel } from '@/lib/people/kinds';
@@ -52,56 +57,82 @@ export type InfoRow = { label: string; value: ReactNode; wide?: boolean };
 /**
  * A titled section of label | value pairs (docs/28 §5): a shadcn Card holding a definition list
  * with a fixed label column, empty values as «غير مسجّل», an «تعديل» shortcut in the card action.
+ * `collapsible` (D141 §7, record pages): the title becomes a shadcn `Collapsible` trigger, open by
+ * default; «تعديل» stays reachable while closed.
  */
 export function InfoSection({
   title,
   rows,
   onEdit,
   className,
+  collapsible = false,
 }: {
   title: string;
   rows: InfoRow[];
   onEdit?: () => void;
   className?: string;
+  collapsible?: boolean;
 }) {
   const t = useTranslations('people');
+  const [open, setOpen] = useState(true);
   return (
-    <Card className={cn('gap-2 shadow-none', className)}>
-      <CardHeader className="border-b">
-        <CardTitle className="text-base font-bold">{title}</CardTitle>
-        {onEdit && (
-          <CardAction>
-            <Button variant="ghost" size="sm" className="text-primary" onClick={onEdit}>
-              <PencilIcon />
-              {t('edit')}
-              <span className="sr-only">: {title}</span>
-            </Button>
-          </CardAction>
-        )}
-      </CardHeader>
-      <CardContent>
-        <dl className="divide-y">
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className={cn(
-                'grid gap-1 py-2.5',
-                row.wide ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-[9rem_1fr] sm:gap-4',
-              )}
-            >
-              <dt className="text-sm text-muted-foreground">{row.label}</dt>
-              <dd className="min-w-0 break-words">
-                {row.value === null || row.value === undefined || row.value === '' ? (
-                  <span className="text-muted-foreground">{t('notRecorded')}</span>
-                ) : (
-                  row.value
-                )}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </CardContent>
-    </Card>
+    <Collapsible open={!collapsible || open} onOpenChange={setOpen} asChild>
+      <Card className={cn('gap-2 shadow-none', collapsible && !open && 'pb-0', className)}>
+        <CardHeader className={cn((!collapsible || open) && 'border-b')}>
+          <CardTitle className="text-base font-bold">
+            {collapsible ? (
+              <CollapsibleTrigger asChild>
+                <Button
+                  variant="ghost"
+                  className="-ms-2 h-9 gap-1 px-2 text-base font-bold aria-expanded:bg-transparent hover:aria-expanded:bg-muted"
+                >
+                  <ChevronDownIcon
+                    aria-hidden
+                    className={cn('transition-transform', !open && 'ltr:-rotate-90 rtl:rotate-90')}
+                  />
+                  {title}
+                </Button>
+              </CollapsibleTrigger>
+            ) : (
+              title
+            )}
+          </CardTitle>
+          {onEdit && (
+            <CardAction>
+              <Button variant="ghost" size="sm" className="text-primary" onClick={onEdit}>
+                <PencilIcon />
+                {t('edit')}
+                <span className="sr-only">: {title}</span>
+              </Button>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CollapsibleContent asChild>
+          <CardContent>
+            <dl className="divide-y">
+              {rows.map((row) => (
+                <div
+                  key={row.label}
+                  className={cn(
+                    'grid gap-1 py-2.5',
+                    row.wide ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-[9rem_1fr] sm:gap-4',
+                  )}
+                >
+                  <dt className="text-sm text-muted-foreground">{row.label}</dt>
+                  <dd className="min-w-0 break-words">
+                    {row.value === null || row.value === undefined || row.value === '' ? (
+                      <span className="text-muted-foreground">{t('notRecorded')}</span>
+                    ) : (
+                      row.value
+                    )}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </CardContent>
+        </CollapsibleContent>
+      </Card>
+    </Collapsible>
   );
 }
 

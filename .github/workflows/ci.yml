@@ -59,6 +59,59 @@ jobs:
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/api test:e2e
 
+  web-e2e-real:
+    # The web app against the real API and a freshly seeded database (fake demo data only), so the
+    # mock-only web e2e cannot hide contract drift between the screens and the API.
+    name: Web e2e on the real API (Playwright + PostgreSQL 17)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: qarabic
+          POSTGRES_PASSWORD: qarabic
+          POSTGRES_DB: qarabic_dev
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U qarabic" --health-interval 5s --health-timeout 5s --health-retries 10
+    # No NODE_ENV here: `next build` needs its own (production); the API and the seed default to
+    # development.
+    env:
+      DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_dev
+      WEB_ORIGIN: http://localhost:3000
+      APP_URL: http://localhost:3000
+      LOG_LEVEL: warn
+      SEED_ADMIN_EMAIL: admin@example.test
+      E2E_ADMIN_EMAIL: admin@example.test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Throwaway secrets for this run
+        run: |
+          password="$(openssl rand -hex 16)"
+          echo "::add-mask::$password"
+          {
+            echo "SESSION_SECRET=$(openssl rand -hex 32)"
+            echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
+            echo "SEED_ADMIN_PASSWORD=$password"
+            echo "E2E_ADMIN_PASSWORD=$password"
+          } >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @qarabic/shared build
+      - run: pnpm --filter @qarabic/api exec prisma migrate deploy
+      - run: pnpm --filter @qarabic/api db:seed
+      - run: pnpm --filter @qarabic/web exec playwright install chromium
+      - run: pnpm --filter @qarabic/web test:e2e:real
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report-real-api
+          path: apps/web/playwright-report
+
   web-e2e:
     # Two shards (each builds the app, then runs half the specs): the full sweep of every screen at
     # three widths in two languages made one job the slowest by far.

@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority"
-import { cn } from "cn"
+import { cn } from "@qarabic/ui/lib/utils"
 import { Slot } from "radix-ui"
 
 import { Separator } from "@qarabic/ui/components/separator"

@@ -122,7 +122,8 @@
     "salaryProfiles": "ملفات الرواتب",
     "wallets": "المحافظ",
     "mySalary": "راتبي",
-    "payRules": "قواعد الأجر"
+    "payRules": "قواعد الأجر",
+    "addIn": "إضافة في «{section}»"
   },
   "home": {
     "title": "الرئيسية",
@@ -556,7 +557,13 @@
     "noChildren": "لا يوجد أبناء في هذه العائلة بعد.",
     "childrenTable": "أبناء العائلة",
     "noFamilyTitle": "لا توجد عائلة مرتبطة بحسابك",
-    "noFamily": "تواصل مع الأكاديمية لربط حسابك بعائلتك."
+    "noFamily": "تواصل مع الأكاديمية لربط حسابك بعائلتك.",
+    "tabs": {
+      "overview": "نظرة عامة",
+      "schedule": "الجدول",
+      "billing": "الفوترة",
+      "history": "السجل"
+    }
   },
   "students": {
     "title": "الطلاب",
@@ -1552,6 +1559,22 @@
       "emptyHint": "يظهر الطلاب هنا حين تسندهم الإدارة إليك.",
       "noResults": "لا نتائج مطابقة",
       "noResultsHint": "جرّب اسمًا آخر."
+    },
+    "home": {
+      "title": "مرحبًا، {name}",
+      "current": "الحصة الجارية الآن",
+      "startsIn": "تبدأ {when}",
+      "details": "تفاصيل الحصة",
+      "noNext": "لا توجد حصص قادمة",
+      "noNextHint": "تظهر حصتك التالية هنا حين تُجدول.",
+      "restOfToday": "جدول اليوم",
+      "noMoreToday": "لا توجد حصص أخرى اليوم.",
+      "openWeek": "فتح «حصصي»",
+      "upcoming": "الأيام الخمسة القادمة",
+      "facts": {
+        "today": "حصص اليوم"
+      },
+      "openMissing": "افتح الحصص بلا تقرير"
     }
   },
   "support": {
@@ -1950,7 +1973,9 @@
       "tajweed": "ملاحظات التجويد",
       "rating": "التقييم: {n} من 5",
       "hifz": "الحفظ والمراجعة",
-      "reportBy": "{teacher} · {when}"
+      "reportBy": "{teacher} · {when}",
+      "join": "ادخل الحصة",
+      "childProfile": "سجل {name} وتقدّمه"
     },
     "errors": {
       "generic": "تعذّر إتمام العملية. حاول مرة أخرى.",
@@ -3149,5 +3174,17 @@
       "createdBy": "أضافه {name}"
     },
     "pageTitle": "الرواتب"
+  },
+  "search": {
+    "trigger": "بحث في «{section}»",
+    "title": "البحث",
+    "description": "ابحث في قسم واختر نتيجة لفتح السجل.",
+    "section": "قسم البحث",
+    "placeholder": "ابحث في «{section}»…",
+    "results": "نتائج «{section}»",
+    "hint": "اكتب حرفين على الأقل.",
+    "loading": "جارٍ البحث…",
+    "error": "تعذّر البحث. حاول مرة أخرى.",
+    "none": "لا نتائج مطابقة لـ «{q}»"
   }
 }
