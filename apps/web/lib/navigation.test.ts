@@ -23,9 +23,12 @@ describe('navFor', () => {
       'supportInbox',
       'feedbackTriage',
       'myRequests',
+      'tasks',
+      'announcements',
       'users',
       'billing',
       'payroll',
+      'accounting',
       'settings',
     ]);
     expect(navItemsFor(as('admin')).map((i) => i.key)).toEqual([
@@ -39,6 +42,8 @@ describe('navFor', () => {
       'supportInbox',
       'feedbackTriage',
       'myRequests',
+      'tasks',
+      'announcements',
       'families',
       'students',
       'teachers',
@@ -50,6 +55,11 @@ describe('navFor', () => {
       'payrollRuns',
       'salaryProfiles',
       'wallets',
+      'journal',
+      'vouchers',
+      'chartOfAccounts',
+      'financialReports',
+      'periods',
       'holidays',
       'sessionSettings',
       'supportSettings',
@@ -73,6 +83,8 @@ describe('navFor', () => {
       'tests',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'families',
       'students',
       'teachers',
@@ -82,24 +94,35 @@ describe('navFor', () => {
       'holidays',
     ]);
     // Accounts (N6, N7): the invoices under «الحسابات»; attendance, pay items, runs, salary
-    // profiles and wallets under «الرواتب والحضور»; no packages, users or settings.
+    // profiles and wallets under «الرواتب والحضور»; M7 journal, vouchers and the chart under
+    // «المحاسبة»; no packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'billing',
       'payroll',
+      'accounting',
     ]);
     expect(navItemsFor(as('accounts')).map((i) => i.key)).toEqual([
       'home',
       'supportInbox',
       'myRequests',
+      'tasks',
+      'announcements',
       'invoices',
       'attendance',
       'fines',
       'payrollRuns',
       'salaryProfiles',
       'wallets',
+      'journal',
+      'vouchers',
+      'chartOfAccounts',
+      'financialReports',
+      'periods',
     ]);
   });
 
@@ -114,6 +137,7 @@ describe('navFor', () => {
       'myAttendance',
       'mySalary',
       'myRequests',
+      'announcements',
     ]);
     expect(navItemsFor(as('parent')).map((i) => i.key)).toEqual([
       'home',
@@ -121,6 +145,7 @@ describe('navFor', () => {
       'myInvoices',
       'myRequests',
       'myFamily',
+      'announcements',
     ]);
   });
 

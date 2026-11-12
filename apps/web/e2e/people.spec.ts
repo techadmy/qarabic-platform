@@ -44,6 +44,9 @@ test('family: add → in the list → profile → edit → status with reason �
     .getByRole('link', { name: 'E2E Parent' });
   await expect(row).toBeVisible();
   await row.click();
+  // From 1024 px the name opens the split view (D141 §1); the record's own page is one click on.
+  await expect(page).toHaveURL(/[?&]id=100/);
+  await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/families\/100$/);
 
   // Edit one field.
@@ -63,6 +66,8 @@ test('family: add → in the list → profile → edit → status with reason �
   await status.getByLabel(/السبب/).fill('Finished the course');
   await status.getByRole('button', { name: 'ألغِ تفعيل الحساب' }).click();
   await expect(status).toBeHidden();
+  // The status history is the profile's «السجل» tab (D141 §7).
+  await page.getByRole('tab', { name: 'السجل' }).click();
   await expect(page.getByText('من «منتظمة» إلى «غير نشطة»')).toBeVisible();
 
   // Archive with a reason → read-only banner → restore.
@@ -106,6 +111,7 @@ test('a teacher gets «طلابي» with only their students', async ({ page }) 
     'حضوري وإجازاتي',
     'راتبي',
     'طلباتي',
+    'الإعلانات',
   ]);
   await menu.getByRole('link', { name: 'طلابي' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'طلابي' })).toBeVisible();

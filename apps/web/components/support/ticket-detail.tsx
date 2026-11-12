@@ -82,6 +82,7 @@ import { useSupportError } from '@/lib/support/errors';
 import { topicLabel } from '@/lib/support/labels';
 import { PriorityBadge, QueueBadge, RestrictedBadge, SlaBadge, TicketStatusBadge } from './badges';
 import { StatusDialog } from './status-dialog';
+import { useRecordPane } from '@/components/list/split-view';
 
 const MAX_FILES = TICKET_UPLOAD_LIMITS.maxImagesPerRequest;
 const TYPES: readonly string[] = TICKET_UPLOAD_LIMITS.imageMimes;
@@ -597,6 +598,7 @@ function TriagePanel({ ticket }: { ticket: TicketDetailDto }) {
  * internal notes, the technical details and the triage panel. Opening it clears the «طلباتي» dot.
  */
 export function TicketDetailView({ id }: { id: number }) {
+  const pane = useRecordPane();
   const t = useTranslations('support.ticket');
   const ts = useTranslations('support');
   const locale = useUiLocale();
@@ -721,7 +723,13 @@ export function TicketDetailView({ id }: { id: number }) {
             <AlertDescription>{ticket.resolution}</AlertDescription>
           </Alert>
         )}
-      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div
+        className={cn(
+          'grid gap-4',
+          // In the split view's pane the columns follow the pane (D141 §1).
+          pane ? '@5xl:grid-cols-[minmax(0,1fr)_22rem]' : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
+        )}
+      >
         <div className="flex min-w-0 flex-col gap-4">
           <Section title={t('description')} id="ticket-description">
             <p className="break-words whitespace-pre-wrap">{ticket.description}</p>

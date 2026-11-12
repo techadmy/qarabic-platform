@@ -59,6 +59,8 @@ import { refreshClasses } from '@/lib/sessions/cache';
 import { conflictsOf, useClassError } from '@/lib/sessions/errors';
 import { dateKeyIn, wallTime, weekdayName } from '@/lib/schedule-time';
 import { cityOf, formatDate } from '@/lib/time';
+import { cn } from '@qarabic/ui/lib/utils';
+import { useRecordPane } from '@/components/list/split-view';
 
 type Dialog =
   | { kind: 'slot'; slot: ScheduleSlotDto | null }
@@ -73,6 +75,7 @@ type Dialog =
  * note, add / edit (versioned from a date) / end; then the next classes.
  */
 export function EnrollmentView({ id }: { id: number }) {
+  const pane = useRecordPane();
   const t = useTranslations('schedule');
   const locale = useUiLocale();
   const me = useCurrentUser();
@@ -215,7 +218,13 @@ export function EnrollmentView({ id }: { id: number }) {
         </Alert>
       )}
 
-      <div className="grid items-start gap-4 lg:grid-cols-2">
+      <div
+        className={cn(
+          'grid items-start gap-4',
+          // In the split view's pane the columns follow the pane (D141 §1).
+          pane ? '@5xl:grid-cols-2' : 'lg:grid-cols-2',
+        )}
+      >
         <InfoSection
           title={t('sections.details')}
           rows={[

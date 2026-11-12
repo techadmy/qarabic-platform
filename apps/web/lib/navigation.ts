@@ -30,6 +30,14 @@ import {
   IdCardIcon,
   ScaleIcon,
   WalletCardsIcon,
+  ListTodoIcon,
+  MegaphoneIcon,
+  BookOpenTextIcon,
+  LandmarkIcon,
+  ChartColumnIcon,
+  LockKeyholeIcon,
+  ListTreeIcon,
+  ReceiptIcon,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -71,6 +79,13 @@ export type NavKey =
   | 'wallets'
   | 'mySalary'
   | 'payRules'
+  | 'tasks'
+  | 'announcements'
+  | 'journal'
+  | 'vouchers'
+  | 'chartOfAccounts'
+  | 'financialReports'
+  | 'periods'
   | 'ticket'
   | 'account';
 
@@ -89,11 +104,16 @@ export type NavItem = {
   also?: string[];
   /** Active only on `href` itself (and `also`), not on its sub-paths («ملفات الرواتب» under /payroll). */
   exact?: boolean;
+  /**
+   * The section has a create action (D141 §6): the sidebar shows «+» beside it for users with this
+   * permission; it opens `${href}?new=1`, which the list turns into its own «add» dialog.
+   */
+  create?: string;
 };
 
 export type NavGroup = {
   /** Message key under `nav.groups`. */
-  group: 'users' | 'billing' | 'payroll' | 'settings';
+  group: 'users' | 'billing' | 'payroll' | 'accounting' | 'settings';
   icon: LucideIcon;
   items: NavItem[];
 };
@@ -103,6 +123,14 @@ export type NavEntry = NavItem | NavGroup;
 export const isGroup = (entry: NavEntry): entry is NavGroup => 'group' in entry;
 
 const HOME: NavItem = { key: 'home', href: '/', icon: LayoutDashboardIcon };
+
+/** «الإعلانات» (M8): what the academy published for the viewer's role. */
+const ANNOUNCEMENTS: NavItem = {
+  key: 'announcements',
+  href: '/announcements',
+  icon: MegaphoneIcon,
+  permission: 'announcements.view',
+};
 
 /**
  * «طلباتي» for parents and teachers (N4, docs/32 S2): support requests and class requests in one
@@ -138,6 +166,7 @@ export const STAFF_NAV: NavEntry[] = [
     href: '/leads',
     icon: UserSearchIcon,
     permission: 'leads.view',
+    create: 'leads.manage',
     badge: 'leads',
   },
   {
@@ -168,14 +197,40 @@ export const STAFF_NAV: NavEntry[] = [
     permission: 'feedback.request',
     badge: 'mineUpdates',
   },
+  { key: 'tasks', href: '/tasks', icon: ListTodoIcon, permission: 'tasks.view' },
+  ANNOUNCEMENTS,
   {
     group: 'users',
     icon: UsersIcon,
     items: [
-      { key: 'families', href: '/families', icon: UsersRoundIcon, permission: 'families.view' },
-      { key: 'students', href: '/students', icon: GraduationCapIcon, permission: 'families.view' },
-      { key: 'teachers', href: '/teachers', icon: BadgeCheckIcon, permission: 'staff.view' },
-      { key: 'staff', href: '/staff', icon: UserCogIcon, permission: 'users.view' },
+      {
+        key: 'families',
+        href: '/families',
+        icon: UsersRoundIcon,
+        permission: 'families.view',
+        create: 'families.manage',
+      },
+      {
+        key: 'students',
+        href: '/students',
+        icon: GraduationCapIcon,
+        permission: 'families.view',
+        create: 'families.manage',
+      },
+      {
+        key: 'teachers',
+        href: '/teachers',
+        icon: BadgeCheckIcon,
+        permission: 'staff.view',
+        create: 'staff.manage',
+      },
+      {
+        key: 'staff',
+        href: '/staff',
+        icon: UserCogIcon,
+        permission: 'users.view',
+        create: 'users.manage',
+      },
     ],
   },
   {
@@ -221,6 +276,42 @@ export const STAFF_NAV: NavEntry[] = [
         href: '/payroll/wallets',
         icon: WalletCardsIcon,
         permission: 'wallet.manage',
+      },
+    ],
+  },
+  {
+    group: 'accounting',
+    icon: LandmarkIcon,
+    items: [
+      {
+        key: 'journal',
+        href: '/accounting/journal',
+        icon: BookOpenTextIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'vouchers',
+        href: '/accounting/vouchers',
+        icon: ReceiptIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'chartOfAccounts',
+        href: '/accounting/accounts',
+        icon: ListTreeIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'financialReports',
+        href: '/accounting/reports',
+        icon: ChartColumnIcon,
+        permission: 'accounting.view',
+      },
+      {
+        key: 'periods',
+        href: '/accounting/periods',
+        icon: LockKeyholeIcon,
+        permission: 'accounting.view',
       },
     ],
   },
@@ -300,6 +391,7 @@ export const TEACHER_NAV: NavEntry[] = [
     also: ['/payroll/payslips'],
   },
   MY_REQUESTS,
+  ANNOUNCEMENTS,
 ];
 
 /** Parent portal: the children's classes, own requests, own family. */
@@ -314,6 +406,7 @@ export const PARENT_NAV: NavEntry[] = [
   { key: 'myInvoices', href: '/invoices', icon: ReceiptTextIcon, permission: 'invoices.view' },
   MY_REQUESTS,
   { key: 'myFamily', href: '/my-family', icon: UsersRoundIcon, permission: 'families.view' },
+  ANNOUNCEMENTS,
 ];
 
 /** Pages outside the sidebar that still name the top bar. */

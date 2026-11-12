@@ -18,6 +18,7 @@ import { loginPathFor } from '@/lib/auth/redirect';
 import { useMe } from '@/lib/auth/use-me';
 import { currentPage } from '@/lib/navigation';
 import { useSwitchLocale } from '@/hooks/use-switch-locale';
+import { GlobalSearch } from '@/components/shell/global-search';
 import { LanguageSwitch } from '@/components/language-switch';
 import { ErrorState } from '@/components/states';
 import { ContactButton } from '@/components/support/contact-button';
@@ -98,10 +99,13 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
         >
           {t('common.skipToContent')}
         </a>
-        <AppSidebar me={me} dir={dir} />
+        {/* Printing a voucher, receipt or payslip leaves out the app chrome. */}
+        <div className="contents print:hidden">
+          <AppSidebar me={me} dir={dir} />
+        </div>
         {/* min-w-0: wide tables scroll inside their own card instead of widening the page. */}
         <SidebarInset className="min-w-0">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-3 md:px-4">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-3 md:px-4 print:hidden">
             <SidebarTrigger className="size-9" aria-label={t('common.toggleSidebar')} />
             <Separator
               orientation="vertical"
@@ -117,6 +121,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
               </BreadcrumbList>
             </Breadcrumb>
             <div className="ms-auto flex shrink-0 items-center gap-1">
+              <GlobalSearch />
               <ContactButton />
               <NotificationBell />
               <LanguageSwitch persist />

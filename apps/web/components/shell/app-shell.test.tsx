@@ -36,7 +36,9 @@ describe('AppShell', () => {
     expect(menu.getByRole('button', { name: 'المستخدمون' })).toBeInTheDocument();
     expect(menu.getByRole('button', { name: 'الإعدادات' })).toBeInTheDocument();
     // Link names only (the requests item carries a pending-count badge beside it).
-    expect(menu.getAllByRole('link').map((l) => l.textContent)).toEqual([
+    // (The «+» beside a section, D141 §6, is a separate link with an aria-label.)
+    const pages = menu.getAllByRole('link').filter((l) => !l.getAttribute('aria-label'));
+    expect(pages.map((l) => l.textContent)).toEqual([
       'الرئيسية',
       'حصص اليوم',
       'الجدول',
@@ -47,6 +49,8 @@ describe('AppShell', () => {
       'صندوق الطلبات',
       'فرز البلاغات',
       'طلباتي',
+      'المهام',
+      'الإعلانات',
       'العائلات',
       'الطلاب',
       'المعلمون',
@@ -58,6 +62,11 @@ describe('AppShell', () => {
       'مسيّرات الرواتب',
       'ملفات الرواتب',
       'المحافظ',
+      'القيود اليومية',
+      'سندات القبض والصرف',
+      'دليل الحسابات',
+      'التقارير المالية',
+      'الفترات المحاسبية',
       'العطلات الرسمية',
       'إعدادات الحصص',
       'إعدادات الدعم',
@@ -77,9 +86,9 @@ describe('AppShell', () => {
     for (const [email, items] of [
       [
         'teacher@qarabic.test',
-        ['حصصي', 'طلابي', 'جدولي', 'الاختبارات', 'حضوري وإجازاتي', 'راتبي', 'طلباتي'],
+        ['حصصي', 'طلابي', 'جدولي', 'الاختبارات', 'حضوري وإجازاتي', 'راتبي', 'طلباتي', 'الإعلانات'],
       ],
-      ['parent@qarabic.test', ['حصص أبنائي', 'فواتيري', 'طلباتي', 'عائلتي']],
+      ['parent@qarabic.test', ['حصص أبنائي', 'فواتيري', 'طلباتي', 'عائلتي', 'الإعلانات']],
     ] as const) {
       mockSignIn(email);
       const { unmount } = renderShell();

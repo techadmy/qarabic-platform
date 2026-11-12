@@ -61,7 +61,10 @@ import {
   ListToolbar,
   StatusTabs,
 } from '@/components/list/list-toolbar';
+import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
+import { MAX_STATUS_TABS, ViewsMenu } from '@/components/list/views-menu';
 import { PageHeader } from '@/components/page-header';
+import { TicketDetailView } from './ticket-detail';
 import { SessionSheet } from '@/components/sessions/session-sheet';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -211,10 +214,13 @@ function TicketRow({
   item,
   ticket,
   onPanel,
+  href,
 }: {
   item: InboxItemDto;
   ticket: TicketDto;
   onPanel: (p: PanelTarget) => void;
+  /** The ticket's own page, or the split view (`?id=`) from 1024 px (D141 §1). */
+  href: string;
 }) {
   const t = useTranslations('support.inbox');
   const locale = useUiLocale();
@@ -260,7 +266,7 @@ function TicketRow({
       <div className="flex min-w-0 flex-col gap-1.5">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            href={`/tickets/${ticket.id}`}
+            href={href}
             className="font-bold text-primary hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
           >
             <bdi>{ticket.number}</bdi> · {ticket.title}
@@ -442,6 +448,7 @@ export function InboxView() {
   const me = useCurrentUser();
   const params = useListParams();
   const [panel, setPanel] = useState<PanelTarget | null>(null);
+  const split = useSplitView('/support');
   const allowed = can(me, 'support.view');
   const queueParam = params.get('queue') as TicketQueue;
   const status = (STATUS_FILTERS as readonly string[]).includes(params.get('status'))
@@ -456,7 +463,13 @@ export function InboxView() {
   const query: InboxQuery = {
     queue: TICKET_QUEUES.includes(queueParam) ? queueParam : undefined,
     status,
-    kind: kind === 'ticket' || kind === 'session_request' ? kind : undefined,
+    // The split view's narrowed list is tickets only (requests have no record view), so its count
+    // and pages are tickets' too.
+    kind: split.selectedId
+      ? 'ticket'
+      : kind === 'ticket' || kind === 'session_request'
+        ? kind
+        : undefined,
     category: category || undefined,
     priority: priority || undefined,
     assignee: assignee === 'me' || assignee === 'none' ? assignee : undefined,
@@ -495,21 +508,104 @@ export function InboxView() {
     status !== 'open'
   );
 
+  const queueOptions = [
+    { value: '', label: t('allQueues'), count: undefined as number | undefined },
+    ...queues.map((q) => {
+      const c = meta?.counts[q];
+      // The open count beside the name, the overdue count under it (in red) when there is one.
+      return {
+        value: q,
+        label: TICKET_QUEUE_LABELS[q][locale],
+        count: c?.open ?? 0,
+        hint: c?.breached ? t('breachedN', { count: c.breached }) : undefined,
+      };
+    }),
+  ];
+  // More than five queues move into the title (D141 §2); five or fewer stay tabs.
+  const useViews = queueOptions.length > MAX_STATUS_TABS;
+  const header = (
+    <PageHeader
+      title={
+        useViews ? (
+          <ViewsMenu
+            title={t('title')}
+            label={t('queues')}
+            value={query.queue ?? ''}
+            onChange={(v) => params.set({ queue: v || null })}
+            options={queueOptions}
+          />
+        ) : (
+          t('title')
+        )
+      }
+      description={t('subtitle')}
+      meta={meta ? t('count', { count: meta.total }) : undefined}
+    />
+  );
+  const search = {
+    label: t('search'),
+    placeholder: t('searchPlaceholder'),
+    value: params.searchInput,
+    onChange: params.setSearchInput,
+  };
+  const pagination = meta && rows.length > 0 && (
+    <ListPagination
+      meta={{ ...meta, counts: {} }}
+      onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
+      onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
+    />
+  );
+
+  if (split.selectedId) {
+    // Tickets have a record view; class requests are acted on in the list, so the narrowed list
+    // shows the tickets.
+    const tickets = rows.filter((r) => r.kind === 'ticket' && r.ticket);
+    return (
+      <>
+        {header}
+        <SplitView
+          selectedId={split.selectedId}
+          wide={split.wide}
+          detailLabel={t('title')}
+          onClose={split.close}
+          fullHref={`/tickets/${split.selectedId}`}
+          list={
+            <SplitList
+              rows={tickets}
+              loading={list.isPending}
+              label={t('title')}
+              emptyText={tl('noResults')}
+              getRowId={(x) => x.ticket!.id}
+              hrefFor={split.hrefFor}
+              selectedId={split.selectedId}
+              header={<ListToolbar search={search} />}
+              footer={pagination}
+              renderItem={(item) => (
+                <span className="flex flex-col gap-1">
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">
+                      <bdi>{item.ticket!.number}</bdi> · {item.ticket!.title}
+                    </span>
+                    <TicketStatusBadge status={item.ticket!.status} />
+                  </span>
+                  <SlaBadge dueAt={item.slaDueAt} state={item.slaState} />
+                </span>
+              )}
+            />
+          }
+          detail={<TicketDetailView key={split.selectedId} id={Number(split.selectedId)} />}
+        />
+        {/* The ticket view mounts its own SessionSheet for a class opened from it. */}
+      </>
+    );
+  }
+
   return (
     <>
-      <PageHeader
-        title={t('title')}
-        description={t('subtitle')}
-        meta={meta ? t('count', { count: meta.total }) : undefined}
-      />
+      {header}
       <Card className="gap-0 py-0 shadow-none">
         <ListToolbar
-          search={{
-            label: t('search'),
-            placeholder: t('searchPlaceholder'),
-            value: params.searchInput,
-            onChange: params.setSearchInput,
-          }}
+          search={search}
           filters={
             <>
               <FilterSelect
@@ -590,24 +686,14 @@ export function InboxView() {
             </>
           }
           tabs={
-            <StatusTabs
-              label={t('queues')}
-              value={query.queue ?? ''}
-              onChange={(v) => params.set({ queue: v || null })}
-              options={[
-                { value: '', label: t('allQueues'), count: undefined },
-                ...queues.map((q) => {
-                  const c = meta?.counts[q];
-                  return {
-                    value: q,
-                    label:
-                      `${TICKET_QUEUE_LABELS[q][locale]} (${c?.open ?? 0})` +
-                      (c?.breached ? ` · ${t('breachedN', { count: c.breached })}` : ''),
-                    count: undefined,
-                  };
-                }),
-              ]}
-            />
+            useViews ? undefined : (
+              <StatusTabs
+                label={t('queues')}
+                value={query.queue ?? ''}
+                onChange={(v) => params.set({ queue: v || null })}
+                options={queueOptions}
+              />
+            )
           }
         />
         {list.isError ? (
@@ -637,7 +723,15 @@ export function InboxView() {
             {rows.map((item) => (
               <li key={item.key}>
                 {item.kind === 'ticket' && item.ticket ? (
-                  <TicketRow item={item} ticket={item.ticket} onPanel={setPanel} />
+                  <TicketRow
+                    item={item}
+                    ticket={item.ticket}
+                    onPanel={setPanel}
+                    href={
+                      // Tickets live at /tickets/:id; from 1024 px they open beside the inbox.
+                      split.wide ? split.hrefFor(item.ticket.id) : `/tickets/${item.ticket.id}`
+                    }
+                  />
                 ) : item.request ? (
                   <RequestCard
                     request={item.request}
@@ -648,13 +742,7 @@ export function InboxView() {
             ))}
           </ul>
         )}
-        {meta && rows.length > 0 && (
-          <ListPagination
-            meta={{ ...meta, counts: {} }}
-            onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
-            onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
-          />
-        )}
+        {pagination}
       </Card>
       <PeoplePanel
         target={panel}

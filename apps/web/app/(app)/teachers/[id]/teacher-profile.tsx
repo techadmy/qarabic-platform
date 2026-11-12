@@ -1,5 +1,7 @@
 'use client';
 
+import { useRecordPane } from '@/components/list/split-view';
+import { cn } from '@qarabic/ui/lib/utils';
 import { countryName, GENDER_LABELS } from '@qarabic/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
@@ -17,6 +19,7 @@ import { ProfileSchedule } from '@/components/schedule/profile-schedule';
 
 /** Teacher profile: Contact · Work · Background (docs/28 §5). */
 export function TeacherProfile({ id }: { id: number }) {
+  const pane = useRecordPane();
   const t = useTranslations('teachers');
   const tp = useTranslations('people');
   const locale = useLocale() === 'en' ? 'en' : 'ar';
@@ -92,7 +95,13 @@ export function TeacherProfile({ id }: { id: number }) {
                 },
               ]}
             />
-            <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div
+              className={cn(
+                'grid items-start gap-4',
+                // In the split view's pane the columns follow the pane, not the screen (D141 §1).
+                pane ? '@5xl:grid-cols-2' : 'lg:grid-cols-2',
+              )}
+            >
               <InfoSection
                 title={tp('sections.contact')}
                 onEdit={editable ? () => edit('contact') : undefined}

@@ -42,6 +42,7 @@ import { meQueryKey } from '@/lib/auth/use-me';
 import { applyServerErrors } from '@/lib/forms/server-errors';
 import { useSchemaResolver, useValidationMessages } from '@/lib/forms/validation-messages';
 import { useSwitchLocale } from '@/hooks/use-switch-locale';
+import { PreferencesCard } from '@/components/operations/preferences-card';
 
 /**
  * «حسابي» (`/account`): own name, phone, language and time zone (`PATCH /me`), the theme
@@ -68,6 +69,7 @@ export function AccountView() {
       <div className="grid max-w-3xl gap-4">
         <ProfileCard me={me} />
         <AppearanceCard />
+        <PreferencesCard />
         <PasswordCard />
       </div>
     </>

@@ -91,6 +91,20 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
 
 /** Covered by standards.spec.ts (admin) or not a product screen. */
 const ELSEWHERE = [
+  // operations.spec.ts sweeps tasks and announcements (375/768/1440 × ar/en, axe, no overflow).
+  '/tasks',
+  '/tasks/1',
+  '/announcements',
+  // accounting.spec.ts sweeps the accounting screens (375/768/1440 × ar/en, axe, no overflow).
+  '/accounting/journal',
+  '/accounting/journal/new',
+  '/accounting/journal/1',
+  '/accounting/vouchers',
+  '/accounting/vouchers/1',
+  '/accounting/accounts',
+  '/accounting/accounts/4',
+  '/accounting/reports',
+  '/accounting/periods',
   '/',
   '/today',
   '/families',
