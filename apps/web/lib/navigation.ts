@@ -93,6 +93,11 @@ export type NavItem = {
   also?: string[];
   /** Active only on `href` itself (and `also`), not on its sub-paths («ملفات الرواتب» under /payroll). */
   exact?: boolean;
+  /**
+   * The section has a create action (D141 §6): the sidebar shows «+» beside it for users with this
+   * permission; it opens `${href}?new=1`, which the list turns into its own «add» dialog.
+   */
+  create?: string;
 };
 
 export type NavGroup = {
@@ -150,6 +155,7 @@ export const STAFF_NAV: NavEntry[] = [
     href: '/leads',
     icon: UserSearchIcon,
     permission: 'leads.view',
+    create: 'leads.manage',
     badge: 'leads',
   },
   {
@@ -186,10 +192,34 @@ export const STAFF_NAV: NavEntry[] = [
     group: 'users',
     icon: UsersIcon,
     items: [
-      { key: 'families', href: '/families', icon: UsersRoundIcon, permission: 'families.view' },
-      { key: 'students', href: '/students', icon: GraduationCapIcon, permission: 'families.view' },
-      { key: 'teachers', href: '/teachers', icon: BadgeCheckIcon, permission: 'staff.view' },
-      { key: 'staff', href: '/staff', icon: UserCogIcon, permission: 'users.view' },
+      {
+        key: 'families',
+        href: '/families',
+        icon: UsersRoundIcon,
+        permission: 'families.view',
+        create: 'families.manage',
+      },
+      {
+        key: 'students',
+        href: '/students',
+        icon: GraduationCapIcon,
+        permission: 'families.view',
+        create: 'families.manage',
+      },
+      {
+        key: 'teachers',
+        href: '/teachers',
+        icon: BadgeCheckIcon,
+        permission: 'staff.view',
+        create: 'staff.manage',
+      },
+      {
+        key: 'staff',
+        href: '/staff',
+        icon: UserCogIcon,
+        permission: 'users.view',
+        create: 'users.manage',
+      },
     ],
   },
   {

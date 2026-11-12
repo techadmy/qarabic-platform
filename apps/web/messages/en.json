@@ -124,7 +124,8 @@
     "mySalary": "My salary",
     "payRules": "Pay rules",
     "tasks": "Tasks",
-    "announcements": "Announcements"
+    "announcements": "Announcements",
+    "addIn": "Add to “{section}”"
   },
   "home": {
     "title": "Home",
@@ -558,7 +559,13 @@
     "noChildren": "No children in this family yet.",
     "childrenTable": "The family's children",
     "noFamilyTitle": "No family is linked to your account",
-    "noFamily": "Contact the academy to link your account to your family."
+    "noFamily": "Contact the academy to link your account to your family.",
+    "tabs": {
+      "overview": "Overview",
+      "schedule": "Schedule",
+      "billing": "Billing",
+      "history": "History"
+    }
   },
   "students": {
     "title": "Students",
@@ -3414,5 +3421,17 @@
       "whatsappOff": "WhatsApp notifications are not switched on for the academy yet.",
       "switchLabel": "{kind} · {channel}"
     }
+  },
+  "search": {
+    "trigger": "Search “{section}”",
+    "title": "Search",
+    "description": "Search a section and pick a result to open the record.",
+    "section": "Search section",
+    "placeholder": "Search “{section}”…",
+    "results": "“{section}” results",
+    "hint": "Type at least two characters.",
+    "loading": "Searching…",
+    "error": "Search failed. Try again.",
+    "none": "No results for “{q}”"
   }
 }
