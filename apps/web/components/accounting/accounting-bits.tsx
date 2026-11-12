@@ -32,6 +32,9 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useId } from 'react';
+import { Label } from '@qarabic/ui/components/label';
+import { DatePicker } from '@/components/forms/date-time';
 import { Combobox } from '@/components/forms/fields';
 import { ToneBadge, type Tone } from '@/components/sessions/badges';
 import { useUiLocale } from '@/components/sessions/times';
@@ -204,4 +207,64 @@ export function AccountPicker({
       searchPlaceholder={t('searchAccount')}
     />
   );
+}
+
+/**
+ * A from / to pair of shadcn date pickers in a toolbar (kept in the URL as `from` / `to`): month
+ * names (D32), the week from Saturday. A start after the end is said under the pair; the screen
+ * does not query until it is fixed.
+ */
+export function DateRangeFilters({
+  from,
+  to,
+  onChange,
+}: {
+  from: string;
+  to: string;
+  onChange: (v: { from?: string | null; to?: string | null }) => void;
+}) {
+  const t = useTranslations('accounting');
+  const ids = { from: useId(), to: useId(), error: useId() };
+  const bad = !!from && !!to && from > to;
+  return (
+    <>
+      <div className="flex min-w-40 flex-col gap-2">
+        <Label htmlFor={ids.from} className="text-sm text-muted-foreground">
+          {t('from')}
+        </Label>
+        <DatePicker
+          id={ids.from}
+          value={from}
+          invalid={bad}
+          onChange={(v) => onChange({ from: v || null })}
+        />
+      </div>
+      <div className="flex min-w-40 flex-col gap-2">
+        <Label htmlFor={ids.to} className="text-sm text-muted-foreground">
+          {t('to')}
+        </Label>
+        <DatePicker
+          id={ids.to}
+          value={to}
+          invalid={bad}
+          onChange={(v) => onChange({ to: v || null })}
+        />
+      </div>
+      {bad && (
+        <p id={ids.error} role="alert" className="basis-full text-sm text-destructive">
+          {t('badRange')}
+        </p>
+      )}
+    </>
+  );
+}
+
+/**
+ * A field error key as copy: `server.*` keys come from a 422 and use the shared `validation`
+ * messages; the others are the accounting form's own (`accounting.form.*`).
+ */
+export function useFormMessage() {
+  const t = useTranslations('accounting.form');
+  const tv = useTranslations('validation');
+  return (key: string) => (key.startsWith('server.') ? tv(key.slice(7)) : t(key));
 }

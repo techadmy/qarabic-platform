@@ -1,6 +1,7 @@
 import { JOURNAL_SOURCE_LABELS, VOUCHER_STATUS_LABELS } from '@qarabic/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { AccountsView } from '@/components/accounting/accounts-view';
 import { EntryForm } from '@/components/accounting/entry-form';
@@ -10,6 +11,7 @@ import { StatementView } from '@/components/accounting/statement-view';
 import { VoucherView } from '@/components/accounting/voucher-view';
 import { VouchersView } from '@/components/accounting/vouchers-view';
 import { accountByCode, adb } from '@/mocks/accounting-db';
+import { server } from '@/mocks/node';
 import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
 
@@ -213,4 +215,48 @@ describe('Account statement', () => {
     expect(rows.length).toBeGreaterThan(2);
     expect(screen.getByText('الرصيد الافتتاحي')).toBeInTheDocument();
   });
+});
+
+describe('Review fixes (#24)', () => {
+  it('statement: a start after the end says so instead of loading forever', async () => {
+    const bank = accountByCode('1120');
+    renderPage(<StatementView id={bank.id} />, {
+      as: ACCOUNTS,
+      path: `/accounting/accounts/${bank.id}?currency=USD&from=2026-05-01&to=2026-04-01`,
+    });
+    expect(await screen.findByRole('alert')).toHaveTextContent('تاريخ البداية بعد تاريخ النهاية');
+    expect(document.querySelector('[aria-busy="true"]')).toBeNull();
+  });
+
+  it('new entry: a 422 from the API lands on its field; leaving with lines asks first', async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.post('*/api/v1/accounting/journal', () =>
+        HttpResponse.json(
+          {
+            message: 'Invalid',
+            code: 'validation_failed',
+            errors: { 'lines.1.accountId': ['The selected account is invalid.'] },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    renderPage(<EntryForm />, { as: ACCOUNTS, path: '/accounting/journal/new' });
+    await user.type(await screen.findByLabelText(/البيان/), 'Prepaid hosting');
+    const [first, second] = within(screen.getByRole('list', { name: 'أسطر القيد' })).getAllByRole(
+      'listitem',
+    );
+    await pickAccount(user, within(first!).getByRole('combobox'), '1320');
+    await user.type(within(first!).getByLabelText('مدين · السطر 1'), '10');
+    await pickAccount(user, within(second!).getByRole('combobox'), '1120');
+    await user.type(within(second!).getByLabelText('دائن · السطر 2'), '10');
+    await user.click(screen.getByRole('button', { name: 'ترحيل القيد' }));
+    expect(await within(second!).findByText(/غير صالح|اختر قيمة/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'إلغاء' }));
+    expect(await screen.findByRole('alertdialog', { name: 'تجاهل القيد؟' })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'متابعة التعديل' }));
+    expect(routerMock.push).not.toHaveBeenCalledWith('/accounting/journal');
+  }, 40_000);
 });

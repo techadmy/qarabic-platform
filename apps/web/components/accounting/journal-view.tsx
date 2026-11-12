@@ -10,15 +10,13 @@ import {
 } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
-import { Input } from '@qarabic/ui/components/input';
-import { Label } from '@qarabic/ui/components/label';
 import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
 import { BookOpenTextIcon, PlusIcon, SearchXIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useId, useMemo } from 'react';
+import { useMemo } from 'react';
 import type { ColumnMeta } from '@/components/data-table';
 import { DataTable } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
@@ -39,55 +37,9 @@ import { isApiError } from '@/lib/api/client';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { formatDate } from '@/lib/time';
-import { Money, SourceBadge } from './accounting-bits';
+import { DateRangeFilters, Money, SourceBadge } from './accounting-bits';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-/** A from/to pair of date inputs in the toolbar (kept in the URL as `from` / `to`). */
-export function DateRangeFilters({
-  from,
-  to,
-  onChange,
-}: {
-  from: string;
-  to: string;
-  onChange: (v: { from?: string | null; to?: string | null }) => void;
-}) {
-  const t = useTranslations('accounting');
-  const ids = { from: useId(), to: useId() };
-  return (
-    <>
-      <div className="flex min-w-36 flex-col gap-1.5">
-        <Label htmlFor={ids.from} className="text-[0.8125rem] text-muted-foreground">
-          {t('from')}
-        </Label>
-        <Input
-          id={ids.from}
-          type="date"
-          dir="ltr"
-          value={from}
-          max={to || undefined}
-          onChange={(e) => onChange({ from: e.target.value || null })}
-          className="h-10 bg-card text-start"
-        />
-      </div>
-      <div className="flex min-w-36 flex-col gap-1.5">
-        <Label htmlFor={ids.to} className="text-[0.8125rem] text-muted-foreground">
-          {t('to')}
-        </Label>
-        <Input
-          id={ids.to}
-          type="date"
-          dir="ltr"
-          value={to}
-          min={from || undefined}
-          onChange={(e) => onChange({ to: e.target.value || null })}
-          className="h-10 bg-card text-start"
-        />
-      </div>
-    </>
-  );
-}
 
 /**
  * «القيود اليومية» (M7, docs/07 §أ): every journal entry, newest first — manual entries, vouchers,
@@ -110,7 +62,6 @@ export function JournalView() {
     : '';
   const from = DATE.test(params.get('from')) ? params.get('from') : '';
   const to = DATE.test(params.get('to')) ? params.get('to') : '';
-  const accountId = Number(params.get('account')) || undefined;
 
   const query: Partial<JournalListQuery> = {
     q: params.q || undefined,
@@ -118,7 +69,6 @@ export function JournalView() {
     currency: currency || undefined,
     from: from || undefined,
     to: to || undefined,
-    accountId,
     page: params.page,
     perPage: params.perPage,
   };
@@ -130,7 +80,7 @@ export function JournalView() {
   });
   const rows = useMemo(() => list.data?.data ?? [], [list.data]);
   const meta = list.data?.meta;
-  const filtersOn = !!(params.q || currency || from || to || accountId);
+  const filtersOn = !!(params.q || currency || from || to);
   const href = (x: JournalEntryRowDto) => `/accounting/journal/${x.id}`;
 
   const columns = useMemo<ColumnDef<JournalEntryRowDto, unknown>[]>(
@@ -188,7 +138,7 @@ export function JournalView() {
 
   const clearFilters = () => {
     params.setSearchInput('');
-    params.set({ q: null, currency: null, from: null, to: null, account: null });
+    params.set({ q: null, currency: null, from: null, to: null });
   };
   const newEntry = manage && (
     <Button className="h-10" asChild>
@@ -234,11 +184,11 @@ export function JournalView() {
               value={source ?? ''}
               onChange={(v) => params.set({ source: v || null })}
               options={[
-                { value: '', label: t('journal.all'), count: undefined },
+                { value: '', label: t('journal.all'), count: meta?.counts.all },
                 ...JOURNAL_SOURCES.map((s) => ({
                   value: s,
                   label: JOURNAL_SOURCE_LABELS[s][locale],
-                  count: undefined,
+                  count: meta?.counts[s],
                 })),
               ]}
             />
@@ -283,7 +233,7 @@ export function JournalView() {
             getRowId={(x) => x.id}
             getRowHref={href}
             renderCard={(x) => (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <bdi className="font-semibold text-primary">{x.number}</bdi>
                   <SourceBadge source={x.source} />

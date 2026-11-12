@@ -28,8 +28,7 @@ import { can } from '@/lib/auth/use-me';
 import { minorOf } from '@/lib/billing/money';
 import { useListParams } from '@/lib/list-params';
 import { formatDate } from '@/lib/time';
-import { accountLabel, CurrencySelect, Money } from './accounting-bits';
-import { DateRangeFilters } from './journal-view';
+import { accountLabel, CurrencySelect, DateRangeFilters, Money } from './accounting-bits';
 import { FileSearchIcon } from 'lucide-react';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -98,7 +97,7 @@ export function StatementView({ id }: { id: number }) {
     <div className="flex flex-col gap-4">
       <PageHeader title={title} description={t('statement.hint')} back={back} />
       <Card className="flex-row flex-wrap items-end gap-3 p-4 shadow-none">
-        <div className="flex min-w-32 flex-col gap-1.5">
+        <div className="flex min-w-32 flex-col gap-2">
           <Label htmlFor={currencyId} className="text-[0.8125rem] text-muted-foreground">
             {t('fields.currency')}
           </Label>
@@ -110,7 +109,7 @@ export function StatementView({ id }: { id: number }) {
         </div>
         <DateRangeFilters from={from} to={to} onChange={(v) => params.set(v)} />
       </Card>
-      {query.isError ? (
+      {from > to ? null : query.isError ? (
         <ErrorState onRetry={() => void query.refetch()} />
       ) : !s ? (
         <ProfileSkeleton />

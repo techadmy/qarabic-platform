@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { checkJournal, checkVoucher, emptyLine, emptyVoucherLine, monthBounds } from './forms';
+import { createJournalEntrySchema } from '@qarabic/shared';
+import {
+  checkJournal,
+  checkVoucher,
+  emptyLine,
+  emptyVoucherLine,
+  monthBounds,
+  serverFieldErrors,
+  sharedSchemaErrors,
+} from './forms';
 
 const line = (accountId: number | null, debit = '', credit = '') => ({
   ...emptyLine(),
@@ -98,4 +107,29 @@ describe('checkVoucher', () => {
 it('monthBounds: first and last day of the month', () => {
   expect(monthBounds('2026-02-14')).toEqual({ from: '2026-02-01', to: '2026-02-28' });
   expect(monthBounds('2026-12-31')).toEqual({ from: '2026-12-01', to: '2026-12-31' });
+});
+
+describe('shared schema gate and server errors', () => {
+  it('a 422 lands on its field, lines by the sent order', async () => {
+    const { ApiError } = await import('@/lib/api/client');
+    const error = new ApiError(422, {
+      message: 'Invalid',
+      code: 'validation_failed',
+      errors: { memo: ['The memo field is required.'], 'lines.1.accountId': ['Invalid.'] },
+    });
+    expect(serverFieldErrors(error, ['a', 'b'])).toEqual({
+      errors: { memo: 'server.required' },
+      lineErrors: { b: { accountId: 'server.invalidChoice' } },
+    });
+    expect(serverFieldErrors(new Error('boom'))).toBeNull();
+  });
+
+  it('the shared schema refuses what the local checks miss (a 4-letter currency)', () => {
+    const out = sharedSchemaErrors(
+      createJournalEntrySchema,
+      { date: '2026-11-12', currency: 'USDX', memo: 'ok memo', lines: [] },
+      [],
+    );
+    expect(out.errors).toMatchObject({ currency: 'invalid', lines: 'invalid' });
+  });
 });

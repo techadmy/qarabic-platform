@@ -9,6 +9,7 @@ import { PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useId, useState } from 'react';
+import { DatePicker } from '@/components/forms/date-time';
 import { toast } from 'sonner';
 import { FormDialog } from '@/components/payroll/payroll-bits';
 import { useUiLocale } from '@/components/sessions/times';
@@ -18,6 +19,8 @@ import {
   checkVoucher,
   emptyVoucherLine,
   type VoucherForm,
+  serverFieldErrors,
+  type PlacedErrors,
   type VoucherLineForm,
 } from '@/lib/accounting/forms';
 import { formatMinor } from '@/lib/billing/money';
@@ -28,6 +31,7 @@ import {
   FormRow,
   NUMBER_INPUT,
   useAccountingError,
+  useFormMessage,
 } from './accounting-bits';
 
 function VoucherLine({
@@ -38,7 +42,6 @@ function VoucherLine({
   errors,
   onChange,
   onRemove,
-  canRemove,
 }: {
   line: VoucherLineForm;
   index: number;
@@ -47,9 +50,9 @@ function VoucherLine({
   errors: { accountId?: string; amount?: string } | undefined;
   onChange: (patch: Partial<VoucherLineForm>) => void;
   onRemove: () => void;
-  canRemove: boolean;
 }) {
   const t = useTranslations('accounting');
+  const msg = useFormMessage();
   const n = index + 1;
   const ids = { account: useId(), amount: useId(), desc: useId() };
   return (
@@ -59,7 +62,7 @@ function VoucherLine({
           id={ids.account}
           label={type === 'payment' ? t('voucher.expenseAccount') : t('voucher.incomeAccount')}
           required
-          error={errors?.accountId ? t(`form.${errors.accountId}`) : null}
+          error={errors?.accountId ? msg(errors.accountId) : null}
         >
           <AccountPicker
             id={ids.account}
@@ -74,7 +77,7 @@ function VoucherLine({
           id={ids.amount}
           label={t('fields.amount')}
           required
-          error={errors?.amount ? t(`form.${errors.amount}`) : null}
+          error={errors?.amount ? msg(errors.amount) : null}
         >
           <Input
             id={ids.amount}
@@ -104,7 +107,6 @@ function VoucherLine({
           type="button"
           variant="ghost"
           size="icon-lg"
-          disabled={!canRemove}
           onClick={onRemove}
           aria-label={t('entry.removeLine', { n })}
         >
@@ -157,6 +159,8 @@ export function VoucherDialog({
     lines: [emptyVoucherLine()],
   }));
   const [touched, setTouched] = useState(false);
+  const [server, setServer] = useState<PlacedErrors | null>(null);
+  const msg = useFormMessage();
   const check = checkVoucher(form);
   const save = useMutation({
     mutationFn: createVoucher,
@@ -166,12 +170,20 @@ export function VoucherDialog({
       onOpenChange(false);
       router.push(`/accounting/vouchers/${v.id}`);
     },
+    onError: (e) => setServer(serverFieldErrors(e, check.lineKeys)),
   });
-  const err = (k: keyof typeof check.errors) =>
-    touched && check.errors[k] ? t(`form.${check.errors[k]}`) : null;
-  const set = (patch: Partial<VoucherForm>) => setForm((f) => ({ ...f, ...patch }));
-  const setLine = (key: string, patch: Partial<VoucherLineForm>) =>
+  const err = (k: string) => {
+    const key = (touched ? check.errors[k] : undefined) ?? server?.errors[k];
+    return key ? msg(key) : null;
+  };
+  const set = (patch: Partial<VoucherForm>) => {
+    setServer(null);
+    setForm((f) => ({ ...f, ...patch }));
+  };
+  const setLine = (key: string, patch: Partial<VoucherLineForm>) => {
+    setServer(null);
     setForm((f) => ({ ...f, lines: f.lines.map((l) => (l.key === key ? { ...l, ...patch } : l)) }));
+  };
   const receipt = form.type === 'receipt';
 
   return (
@@ -183,19 +195,22 @@ export function VoucherDialog({
       description={receipt ? t('voucher.receiptHint') : t('voucher.paymentHint')}
       submitLabel={t('voucher.post', { amount: formatMinor(check.total, form.currency, locale) })}
       busy={save.isPending}
-      error={save.isError ? message(save.error) : null}
+      error={save.isError && !server ? message(save.error) : null}
       summary={touched && !check.body ? t('form.fixErrors') : null}
       onSubmit={() => {
         setTouched(true);
         if (check.body) save.mutate(check.body);
       }}
     >
-      <FormRow id={ids.type} label={t('voucher.type')} required>
+      <fieldset className="flex flex-col gap-2">
+        <legend id={ids.type} className="mb-1 font-semibold">
+          {t('voucher.type')}
+        </legend>
         <ToggleGroup
-          id={ids.type}
           type="single"
           variant="outline"
           dir={dir}
+          aria-labelledby={ids.type}
           value={form.type}
           onValueChange={(v) => v && set({ type: v as VoucherType })}
           className="w-full"
@@ -206,17 +221,14 @@ export function VoucherDialog({
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
-      </FormRow>
+      </fieldset>
       <div className="grid gap-4 sm:grid-cols-2">
         <FormRow id={ids.date} label={t('fields.date')} required error={err('date')}>
-          <Input
+          <DatePicker
             id={ids.date}
-            type="date"
-            dir="ltr"
             value={form.date}
-            onChange={(e) => set({ date: e.target.value })}
-            aria-invalid={!!err('date')}
-            className={NUMBER_INPUT}
+            onChange={(date) => set({ date })}
+            invalid={!!err('date')}
           />
         </FormRow>
         <FormRow id={ids.currency} label={t('fields.currency')} required error={err('currency')}>
@@ -308,20 +320,34 @@ export function VoucherDialog({
               index={i}
               currency={form.currency}
               type={form.type}
-              errors={touched ? check.lineErrors[l.key] : undefined}
+              errors={
+                touched || server
+                  ? { ...(touched ? check.lineErrors[l.key] : {}), ...server?.lineErrors[l.key] }
+                  : undefined
+              }
               onChange={(patch) => setLine(l.key, patch)}
-              onRemove={() => set({ lines: form.lines.filter((x) => x.key !== l.key) })}
-              canRemove={form.lines.length > 1}
+              onRemove={() =>
+                form.lines.length > 1
+                  ? set({ lines: form.lines.filter((x) => x.key !== l.key) })
+                  : toast.info(t('voucher.minLines'))
+              }
             />
           ))}
         </ol>
-        {err('lines') && <p className="text-sm text-destructive">{err('lines')}</p>}
+        {err('lines') && (
+          <p role="alert" className="text-sm text-destructive">
+            {err('lines')}
+          </p>
+        )}
         <Button
           type="button"
           variant="outline"
           className="h-10 self-start"
-          disabled={form.lines.length >= 50}
-          onClick={() => set({ lines: [...form.lines, emptyVoucherLine()] })}
+          onClick={() =>
+            form.lines.length >= 50
+              ? toast.info(t('voucher.maxLines'))
+              : set({ lines: [...form.lines, emptyVoucherLine()] })
+          }
         >
           <PlusIcon />
           {t('entry.addLine')}

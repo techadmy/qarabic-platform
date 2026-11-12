@@ -40,8 +40,7 @@ import { isApiError } from '@/lib/api/client';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { formatDate } from '@/lib/time';
-import { Money, VoucherStatusBadge, VoucherTypeBadge } from './accounting-bits';
-import { DateRangeFilters } from './journal-view';
+import { DateRangeFilters, Money, VoucherStatusBadge, VoucherTypeBadge } from './accounting-bits';
 import { VoucherDialog } from './voucher-dialog';
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -269,7 +268,7 @@ export function VouchersView() {
             getRowId={(x) => x.id}
             getRowHref={href}
             renderCard={(x) => (
-              <div className="flex flex-col gap-1.5">
+              <div className="flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
                   <span className="min-w-0 font-semibold text-primary">{x.party}</span>
                   <VoucherTypeBadge type={x.type} />

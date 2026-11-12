@@ -3198,7 +3198,15 @@
       "totalCredit": "Total credit",
       "difference": "Difference",
       "post": "Post entry",
-      "posted": "Entry {number} posted."
+      "posted": "Entry {number} posted.",
+      "fieldOfLine": "{field} · line {n}",
+      "minLines": "An entry needs at least two lines.",
+      "maxLines": "An entry has at most 100 lines.",
+      "discardTitle": "Discard this entry?",
+      "discardHint": "This entry is not posted; the lines you entered will be lost.",
+      "keepEditing": "Keep editing",
+      "discard": "Discard entry",
+      "createdLine": "{name} · {when}"
     },
     "vouchers": {
       "title": "Receipts and payments",
@@ -3241,7 +3249,9 @@
       "voidTitle": "Void voucher {number}?",
       "voidHint": "A reversing entry is posted today and the voucher stays in the books as “Void”. This cannot be undone.",
       "voided": "Voucher {number} voided.",
-      "voidNote": "This voucher was voided on {when}. Reason: {reason}"
+      "voidNote": "This voucher was voided on {when}. Reason: {reason}",
+      "minLines": "A voucher needs at least one line.",
+      "maxLines": "A voucher has at most 50 lines."
     },
     "accounts": {
       "title": "Chart of accounts",
@@ -3303,7 +3313,9 @@
       "descriptionRequired": "Write the description (at least 3 characters).",
       "codeInvalid": "The account code is digits only (up to 10).",
       "nameRequired": "Write the name (at least 2 characters).",
-      "fixErrors": "Fix the marked fields, then try again."
+      "fixErrors": "Fix the marked fields, then try again.",
+      "invalid": "This value is not valid.",
+      "codeTaken": "This account code is already in use."
     },
     "errors": {
       "generic": "Something went wrong. Try again.",
@@ -3311,6 +3323,7 @@
       "notFound": "The record was not found.",
       "forbidden": "You do not have permission for this.",
       "invalid": "Some data is not valid. Check the fields."
-    }
+    },
+    "badRange": "The start date is after the end date. Fix the period."
   }
 }
