@@ -98,7 +98,8 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
           {t('common.skipToContent')}
         </a>
         <AppSidebar me={me} dir={dir} />
-        <SidebarInset>
+        {/* min-w-0: wide tables scroll inside their own card instead of widening the page. */}
+        <SidebarInset className="min-w-0">
           <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-2 border-b bg-card px-3 md:px-4">
             <SidebarTrigger className="size-9" aria-label={t('common.toggleSidebar')} />
             <Separator
