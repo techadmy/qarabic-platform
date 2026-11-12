@@ -109,10 +109,8 @@ const ELSEWHERE = [
  * Known layout bugs, reported to their owner and listed in docs/31: the sideways-scroll check is
  * skipped there (and fails once the page fits, so the entry gets removed). Key: `path@width`.
  */
-const KNOWN_OVERFLOW: Record<string, string> = {
-  '/students/1@768': 'student profile overflows at tablet width (docs/31)',
-  '/teachers/1@768': 'teacher profile overflows at tablet width (docs/31)',
-};
+// The student and teacher profiles at 768 px were here until main fixed them (2026-11-12).
+const KNOWN_OVERFLOW: Record<string, string> = {};
 
 async function overflowOf(page: Page) {
   return page.evaluate(

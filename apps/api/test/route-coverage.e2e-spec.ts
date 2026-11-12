@@ -360,6 +360,36 @@ describe('route permission coverage', () => {
     });
   });
 
+  it('every M7 accounting route needs accounting.view to read and accounting.manage to write', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expectDocumented(byRoute, {
+      'GET accounting/accounts': 'all:accounting.view',
+      'GET accounting/accounts/:id': 'all:accounting.view',
+      'GET accounting/accounts/:id/statement': 'all:accounting.view',
+      'GET accounting/journal': 'all:accounting.view',
+      'GET accounting/journal/:id': 'all:accounting.view',
+      'GET accounting/outbox': 'all:accounting.view',
+      'GET accounting/periods': 'all:accounting.view',
+      'GET accounting/reports/balance-sheet': 'all:accounting.view',
+      'GET accounting/reports/cash': 'all:accounting.view',
+      'GET accounting/reports/profit-and-loss': 'all:accounting.view',
+      'GET accounting/reports/trial-balance': 'all:accounting.view',
+      'GET accounting/vouchers': 'all:accounting.view',
+      'GET accounting/vouchers/:id': 'all:accounting.view',
+      'PATCH accounting/accounts/:id': 'all:accounting.manage',
+      'POST accounting/accounts': 'all:accounting.manage',
+      'POST accounting/journal': 'all:accounting.manage',
+      'POST accounting/journal/:id/reverse': 'all:accounting.manage',
+      'POST accounting/outbox/process': 'all:accounting.manage',
+      'POST accounting/periods/:period/close': 'all:accounting.manage',
+      'POST accounting/periods/:period/reopen': 'all:accounting.manage',
+      'POST accounting/vouchers': 'all:accounting.manage',
+      'POST accounting/vouchers/:id/void': 'all:accounting.manage',
+    });
+  });
+
   it('every permission route is pinned in one of the maps above (add new routes there)', (ctx2) => {
     // The maps fill `documented` as they run; a filtered run (-t) has nothing to compare.
     if (documented.size === 0) ctx2.skip();
