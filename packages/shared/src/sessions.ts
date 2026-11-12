@@ -294,6 +294,17 @@ export const sessionSchema = z.object({
    * (`editableUntil`, a taken class only; staff with `sessions.manage` edit at any time).
    */
   report: z.object({ submitted: z.boolean(), editableUntil: z.string().nullable() }),
+  /**
+   * N7 pay snapshot (D41/D56), taken when the stage is decided: pay hours (factor × duration),
+   * the rule key and billable. Only for viewers with `payroll.view` or `sessions.manage`.
+   */
+  pay: z
+    .object({
+      hours: z.string().nullable(),
+      ruleKey: z.string().nullable(),
+      billable: z.boolean().nullable(),
+    })
+    .optional(),
   attention: z.array(z.string()),
   pendingRequests: z.array(z.object({ id: z.number().int(), type: z.string() })),
   /** What the viewer may do now (the server runs the same guards as the transition). */

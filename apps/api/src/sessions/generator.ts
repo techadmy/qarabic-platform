@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { SessionStage } from '@qarabic/shared';
 import { Clock } from '../common/clock.js';
 import type { Enrollment, Prisma, ScheduleSlot } from '../generated/prisma/client.js';
+import { PayRuleEngine } from '../payroll/pay-rules.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { holidayOn } from '../schedule/conflicts.js';
 import { LIVE_ENROLLMENT } from '../schedule/scope.js';
@@ -75,6 +76,7 @@ export class SessionGenerator {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly clock: Clock,
+    private readonly pay: PayRuleEngine,
   ) {}
 
   async run(options: GenerateOptions = {}): Promise<GenerateResult> {
@@ -128,7 +130,21 @@ export class SessionGenerator {
           }
           const [stage, reason] = await this.desiredState(slot.enrollment, startsAt, isHoliday);
           if (stage === 'cancelled') result.cancelledByRule += 1;
-          rows.push(this.row(slot, date, startsAt, stage, reason, now));
+          const row = this.row(slot, date, startsAt, stage, reason, now);
+          // N7: a class born cancelled (holiday, paused) carries its pay snapshot (paid holiday).
+          if (stage === 'cancelled' && !dry) {
+            Object.assign(
+              row,
+              await this.pay.snapshot({
+                kind: slot.enrollment.kind,
+                stage,
+                stageReason: reason,
+                durationMinutes: slot.durationMinutes,
+                startsAt: new Date(startsAt),
+              }),
+            );
+          }
+          rows.push(row);
           previews.push(preview(slot, startsAt, stage, reason));
         }
       }

@@ -84,6 +84,8 @@ describe('sessions API (SessionsApiTest)', () => {
         'zoom',
         'evidence',
         'report',
+        // N7: the pay snapshot, for `payroll.view` / `sessions.manage` viewers.
+        'pay',
         'attention',
         'pendingRequests',
         'allowedActions',
