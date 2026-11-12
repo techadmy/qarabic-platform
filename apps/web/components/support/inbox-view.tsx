@@ -721,7 +721,10 @@ export function InboxView() {
                     item={item}
                     ticket={item.ticket}
                     onPanel={setPanel}
-                    href={split.hrefFor(item.ticket.id)}
+                    href={
+                      // Tickets live at /tickets/:id; from 1024 px they open beside the inbox.
+                      split.wide ? split.hrefFor(item.ticket.id) : `/tickets/${item.ticket.id}`
+                    }
                   />
                 ) : item.request ? (
                   <RequestCard
