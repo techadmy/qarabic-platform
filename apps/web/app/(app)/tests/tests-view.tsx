@@ -55,9 +55,9 @@ const TILE_TAB: Record<(typeof TILES)[number], Tab> = {
   refused: 'refused',
 };
 const TILE_TEXT: Partial<Record<(typeof TILES)[number], string>> = {
-  taken: 'text-emerald-700 dark:text-emerald-400',
-  remaining: 'text-sky-700 dark:text-sky-400',
-  refused: 'text-red-700 dark:text-red-400',
+  taken: 'text-status-green-emphasis',
+  remaining: 'text-status-sky-emphasis',
+  refused: 'text-status-red-emphasis',
 };
 
 function shiftMonth(month: string, by: number): string {

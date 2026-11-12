@@ -326,7 +326,7 @@ function Submitted({ item: r, now }: { item: ReportListItemDto; now: Date }) {
   const overdue = Date.parse(r.dueAt) < now.getTime();
   return (
     <span
-      className={overdue ? 'text-sm font-semibold text-red-700 dark:text-red-400' : 'text-sm'}
+      className={overdue ? 'text-sm font-semibold text-status-red-emphasis' : 'text-sm'}
       title={dayAndClock(r.dueAt, tz, locale)}
     >
       {overdue
