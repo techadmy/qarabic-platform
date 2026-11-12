@@ -33,7 +33,10 @@ export function CollapsibleSummary({
     <Collapsible open={open} onOpenChange={setOpen} className="flex flex-col gap-2">
       <div className="flex flex-wrap items-center gap-x-2">
         <CollapsibleTrigger asChild>
-          <Button variant="ghost" className="h-9 gap-1 px-2 font-semibold">
+          <Button
+            variant="ghost"
+            className="h-9 gap-1 px-2 font-semibold aria-expanded:bg-transparent hover:aria-expanded:bg-muted"
+          >
             <ChevronDownIcon
               aria-hidden
               className={cn('transition-transform', !open && 'ltr:-rotate-90 rtl:rotate-90')}
