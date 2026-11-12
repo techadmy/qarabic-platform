@@ -75,6 +75,19 @@ jobs:
           name: playwright-report
           path: apps/web/playwright-report
 
+  deploy-scripts:
+    name: Deploy scripts (shellcheck + harness + nginx -t)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nginx-core shellcheck
+      - run: shellcheck -x -P SCRIPTDIR *.sh tests/*.sh anonymise/*.sh
+        working-directory: deploy
+      - run: bash deploy/tests/deploy.test.sh
+
   audit:
     name: Dependency audit
     runs-on: ubuntu-latest
