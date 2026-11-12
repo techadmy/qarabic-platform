@@ -14,7 +14,13 @@ import { ChevronDownIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useDirection } from '@/lib/use-direction';
 
-export type ViewOption = { value: string; label: string; count?: number };
+export type ViewOption = {
+  value: string;
+  label: string;
+  count?: number;
+  /** A short alert after the view, e.g. «متأخرة: 2» on a support queue. */
+  hint?: string;
+};
 
 /** More than this many statuses → a views menu on the title instead of tabs (D141 §2). */
 export const MAX_STATUS_TABS = 5;
@@ -58,6 +64,9 @@ export function ViewsMenu({
                 (<bdi>{current.count}</bdi>)
               </span>
             )}
+            {current?.hint && (
+              <span className="text-sm font-semibold text-destructive">{current.hint}</span>
+            )}
             <span className="sr-only">{t('viewsChange')}</span>
             <ChevronDownIcon aria-hidden className="size-5" />
           </Button>
@@ -68,7 +77,10 @@ export function ViewsMenu({
           <DropdownMenuRadioGroup value={value} onValueChange={onChange}>
             {options.map((o) => (
               <DropdownMenuRadioItem key={o.value} value={o.value} className="gap-4">
-                <span>{o.label}</span>
+                <span className="flex flex-col">
+                  <span>{o.label}</span>
+                  {o.hint && <span className="text-caption text-destructive">{o.hint}</span>}
+                </span>
                 {o.count !== undefined && (
                   <span className="ms-auto text-muted-foreground tabular-nums">
                     <bdi>{o.count}</bdi>
