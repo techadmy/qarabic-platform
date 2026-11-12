@@ -51,6 +51,12 @@ for (const [size, viewport] of Object.entries(sizes)) {
     await shot(page, 'accounts', size);
     await open(page, '/accounting/accounts/4');
     await shot(page, 'statement', size);
+    for (const r of ['trial-balance', 'profit-and-loss', 'balance-sheet', 'cash']) {
+      await open(page, `/accounting/reports?report=${r}&from=2000-01-01&to=2100-12-31`);
+      await shot(page, `report-${r}`, size);
+    }
+    await open(page, '/accounting/periods');
+    await shot(page, 'periods', size);
     await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
     await open(page, '/accounting/journal');
     await shot(page, 'journal-en', size);

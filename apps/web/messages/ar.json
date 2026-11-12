@@ -126,7 +126,9 @@
     "payRules": "قواعد الأجر",
     "journal": "القيود اليومية",
     "vouchers": "سندات القبض والصرف",
-    "chartOfAccounts": "دليل الحسابات"
+    "chartOfAccounts": "دليل الحسابات",
+    "financialReports": "التقارير المالية",
+    "periods": "الفترات المحاسبية"
   },
   "home": {
     "title": "الرئيسية",
@@ -3311,6 +3313,84 @@
       "notFound": "لم يُعثر على السجل.",
       "forbidden": "ليست لديك صلاحية لهذا الإجراء.",
       "invalid": "البيانات غير صحيحة. راجع الحقول."
+    },
+    "reports": {
+      "title": "التقارير المالية",
+      "trial-balance": "ميزان المراجعة",
+      "profit-and-loss": "قائمة الدخل",
+      "balance-sheet": "الميزانية العمومية",
+      "tb": {
+        "opening": "الرصيد الافتتاحي",
+        "period": "حركة الفترة",
+        "closing": "الرصيد الختامي"
+      },
+      "total": "الإجمالي",
+      "balanced": "متوازن",
+      "notBalanced": "غير متوازن",
+      "noRows": "لا توجد أرصدة.",
+      "totalIncome": "إجمالي الإيرادات",
+      "totalExpense": "إجمالي المصروفات",
+      "netProfit": "صافي الربح",
+      "netLoss": "صافي الخسارة",
+      "totalAssets": "إجمالي الأصول",
+      "totalLiabilities": "إجمالي الخصوم",
+      "totalEquity": "إجمالي حقوق الملكية",
+      "retainedEarnings": "أرباح الفترات حتى التاريخ",
+      "totalLiabilitiesAndEquity": "إجمالي الخصوم وحقوق الملكية",
+      "cashIn": "النقدية بعملة {currency}",
+      "noCash": "لا توجد حركات نقدية",
+      "noCashHint": "غيّر العملة أو الفترة.",
+      "asOf": "في تاريخ",
+      "asOfLine": "في {date}",
+      "rangeLine": "من {from} إلى {to}",
+      "badRange": "تاريخ البداية بعد تاريخ النهاية. صحّح الفترة.",
+      "perCurrencyNote": "تُمسك الدفاتر بكل عملة على حدة، ولا تُحوَّل المبالغ بين العملات.",
+      "cashCols": {
+        "opening": "رصيد أول المدة",
+        "inflow": "المقبوضات",
+        "outflow": "المدفوعات",
+        "closing": "رصيد آخر المدة"
+      },
+      "cash": "النقدية"
+    },
+    "periods": {
+      "title": "الفترات المحاسبية",
+      "description": "إقفال الشهر يمنع أي قيد بتاريخ داخله. يُقفل الشهر بعد انتهائه وبعد ترحيل كل قيوده التلقائية.",
+      "prevYear": "السنة السابقة",
+      "nextYear": "السنة التالية",
+      "tableLabel": "شهور سنة {year}",
+      "month": "الشهر",
+      "status": "الحالة",
+      "entries": "عدد القيود",
+      "closedBy": "أُقفل بواسطة",
+      "actions": "الإجراءات",
+      "current": "الشهر الحالي",
+      "close": "إقفال الفترة",
+      "reopen": "إعادة فتح",
+      "reopenedBecause": "أُعيد فتحه: {reason}",
+      "closeTitle": "إقفال فترة {month}؟",
+      "closeHint": "لن يُقبل بعد الإقفال أي قيد أو سند أو إلغاء بتاريخ داخل هذا الشهر حتى يُعاد فتحه.",
+      "reopenTitle": "إعادة فتح فترة {month}؟",
+      "reopenHint": "اكتب سبب إعادة الفتح؛ يُحفظ في سجل الفترة.",
+      "reason": "السبب",
+      "cancel": "إلغاء",
+      "closed": "أُقفلت فترة {month}.",
+      "reopened": "أُعيد فتح فترة {month}.",
+      "entriesCount": "{count, plural, zero {لا قيود} one {قيد واحد} two {قيدان} few {# قيود} many {# قيدًا} other {# قيد}}"
+    },
+    "outbox": {
+      "title": "القيود التلقائية المنتظرة",
+      "hint": "تُرحَّل قيود الفواتير والرواتب تلقائيًا كل 5 دقائق.",
+      "processNow": "رحّل الآن",
+      "processed": "رُحِّل {posted} وتعذّر {failed}.",
+      "pending": {
+        "billing": "من الفواتير",
+        "payroll": "من الرواتب"
+      },
+      "oldest": "أقدم قيد منتظر",
+      "failed": "تعذّر ترحيلها",
+      "failures": "قيود تعذّر ترحيلها",
+      "attempts": "{count, plural, one {محاولة واحدة} two {محاولتان} few {# محاولات} many {# محاولة} other {# محاولة}}، آخرها {when}"
     }
   }
 }

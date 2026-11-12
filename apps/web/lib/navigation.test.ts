@@ -54,6 +54,8 @@ describe('navFor', () => {
       'journal',
       'vouchers',
       'chartOfAccounts',
+      'financialReports',
+      'periods',
       'holidays',
       'sessionSettings',
       'supportSettings',
@@ -109,6 +111,8 @@ describe('navFor', () => {
       'journal',
       'vouchers',
       'chartOfAccounts',
+      'financialReports',
+      'periods',
     ]);
   });
 
