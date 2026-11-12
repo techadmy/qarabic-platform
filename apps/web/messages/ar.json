@@ -1552,6 +1552,22 @@
       "emptyHint": "يظهر الطلاب هنا حين تسندهم الإدارة إليك.",
       "noResults": "لا نتائج مطابقة",
       "noResultsHint": "جرّب اسمًا آخر."
+    },
+    "home": {
+      "title": "مرحبًا، {name}",
+      "current": "الحصة الجارية الآن",
+      "startsIn": "تبدأ {when}",
+      "details": "تفاصيل الحصة",
+      "noNext": "لا توجد حصص قادمة",
+      "noNextHint": "تظهر حصتك التالية هنا حين تُجدول.",
+      "restOfToday": "جدول اليوم",
+      "noMoreToday": "لا توجد حصص أخرى اليوم.",
+      "openWeek": "فتح «حصصي»",
+      "upcoming": "الأيام الخمسة القادمة",
+      "facts": {
+        "today": "حصص اليوم"
+      },
+      "openMissing": "افتح الحصص بلا تقرير"
     }
   },
   "support": {
@@ -1950,7 +1966,9 @@
       "tajweed": "ملاحظات التجويد",
       "rating": "التقييم: {n} من 5",
       "hifz": "الحفظ والمراجعة",
-      "reportBy": "{teacher} · {when}"
+      "reportBy": "{teacher} · {when}",
+      "join": "ادخل الحصة",
+      "childProfile": "سجل {name} وتقدّمه"
     },
     "errors": {
       "generic": "تعذّر إتمام العملية. حاول مرة أخرى.",
