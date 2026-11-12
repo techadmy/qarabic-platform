@@ -259,7 +259,7 @@ export function RecordPaymentDialog({
           maxLength={191}
           value={reference}
           onChange={(e) => setReference(e.target.value)}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <FormRow id={ids.note} label={tp('note')}>
@@ -270,7 +270,7 @@ export function RecordPaymentDialog({
           maxLength={1000}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="md:text-[0.9375rem]"
+          className="md:text-body"
         />
       </FormRow>
     </FormDialog>
@@ -383,7 +383,7 @@ export function LineDialog({
           onChange={(e) => setV((s) => ({ ...s, reason: e.target.value }))}
           aria-invalid={!!err('reason')}
           aria-required
-          className="md:text-[0.9375rem]"
+          className="md:text-body"
         />
       </FormRow>
     </FormDialog>
@@ -566,7 +566,7 @@ export function SplitDialog({
           onChange={(e) => setReason(e.target.value)}
           aria-invalid={touched && !!check.errors.reason}
           aria-required
-          className="md:text-[0.9375rem]"
+          className="md:text-body"
         />
       </FormRow>
     </FormDialog>
@@ -628,7 +628,7 @@ export function ManualInvoiceDialog({
           onChange={(e) => setV((s) => ({ ...s, description: e.target.value }))}
           aria-invalid={!!err('description')}
           aria-required
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <FormRow id={ids.amount} label={tm('amount', { currency })} required error={err('amount')}>

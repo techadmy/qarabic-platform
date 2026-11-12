@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { cn } from "cn"
+import { cn } from "@qarabic/ui/lib/utils"
 import { Dialog as SheetPrimitive } from "radix-ui"
 
 import { Button } from "@qarabic/ui/components/button"

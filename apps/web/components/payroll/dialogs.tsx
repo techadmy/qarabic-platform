@@ -97,7 +97,7 @@ function ChoiceSelect<T extends string>({
 }) {
   return (
     <Select value={value} onValueChange={(v) => onChange(v as T)}>
-      <SelectTrigger id={id} className="h-10! w-full md:text-[0.9375rem]">
+      <SelectTrigger id={id} className="h-10! w-full md:text-body">
         <SelectValue />
       </SelectTrigger>
       <SelectContent position="popper">
@@ -140,7 +140,7 @@ function ReasonField({
         aria-invalid={!!error}
         aria-required={required || undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="md:text-[0.9375rem]"
+        className="md:text-body"
       />
     </FormRow>
   );
@@ -343,7 +343,7 @@ export function MarkDayDialog({
           maxLength={1000}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <ReasonField
@@ -849,7 +849,7 @@ export function ProfileDialog({
           maxLength={500}
           value={v.notes}
           onChange={(e) => set('notes', e.target.value)}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       {profile && (
@@ -860,7 +860,7 @@ export function ProfileDialog({
             maxLength={500}
             value={v.reason}
             onChange={(e) => set('reason', e.target.value)}
-            className="h-10 md:text-[0.9375rem]"
+            className="h-10 md:text-body"
           />
         </FormRow>
       )}
