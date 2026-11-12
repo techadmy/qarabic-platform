@@ -122,7 +122,9 @@
     "salaryProfiles": "Salary profiles",
     "wallets": "Wallets",
     "mySalary": "My salary",
-    "payRules": "Pay rules"
+    "payRules": "Pay rules",
+    "tasks": "Tasks",
+    "announcements": "Announcements"
   },
   "home": {
     "title": "Home",
@@ -3121,5 +3123,171 @@
       "createdBy": "Added by {name}"
     },
     "pageTitle": "Payroll"
+  },
+  "operations": {
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "notFound": "The record was not found.",
+      "forbidden": "You do not have permission for this.",
+      "invalid": "Some data is not valid. Check the fields."
+    },
+    "tasks": {
+      "title": "Tasks",
+      "detailTitle": "Task",
+      "count": "{count, plural, =0 {No tasks} one {# task} other {# tasks}}",
+      "new": "New task",
+      "boxes": "Task boxes",
+      "searchLabel": "Search tasks",
+      "search": "Search by task title or details",
+      "allPriorities": "All priorities",
+      "overdueOnly": "Overdue only",
+      "statusTabs": "Task status",
+      "open": "Open",
+      "all": "All",
+      "overdue": "Overdue",
+      "comments": "{count, plural, one {# comment} other {# comments}}",
+      "from": "From: {name}",
+      "to": "To: {name}",
+      "clear": "Clear filters",
+      "noResults": "No matching tasks",
+      "noResultsHint": "Change the search or the filters.",
+      "empty": "No tasks here",
+      "emptyHint": {
+        "given": "Tasks your colleagues give you show here.",
+        "issued": "Tasks you give to others show here.",
+        "all": "No tasks with this status."
+      },
+      "fields": {
+        "title": "Task",
+        "description": "Details",
+        "assignee": "Assignee",
+        "createdBy": "Given by",
+        "priority": "Priority",
+        "due": "Due",
+        "dueDate": "Due date",
+        "dueTime": "Time",
+        "status": "Status",
+        "subject": "About"
+      },
+      "newTitle": "New task",
+      "editTitle": "Edit task",
+      "aboutSubject": "About: {label}",
+      "save": "Save changes",
+      "create": "Give task",
+      "saved": "Changes saved.",
+      "created": "Task given to {name}.",
+      "template": "From a template",
+      "templateHint": "Fills the title, details, priority and due date.",
+      "noTemplate": "No template",
+      "defaultTime": "5:00 PM if left empty.",
+      "pickAssignee": "Choose a staff member",
+      "searchAssignee": "Search by name",
+      "form": {
+        "titleRequired": "Write the task title (at least 3 characters).",
+        "assigneeRequired": "Choose who does it.",
+        "fixErrors": "Fix the marked fields, then try again."
+      },
+      "actions": "Task actions",
+      "details": "Task details",
+      "closeReason": "Close reason",
+      "action": {
+        "submit": "Mark as done",
+        "complete": "Confirm done",
+        "reopen": "Reopen",
+        "reassign": "Give to someone else",
+        "edit": "Edit",
+        "close": "Close task"
+      },
+      "confirm": {
+        "submit": "Hand in “{title}”?",
+        "complete": "Confirm “{title}” is done?",
+        "reopen": "Reopen “{title}”?",
+        "close": "Close “{title}” without doing it?"
+      },
+      "hint": {
+        "submit": "The task goes to whoever gave it for review. You may add a note.",
+        "complete": "The task is recorded as completed.",
+        "reopen": "The task goes back to the assignee as pending.",
+        "close": "The task closes undone and the reason is kept in its history."
+      },
+      "done": {
+        "submit": "Task handed in for review.",
+        "complete": "Task confirmed as done.",
+        "reopen": "Task reopened.",
+        "close": "Task closed."
+      },
+      "reason": "Reason",
+      "note": "Note (optional)",
+      "reassignTitle": "Give the task to someone else",
+      "reassignHint": "Now with {name}. The task goes back to pending with the new person.",
+      "reassign": "Give",
+      "newAssignee": "New assignee",
+      "reassigned": "Task given to {name}.",
+      "timelineTitle": "Task history",
+      "addComment": "Add a comment",
+      "send": "Send",
+      "commentAdded": "Comment added.",
+      "timeline": {
+        "system": "System",
+        "created": "{by} created the task",
+        "commented": "{by}",
+        "updated": "{by} edited the task",
+        "reassigned": "{by} gave the task to {to}",
+        "status": "{by}: {status}"
+      },
+      "subject": {
+        "family": "Family #{id}",
+        "student": "Student #{id}",
+        "teacher": "Teacher #{id}",
+        "lead": "Lead #{id}",
+        "session": "Class #{id}",
+        "invoice": "Invoice #{id}"
+      }
+    },
+    "announcements": {
+      "title": "Announcements",
+      "currentTab": "Current",
+      "manageTitle": "Manage announcements",
+      "unreadOnly": "Unread only",
+      "empty": "No current announcements",
+      "noUnread": "You have read every announcement",
+      "emptyHint": "Academy announcements for you show here.",
+      "pinned": "Pinned",
+      "new": "New",
+      "markRead": "Mark as read",
+      "statusTabs": "Announcement status",
+      "all": "All",
+      "actions": "Actions",
+      "everyone": "Everyone",
+      "until": "until {date}",
+      "publish": "Publish",
+      "published": "Announcement published and the audience notified.",
+      "archived": "Announcement archived.",
+      "editOf": "Edit {title}",
+      "archiveOf": "Archive {title}",
+      "newTitle": "New announcement",
+      "editTitle": "Edit announcement",
+      "newHint": "It is saved as a draft; publish it from the list.",
+      "save": "Save changes",
+      "saveDraft": "Save draft",
+      "saved": "Changes saved.",
+      "drafted": "Draft saved.",
+      "audienceHint": "Leave every role unticked to reach everyone.",
+      "expiresHint": "The announcement disappears after this day.",
+      "fields": {
+        "title": "Title",
+        "body": "Text",
+        "audience": "Audience",
+        "expires": "Ends on",
+        "pinned": "Pin to the top",
+        "status": "Status",
+        "reads": "Read by"
+      },
+      "form": {
+        "titleRequired": "Write the title (at least 3 characters).",
+        "bodyRequired": "Write the text (at least 3 characters).",
+        "fixErrors": "Fix the marked fields, then try again."
+      }
+    }
   }
 }
