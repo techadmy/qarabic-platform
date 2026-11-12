@@ -129,7 +129,7 @@ export function FamiliesView() {
       filters={(params) => (
         <>
           <div className="flex min-w-48 flex-col gap-1.5">
-            <Label htmlFor="filter-country" className="text-[0.8125rem] text-muted-foreground">
+            <Label htmlFor="filter-country" className="text-caption text-muted-foreground">
               {tp('fields.country')}
             </Label>
             <Combobox

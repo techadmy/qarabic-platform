@@ -318,7 +318,7 @@ function ChoiceButton({ label, onClick }: { label: string; onClick: () => void }
     <Item variant="outline" asChild className="min-h-12 hover:bg-subtle">
       <button type="button" onClick={onClick} className="text-start">
         <ItemContent>
-          <ItemTitle className="text-[0.9375rem]">{label}</ItemTitle>
+          <ItemTitle className="text-body">{label}</ItemTitle>
         </ItemContent>
         <ItemActions>
           <ChevronLeftIcon aria-hidden className="size-4 ltr:rotate-180" />
@@ -346,15 +346,15 @@ function StudentSearch({ onPick }: { onPick: (b: Behalf) => void }) {
   return (
     <div className="flex flex-col gap-3">
       <p className="text-muted-foreground">{t('intro')}</p>
-      <Command shouldFilter={false} className="rounded-lg border">
+      {/* cmdk names its input from `label` (an aria-label on the input is overridden). */}
+      <Command shouldFilter={false} label={t('search')} className="rounded-lg border">
         <CommandInput
           value={input}
           onValueChange={setInput}
           placeholder={t('placeholder')}
-          aria-label={t('search')}
           autoFocus
         />
-        <CommandList>
+        <CommandList label={t('results')}>
           {!students.isPending && <CommandEmpty>{t('none')}</CommandEmpty>}
           <CommandGroup>
             {rows.map((s) => (

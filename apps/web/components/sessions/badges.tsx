@@ -42,27 +42,19 @@ import { displayStage, type DisplayStage } from '@/lib/sessions/board';
 
 /**
  * Class chips (docs/15 §5.14, D35): the old system's hues, always icon + text, the English term in
- * the tooltip. shadcn `Badge` (outline) with the same tints as the People status chips.
+ * the tooltip. shadcn `Badge` (outline) with the `--status-*` tones (globals.css; one place for both themes).
  */
 export const TONES = {
-  green:
-    'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900 dark:bg-emerald-950 dark:text-emerald-300',
-  amber:
-    'border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
-  orange:
-    'border-orange-200 bg-orange-50 text-orange-900 dark:border-orange-900 dark:bg-orange-950 dark:text-orange-300',
-  red: 'border-red-200 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300',
-  darkRed:
-    'border-rose-300 bg-rose-50 text-rose-900 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300',
-  purple:
-    'border-violet-200 bg-violet-50 text-violet-800 dark:border-violet-900 dark:bg-violet-950 dark:text-violet-300',
-  lightBlue:
-    'border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900 dark:bg-sky-950 dark:text-sky-300',
-  brown:
-    'border-amber-300 bg-orange-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300',
-  indigo:
-    'border-indigo-200 bg-indigo-50 text-indigo-800 dark:border-indigo-900 dark:bg-indigo-950 dark:text-indigo-300',
-  teal: 'border-teal-200 bg-teal-50 text-teal-800 dark:border-teal-900 dark:bg-teal-950 dark:text-teal-300',
+  green: 'border-status-green-border bg-status-green text-status-green-foreground',
+  amber: 'border-status-amber-border bg-status-amber text-status-amber-foreground',
+  orange: 'border-status-orange-border bg-status-orange text-status-orange-foreground',
+  red: 'border-status-red-border bg-status-red text-status-red-foreground',
+  darkRed: 'border-status-rose-border bg-status-rose text-status-rose-foreground',
+  purple: 'border-status-violet-border bg-status-violet text-status-violet-foreground',
+  lightBlue: 'border-status-sky-border bg-status-sky text-status-sky-foreground',
+  brown: 'border-status-brown-border bg-status-brown text-status-brown-foreground',
+  indigo: 'border-status-indigo-border bg-status-indigo text-status-indigo-foreground',
+  teal: 'border-status-teal-border bg-status-teal text-status-teal-foreground',
   neutral: 'border-border bg-muted text-foreground',
   grey: 'border-border bg-muted text-muted-foreground',
 } as const;
@@ -112,7 +104,7 @@ export function ToneBadge({
     <Badge
       variant="outline"
       title={title}
-      className={cn('h-6 rounded-md px-2 text-[0.8125rem] font-medium', TONES[tone], className)}
+      className={cn('h-6 rounded-md px-2 text-caption font-medium', TONES[tone], className)}
     >
       {Icon && <Icon aria-hidden />}
       {label}

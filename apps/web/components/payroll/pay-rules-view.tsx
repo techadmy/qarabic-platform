@@ -321,7 +321,7 @@ function RuleSetDialog({ base, onClose }: { base: PayRuleSetDto; onClose: () => 
           maxLength={255}
           value={note}
           onChange={(e) => setNote(e.target.value)}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
     </FormDialog>

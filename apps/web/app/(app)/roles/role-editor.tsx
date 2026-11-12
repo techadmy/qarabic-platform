@@ -388,7 +388,7 @@ function RoleForm({
         </CardHeader>
         <CardContent className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5 sm:max-w-sm">
-            <label htmlFor="matrix-search" className="text-[0.8125rem] text-muted-foreground">
+            <label htmlFor="matrix-search" className="text-caption text-muted-foreground">
               {t('editor.search')}
             </label>
             <InputGroup className="h-10">
