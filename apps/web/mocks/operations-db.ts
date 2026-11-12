@@ -61,7 +61,7 @@ export type AnnouncementRow = {
   createdAt: string;
   readBy: Set<number>;
 };
-export type PrefRow = { inApp: boolean; email: boolean; whatsapp: boolean };
+export type PrefRow = { inApp: boolean; email: boolean; push: boolean; whatsapp: boolean };
 
 export const STAFF = {
   admin: { id: 1, name: 'مدير النظام' },
