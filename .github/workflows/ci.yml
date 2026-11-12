@@ -60,8 +60,14 @@ jobs:
       - run: pnpm --filter @qarabic/api test:e2e
 
   web-e2e:
-    name: Web e2e (Playwright)
+    # Two shards (each builds the app, then runs half the specs): the full sweep of every screen at
+    # three widths in two languages made one job the slowest by far.
+    name: Web e2e (Playwright ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -72,16 +78,18 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/web exec playwright install chromium
+      - run: pnpm --filter @qarabic/web test:e2e --shard=${{ matrix.shard }}/2
+      # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets
+      # (once: on the first shard).
       - run: pnpm --filter @qarabic/web test:e2e
-      # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets.
-      - run: pnpm --filter @qarabic/web test:e2e
+        if: matrix.shard == 1
         env:
           E2E_BASE_PATH: /app
           E2E_PORT: '3250'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report
 
   deploy-scripts:
