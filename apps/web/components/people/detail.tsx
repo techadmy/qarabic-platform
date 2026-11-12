@@ -1,5 +1,6 @@
 'use client';
 
+import { useRecordPane } from '@/components/list/split-view';
 import type { ArchiveInfo, StatusHistoryEntry } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Avatar, AvatarFallback } from '@qarabic/ui/components/avatar';
@@ -37,8 +38,10 @@ export function ProfileAvatar({ name }: { name: string }) {
 
 /** Key facts under the header (docs/28 §5): up to four shadcn Cards with a value and its label. */
 export function KeyFacts({ items }: { items: { label: string; value: ReactNode }[] }) {
+  // Inside the split view's pane the facts follow the pane's width (D141 §1).
+  const pane = useRecordPane();
   return (
-    <dl className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <dl className={cn('grid grid-cols-2 gap-3', pane ? '@3xl:grid-cols-4' : 'lg:grid-cols-4')}>
       {items.map((item) => (
         <Card key={item.label} size="sm" className="gap-1 px-4 shadow-none">
           <dt className="order-2 text-sm text-muted-foreground">{item.label}</dt>
