@@ -40,7 +40,7 @@ export function TeacherSide({
         })}
       </span>
       {dst && (
-        <span className="inline-flex items-center gap-1 font-medium text-amber-800 dark:text-amber-300">
+        <span className="inline-flex items-center gap-1 font-medium text-status-brown-emphasis">
           <SunMoonIcon aria-hidden className="size-4" />
           {t('dstNote')}
         </span>

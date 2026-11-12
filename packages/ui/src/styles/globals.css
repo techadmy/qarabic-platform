@@ -46,6 +46,48 @@
   --color-warning-border: var(--warning-border);
   --color-warning-hover: var(--warning-hover);
   --color-warning-active: var(--warning-active);
+  --color-rating: var(--rating);
+  --color-rating-border: var(--rating-border);
+  --color-status-green: var(--status-green);
+  --color-status-green-foreground: var(--status-green-foreground);
+  --color-status-green-border: var(--status-green-border);
+  --color-status-green-emphasis: var(--status-green-emphasis);
+  --color-status-amber: var(--status-amber);
+  --color-status-amber-foreground: var(--status-amber-foreground);
+  --color-status-amber-border: var(--status-amber-border);
+  --color-status-amber-emphasis: var(--status-amber-emphasis);
+  --color-status-orange: var(--status-orange);
+  --color-status-orange-foreground: var(--status-orange-foreground);
+  --color-status-orange-border: var(--status-orange-border);
+  --color-status-orange-emphasis: var(--status-orange-emphasis);
+  --color-status-red: var(--status-red);
+  --color-status-red-foreground: var(--status-red-foreground);
+  --color-status-red-border: var(--status-red-border);
+  --color-status-red-emphasis: var(--status-red-emphasis);
+  --color-status-rose: var(--status-rose);
+  --color-status-rose-foreground: var(--status-rose-foreground);
+  --color-status-rose-border: var(--status-rose-border);
+  --color-status-rose-emphasis: var(--status-rose-emphasis);
+  --color-status-violet: var(--status-violet);
+  --color-status-violet-foreground: var(--status-violet-foreground);
+  --color-status-violet-border: var(--status-violet-border);
+  --color-status-violet-emphasis: var(--status-violet-emphasis);
+  --color-status-sky: var(--status-sky);
+  --color-status-sky-foreground: var(--status-sky-foreground);
+  --color-status-sky-border: var(--status-sky-border);
+  --color-status-sky-emphasis: var(--status-sky-emphasis);
+  --color-status-brown: var(--status-brown);
+  --color-status-brown-foreground: var(--status-brown-foreground);
+  --color-status-brown-border: var(--status-brown-border);
+  --color-status-brown-emphasis: var(--status-brown-emphasis);
+  --color-status-indigo: var(--status-indigo);
+  --color-status-indigo-foreground: var(--status-indigo-foreground);
+  --color-status-indigo-border: var(--status-indigo-border);
+  --color-status-indigo-emphasis: var(--status-indigo-emphasis);
+  --color-status-teal: var(--status-teal);
+  --color-status-teal-foreground: var(--status-teal-foreground);
+  --color-status-teal-border: var(--status-teal-border);
+  --color-status-teal-emphasis: var(--status-teal-emphasis);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
@@ -54,6 +96,10 @@
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
   --font-sans: var(--font-sans);
+  /* Type scale additions (docs/standards/design-tokens.md): 15px body (the current app's MUI body1)
+     and 13px captions / table headers. Size only: the line height is inherited, as before. */
+  --text-body: 0.9375rem;
+  --text-caption: 0.8125rem;
 }
 
 /*
@@ -107,6 +153,54 @@
   --warning-border: oklch(87.9% 0.169 91.605);
   --warning-hover: oklch(96.2% 0.059 95.617);
   --warning-active: oklch(92.4% 0.12 95.746);
+  /* Rating stars (lesson-report scores): amber 400 fill, 500 outline; same in both themes. */
+  --rating: oklch(82.8% 0.189 84.429);
+  --rating-border: oklch(76.9% 0.188 70.08);
+  /* Status tones (class, people, request, billing and payroll chips; Today tile numbers): the old
+     system's colour language, one place for both themes (docs/standards/design-tokens.md).
+     Per tone: fill, text (foreground), border, emphasis (a number or icon on a card).
+     Values are Tailwind palette steps (named in the comment); contrast is checked by
+     apps/web/test/status-tokens.test.ts. */
+  --status-green: oklch(97.9% 0.021 166.113); /* emerald-50 */
+  --status-green-foreground: oklch(43.2% 0.095 166.913); /* emerald-800 */
+  --status-green-border: oklch(90.5% 0.093 164.15); /* emerald-200 */
+  --status-green-emphasis: oklch(50.8% 0.118 165.612); /* emerald-700 */
+  --status-amber: oklch(98.7% 0.022 95.277); /* amber-50 */
+  --status-amber-foreground: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --status-amber-border: oklch(92.4% 0.12 95.746); /* amber-200 */
+  --status-amber-emphasis: oklch(55.5% 0.163 48.998); /* amber-700 */
+  --status-orange: oklch(98% 0.016 73.684); /* orange-50 */
+  --status-orange-foreground: oklch(40.8% 0.123 38.172); /* orange-900 */
+  --status-orange-border: oklch(90.1% 0.076 70.697); /* orange-200 */
+  --status-orange-emphasis: oklch(55.3% 0.195 38.402); /* orange-700 */
+  --status-red: oklch(97.1% 0.013 17.38); /* red-50 */
+  --status-red-foreground: oklch(44.4% 0.177 26.899); /* red-800 */
+  --status-red-border: oklch(88.5% 0.062 18.334); /* red-200 */
+  --status-red-emphasis: oklch(50.5% 0.213 27.518); /* red-700 */
+  --status-rose: oklch(96.9% 0.015 12.422); /* rose-50 */
+  --status-rose-foreground: oklch(41% 0.159 10.272); /* rose-900 */
+  --status-rose-border: oklch(81% 0.117 11.638); /* rose-300 */
+  --status-rose-emphasis: oklch(45.5% 0.188 13.697); /* rose-800 */
+  --status-violet: oklch(96.9% 0.016 293.756); /* violet-50 */
+  --status-violet-foreground: oklch(43.2% 0.232 292.759); /* violet-800 */
+  --status-violet-border: oklch(89.4% 0.057 293.283); /* violet-200 */
+  --status-violet-emphasis: oklch(49.1% 0.27 292.581); /* violet-700 */
+  --status-sky: oklch(97.7% 0.013 236.62); /* sky-50 */
+  --status-sky-foreground: oklch(44.3% 0.11 240.79); /* sky-800 */
+  --status-sky-border: oklch(90.1% 0.058 230.902); /* sky-200 */
+  --status-sky-emphasis: oklch(50% 0.134 242.749); /* sky-700 */
+  --status-brown: oklch(98% 0.016 73.684); /* orange-50 */
+  --status-brown-foreground: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --status-brown-border: oklch(87.9% 0.169 91.605); /* amber-300 */
+  --status-brown-emphasis: oklch(47.3% 0.137 46.201); /* amber-800 */
+  --status-indigo: oklch(96.2% 0.018 272.314); /* indigo-50 */
+  --status-indigo-foreground: oklch(39.8% 0.195 277.366); /* indigo-800 */
+  --status-indigo-border: oklch(87% 0.065 274.039); /* indigo-200 */
+  --status-indigo-emphasis: oklch(45.7% 0.24 277.023); /* indigo-700 */
+  --status-teal: oklch(98.4% 0.014 180.72); /* teal-50 */
+  --status-teal-foreground: oklch(43.7% 0.078 188.216); /* teal-800 */
+  --status-teal-border: oklch(91% 0.096 180.426); /* teal-200 */
+  --status-teal-emphasis: oklch(51.1% 0.096 186.391); /* teal-700 */
 }
 
 .dark {
@@ -149,6 +243,49 @@
   --warning-border: oklch(41.4% 0.112 45.904);
   --warning-hover: oklch(41.4% 0.112 45.904);
   --warning-active: oklch(41.4% 0.112 45.904);
+  --rating: oklch(82.8% 0.189 84.429);
+  --rating-border: oklch(76.9% 0.188 70.08);
+  /* Status tones, dark: 950 fill, 900 border, 300 text, 400 emphasis. */
+  --status-green: oklch(26.2% 0.051 172.552); /* emerald-950 */
+  --status-green-foreground: oklch(84.5% 0.143 164.978); /* emerald-300 */
+  --status-green-border: oklch(37.8% 0.077 168.94); /* emerald-900 */
+  --status-green-emphasis: oklch(76.5% 0.177 163.223); /* emerald-400 */
+  --status-amber: oklch(27.9% 0.077 45.635); /* amber-950 */
+  --status-amber-foreground: oklch(87.9% 0.169 91.605); /* amber-300 */
+  --status-amber-border: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --status-amber-emphasis: oklch(82.8% 0.189 84.429); /* amber-400 */
+  --status-orange: oklch(26.6% 0.079 36.259); /* orange-950 */
+  --status-orange-foreground: oklch(83.7% 0.128 66.29); /* orange-300 */
+  --status-orange-border: oklch(40.8% 0.123 38.172); /* orange-900 */
+  --status-orange-emphasis: oklch(75% 0.183 55.934); /* orange-400 */
+  --status-red: oklch(25.8% 0.092 26.042); /* red-950 */
+  --status-red-foreground: oklch(80.8% 0.114 19.571); /* red-300 */
+  --status-red-border: oklch(39.6% 0.141 25.723); /* red-900 */
+  --status-red-emphasis: oklch(70.4% 0.191 22.216); /* red-400 */
+  --status-rose: oklch(27.1% 0.105 12.094); /* rose-950 */
+  --status-rose-foreground: oklch(81% 0.117 11.638); /* rose-300 */
+  --status-rose-border: oklch(41% 0.159 10.272); /* rose-900 */
+  --status-rose-emphasis: oklch(71.2% 0.194 13.428); /* rose-400 */
+  --status-violet: oklch(28.3% 0.141 291.089); /* violet-950 */
+  --status-violet-foreground: oklch(81.1% 0.111 293.571); /* violet-300 */
+  --status-violet-border: oklch(38% 0.189 293.745); /* violet-900 */
+  --status-violet-emphasis: oklch(70.2% 0.183 293.541); /* violet-400 */
+  --status-sky: oklch(29.3% 0.066 243.157); /* sky-950 */
+  --status-sky-foreground: oklch(82.8% 0.111 230.318); /* sky-300 */
+  --status-sky-border: oklch(39.1% 0.09 240.876); /* sky-900 */
+  --status-sky-emphasis: oklch(74.6% 0.16 232.661); /* sky-400 */
+  --status-brown: oklch(27.9% 0.077 45.635); /* amber-950 */
+  --status-brown-foreground: oklch(87.9% 0.169 91.605); /* amber-300 */
+  --status-brown-border: oklch(41.4% 0.112 45.904); /* amber-900 */
+  --status-brown-emphasis: oklch(82.8% 0.189 84.429); /* amber-400 */
+  --status-indigo: oklch(25.7% 0.09 281.288); /* indigo-950 */
+  --status-indigo-foreground: oklch(78.5% 0.115 274.713); /* indigo-300 */
+  --status-indigo-border: oklch(35.9% 0.144 278.697); /* indigo-900 */
+  --status-indigo-emphasis: oklch(67.3% 0.182 276.935); /* indigo-400 */
+  --status-teal: oklch(27.7% 0.046 192.524); /* teal-950 */
+  --status-teal-foreground: oklch(85.5% 0.138 181.071); /* teal-300 */
+  --status-teal-border: oklch(38.6% 0.063 188.416); /* teal-900 */
+  --status-teal-emphasis: oklch(77.7% 0.152 181.912); /* teal-400 */
 }
 
 /*
@@ -173,7 +310,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     /* Current app: 15px body text (MUI body1). Components keep their own sizes. */
-    font-size: 0.9375rem;
+    font-size: var(--text-body);
     line-height: 1.5;
   }
   :lang(ar) body {

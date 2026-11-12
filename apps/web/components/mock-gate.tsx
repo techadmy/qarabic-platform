@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type ReactNode } from 'react';
+import { BASE_PATH } from '@/lib/base-path';
 
 const MOCKS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_MOCKS === 'true';
 
@@ -8,7 +9,11 @@ let starting: Promise<unknown> | null = null;
 function startMocks() {
   // Once per page load, also under React strict mode's double effects.
   starting ??= import('@/mocks/browser').then(({ worker }) =>
-    worker.start({ onUnhandledRequest: 'bypass', quiet: true }),
+    worker.start({
+      onUnhandledRequest: 'bypass',
+      quiet: true,
+      serviceWorker: { url: `${BASE_PATH}/mockServiceWorker.js` },
+    }),
   );
   return starting;
 }

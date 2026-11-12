@@ -37,6 +37,10 @@ jobs:
           POSTGRES_USER: qarabic
           POSTGRES_PASSWORD: qarabic
           POSTGRES_DB: qarabic_test
+          # Not UTC on purpose: the API must store instants correctly whatever the server zone is
+          # (test/db-timezone.e2e-spec.ts).
+          TZ: Africa/Cairo
+          PGTZ: Africa/Cairo
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U qarabic" --health-interval 5s --health-timeout 5s --health-retries 10
@@ -56,8 +60,14 @@ jobs:
       - run: pnpm --filter @qarabic/api test:e2e
 
   web-e2e:
-    name: Web e2e (Playwright)
+    # Two shards (each builds the app, then runs half the specs): the full sweep of every screen at
+    # three widths in two languages made one job the slowest by far.
+    name: Web e2e (Playwright ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -68,12 +78,32 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/web exec playwright install chromium
+      - run: pnpm --filter @qarabic/web test:e2e --shard=${{ matrix.shard }}/2
+      # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets
+      # (once: on the first shard).
       - run: pnpm --filter @qarabic/web test:e2e
+        if: matrix.shard == 1
+        env:
+          E2E_BASE_PATH: /app
+          E2E_PORT: '3250'
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report
+
+  deploy-scripts:
+    name: Deploy scripts (shellcheck + harness + nginx -t)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - run: sudo apt-get update -q && sudo apt-get install -y -q nginx-core shellcheck
+      - run: shellcheck -x -P SCRIPTDIR *.sh tests/*.sh anonymise/*.sh
+        working-directory: deploy
+      - run: bash deploy/tests/deploy.test.sh
 
   audit:
     name: Dependency audit

@@ -6,6 +6,7 @@ import { FamiliesView } from '@/app/(app)/families/families-view';
 import { FamilyProfile } from '@/app/(app)/families/[id]/family-profile';
 import { TeacherProfile } from '@/app/(app)/teachers/[id]/teacher-profile';
 import { server } from '@/mocks/node';
+import { db as people } from '@/mocks/people-db';
 import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
 
@@ -57,6 +58,8 @@ describe('Add / edit sheet', () => {
     await user.click(await screen.findByRole('option', { name: /المملكة المتحدة \(\+44\)/ }));
     await user.type(within(sheet).getByLabelText(/^الهاتف/), '07700 900555');
     await user.click(within(sheet).getByRole('combobox', { name: /المنطقة الزمنية/ }));
+    // The cmdk listbox is named in the UI language, not cmdk's English «Suggestions».
+    expect(await screen.findByRole('listbox', { name: 'الخيارات' })).toBeInTheDocument();
     await user.type(await screen.findByPlaceholderText('ابحث باسم المدينة'), 'لندن');
     await user.click(await screen.findByRole('option', { name: /لندن/ }));
     await user.click(screen.getByRole('button', { name: 'إنشاء' }));
@@ -101,6 +104,32 @@ describe('Add / edit sheet', () => {
     ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'متابعة التعديل' }));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+  // Bug from the real-API e2e: a family converted from a lead without a phone could not be edited
+  // at all — the untouched empty phone failed the phone rule and blocked «حفظ».
+  it('edits a family that has no phone (converted from a lead) without asking for one', async () => {
+    people.families.find((f) => f.id === 2)!.phone = null;
+    let body: unknown = null;
+    server.use(
+      http.patch('*/api/v1/families/2', async ({ request }) => {
+        body = await request.json();
+        return HttpResponse.json({ message: 'stop', code: 'generic' }, { status: 500 });
+      }),
+    );
+    renderPage(<FamilyProfile id={2} />, { path: '/families/2' });
+    const { user, sheet } = await openSheet('تعديل');
+    await user.type(within(sheet).getByLabelText(/معرّف Zoom/), '987 654');
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
+    await waitFor(() => expect(body).toEqual({ zoomId: '987 654' }));
+  });
+
+  it('still refuses to clear a phone the family has', async () => {
+    renderPage(<FamilyProfile id={3} />, { path: '/families/3' });
+    const { user, sheet } = await openSheet('تعديل');
+    const phone = within(sheet).getByRole('textbox', { name: /الهاتف/ });
+    await user.clear(phone);
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
+    expect(await within(sheet).findByText(/صحّح الحقول المحددة/)).toBeInTheDocument();
   });
 });
 

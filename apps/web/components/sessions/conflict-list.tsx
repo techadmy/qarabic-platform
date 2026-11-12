@@ -49,7 +49,7 @@ export function ConflictList({
   if (!result.conflicts.length && !result.warnings.length) {
     return (
       <Alert role="status">
-        <CircleCheckIcon className="text-emerald-700" />
+        <CircleCheckIcon className="text-status-green-emphasis" />
         <AlertTitle>{t('none')}</AlertTitle>
       </Alert>
     );

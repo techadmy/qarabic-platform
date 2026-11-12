@@ -263,7 +263,27 @@
     "all": "All",
     "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
     "sort": "Sort by",
-    "statusFilter": "Filter by status"
+    "statusFilter": "Filter by status",
+    "viewsChange": "Change view",
+    "columns": {
+      "trigger": "Choose columns",
+      "title": "Visible columns",
+      "hidden": "{count, plural, one {# column hidden} other {# columns hidden}}",
+      "showAll": "Show all columns"
+    },
+    "split": {
+      "close": "Close and go back to the list",
+      "openFull": "Open in full page"
+    },
+    "actions": {
+      "moreCreate": "Other create actions",
+      "more": "More actions"
+    },
+    "summary": {
+      "title": "Summary",
+      "show": "Show details",
+      "hide": "Hide details"
+    }
   },
   "time": {
     "dayAhead": "next day",
@@ -286,7 +306,13 @@
     "dialCode": "Country code",
     "phoneHelp": "The number without the country code, e.g. 7700 900123",
     "chooseFamily": "Choose the family",
-    "familyHelp": "Search by the parent's name or email"
+    "familyHelp": "Search by the parent's name or email",
+    "options": "Options",
+    "month": {
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "choose": "Choose a month"
+    }
   },
   "people": {
     "edit": "Edit",
@@ -1530,6 +1556,22 @@
       "emptyHint": "Students appear here when the office assigns them to you.",
       "noResults": "No matching results",
       "noResultsHint": "Try another name."
+    },
+    "home": {
+      "title": "Hello, {name}",
+      "current": "Class in progress",
+      "startsIn": "Starts {when}",
+      "details": "Class details",
+      "noNext": "No upcoming classes",
+      "noNextHint": "Your next class shows here once it is scheduled.",
+      "restOfToday": "Today's schedule",
+      "noMoreToday": "No other classes today.",
+      "openWeek": "Open “My classes”",
+      "upcoming": "Next five days",
+      "facts": {
+        "today": "Today's classes"
+      },
+      "openMissing": "Open classes without a report"
     }
   },
   "support": {
@@ -1563,7 +1605,8 @@
         "none": "No matching student",
         "for": "For: {name}",
         "change": "Change the student",
-        "channel": "How did the request reach you?"
+        "channel": "How did the request reach you?",
+        "results": "Matching students"
       }
     },
     "actions": {
@@ -1927,7 +1970,9 @@
       "tajweed": "Tajweed notes",
       "rating": "Rating: {n} of 5",
       "hifz": "Memorisation and revision",
-      "reportBy": "{teacher} · {when}"
+      "reportBy": "{teacher} · {when}",
+      "join": "Join the class",
+      "childProfile": "{name}'s lessons and progress"
     },
     "errors": {
       "generic": "That did not work. Try again.",
