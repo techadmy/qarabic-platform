@@ -1,6 +1,7 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
+import { allPermissions } from '@qarabic/shared';
 import { describe, expect, it } from 'vitest';
 import { server } from '@/mocks/node';
 import { renderPage } from '@/test/people';
@@ -19,7 +20,8 @@ describe('Roles list', () => {
     const row = (await within(table).findByRole('link', { name: 'مشرف' })).closest('tr')!;
     expect(within(row).getByText('مخصص')).toBeInTheDocument();
     expect(within(row).getByText('مستخدم واحد')).toBeInTheDocument();
-    expect(within(row).getByText('7 من 69')).toBeInTheDocument();
+    // The total follows the shared catalogue (M8 added `tasks.oversee`).
+    expect(within(row).getByText(`7 من ${allPermissions().length}`)).toBeInTheDocument();
     const owner = within(table).getByRole('link', { name: 'المالك (مدير النظام)' }).closest('tr')!;
     expect(within(owner).getByText('كل الصلاحيات')).toBeInTheDocument();
     // A role in use cannot be deleted: the dialog says why and has no delete button.

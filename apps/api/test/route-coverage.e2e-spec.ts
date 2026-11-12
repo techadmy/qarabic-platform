@@ -50,6 +50,13 @@ const PUBLIC_ROUTES = [
   'POST webhooks/whatsapp',
 ];
 
+/** Routes whose permission one of the per-milestone maps below pins down. */
+const documented = new Set<string>();
+function expectDocumented(byRoute: Record<string, string>, expected: Record<string, string>) {
+  for (const route of Object.keys(expected)) documented.add(route);
+  expect(byRoute).toMatchObject(expected);
+}
+
 describe('route permission coverage', () => {
   it('every route declares @Public, @Can or @Authenticated (except the test-only one)', () => {
     const routes = auditRoutes(ctx.app).filter((r) => r.route !== 'GET unmarked');
@@ -106,7 +113,7 @@ describe('route permission coverage', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET people/lookups': 'any:families.manage|staff.manage|users.manage',
       'GET families': 'all:families.view',
       'GET families/:id': 'all:families.view',
@@ -149,7 +156,7 @@ describe('route permission coverage', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET enrollments': 'any:schedule.view|sessions.conduct',
       'GET enrollments/:id': 'any:schedule.view|sessions.conduct',
       'POST enrollments': 'all:schedule.manage',
@@ -201,7 +208,7 @@ describe('route permission coverage', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'PUT sessions/:id/report': 'any:sessions.conduct|sessions.manage',
       'GET sessions/:id/report': 'all:sessions.view',
       'GET lesson-reports': 'all:sessions.view',
@@ -227,7 +234,7 @@ describe('route permission coverage', () => {
     );
     const any =
       'any:feedback.view|feedback.request|feedback.review|feedback.manage|support.view|support.handle';
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET feedback/summary': any,
       'GET feedback/assignees': 'all:feedback.manage',
       'GET feedback/tickets': any,
@@ -254,7 +261,7 @@ describe('route permission coverage', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET leads/summary': 'all:leads.view',
       'GET leads/assignees': 'all:leads.view',
       'GET leads/funnel': 'all:leads.view',
@@ -281,7 +288,7 @@ describe('route permission coverage', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET billing/providers': 'all:invoices.view',
       'GET billing/summary': 'any:invoices.manage|reports.financial',
       'GET fee-packages': 'all:packages.view',
@@ -315,7 +322,7 @@ describe('route permission coverage', () => {
     );
     const fineStaff = 'any:fines.request|fines.manage|fines.approve|payroll.manage';
     const payrollStaff = 'any:payroll.manage|payroll.review|payroll.approve';
-    expect(byRoute).toMatchObject({
+    expectDocumented(byRoute, {
       'GET attendance/today': 'all:attendance.request',
       'POST attendance/check-in': 'all:attendance.request',
       'POST attendance/check-out': 'all:attendance.request',
@@ -354,6 +361,46 @@ describe('route permission coverage', () => {
       'GET pay-rule-sets': 'all:settings.view',
       'POST pay-rule-sets': 'all:settings.manage',
     });
+  });
+
+  it('every M7 accounting route needs accounting.view to read and accounting.manage to write', () => {
+    const byRoute = Object.fromEntries(
+      auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
+    );
+    expectDocumented(byRoute, {
+      'GET accounting/accounts': 'all:accounting.view',
+      'GET accounting/accounts/:id': 'all:accounting.view',
+      'GET accounting/accounts/:id/statement': 'all:accounting.view',
+      'GET accounting/journal': 'all:accounting.view',
+      'GET accounting/journal/:id': 'all:accounting.view',
+      'GET accounting/outbox': 'all:accounting.view',
+      'GET accounting/periods': 'all:accounting.view',
+      'GET accounting/reports/balance-sheet': 'all:accounting.view',
+      'GET accounting/reports/cash': 'all:accounting.view',
+      'GET accounting/reports/profit-and-loss': 'all:accounting.view',
+      'GET accounting/reports/trial-balance': 'all:accounting.view',
+      'GET accounting/vouchers': 'all:accounting.view',
+      'GET accounting/vouchers/:id': 'all:accounting.view',
+      'PATCH accounting/accounts/:id': 'all:accounting.manage',
+      'POST accounting/accounts': 'all:accounting.manage',
+      'POST accounting/journal': 'all:accounting.manage',
+      'POST accounting/journal/:id/reverse': 'all:accounting.manage',
+      'POST accounting/outbox/process': 'all:accounting.manage',
+      'POST accounting/periods/:period/close': 'all:accounting.manage',
+      'POST accounting/periods/:period/reopen': 'all:accounting.manage',
+      'POST accounting/vouchers': 'all:accounting.manage',
+      'POST accounting/vouchers/:id/void': 'all:accounting.manage',
+    });
+  });
+
+  it('every permission route is pinned in one of the maps above (add new routes there)', (ctx2) => {
+    // The maps fill `documented` as they run; a filtered run (-t) has nothing to compare.
+    if (documented.size === 0) ctx2.skip();
+    const missing = auditRoutes(ctx.app)
+      .filter((r) => r.access !== 'public' && r.access !== 'authenticated')
+      .map((r) => r.route)
+      .filter((route) => route !== 'GET unmarked' && !documented.has(route));
+    expect(missing).toEqual([]);
   });
 
   it('answers 403 to a signed-in user with no role on every permission route', async () => {

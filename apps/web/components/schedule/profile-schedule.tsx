@@ -177,7 +177,10 @@ function Upcoming({ studentId, teacherId }: { studentId?: number; teacherId?: nu
   });
   const rows = query.data?.data ?? [];
   return (
-    <section aria-labelledby="upcoming-classes" className="flex flex-col gap-2 lg:col-span-2">
+    <section
+      aria-labelledby="upcoming-classes"
+      className="flex min-w-0 flex-col gap-2 lg:col-span-2"
+    >
       <h2 id="upcoming-classes" className="text-base font-bold">
         {t('upcoming')}
       </h2>
