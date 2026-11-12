@@ -42,7 +42,15 @@ async function signOut(page: Page) {
 
 test('staff: Today board → mark a class → undo', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', `/today?date=${cairoKey(1)}`);
-  const row = (await boardRows(page)).first();
+  // Tomorrow's first scheduled class, held by its id (its status text changes below). Not simply
+  // the first row: on some weekdays that is a suspended class («معلّقة», a paused enrollment).
+  const id = await (
+    await boardRows(page)
+  )
+    .filter({ hasText: 'مجدولة' })
+    .first()
+    .getAttribute('data-session-id');
+  const row = page.locator(`tr[data-session-id="${id}"]`);
   const name = (await row.getByRole('button').first().textContent())!.trim();
   await expect(row.getByText('مجدولة')).toBeVisible();
   await row.getByRole('button', { name: `إجراءات أخرى: ${name}` }).click();
@@ -162,7 +170,8 @@ test('a teacher sees only their own classes', async ({ page }) => {
   const week = page.waitForResponse(
     (r) => /\/api\/v1\/teacher-portal\/week/.test(r.url()) && r.status() === 200,
   );
-  await page.getByRole('link', { name: 'حصصي' }).click();
+  // The sidebar's link: the teacher home (M9) has a «حصصي» link of its own.
+  await page.locator('[data-slot="sidebar"]').first().getByRole('link', { name: 'حصصي' }).click();
   const body = (await (await week).json()) as {
     data: { days: { sessions: { teacher: { id: number } }[] }[] };
   };
