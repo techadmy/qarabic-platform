@@ -292,6 +292,17 @@ export class AnnouncementsController {
     await this.announcements.archive(id, by);
     return { data: await this.announcements.show(id, by) };
   }
+  /** Undo of archive (D31). */
+  @Can('announcements.manage')
+  @Post(':id/unarchive')
+  @HttpCode(200)
+  async unarchive(
+    @Param('id', IdPipe) id: number,
+    @CurrentUser() by: AuthUser,
+  ): Promise<{ data: AnnouncementDto }> {
+    await this.announcements.unarchive(id, by);
+    return { data: await this.announcements.show(id, by) };
+  }
 }
 
 /** `/me/notification-preferences`: the signed-in person's own channels per kind. */

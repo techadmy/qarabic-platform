@@ -404,6 +404,17 @@ function LookupsSkeleton() {
   );
 }
 
+/**
+ * The form's resolver: the shared schema, and on an edit of a record with no phone (a family
+ * converted from a lead without one) an untouched blank phone counts as not given — the update
+ * schemas allow it missing — so it cannot block every other change.
+ */
+function usePersonResolver(schema: z.ZodType, record?: { phone?: string | null }) {
+  return useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>, {
+    blankAsMissing: record && !record.phone ? ['phone'] : [],
+  });
+}
+
 // ------------------------------------------------------------------ family
 
 const FAMILY_FIELDS = [
@@ -426,7 +437,7 @@ function FamilyForm({ record, ...props }: BodyProps & { record?: FamilyDetailDto
   const locale = useUiLocale();
   const lookups = useLookups();
   const schema = record ? updateFamilySchema : createFamilySchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  const resolver = usePersonResolver(schema, record);
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',
@@ -716,7 +727,7 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
   const locale = useUiLocale();
   const lookups = useLookups();
   const schema = record ? updateTeacherSchema : createTeacherSchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  const resolver = usePersonResolver(schema, record);
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',
@@ -847,7 +858,7 @@ function StaffForm({ record, ...props }: BodyProps & { record?: StaffDto }) {
   const me = useCurrentUser();
   const lookups = useLookups();
   const schema = record ? updateStaffSchema : createStaffSchema;
-  const resolver = useSchemaResolver(schema as z.ZodType<Record<string, unknown>, FieldValues>);
+  const resolver = usePersonResolver(schema, record);
   const form = useForm<FieldValues, unknown, Record<string, unknown>>({
     resolver,
     mode: 'onBlur',

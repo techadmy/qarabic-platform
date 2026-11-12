@@ -39,18 +39,18 @@ import { Toggle } from '@qarabic/ui/components/toggle';
 import { cn } from '@qarabic/ui/lib/utils';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { PlusIcon, SearchXIcon, UserRoundPlusIcon, UsersRoundIcon } from 'lucide-react';
+import { SearchXIcon, SettingsIcon, UserRoundPlusIcon, UsersRoundIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { DataTable } from '@/components/data-table';
 import { ListPagination } from '@/components/list/list-pagination';
-import {
-  ClearFiltersButton,
-  FilterSelect,
-  ListToolbar,
-  StatusTabs,
-} from '@/components/list/list-toolbar';
+import { CollapsibleSummary } from '@/components/list/collapsible-summary';
+import { useColumnVisibility } from '@/components/list/column-chooser';
+import { ListActions } from '@/components/list/list-actions';
+import { ClearFiltersButton, FilterSelect, ListToolbar } from '@/components/list/list-toolbar';
+import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
+import { ViewsMenu } from '@/components/list/views-menu';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { Highlight, RecordCell } from '@/components/people/people-list';
@@ -75,6 +75,7 @@ import { dateKeyIn, relativeTime } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
 import { LeadStatusBadge, OverdueBadge, useCrmError } from './crm-bits';
 import { FunnelCard } from './funnel-card';
+import { LeadWorkbench } from './lead-workbench';
 import { NewLeadDialog } from './new-lead-dialog';
 
 const TABS = [
@@ -115,6 +116,8 @@ type Bulk = 'assign' | 'lost' | 'spam';
  * the list-page standard (search, المسؤول, المصدر, المتابعات المستحقة, status tabs with counts),
  * a row «استلم» for a free lead, bulk assign / not interested / spam with a count confirm (D31),
  * and the month's conversion report under the list.
+ * D141 reference list: the ten statuses are a views menu on the title, the tiles a collapsible
+ * summary, the table has the column chooser, and a row opens the lead in the split view (≥ lg).
  */
 export function LeadsView() {
   const t = useTranslations('crm');
@@ -139,6 +142,8 @@ export function LeadsView() {
   const [adding, setAdding] = useState(false);
   const [selected, setSelected] = useState<number[]>([]);
   const [bulk, setBulk] = useState<Bulk | null>(null);
+  const split = useSplitView('/leads');
+  const [columnVisibility, setColumnVisibility] = useColumnVisibility(`leads:${me.id}`);
 
   const query: LeadListQuery = {
     status: tab,
@@ -209,6 +214,7 @@ export function LeadsView() {
           />
         ),
         meta: { className: 'w-10' },
+        enableHiding: false,
         cell: ({ row: { original: x } }) => (
           <Checkbox
             checked={selected.includes(x.id)}
@@ -222,9 +228,10 @@ export function LeadsView() {
       {
         id: 'name',
         header: t('columns.name'),
+        enableHiding: false,
         cell: ({ row: { original: x } }) => (
           <RecordCell
-            href={`/leads/${x.id}`}
+            href={split.hrefFor(x.id)}
             name={<Highlight text={x.parentName} query={params.q} />}
             secondary={
               <>
@@ -297,7 +304,7 @@ export function LeadsView() {
     );
     return cols;
     // eslint-disable-next-line react-hooks/exhaustive-deps -- rebuilt when the rows or selection change
-  }, [t, locale, manage, selected, rows, now, params.q, take.isPending]);
+  }, [t, locale, manage, selected, rows, now, params.q, take.isPending, split.wide]);
 
   if (!allowed || isApiError(list.error, 403)) {
     return (
@@ -331,79 +338,163 @@ export function LeadsView() {
   };
   const selfId = String(me.id);
 
-  return (
-    <>
-      <PageHeader
-        title={t('title')}
-        meta={meta ? t('results', { count: meta.total }) : undefined}
-        actions={
-          manage && (
-            <Button onClick={() => setAdding(true)}>
-              <PlusIcon />
-              {t('newLead')}
-            </Button>
-          )
-        }
-      />
-      <nav
-        aria-label={t('tilesLabel')}
-        className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6"
-      >
-        {TILES.map((k) => {
-          const n = tileValue[k] ?? 0;
-          return (
-            <Toggle
-              key={k}
-              variant="outline"
-              pressed={tileActive[k]}
-              onPressedChange={(on) =>
-                params.set(
-                  on
-                    ? {
-                        ...Object.fromEntries(FILTER_KEYS.map((f) => [f, null])),
-                        ...TILE_FILTER[k],
-                      }
-                    : Object.fromEntries([...FILTER_KEYS, 'status'].map((f) => [f, null])),
-                )
-              }
-              className="h-auto min-h-14 flex-col items-start justify-center gap-0.5 bg-card px-4 py-2 data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
-            >
-              {summary.isPending ? (
-                <Skeleton className="h-6 w-8" />
-              ) : (
-                <span className="flex items-baseline gap-2">
-                  <bdi
-                    className={cn(
-                      'text-xl font-bold tabular-nums',
-                      k === 'uncontacted' &&
-                        (s?.firstResponseOverdue ?? 0) > 0 &&
-                        'text-destructive',
-                    )}
-                  >
-                    {n}
-                  </bdi>
-                  {k === 'uncontacted' && (s?.firstResponseOverdue ?? 0) > 0 && (
-                    <span className="text-xs font-semibold text-destructive">
-                      {t('overdueCount', { count: s!.firstResponseOverdue })}
-                    </span>
-                  )}
+  const views = (
+    <ViewsMenu
+      title={t('title')}
+      label={t('statusFilter')}
+      value={tab}
+      onChange={(v) => {
+        setSelected([]);
+        params.set({ status: v === 'open' ? null : v });
+      }}
+      options={TABS.map((x) => ({
+        value: x,
+        label:
+          x === 'open' || x === 'all'
+            ? t(`tabs.${x}`)
+            : LEAD_STATUS_LABELS[x as LeadStatus][locale],
+        count: meta?.counts[x],
+      }))}
+    />
+  );
+  const header = (
+    <PageHeader
+      title={views}
+      meta={meta ? t('results', { count: meta.total }) : undefined}
+      actions={
+        <ListActions
+          create={manage ? { label: t('newLead'), onClick: () => setAdding(true) } : undefined}
+          more={
+            can(me, 'settings.view')
+              ? [{ label: t('settings.title'), icon: SettingsIcon, href: '/settings/crm' }]
+              : []
+          }
+        />
+      }
+    />
+  );
+  const search = {
+    label: t('filters.searchLabel'),
+    placeholder: t('filters.search'),
+    value: params.searchInput,
+    onChange: params.setSearchInput,
+  };
+  const pagination = meta && rows.length > 0 && (
+    <ListPagination
+      meta={meta}
+      onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
+      onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
+    />
+  );
+
+  if (split.selectedId) {
+    return (
+      <>
+        {header}
+        <SplitView
+          selectedId={split.selectedId}
+          wide={split.wide}
+          detailLabel={t('work.title')}
+          onClose={split.close}
+          fullHref={split.fullHref}
+          list={
+            <SplitList
+              rows={rows}
+              loading={list.isPending}
+              label={t('title')}
+              emptyText={filtersOn ? t('noResults') : t('empty')}
+              getRowId={(x) => x.id}
+              hrefFor={split.hrefFor}
+              selectedId={split.selectedId}
+              header={<ListToolbar search={search} />}
+              footer={pagination}
+              renderItem={(x) => (
+                <span className="flex flex-col gap-1">
+                  <span className="flex items-start justify-between gap-2">
+                    <span className="font-semibold">{x.parentName}</span>
+                    <LeadStatusBadge status={x.status} />
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {x.assignedTo?.name ?? t('unassigned')} ·{' '}
+                    {relativeTime(x.createdAt, now, locale)}
+                  </span>
                 </span>
               )}
-              <span className="text-start text-sm font-medium text-muted-foreground">
-                {t(`tiles.${k}`)}
-              </span>
-            </Toggle>
-          );
-        })}
-      </nav>
+            />
+          }
+          detail={<LeadWorkbench key={split.selectedId} id={Number(split.selectedId)} />}
+        />
+        {adding && <NewLeadDialog open onOpenChange={setAdding} />}
+      </>
+    );
+  }
+
+  return (
+    <>
+      {header}
+      <CollapsibleSummary
+        storageKey={`leads:${me.id}`}
+        hint={
+          s
+            ? `${t('tiles.uncontacted')}: ${s.uncontacted} · ${t('tiles.followUpsDue')}: ${s.followUpsDue}`
+            : undefined
+        }
+      >
+        <nav
+          aria-label={t('tilesLabel')}
+          className="grid grid-cols-2 gap-2 md:grid-cols-3 xl:grid-cols-6"
+        >
+          {TILES.map((k) => {
+            const n = tileValue[k] ?? 0;
+            return (
+              <Toggle
+                key={k}
+                variant="outline"
+                pressed={tileActive[k]}
+                onPressedChange={(on) =>
+                  params.set(
+                    on
+                      ? {
+                          ...Object.fromEntries(FILTER_KEYS.map((f) => [f, null])),
+                          ...TILE_FILTER[k],
+                        }
+                      : Object.fromEntries([...FILTER_KEYS, 'status'].map((f) => [f, null])),
+                  )
+                }
+                className="h-auto min-h-14 flex-col items-start justify-center gap-0.5 bg-card px-4 py-2 data-[state=on]:border-primary data-[state=on]:bg-accent data-[state=on]:text-accent-foreground"
+              >
+                {summary.isPending ? (
+                  <Skeleton className="h-6 w-8" />
+                ) : (
+                  <span className="flex items-baseline gap-2">
+                    <bdi
+                      className={cn(
+                        'text-xl font-bold tabular-nums',
+                        k === 'uncontacted' &&
+                          (s?.firstResponseOverdue ?? 0) > 0 &&
+                          'text-destructive',
+                      )}
+                    >
+                      {n}
+                    </bdi>
+                    {k === 'uncontacted' && (s?.firstResponseOverdue ?? 0) > 0 && (
+                      <span className="text-xs font-semibold text-destructive">
+                        {t('overdueCount', { count: s!.firstResponseOverdue })}
+                      </span>
+                    )}
+                  </span>
+                )}
+                <span className="text-start text-sm font-medium text-muted-foreground">
+                  {t(`tiles.${k}`)}
+                </span>
+              </Toggle>
+            );
+          })}
+        </nav>
+      </CollapsibleSummary>
       <Card className="gap-0 py-0 shadow-none">
         <ListToolbar
-          search={{
-            label: t('filters.searchLabel'),
-            placeholder: t('filters.search'),
-            value: params.searchInput,
-            onChange: params.setSearchInput,
-          }}
+          search={search}
           filters={
             <>
               <FilterSelect
@@ -441,24 +532,6 @@ export function LeadsView() {
               />
               {filtersOn && <ClearFiltersButton onClick={clearFilters} />}
             </>
-          }
-          tabs={
-            <StatusTabs
-              label={t('statusFilter')}
-              value={tab === 'open' ? '' : tab === 'all' ? 'any' : tab}
-              onChange={(v) => {
-                setSelected([]);
-                params.set({ status: v === 'any' ? 'all' : v || null });
-              }}
-              options={TABS.map((x) => ({
-                value: x === 'open' ? '' : x === 'all' ? 'any' : x,
-                label:
-                  x === 'open' || x === 'all'
-                    ? t(`tabs.${x}`)
-                    : LEAD_STATUS_LABELS[x as LeadStatus][locale],
-                count: meta?.counts[x],
-              }))}
-            />
           }
         />
         {selected.length > 0 && (
@@ -564,16 +637,13 @@ export function LeadsView() {
             label={t('title')}
             emptyText={t('empty')}
             loading={list.isPending}
-            getRowHref={(x) => `/leads/${x.id}`}
+            getRowHref={(x) => split.hrefFor(x.id)}
+            getRowId={(x) => String(x.id)}
+            columnVisibility={columnVisibility}
+            onColumnVisibilityChange={setColumnVisibility}
           />
         )}
-        {meta && rows.length > 0 && (
-          <ListPagination
-            meta={meta}
-            onPage={(page) => params.set({ page: page === 1 ? null : page }, { resetPage: false })}
-            onPerPage={(perPage) => params.set({ perPage: perPage === 25 ? null : perPage })}
-          />
-        )}
+        {pagination}
       </Card>
       <FunnelCard />
       {adding && <NewLeadDialog open onOpenChange={setAdding} />}

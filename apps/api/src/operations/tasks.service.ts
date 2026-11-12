@@ -56,7 +56,7 @@ const isOpen = (s: TaskStatus) => OPEN_TASK_STATUSES.includes(s);
 /**
  * Tasks (M16; old "Given" / "Issued", docs/03 §11). A task is seen by its assignee, its issuer and
  * whoever has `tasks.oversee` (anyone else: 404). Lifecycle: pending → (assignee submits) awaiting →
- * (issuer confirms) completed; the issuer may reopen, or close with a reason. A task issued to
+ * (issuer confirms) completed; the issuer may reopen (a closed task too: the undo, D31), or close with a reason. A task issued to
  * oneself completes on submit. Every change is on the append-only timeline; the other party gets a
  * notice (in-app, email by preference).
  */
@@ -358,7 +358,9 @@ export class TasksService {
             ? { completedAt: now, submittedAt: task.submittedAt ?? now }
             : {}),
           ...(status === 'closed' ? { closedAt: now, closeReason: note } : {}),
-          ...(status === 'pending' ? { submittedAt: null, completedAt: null } : {}),
+          ...(status === 'pending'
+            ? { submittedAt: null, completedAt: null, closedAt: null, closeReason: null }
+            : {}),
         },
       });
       await this.event(tx, id, 'status', viewer.id, note, { from: task.status, to: status });
@@ -389,7 +391,10 @@ export class TasksService {
     return isOpen(t.status) && this.isIssuer(t, v);
   }
   private canReopen(t: TaskRow, v: AuthUser) {
-    return (t.status === 'awaiting' || t.status === 'completed') && this.isIssuer(t, v);
+    return (
+      (t.status === 'awaiting' || t.status === 'completed' || t.status === 'closed') &&
+      this.isIssuer(t, v)
+    );
   }
   private canClose(t: TaskRow, v: AuthUser) {
     return isOpen(t.status) && this.isIssuer(t, v);
