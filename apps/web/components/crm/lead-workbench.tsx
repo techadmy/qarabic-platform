@@ -42,6 +42,7 @@ import {
   SelectValue,
 } from '@qarabic/ui/components/select';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
+import { cn } from '@qarabic/ui/lib/utils';
 import { Spinner } from '@qarabic/ui/components/spinner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
 import { Textarea } from '@qarabic/ui/components/textarea';
@@ -89,6 +90,7 @@ import { ConvertDialog } from './convert-dialog';
 import { LeadStatusBadge, primaryAction, useCrmError, type PrimaryAction } from './crm-bits';
 import { LeadFields, toLeadBody, type LeadFormValues } from './lead-fields';
 import { OutcomeDialog } from './outcome-dialog';
+import { useRecordPane } from '@/components/list/split-view';
 
 const TABS = ['activity', 'data', 'trials', 'family'] as const;
 type TabKey = (typeof TABS)[number];
@@ -591,6 +593,7 @@ function ActivityPanel({
   onSaved: (d: LeadDetailDto) => void;
 }) {
   const t = useTranslations('crm.composer');
+  const pane = useRecordPane();
   const tc = useTranslations('crm');
   const locale = useUiLocale();
   const tz = useViewerTz();
@@ -637,7 +640,13 @@ function ActivityPanel({
     add.mutate();
   };
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,26rem)_1fr]">
+    // In the split view's pane (D141 §1) two columns only when the pane itself is wide enough.
+    <div
+      className={cn(
+        'grid gap-4',
+        pane ? '@5xl:grid-cols-[minmax(0,26rem)_1fr]' : 'lg:grid-cols-[minmax(0,26rem)_1fr]',
+      )}
+    >
       {canWrite && (
         <Card className="h-fit gap-3 shadow-none">
           <CardHeader className="border-b">
@@ -835,6 +844,7 @@ function DataTab({
   onSaved: (d: LeadDetailDto) => void;
 }) {
   const t = useTranslations('crm');
+  const pane = useRecordPane();
   const tv = useTranslations('validation');
   const locale = useUiLocale();
   const message = useCrmError();
@@ -939,7 +949,13 @@ function DataTab({
     ] as (InfoRow | null)[]
   ).filter((r): r is InfoRow => !!r);
   return (
-    <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_22rem]">
+    // In the split view's pane (D141 §1) two columns only when the pane itself is wide enough.
+    <div
+      className={cn(
+        'grid gap-4',
+        pane ? '@5xl:grid-cols-[minmax(0,1fr)_22rem]' : 'lg:grid-cols-[minmax(0,1fr)_22rem]',
+      )}
+    >
       <Card className="gap-3 shadow-none">
         <CardContent>
           <form noValidate onSubmit={(e) => void form.handleSubmit((v) => save.mutate(v))(e)}>
