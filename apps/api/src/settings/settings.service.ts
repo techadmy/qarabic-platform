@@ -63,6 +63,16 @@ export const SETTING_DEFAULTS = {
   // M7 accounting.
   /** Post the billing and payroll outbox events to the journal every 5 minutes. */
   'accounting.auto_post': true as boolean,
+  // M8 notification centre.
+  /** Email notices to staff (the mailer stays in memory until SMTP, B31). */
+  'notifications.email_enabled': true as boolean,
+  /** WhatsApp notices: off until Meta credentials exist (B50). */
+  'notifications.whatsapp_enabled': false as boolean,
+  /** Remind the teacher of each class N minutes before it starts. */
+  'notifications.class_reminders': false as boolean,
+  'notifications.class_reminder_minutes': 30,
+  /** Also remind the family (off: no messages to real families, D140). */
+  'notifications.class_reminders_parents': false as boolean,
   // N6 billing (`GET/PUT /settings/billing`).
   ...BILLING_SETTING_DEFAULTS,
 } satisfies Record<string, Prisma.InputJsonValue>;
