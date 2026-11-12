@@ -117,7 +117,10 @@ test('real API (N4): staff reply to a ticket; the reply is on the ticket', async
 
 test('real API (N5): the public trial form stores a lead (no sign-in)', async ({ page }) => {
   const parent = `E2E Web ${runTag()}`;
+  // The form loads its courses after hydration: typing before that is wiped by React (CI flake).
+  const courses = page.waitForResponse((r) => r.url().endsWith('/public/courses') && r.ok());
   await page.goto('/trial');
+  await courses;
   await page.getByRole('textbox', { name: /الاسم الكامل/ }).fill(parent);
   await page.getByRole('combobox', { name: /بلد الإقامة/ }).click();
   await page.keyboard.type('مصر');
