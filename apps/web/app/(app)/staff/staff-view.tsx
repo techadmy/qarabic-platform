@@ -12,6 +12,7 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { can } from '@/lib/auth/use-me';
 import type { ListParams } from '@/lib/list-params';
+import { StaffProfile } from './[id]/staff-profile';
 
 export function roleLabel(role: StaffDto['role'], locale: 'ar' | 'en') {
   return locale === 'ar' ? role.labelAr : (role.labelEn ?? role.labelAr);
@@ -112,6 +113,18 @@ export function StaffView() {
         )
       }
       columns={columns}
+      renderDetail={(id) => <StaffProfile key={id} id={id} />}
+      renderSplitItem={(s) => (
+        <span className="flex flex-col gap-1">
+          <span className="flex items-start justify-between gap-2">
+            <span className="font-semibold">{s.name}</span>
+            <StatusBadge kind="staff" status={s.status.value} />
+          </span>
+          <span className="line-clamp-1 text-sm text-muted-foreground">
+            {roleLabel(s.role, locale)}
+          </span>
+        </span>
+      )}
       renderCard={(s) => (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">

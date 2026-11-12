@@ -15,15 +15,19 @@ async function table(name: string) {
 }
 
 describe('Families list', () => {
-  it('shows the result count, the status tabs with counts from meta.counts and the rows', async () => {
+  it('shows the result count, the views menu with counts from meta.counts and the rows', async () => {
+    const user = userEvent.setup();
     renderPage(<FamiliesView />, { path: '/families' });
     const t = await table('العائلات');
     expect((await screen.findAllByText('26 نتيجة')).length).toBeGreaterThan(0);
-    const tabs = screen.getByRole('radiogroup', { name: 'تصفية حسب الحالة' });
-    expect(within(tabs).getByRole('radio', { name: /^الكل\s*\(26\)$/ })).toBeChecked();
-    expect(within(tabs).getByRole('radio', { name: /^منتظمة\s*\(16\)$/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole('radio', { name: /^معلّقة\s*\(2\)$/ })).toBeInTheDocument();
-    expect(within(tabs).getByRole('radio', { name: /^غير نشطة\s*\(3\)$/ })).toBeInTheDocument();
+    // Six views (all + five statuses) move into the title (D141 §2).
+    const h1 = screen.getByRole('heading', { level: 1 });
+    await user.click(within(h1).getByRole('button', { name: /^الكل\s*\(26\)\s*تغيير العرض$/ }));
+    const menu = await screen.findByRole('menu');
+    expect(within(menu).getByRole('menuitemradio', { name: /^منتظمة\s*16$/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitemradio', { name: /^معلّقة\s*2$/ })).toBeInTheDocument();
+    expect(within(menu).getByRole('menuitemradio', { name: /^غير نشطة\s*3$/ })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
     // 25 per page + header; the parent's local time is labelled with the city.
     expect(within(t).getAllByRole('row')).toHaveLength(26);
     expect(within(t).getAllByText(/· (نيويورك|لندن|دبي|برلين)/).length).toBeGreaterThan(0);
@@ -34,7 +38,8 @@ describe('Families list', () => {
     const user = userEvent.setup();
     const { unmount } = renderPage(<FamiliesView />, { path: '/families' });
     await table('العائلات');
-    await user.click(await screen.findByRole('radio', { name: /^معلّقة\s*\(2\)$/ }));
+    await user.click(await screen.findByRole('button', { name: /تغيير العرض$/ }));
+    await user.click(await screen.findByRole('menuitemradio', { name: /^معلّقة\s*2$/ }));
     expect(lastReplacedUrl().searchParams.get('status')).toBe('suspended');
     unmount();
 
@@ -59,7 +64,9 @@ describe('Families list', () => {
       'href',
       '/families/2',
     );
-    expect(await screen.findByRole('radio', { name: /^الكل\s*\(1\)$/ })).toBeChecked();
+    expect(
+      await screen.findByRole('button', { name: /^الكل\s*\(1\)\s*تغيير العرض$/ }),
+    ).toBeInTheDocument();
   });
 
   it('finds a family by a child name, and says so when nothing matches', async () => {
@@ -127,5 +134,36 @@ describe('Students, teachers and staff lists', () => {
     expect(within(t).getByText('المالك (مدير النظام)')).toBeInTheDocument();
     expect(within(t).getByText('مشرف')).toBeInTheDocument();
     expect(await screen.findByRole('radio', { name: /^الكل\s*\(8\)$/ })).toBeInTheDocument();
+  });
+});
+
+describe('D141 on the people lists', () => {
+  it('students keep their status tabs (three views); the table has the column chooser', async () => {
+    renderPage(<StudentsView />, { path: '/students' });
+    await table('الطلاب');
+    expect(screen.getByRole('radiogroup', { name: 'تصفية حسب الحالة' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'اختيار الأعمدة' })).toBeInTheDocument();
+  });
+
+  it('from 1024 px a family opens beside the list, with «إغلاق» back to it', async () => {
+    const original = window.matchMedia;
+    window.matchMedia = ((query: string) => ({
+      ...original(query),
+      matches: query.includes('min-width: 1024px'),
+    })) as typeof window.matchMedia;
+    try {
+      renderPage(<FamiliesView />, { path: '/families?id=2' });
+      expect(
+        await screen.findByRole('heading', { level: 2, name: /Yusuf Hassan/ }),
+      ).toBeInTheDocument();
+      expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('العائلات');
+      expect(screen.getByRole('link', { name: 'فتح في صفحة كاملة' })).toHaveAttribute(
+        'href',
+        '/families/2',
+      );
+      expect(screen.getByRole('link', { name: /Yusuf Hassan/ })).toHaveAttribute('aria-current');
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

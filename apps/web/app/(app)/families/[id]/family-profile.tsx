@@ -1,5 +1,7 @@
 'use client';
 
+import { useRecordPane } from '@/components/list/split-view';
+import { cn } from '@qarabic/ui/lib/utils';
 import { countryName } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
@@ -31,6 +33,7 @@ import { FamilyBillingSection } from '@/components/billing/family-billing';
  * for staff who see invoices the «الفوترة» sections (N6, docs/20 §12).
  */
 export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean }) {
+  const pane = useRecordPane();
   const t = useTranslations('families');
   const tp = useTranslations('people');
   const locale = useLocale() === 'en' ? 'en' : 'ar';
@@ -83,7 +86,13 @@ export function FamilyProfile({ id, mine = false }: { id: number; mine?: boolean
                 { label: tp('fields.manager'), value: f.manager?.name ?? '—' },
               ]}
             />
-            <div className="grid items-start gap-4 lg:grid-cols-2">
+            <div
+              className={cn(
+                'grid items-start gap-4',
+                // In the split view's pane the columns follow the pane, not the screen (D141 §1).
+                pane ? '@5xl:grid-cols-2' : 'lg:grid-cols-2',
+              )}
+            >
               <InfoSection
                 title={tp('sections.contact')}
                 onEdit={canManage && !f.archive ? () => edit('contact') : undefined}

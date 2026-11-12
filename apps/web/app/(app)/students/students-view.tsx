@@ -23,6 +23,7 @@ import { fetchPerson } from '@/lib/api/people';
 import { can } from '@/lib/auth/use-me';
 import type { ListParams } from '@/lib/list-params';
 import { peopleKeys } from '@/lib/people/use-person-actions';
+import { StudentProfile } from './[id]/student-profile';
 
 /** Removable chip for the family filter (`?familyId=`) set from a family's row or profile. */
 function FamilyChip({ params }: { params: ListParams }) {
@@ -181,6 +182,18 @@ export function StudentsView() {
         </>
       )}
       columns={columns}
+      renderDetail={(id) => <StudentProfile key={id} id={id} />}
+      renderSplitItem={(s) => (
+        <span className="flex flex-col gap-1">
+          <span className="flex items-start justify-between gap-2">
+            <span className="font-semibold">{s.name}</span>
+            <StatusBadge kind="students" status={s.status.value} />
+          </span>
+          <span className="line-clamp-1 text-sm text-muted-foreground">
+            {course(s.regularCourse)}
+          </span>
+        </span>
+      )}
       renderCard={(s) => (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">

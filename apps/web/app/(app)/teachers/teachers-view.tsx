@@ -18,6 +18,7 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { can } from '@/lib/auth/use-me';
 import type { ListParams } from '@/lib/list-params';
+import { TeacherProfile } from './[id]/teacher-profile';
 
 export function TeachersView() {
   const t = useTranslations('teachers');
@@ -135,6 +136,16 @@ export function TeachersView() {
         )
       }
       columns={columns}
+      renderDetail={(id) => <TeacherProfile key={id} id={id} />}
+      renderSplitItem={(x) => (
+        <span className="flex flex-col gap-1">
+          <span className="flex items-start justify-between gap-2">
+            <span className="font-semibold">{x.name}</span>
+            <StatusBadge kind="teachers" status={x.status.value} />
+          </span>
+          <span className="line-clamp-1 text-sm text-muted-foreground">{courses(x)}</span>
+        </span>
+      )}
       renderCard={(x) => (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">

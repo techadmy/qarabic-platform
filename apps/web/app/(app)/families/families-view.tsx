@@ -21,6 +21,7 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { can } from '@/lib/auth/use-me';
 import type { ListParams } from '@/lib/list-params';
+import { FamilyProfile } from './[id]/family-profile';
 
 export function FamiliesView() {
   const t = useTranslations('families');
@@ -154,6 +155,18 @@ export function FamiliesView() {
         </>
       )}
       columns={columns}
+      renderDetail={(id) => <FamilyProfile key={id} id={id} />}
+      renderSplitItem={(f) => (
+        <span className="flex flex-col gap-1">
+          <span className="flex items-start justify-between gap-2">
+            <span className="font-semibold">{f.parentName}</span>
+            <StatusBadge kind="families" status={f.status.value} />
+          </span>
+          <span className="line-clamp-1 text-sm text-muted-foreground">
+            {t('childrenCount', { count: f.students.length })}
+          </span>
+        </span>
+      )}
       renderCard={(f) => (
         <div className="flex flex-col gap-1.5">
           <div className="flex items-start justify-between gap-2">
