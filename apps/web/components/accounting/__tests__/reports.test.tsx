@@ -22,7 +22,7 @@ describe('Financial reports', () => {
     const cells = within(totals)
       .getAllByRole('cell')
       .map((c) => c.textContent);
-    expect(cells[5]).toBe(cells[6]);
+    expect(cells[4]).toBe(cells[5]);
     expect(within(table).getByRole('link', { name: '1120 · البنك' })).toHaveAttribute(
       'href',
       expect.stringContaining('currency=USD'),
@@ -69,15 +69,18 @@ describe('Accounting periods', () => {
     renderPage(<PeriodsView />, { as: ACCOUNTS, path: '/accounting/periods' });
     expect(await screen.findByText('قيود تعذّر ترحيلها')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'رحّل الآن' }));
-    expect(await screen.findByText('رُحِّل 1 وتعذّر 1.')).toBeInTheDocument();
+    expect(await screen.findByText('رُحِّل قيد واحد، وتعذّر قيد واحد.')).toBeInTheDocument();
     expect(adb.outbox).toHaveLength(1);
   });
 
   it('closes an ended month, then reopens it with a reason', async () => {
     const user = userEvent.setup();
     const period = monthBack(2);
-    if (period.slice(0, 4) !== String(new Date().getUTCFullYear())) return; // early in the year
-    renderPage(<PeriodsView />, { as: ACCOUNTS, path: '/accounting/periods' });
+    // Two months back can be last year (January, February): open that year.
+    renderPage(<PeriodsView />, {
+      as: ACCOUNTS,
+      path: `/accounting/periods?year=${period.slice(0, 4)}`,
+    });
     const table = await screen.findByRole('table', { name: /شهور سنة/ });
     const close = await within(table).findAllByRole('button', { name: /إقفال الفترة/ });
     const before = close.length;
@@ -109,5 +112,40 @@ describe('Accounting periods', () => {
     await user.type(within(reason).getByRole('textbox'), 'Late supplier invoice');
     await user.click(within(reason).getByRole('button', { name: 'إعادة فتح' }));
     await waitFor(() => expect(adb.periods.find((p) => p.period === period)?.closed).toBe(false));
+  });
+
+  it('closing offers «تراجع», which reopens the month at once', async () => {
+    const user = userEvent.setup();
+    const period = monthBack(2);
+    renderPage(<PeriodsView />, {
+      as: ACCOUNTS,
+      path: `/accounting/periods?year=${period.slice(0, 4)}`,
+    });
+    const table = await screen.findByRole('table', { name: /شهور سنة/ });
+    const month = new Intl.DateTimeFormat('ar-EG', { month: 'long', timeZone: 'UTC' }).format(
+      new Date(`${period}-01T00:00:00Z`),
+    );
+    await within(table).findAllByText(new RegExp(month));
+    const row = within(table)
+      .getAllByRole('row')
+      .find((r) => (r as HTMLTableRowElement).cells[0]?.textContent?.startsWith(month))!;
+    await user.click(within(row).getByRole('button', { name: /إقفال الفترة/ }));
+    await user.click(
+      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'إقفال الفترة' }),
+    );
+    await user.click((await screen.findAllByRole('button', { name: 'تراجع' }))[0]!);
+    await waitFor(() => expect(adb.periods.find((p) => p.period === period)?.closed).toBe(false));
+    expect(adb.periods.find((p) => p.period === period)?.reopenReason).toBe(
+      'تراجع فوري عن الإقفال',
+    );
+  });
+
+  it('report tables name their rows and column groups for screen readers', async () => {
+    renderPage(<ReportsView />, { as: ACCOUNTS, path: `/accounting/reports?currency=USD&${WIDE}` });
+    const table = await screen.findByRole('table', { name: 'ميزان المراجعة' });
+    expect(
+      within(table).getAllByRole('columnheader', { name: 'الرصيد الافتتاحي' })[0],
+    ).toHaveAttribute('scope', 'colgroup');
+    expect(within(table).getByRole('rowheader', { name: '1120 · البنك' })).toBeInTheDocument();
   });
 });

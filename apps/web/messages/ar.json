@@ -3388,13 +3388,16 @@
       "cancel": "إلغاء",
       "closed": "أُقفلت فترة {month}.",
       "reopened": "أُعيد فتح فترة {month}.",
-      "entriesCount": "{count, plural, zero {لا قيود} one {قيد واحد} two {قيدان} few {# قيود} many {# قيدًا} other {# قيد}}"
+      "entriesCount": "{count, plural, zero {لا قيود} one {قيد واحد} two {قيدان} few {# قيود} many {# قيدًا} other {# قيد}}",
+      "undo": "تراجع",
+      "undoReason": "تراجع فوري عن الإقفال",
+      "closedByLine": "{name} · {when}"
     },
     "outbox": {
       "title": "القيود التلقائية المنتظرة",
       "hint": "تُرحَّل قيود الفواتير والرواتب تلقائيًا كل 5 دقائق.",
       "processNow": "رحّل الآن",
-      "processed": "رُحِّل {posted} وتعذّر {failed}.",
+      "processed": "{posted, plural, zero {لم يُرحَّل أي قيد} one {رُحِّل قيد واحد} two {رُحِّل قيدان} few {رُحِّلت # قيود} many {رُحِّل # قيدًا} other {رُحِّل # قيد}}، {failed, plural, zero {ولم يتعذّر شيء.} one {وتعذّر قيد واحد.} two {وتعذّر قيدان.} few {وتعذّرت # قيود.} many {وتعذّر # قيدًا.} other {وتعذّر # قيد.}}",
       "pending": {
         "billing": "من الفواتير",
         "payroll": "من الرواتب"
@@ -3402,7 +3405,9 @@
       "oldest": "أقدم قيد منتظر",
       "failed": "تعذّر ترحيلها",
       "failures": "قيود تعذّر ترحيلها",
-      "attempts": "{count, plural, one {محاولة واحدة} two {محاولتان} few {# محاولات} many {# محاولة} other {# محاولة}}، آخرها {when}"
+      "attempts": "{count, plural, one {محاولة واحدة} two {محاولتان} few {# محاولات} many {# محاولة} other {# محاولة}}، آخرها {when}",
+      "failureReason": "تعذّر إنشاء القيد التلقائي لهذا الحدث. راجع الحسابات المرتبطة به ثم أعد الترحيل.",
+      "technicalDetails": "التفاصيل الفنية"
     },
     "badRange": "تاريخ البداية بعد تاريخ النهاية. صحّح الفترة."
   }

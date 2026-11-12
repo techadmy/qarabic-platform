@@ -8,10 +8,8 @@ import {
   type ProfitAndLossDto,
   type TrialBalanceDto,
 } from '@qarabic/shared';
-import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardHeader, CardTitle } from '@qarabic/ui/components/card';
-import { Input } from '@qarabic/ui/components/input';
 import { Label } from '@qarabic/ui/components/label';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import {
@@ -44,6 +42,8 @@ import {
 } from '@/lib/api/accounting';
 import { isApiError } from '@/lib/api/client';
 import { academyToday, monthBounds } from '@/lib/accounting/forms';
+import { DEFAULT_CURRENCY, STATEMENT_START } from '@/lib/accounting/periods';
+import { DatePicker } from '@/components/forms/date-time';
 import { can } from '@/lib/auth/use-me';
 import { minorOf } from '@/lib/billing/money';
 import { useListParams } from '@/lib/list-params';
@@ -121,9 +121,11 @@ function TrialBalance({ data: d, range }: { data: TrialBalanceDto; range: Range 
       <Table aria-label={t('trial-balance')}>
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead rowSpan={2}>{tf('account')}</TableHead>
+            <TableHead rowSpan={2} scope="col">
+              {tf('account')}
+            </TableHead>
             {pair.map((p) => (
-              <TableHead key={p} colSpan={2} className="border-s text-center">
+              <TableHead key={p} colSpan={2} scope="colgroup" className="border-s text-center">
                 {t(`tb.${p}`)}
               </TableHead>
             ))}
@@ -135,11 +137,18 @@ function TrialBalance({ data: d, range }: { data: TrialBalanceDto; range: Range 
           </TableRow>
         </TableHeader>
         <TableBody>
+          {d.rows.length === 0 && (
+            <TableRow className="hover:bg-transparent">
+              <TableCell colSpan={7} className="text-muted-foreground">
+                {t('noRows')}
+              </TableCell>
+            </TableRow>
+          )}
           {d.rows.map((r) => (
             <TableRow key={r.id}>
-              <TableCell className="min-w-56 font-medium">
+              <TableHead scope="row" className="min-w-56 font-medium">
                 <AccountLink a={r} range={range} />
-              </TableCell>
+              </TableHead>
               <TableCell className="border-s text-end">
                 <Amount v={r.openingDebit} currency={d.currency} />
               </TableCell>
@@ -163,7 +172,9 @@ function TrialBalance({ data: d, range }: { data: TrialBalanceDto; range: Range 
         </TableBody>
         <TableFooter>
           <TableRow className="hover:bg-transparent">
-            <TableCell className="font-bold">{t('total')}</TableCell>
+            <TableHead scope="row" className="font-semibold text-foreground">
+              {t('total')}
+            </TableHead>
             {(
               [
                 'openingDebit',
@@ -175,7 +186,7 @@ function TrialBalance({ data: d, range }: { data: TrialBalanceDto; range: Range 
               ] as const
             ).map((k, i) => (
               <TableCell key={k} className={cn('text-end', i % 2 === 0 && 'border-s')}>
-                <Amount v={d.totals[k]} currency={d.currency} strong />
+                <Money amount={d.totals[k]} currency={d.currency} strong />
               </TableCell>
             ))}
           </TableRow>
@@ -189,8 +200,12 @@ function DebitCreditHeads() {
   const tf = useTranslations('accounting.fields');
   return (
     <>
-      <TableHead className="border-s text-end">{tf('debit')}</TableHead>
-      <TableHead className="text-end">{tf('credit')}</TableHead>
+      <TableHead scope="col" className="border-s text-end">
+        {tf('debit')}
+      </TableHead>
+      <TableHead scope="col" className="text-end">
+        {tf('credit')}
+      </TableHead>
     </>
   );
 }
@@ -219,8 +234,10 @@ function Section({
     <Table aria-label={title}>
       <TableHeader>
         <TableRow className="hover:bg-transparent">
-          <TableHead>{title}</TableHead>
-          <TableHead className="text-end">{tf('amount')}</TableHead>
+          <TableHead scope="col">{title}</TableHead>
+          <TableHead scope="col" className="text-end">
+            {tf('amount')}
+          </TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -233,9 +250,9 @@ function Section({
         )}
         {rows.map((r) => (
           <TableRow key={r.id}>
-            <TableCell className="min-w-48 font-medium">
+            <TableHead scope="row" className="min-w-48 font-medium">
               <AccountLink a={r} range={range} />
-            </TableCell>
+            </TableHead>
             <TableCell className="text-end">
               <Amount v={r.amount} currency={currency} />
             </TableCell>
@@ -245,7 +262,9 @@ function Section({
       </TableBody>
       <TableFooter>
         <TableRow className="hover:bg-transparent">
-          <TableCell className="font-bold">{totalLabel}</TableCell>
+          <TableHead scope="row" className="font-semibold text-foreground">
+            {totalLabel}
+          </TableHead>
           <TableCell className="text-end">
             <Money amount={total} currency={currency} strong />
           </TableCell>
@@ -349,9 +368,9 @@ function CashReport({ data: d }: { data: CashReportDto }) {
           <Table aria-label={t('cashIn', { currency: c.currency })}>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>{tf('account')}</TableHead>
+                <TableHead scope="col">{tf('account')}</TableHead>
                 {cols.map((k) => (
-                  <TableHead key={k} className="text-end">
+                  <TableHead key={k} scope="col" className="text-end">
                     {t(`cashCols.${k}`)}
                   </TableHead>
                 ))}
@@ -360,9 +379,9 @@ function CashReport({ data: d }: { data: CashReportDto }) {
             <TableBody>
               {c.accounts.map((a) => (
                 <TableRow key={a.id}>
-                  <TableCell className="min-w-48 font-medium">
+                  <TableHead scope="row" className="min-w-48 font-medium">
                     <AccountLink a={a} range={{ currency: c.currency, from: d.from, to: d.to }} />
-                  </TableCell>
+                  </TableHead>
                   {cols.map((k) => (
                     <TableCell key={k} className="text-end">
                       <Amount v={a[k]} currency={c.currency} />
@@ -373,10 +392,12 @@ function CashReport({ data: d }: { data: CashReportDto }) {
             </TableBody>
             <TableFooter>
               <TableRow className="hover:bg-transparent">
-                <TableCell className="font-bold">{t('total')}</TableCell>
+                <TableHead scope="row" className="font-semibold text-foreground">
+                  {t('total')}
+                </TableHead>
                 {cols.map((k) => (
                   <TableCell key={k} className="text-end">
-                    <Amount v={c[k]} currency={c.currency} strong />
+                    <Money amount={c[k]} currency={c.currency} strong />
                   </TableCell>
                 ))}
               </TableRow>
@@ -409,11 +430,11 @@ export function ReportsView() {
   const month = monthBounds(today);
   const currencyParam = params.get('currency');
   const known = (CURRENCIES as readonly string[]).includes(currencyParam);
-  const currency = known ? currencyParam : report === 'cash' ? '' : 'USD';
+  const currency = known ? currencyParam : report === 'cash' ? '' : DEFAULT_CURRENCY;
   const from = DATE.test(params.get('from')) ? params.get('from') : month.from;
   const to = DATE.test(params.get('to')) ? params.get('to') : month.to;
   const asOf = DATE.test(params.get('asOf')) ? params.get('asOf') : today;
-  const range = { currency: currency || 'USD', from, to };
+  const range = { currency: currency || DEFAULT_CURRENCY, from, to };
   const q =
     report === 'balance-sheet'
       ? { currency: range.currency, asOf }
@@ -449,12 +470,8 @@ export function ReportsView() {
   }
   const stale = query.isPlaceholderData;
   const data = query.data;
-  const body = !valid ? (
-    <Alert variant="warning">
-      <AlertTriangleIcon />
-      <AlertDescription>{t('badRange')}</AlertDescription>
-    </Alert>
-  ) : query.isError ? (
+  // A start after the end is said under the date pickers; nothing to show until it is fixed.
+  const body = !valid ? null : query.isError ? (
     <ErrorState onRetry={() => void query.refetch()} />
   ) : !data || stale ? (
     <Skeleton className="h-96" aria-busy="true" />
@@ -463,7 +480,7 @@ export function ReportsView() {
   ) : report === 'balance-sheet' ? (
     <BalanceSheet
       data={data as BalanceSheetDto}
-      range={{ ...range, from: '2000-01-01', to: asOf }}
+      range={{ ...range, from: STATEMENT_START, to: asOf }}
     />
   ) : report === 'cash' ? (
     <CashReport data={data as CashReportDto} />
@@ -504,8 +521,8 @@ export function ReportsView() {
           ))}
         </TabsList>
         <Card className="flex-row flex-wrap items-end gap-3 p-4 shadow-none print:hidden">
-          <div className="flex min-w-32 flex-col gap-1.5">
-            <Label htmlFor={ids.currency} className="text-[0.8125rem] text-muted-foreground">
+          <div className="flex min-w-32 flex-col gap-2">
+            <Label htmlFor={ids.currency} className="text-sm text-muted-foreground">
               {ta('fields.currency')}
             </Label>
             <CurrencySelect
@@ -516,17 +533,14 @@ export function ReportsView() {
             />
           </div>
           {report === 'balance-sheet' ? (
-            <div className="flex min-w-36 flex-col gap-1.5">
-              <Label htmlFor={ids.asOf} className="text-[0.8125rem] text-muted-foreground">
+            <div className="flex min-w-36 flex-col gap-2">
+              <Label htmlFor={ids.asOf} className="text-sm text-muted-foreground">
                 {t('asOf')}
               </Label>
-              <Input
+              <DatePicker
                 id={ids.asOf}
-                type="date"
-                dir="ltr"
                 value={asOf}
-                onChange={(e) => params.set({ asOf: e.target.value || null })}
-                className="h-10 bg-card text-start"
+                onChange={(v) => params.set({ asOf: v || null })}
               />
             </div>
           ) : (

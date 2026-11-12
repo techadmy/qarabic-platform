@@ -24,6 +24,7 @@ import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { accountingKeys, fetchAccounts, fetchAccountStatement } from '@/lib/api/accounting';
 import { isApiError } from '@/lib/api/client';
 import { academyToday, monthBounds } from '@/lib/accounting/forms';
+import { DEFAULT_CURRENCY } from '@/lib/accounting/periods';
 import { can } from '@/lib/auth/use-me';
 import { minorOf } from '@/lib/billing/money';
 import { useListParams } from '@/lib/list-params';
@@ -48,7 +49,7 @@ export function StatementView({ id }: { id: number }) {
   const month = monthBounds(academyToday());
   const currency = (CURRENCIES as readonly string[]).includes(params.get('currency'))
     ? params.get('currency')
-    : 'USD';
+    : DEFAULT_CURRENCY;
   const from = DATE.test(params.get('from')) ? params.get('from') : month.from;
   const to = DATE.test(params.get('to')) ? params.get('to') : month.to;
   const q = { currency, from, to, page: params.page, perPage: params.perPage };

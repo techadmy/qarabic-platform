@@ -53,6 +53,7 @@ import {
 } from '@/lib/api/accounting';
 import { isApiError } from '@/lib/api/client';
 import { academyToday } from '@/lib/accounting/forms';
+import { hasEnded, periodOfDay, shownYear } from '@/lib/accounting/periods';
 import { can } from '@/lib/auth/use-me';
 import { monthLabel } from '@/lib/billing/labels';
 import { useListParams } from '@/lib/list-params';
@@ -140,9 +141,12 @@ function OutboxCard() {
                       {f.eventType} #{f.eventId}
                     </bdi>
                   </span>
-                  <bdi dir="ltr" className="text-destructive">
-                    {f.error}
-                  </bdi>
+                  {/* A plain-language reason; the server's technical text stays one click away. */}
+                  <span className="text-destructive">{t('failureReason')}</span>
+                  <details className="text-muted-foreground">
+                    <summary className="cursor-pointer">{t('technicalDetails')}</summary>
+                    <bdi dir="ltr">{f.error}</bdi>
+                  </details>
                   <span className="text-muted-foreground">
                     {t('attempts', {
                       count: f.attempts,
@@ -172,9 +176,9 @@ export function PeriodsView() {
   const params = useListParams();
   const queryClient = useQueryClient();
   const message = useAccountingError();
-  const thisYear = Number(academyToday().slice(0, 4));
-  const yearParam = Number(params.get('year'));
-  const year = yearParam >= 2000 && yearParam <= 2100 ? yearParam : thisYear;
+  const today = academyToday();
+  const thisYear = Number(today.slice(0, 4));
+  const year = shownYear(params.get('year'), today);
   const [closing, setClosing] = useState<AccountingPeriodDto | null>(null);
   const [reopening, setReopening] = useState<AccountingPeriodDto | null>(null);
   const allowed = can(me, 'accounting.view');
@@ -190,9 +194,21 @@ export function PeriodsView() {
     setReopening(null);
     toast.success(text);
   };
+  const reopenNow = useMutation({
+    mutationFn: (p: string) => reopenPeriod(p, t('undoReason')),
+    onSuccess: (_, p) => done(t('reopened', { month: monthLabel(p, locale) }))(),
+    onError: (e) => toast.error(message(e)),
+  });
   const close = useMutation({
     mutationFn: (p: string) => closePeriod(p),
-    onSuccess: (_, p) => done(t('closed', { month: monthLabel(p, locale) }))(),
+    onSuccess: (_, p) => {
+      void queryClient.invalidateQueries({ queryKey: accountingKeys.all });
+      setClosing(null);
+      // Closing is reversible: «تراجع» reopens it at once with a recorded reason (D31).
+      toast.success(t('closed', { month: monthLabel(p, locale) }), {
+        action: { label: t('undo'), onClick: () => reopenNow.mutate(p) },
+      });
+    },
   });
   const reopen = useMutation({
     mutationFn: (v: { period: string; reason: string }) => reopenPeriod(v.period, v.reason),
@@ -206,7 +222,7 @@ export function PeriodsView() {
       </>
     );
   }
-  const current = academyToday().slice(0, 7);
+  const current = periodOfDay(today);
   const goYear = (y: number) => params.set({ year: y === thisYear ? null : y });
 
   return (
@@ -262,7 +278,7 @@ export function PeriodsView() {
             <TableBody>
               {(periods.data ?? []).map((p) => {
                 const isClosed = p.status === 'closed';
-                const ended = p.period < current;
+                const ended = hasEnded(p.period, today);
                 const label = monthLabel(p.period, locale);
                 return (
                   <TableRow key={p.period}>
@@ -287,7 +303,10 @@ export function PeriodsView() {
                     </TableCell>
                     <TableCell className="hidden text-sm text-muted-foreground md:table-cell">
                       {isClosed && p.closedBy
-                        ? `${p.closedBy.name} · ${formatInstant(p.closedAt, tz, locale)}`
+                        ? t('closedByLine', {
+                            name: p.closedBy.name,
+                            when: formatInstant(p.closedAt, tz, locale) ?? '—',
+                          })
                         : p.reopenReason
                           ? t('reopenedBecause', { reason: p.reopenReason })
                           : '—'}
