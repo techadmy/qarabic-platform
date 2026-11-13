@@ -46,6 +46,8 @@ import {
   WEB_LEAD_SIGNATURE_HEADER,
   WEB_LEAD_TIMESTAMP_HEADER,
   wpformsLeadSchema,
+  trialTeachersQuerySchema,
+  type TrialTeachersResponse,
 } from '@qarabic/shared';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
@@ -63,6 +65,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService, type SettingKey } from '../settings/settings.service.js';
 import { CaptchaVerifier } from './captcha.js';
 import { CrmConfig, verifyWebLead } from './crm.config.js';
+import { TrialEligibility } from './eligibility.js';
 import { crmError } from './errors.js';
 import { LeadService } from './lead.service.js';
 import { PublicIntake } from './public-intake.service.js';
@@ -86,6 +89,7 @@ export class LeadsController {
     private readonly trials: LeadTrialService,
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly eligibility: TrialEligibility,
   ) {}
 
   @Can('leads.view')
@@ -228,6 +232,19 @@ export class LeadsController {
   ): Promise<{ data: LeadDetailDto; meta: Record<string, never> }> {
     await this.trials.createAccount(id, body, actor);
     return { data: await this.reports.detail(id, actor), meta: {} };
+  }
+
+  @Can('leads.manage', 'schedule.manage')
+  @Get(':id/trial-teachers')
+  @ApiOperation({
+    summary:
+      'Teachers for a trial at this time: eligible ones ranked, the others with reasons (T2)',
+  })
+  async trialTeachers(
+    @Param('id', IdPipe) id: number,
+    @ZodQuery(trialTeachersQuerySchema) q: Out<typeof trialTeachersQuerySchema>,
+  ): Promise<TrialTeachersResponse> {
+    return this.eligibility.options(id, q);
   }
 
   @Can('leads.manage', 'schedule.manage')
