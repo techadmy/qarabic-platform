@@ -22,4 +22,5 @@ export * from './tests.js';
 export * from './tickets.js';
 export * from './support.js';
 export * from './portal.js';
+export * from './support-requests.js';
 export * from './trials.js';
