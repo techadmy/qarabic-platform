@@ -35,6 +35,6 @@ import { TasksService } from './tasks.service.js';
     ClassReminderService,
     OperationsJobs,
   ],
-  exports: [OperationsJobs],
+  exports: [OperationsJobs, TasksService],
 })
 export class OperationsModule {}
