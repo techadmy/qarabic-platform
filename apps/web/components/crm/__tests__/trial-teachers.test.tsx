@@ -2,10 +2,14 @@ import type { TrialTeacherOptionDto, TrialTeachersQuery } from '@qarabic/shared'
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
+import { BookTrialDialog } from '@/components/crm/book-trial-dialog';
 import { TrialTeacherPicker } from '@/components/crm/trial-teacher-picker';
 import { crmdb } from '@/mocks/crm-db';
-import { zonedUtc } from '@/mocks/crm-handlers';
+import { presentDetail, zonedUtc } from '@/mocks/crm-handlers';
+import { MOCK_USERS } from '@/mocks/data';
+import { server } from '@/mocks/node';
 import { trialTeachers } from '@/mocks/trial-teachers';
 import { renderPage } from '@/test/people';
 
@@ -131,5 +135,135 @@ describe('T2 trial teacher picker', () => {
     expect(screen.getByText(course!.teacher.name).closest('label')).toHaveTextContent(
       'لا يدرّس هذه الدورة',
     );
+  });
+
+  it('the arrow keys move between the ranked teachers; Space chooses', async () => {
+    const user = userEvent.setup();
+    const query = queryFor();
+    const want = expected(query);
+    renderPage(<Harness query={query} />, { path: `/leads/${LEAD}` });
+    const group = await screen.findByRole('radiogroup', { name: 'المعلم' });
+    const radios = within(group).getAllByRole('radio');
+    await user.click(radios[0]!);
+    await waitFor(() =>
+      expect(screen.getByLabelText('selected')).toHaveTextContent(
+        `${want.eligible[0]!.teacher.id}:`,
+      ),
+    );
+    // ArrowDown moves to the next teacher in either direction; Space chooses it (in a browser the
+    // arrow also chooses it; jsdom does not run Radix's select-on-focus).
+    await user.keyboard('{ArrowDown}');
+    expect(radios[1]).toHaveFocus();
+    await user.keyboard(' ');
+    await waitFor(() =>
+      expect(screen.getByLabelText('selected')).toHaveTextContent(
+        `${want.eligible[1]!.teacher.id}:`,
+      ),
+    );
+  });
+
+  it('a busy teacher is listed but cannot be chosen; every card shows the teacher’s day and time', async () => {
+    const user = userEvent.setup();
+    const query = queryFor();
+    const real = expected(query);
+    const busy = {
+      ...real.eligible[0]!,
+      eligible: false,
+      rank: null,
+      reasons: ['busy' as const],
+      overridable: false,
+    };
+    server.use(
+      http.get('*/api/v1/leads/:id/trial-teachers', () =>
+        HttpResponse.json({
+          data: { eligible: real.eligible.slice(1), ineligible: [busy] },
+          meta: {
+            startsAt: '2026-11-20T16:00:00Z',
+            durationMinutes: 30,
+            familyZone: 'America/New_York',
+            adult: false,
+            teacherGenderPref: null,
+          },
+        }),
+      ),
+    );
+    renderPage(<Harness query={query} />, { path: `/leads/${LEAD}` });
+    await user.click(await screen.findByRole('button', { name: 'عرض غير المتاحين (1)' }));
+    const radio = screen.getByRole('radio', { name: busy.teacher.name });
+    expect(radio).toBeDisabled();
+    expect(radio).toHaveAccessibleDescription(/مشغول في هذا الموعد/);
+    // 16:00 UTC is 6 pm in Cairo on Friday 20 November.
+    expect(radio.closest('label')).toHaveTextContent(/عنده .*20.*6:00 م \(القاهرة\)/);
+  });
+});
+
+describe('T2 booking dialog', () => {
+  async function openDialog() {
+    const user = userEvent.setup();
+    const row = crmdb.leads.find((l) => l.id === LEAD)!;
+    const admin = MOCK_USERS.find((u) => u.email === 'admin@qarabic.test')!;
+    // No earlier trial: no teacher is chosen yet.
+    const lead = { ...presentDetail(row, admin), trials: [] };
+    renderPage(
+      <BookTrialDialog lead={lead} onClose={() => undefined} onSaved={() => undefined} />,
+      {
+        path: `/leads/${LEAD}`,
+      },
+    );
+    const dialog = await screen.findByRole('dialog', { name: 'حجز حصة تجريبية' });
+    await user.click(within(dialog).getByRole('button', { name: 'التاريخ' }));
+    await user.click(await screen.findByRole('button', { name: 'اذهب إلى الشهر التالي' }));
+    const day = screen
+      .getAllByRole('gridcell')
+      .find((c) => c.textContent?.trim() === '10' && c.querySelector('button:not([disabled])'))!;
+    await user.click(within(day).getByRole('button'));
+    await user.click(within(dialog).getByRole('combobox', { name: 'الوقت' }));
+    await user.click(await screen.findByRole('option', { name: '10:00 ص' }));
+    await within(dialog).findByRole('radiogroup', { name: 'المعلم' });
+    return { user, dialog };
+  }
+
+  it('booking without a teacher says so and takes the focus to the list', async () => {
+    const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole('button', { name: 'احجز الحصة' }));
+    const group = within(dialog).getByRole('radiogroup', { name: 'المعلم' });
+    expect(group).toHaveAccessibleDescription('اختر المعلم.');
+    expect(within(group).getAllByRole('radio')[0]).toHaveFocus();
+  });
+
+  it('a 422 teacher_not_eligible keeps the reason and shows why; editing the reason allows a retry', async () => {
+    const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole('button', { name: /^عرض غير المتاحين/ }));
+    await user.click(within(dialog).getByRole('radio', { name: 'Mahmoud Saeed' }));
+    const reason = within(dialog).getByRole('textbox', { name: 'سبب التجاوز' });
+    await user.type(reason, 'Family asked');
+    server.use(
+      http.post(
+        '*/api/v1/leads/:id/trials',
+        () =>
+          HttpResponse.json(
+            {
+              code: 'teacher_not_eligible',
+              message: 'The teacher is not eligible for this trial.',
+              errors: { overrideReason: ['Give a reason to book this teacher.'] },
+              data: { reasons: ['not_accepting'] },
+            },
+            { status: 422 },
+          ),
+        { once: true },
+      ),
+    );
+    for (const tick of within(dialog).queryAllByRole('checkbox')) await user.click(tick);
+    await user.click(within(dialog).getByRole('button', { name: 'احجز الحصة' }));
+    expect(
+      await within(dialog).findByText(
+        'هذا المعلم غير مؤهل لهذه الحصة؛ اذكر سبب التجاوز للحجز معه.',
+      ),
+    ).toBeInTheDocument();
+    expect(reason).toHaveValue('Family asked');
+    await user.type(reason, ' by name');
+    expect(
+      within(dialog).queryByText('هذا المعلم غير مؤهل لهذه الحصة؛ اذكر سبب التجاوز للحجز معه.'),
+    ).toBeNull();
   });
 });

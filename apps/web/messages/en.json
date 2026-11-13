@@ -2341,7 +2341,7 @@
         "loadError": "Couldn’t load the available teachers.",
         "retry": "Try again",
         "rank": "#{rank}",
-        "teacherTime": "Their time {time} ({city})",
+        "teacherTime": "Their time <bdi>{time}</bdi> ({city})",
         "inHours": "Within work hours",
         "outsideHours": "Outside work hours",
         "languageMatch": "Speaks the student’s language",

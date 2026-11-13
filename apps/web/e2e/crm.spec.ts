@@ -136,6 +136,30 @@ test('trial booking: a teacher who takes no trials needs an override reason (T2)
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
 });
 
+test('trial booking on a phone, in English: the list fits, «Book» stays in reach (T2)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'admin@qarabic.test', '/leads/6');
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await page
+    .getByRole('button', { name: /^(Book a trial class|Rebook the trial)$/ })
+    .first()
+    .click();
+  const book = page.getByRole('dialog', { name: /trial/i });
+  await book.getByRole('combobox', { name: 'Time' }).click();
+  await page.getByRole('option', { name: '10:00 PM' }).click();
+  const teachers = book.getByRole('radiogroup', { name: 'Teacher' });
+  await expect(teachers.getByRole('radio').first()).toBeVisible();
+  await expect(teachers.locator('label').first()).toContainText('#1');
+  await expect(teachers.locator('label').first()).toContainText('Their time');
+  // The footer is sticky: «Book» is on screen without scrolling the long form.
+  await expect(book.getByRole('button', { name: 'Book the class', exact: true })).toBeInViewport();
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+});
+
 test('public trial form: required fields, then the thank-you message', async ({ page }) => {
   await page.goto('/trial');
   await expect(

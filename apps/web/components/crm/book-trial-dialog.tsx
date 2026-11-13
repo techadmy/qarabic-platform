@@ -59,7 +59,11 @@ import { conflictsOf } from '@/lib/sessions/errors';
 import { clock, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { cityOf, isValidTimeZone } from '@/lib/time';
 import { useCrmError } from './crm-bits';
-import { TrialTeacherPicker } from './trial-teacher-picker';
+import {
+  TRIAL_OVERRIDE_REASON_ID,
+  TRIAL_TEACHERS_ID,
+  TrialTeacherPicker,
+} from './trial-teacher-picker';
 
 const DURATIONS = [30, 45, 60] as const;
 
@@ -322,7 +326,8 @@ function AccountStep({
           </AlertDescription>
         </Alert>
       )}
-      <DialogFooter>
+      {/* Sticky: on a phone the form runs several screens; «احجز الحصة» stays in reach. */}
+      <DialogFooter className="sticky -bottom-4 z-10 bg-muted">
         <DialogClose asChild>
           <Button type="button" variant="outline">
             {t('cancel')}
@@ -438,7 +443,11 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     onError: (e) => {
       const c = conflictsOf(e);
       if (c) setServer({ key: inputKey, result: c });
-      if (isApiError(e) && e.code === 'teacher_not_eligible') setTeacherRefusal(t('notEligible'));
+      if (isApiError(e) && e.code === 'teacher_not_eligible') {
+        // The list was out of date: reload it (the teacher now shows why, with the reason field).
+        setTeacherRefusal(t('notEligible'));
+        void queryClient.invalidateQueries({ queryKey: ['crm', 'trial-teachers', lead.id] });
+      }
     },
   });
   const errors = {
@@ -460,6 +469,19 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
   const blocked = !!result && !canSave(result, ack);
   const submit = () => {
     setTouched(true);
+    // The teacher step is the usual miss: take the user there (first radio, or the reason field)
+    // once the fields above it are fine.
+    const above = errors.student || errors.course || errors.date || errors.time;
+    if (!above && errors.teacher) {
+      document
+        .querySelector<HTMLElement>(`#${TRIAL_TEACHERS_ID} [role="radio"]:not([disabled])`)
+        ?.focus();
+      return;
+    }
+    if (!above && errors.override) {
+      document.getElementById(TRIAL_OVERRIDE_REASON_ID)?.focus();
+      return;
+    }
     if (Object.values(errors).some(Boolean)) return;
     if (blocked) return;
     book.mutate();
@@ -603,7 +625,10 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
           }}
           onSelected={(o) => setOption(o ?? null)}
           overrideReason={overrideReason}
-          onOverrideReason={setOverrideReason}
+          onOverrideReason={(r) => {
+            setOverrideReason(r);
+            setTeacherRefusal('');
+          }}
           showErrors={touched}
           error={errors.teacher}
         />
@@ -639,7 +664,8 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
           <AlertDescription>{message(book.error)}</AlertDescription>
         </Alert>
       )}
-      <DialogFooter>
+      {/* Sticky: on a phone the form runs several screens; «احجز الحصة» stays in reach. */}
+      <DialogFooter className="sticky -bottom-4 z-10 bg-muted">
         <DialogClose asChild>
           <Button type="button" variant="outline">
             {t('cancel')}

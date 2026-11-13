@@ -2341,7 +2341,7 @@
         "loadError": "تعذّر تحميل المعلمين المتاحين.",
         "retry": "حاول مرة أخرى",
         "rank": "#{rank}",
-        "teacherTime": "عنده {time} ({city})",
+        "teacherTime": "عنده <bdi>{time}</bdi> ({city})",
         "inHours": "داخل ساعات العمل",
         "outsideHours": "خارج ساعات العمل",
         "languageMatch": "يتحدث لغة الطالب",

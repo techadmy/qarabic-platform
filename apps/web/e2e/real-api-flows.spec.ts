@@ -106,7 +106,15 @@ function* distinctTimes() {
  */
 async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Iterator<number>) {
   const checks: { teacherId: number; time: string; body: unknown }[] = [];
+  const lists: { time: string; body: unknown }[] = [];
   const onResponse = async (r: Response) => {
+    if (/\/trial-teachers\?/.test(r.url()) && r.request().method() === 'GET') {
+      lists.push({
+        time: new URL(r.url()).searchParams.get('localTime') ?? '',
+        body: await r.json().catch(() => null),
+      });
+      return;
+    }
     if (!r.url().endsWith('/schedule/check') || r.request().method() !== 'POST') return;
     const sent = JSON.parse(r.request().postData() ?? '{}') as {
       teacherId?: number;
@@ -120,18 +128,24 @@ async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Itera
   };
   page.on('response', onResponse);
   try {
+    let previous = '';
     for (let attempt = 0; attempt < 20; attempt++) {
-      const listed = page.waitForResponse(
-        (r) => /\/trial-teachers\?/.test(r.url()) && r.request().method() === 'GET',
-      );
+      const from = lists.length;
       await chooseOption(
         page,
         dialog.getByRole('combobox', { name: 'الوقت' }),
         tries.next().value!,
       );
-      const res = await listed;
-      const time = new URL(res.url()).searchParams.get('localTime')!;
-      const { data } = trialTeachersAnswer.parse(await res.json());
+      // The list for this time: an answer still in flight for the previous time doesn't count.
+      let listed: { time: string; body: unknown } | undefined;
+      await expect
+        .poll(() => (listed = lists.slice(from).find((l) => l.time && l.time !== previous)), {
+          timeout: 15_000,
+        })
+        .toBeTruthy();
+      const time = listed!.time;
+      previous = time;
+      const { data } = trialTeachersAnswer.parse(listed!.body);
       if (!data.eligible.length) continue;
       const pick = data.eligible[Number(runTag()) % data.eligible.length]!;
       await dialog
@@ -140,11 +154,14 @@ async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Itera
         .check();
       let answer: unknown = null;
       await expect
-        .poll(() => {
-          answer =
-            checks.find((c) => c.teacherId === pick.teacher.id && c.time === time)?.body ?? null;
-          return answer !== null;
-        })
+        .poll(
+          () => {
+            answer =
+              checks.find((c) => c.teacherId === pick.teacher.id && c.time === time)?.body ?? null;
+            return answer !== null;
+          },
+          { timeout: 15_000 },
+        )
         .toBe(true);
       const check = conflictAnswer.parse(answer).data;
       if (check.conflicts.length === 0) {

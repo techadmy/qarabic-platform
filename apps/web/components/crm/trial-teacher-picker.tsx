@@ -32,8 +32,12 @@ import { useTranslations } from 'next-intl';
 import { useEffect, useId, useState } from 'react';
 import { useUiLocale } from '@/components/sessions/times';
 import { crmKeys, fetchTrialTeachers } from '@/lib/api/crm';
-import { clock } from '@/lib/schedule-time';
+import { dayAndClock } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
+
+/** Stable ids, so the dialog can move focus to the first problem on submit (§5.6). */
+export const TRIAL_TEACHERS_ID = 'trial-teachers';
+export const TRIAL_OVERRIDE_REASON_ID = 'trial-override-reason';
 
 /**
  * «المعلم» in the trial booking (T2, docs/33 §4.2, mode A): once the child, course and time are
@@ -68,7 +72,7 @@ export function TrialTeacherPicker({
 }) {
   const t = useTranslations('crm.trial.teachers');
   const locale = useUiLocale();
-  const ids = { legend: useId(), reason: useId(), hint: useId() };
+  const ids = { legend: useId(), reason: TRIAL_OVERRIDE_REASON_ID, hint: useId(), error: useId() };
   const [showOthers, setShowOthers] = useState(false);
   const list = useQuery({
     queryKey: crmKeys.trialTeachers(leadId, query),
@@ -86,6 +90,16 @@ export function TrialTeacherPicker({
   const needsReason = !!selected && !selected.eligible;
   const reasonError =
     showErrors && needsReason && overrideReason.trim().length < 3 ? t('reasonRequired') : '';
+
+  // The trial in the teacher's zone, with the day (it can be another day there; D30).
+  const teacherTime = (o: TrialTeacherOptionDto) =>
+    list.data
+      ? t.rich('teacherTime', {
+          time: dayAndClock(list.data.meta.startsAt, o.teacher.timezone, locale),
+          city: cityOf(o.teacher.timezone, locale),
+          bdi: (c) => <bdi>{c}</bdi>,
+        })
+      : null;
 
   const card = (o: TrialTeacherOptionDto) => {
     const id = `trial-teacher-${o.teacher.id}`;
@@ -107,14 +121,7 @@ export function TrialTeacherPicker({
                 id={`${id}-desc`}
                 className="flex flex-wrap gap-x-3 gap-y-1 text-sm text-muted-foreground"
               >
-                {list.data && (
-                  <li>
-                    {t('teacherTime', {
-                      time: clock(list.data.meta.startsAt, o.teacher.timezone, locale),
-                      city: cityOf(o.teacher.timezone, locale),
-                    })}
-                  </li>
-                )}
+                <li>{teacherTime(o)}</li>
                 <li className={o.inWorkHours ? undefined : 'font-medium text-foreground'}>
                   {t(o.inWorkHours ? 'inHours' : 'outsideHours')}
                 </li>
@@ -142,12 +149,15 @@ export function TrialTeacherPicker({
                 </li>
               </ul>
             ) : (
-              <span id={`${id}-desc`} className="flex flex-wrap gap-1">
-                {o.reasons.map((r) => (
-                  <Badge key={r} variant="outline">
-                    {TRIAL_INELIGIBLE_LABELS[r][locale]}
-                  </Badge>
-                ))}
+              <span id={`${id}-desc`} className="flex flex-col gap-1">
+                <span className="text-sm text-muted-foreground">{teacherTime(o)}</span>
+                <span className="flex flex-wrap gap-1">
+                  {o.reasons.map((r) => (
+                    <Badge key={r} variant="outline">
+                      {TRIAL_INELIGIBLE_LABELS[r][locale]}
+                    </Badge>
+                  ))}
+                </span>
               </span>
             )}
           </FieldContent>
@@ -190,7 +200,10 @@ export function TrialTeacherPicker({
         <>
           <FieldDescription>{t('rankingHelp')}</FieldDescription>
           <RadioGroup
+            id={TRIAL_TEACHERS_ID}
             aria-labelledby={ids.legend}
+            aria-invalid={(showErrors && !!error) || undefined}
+            aria-describedby={showErrors && error ? ids.error : undefined}
             value={value ?? ''}
             onValueChange={(v) => {
               if (selectedOption(data, v)) onChange(v);
@@ -226,36 +239,39 @@ export function TrialTeacherPicker({
           </RadioGroup>
         </>
       )}
-      {showErrors && error && <FieldError>{error}</FieldError>}
+      {showErrors && error && <FieldError id={ids.error}>{error}</FieldError>}
       {needsReason && (
-        <Alert variant="warning">
-          <AlertDescription className="flex flex-col gap-3">
-            <span>
+        <>
+          {/* The warning stays an Alert; the field sits below it, so its validation is not
+              announced assertively. */}
+          <Alert variant="warning">
+            <AlertDescription>
               {t('overrideIntro', {
                 name: selected.teacher.name,
                 reasons: new Intl.ListFormat(locale, { type: 'conjunction' }).format(
                   selected.reasons.map((r) => TRIAL_INELIGIBLE_LABELS[r][locale]),
                 ),
               })}
-            </span>
-            <Field data-invalid={!!reasonError}>
-              <FieldLabel htmlFor={ids.reason}>{t('overrideReason')}</FieldLabel>
-              <Textarea
-                id={ids.reason}
-                value={overrideReason}
-                onChange={(e) => onOverrideReason(e.target.value)}
-                maxLength={500}
-                aria-invalid={!!reasonError}
-                className="min-h-20 bg-background"
-              />
-              {reasonError ? (
-                <FieldError>{reasonError}</FieldError>
-              ) : (
-                <FieldDescription>{t('overrideHelp')}</FieldDescription>
-              )}
-            </Field>
-          </AlertDescription>
-        </Alert>
+            </AlertDescription>
+          </Alert>
+          <Field data-invalid={!!reasonError}>
+            <FieldLabel htmlFor={ids.reason}>{t('overrideReason')}</FieldLabel>
+            <Textarea
+              id={ids.reason}
+              value={overrideReason}
+              onChange={(e) => onOverrideReason(e.target.value)}
+              maxLength={500}
+              aria-invalid={!!reasonError}
+              aria-describedby={`${ids.reason}-msg`}
+              className="min-h-20"
+            />
+            {reasonError ? (
+              <FieldError id={`${ids.reason}-msg`}>{reasonError}</FieldError>
+            ) : (
+              <FieldDescription id={`${ids.reason}-msg`}>{t('overrideHelp')}</FieldDescription>
+            )}
+          </Field>
+        </>
       )}
     </FieldSet>
   );
