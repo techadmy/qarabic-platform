@@ -15,6 +15,15 @@ const MESSAGES = {
   webhook_disabled: 'Webhook disabled.',
   captcha_failed: 'The captcha check failed. Please try again.',
   too_many_requests: 'Too many attempts. Please try again later.',
+  no_eligible_teachers: 'No teacher is eligible for this trial: book one directly with a reason.',
+  offer_too_late: 'Too close to the trial for an offer: book a teacher directly.',
+  offer_open: 'This student already has an open trial offer.',
+  offer_closed: 'This offer is no longer open.',
+  offer_taken: 'Another teacher already took this trial.',
+  claim_limit: 'You already hold the most trial classes from offers. Try again after one of them.',
+  offer_unavailable: 'You can no longer take this trial at this time.',
+  not_a_teacher: 'Only teachers can answer trial offers.',
+  teacher_not_eligible: 'This teacher is not eligible for the trial. Give a reason to book anyway.',
 } as const;
 export type CrmErrorCode = keyof typeof MESSAGES;
 

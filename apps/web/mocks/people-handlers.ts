@@ -602,6 +602,10 @@ export const peopleHandlers: HttpHandler[] = [
       courses: COURSES.filter((c) => input.courseIds?.includes(c.id)).map(
         ({ id: cid, nameAr, nameEn }) => ({ id: cid, nameAr, nameEn }),
       ),
+      acceptsTrials: input.acceptsTrials ?? true,
+      maxTrialsPerWeek: input.maxTrialsPerWeek ?? null,
+      audience: input.audience ?? 'both',
+      languages: input.languages ?? [],
       qualification: input.qualification ?? null,
       experience: input.experience ?? null,
       address: input.address ?? null,
