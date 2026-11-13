@@ -166,6 +166,59 @@ describe('S3 the steps', () => {
     expect((await t.get(`/feedback/tickets/${id}`)).status).toBe(404);
   });
 
+  it('says who may do what next, and who took the last step with their note', async () => {
+    const proposed = await m2Teacher(ctx, 'Africa/Cairo', 'Amina');
+    const created = await file({
+      category: 'teacher',
+      subcategory: 'teacher_change',
+      description: 'We would like another teacher please',
+      request: { studentId, reason: 'level' },
+    });
+    const id = created.body.data.id;
+    expect(created.body.data.request).toMatchObject({
+      allowedActions: [],
+      decidedBy: null,
+      decidedAt: null,
+      note: null,
+    });
+    const asStaff = await monitor.get(`/feedback/tickets/${id}`);
+    expect(asStaff.body.data.request.allowedActions).toEqual(['propose', 'reject']);
+    // A senior manager (support.manage) gets the same steps.
+    const { client: senior } = await signedIn(ctx, 'senior_manager');
+    expect((await senior.get(`/feedback/tickets/${id}`)).body.data.request.allowedActions).toEqual([
+      'propose',
+      'reject',
+    ]);
+
+    await monitor.post(`/support/tickets/${id}/request`, {
+      action: 'propose',
+      proposal: { teacherId: proposed.id, fromDate: '2026-12-01' },
+      note: 'Amina teaches beginners',
+    });
+    const seen = await parent.get(`/feedback/tickets/${id}`);
+    expect(seen.body.data.request).toMatchObject({
+      allowedActions: ['accept', 'decline'],
+      decidedBy: { id: expect.any(Number) },
+      decidedAt: expect.any(String),
+      note: 'Amina teaches beginners',
+    });
+    const declined = await parent.post(`/support/tickets/${id}/request/answer`, {
+      accept: false,
+      note: 'We prefer evenings',
+    });
+    expect(declined.body.data.request).toMatchObject({
+      allowedActions: [],
+      note: 'We prefer evenings',
+    });
+    // Staff read the family's words on the request (and on the timeline).
+    const back = await monitor.get(`/feedback/tickets/${id}`);
+    expect(back.body.data.request).toMatchObject({
+      state: 'declined',
+      note: 'We prefer evenings',
+      allowedActions: ['propose', 'reject'],
+    });
+  });
+
   it('pause: approve → complete; a rejection needs a note and closes the ticket', async () => {
     const pause = await file({
       category: 'billing',

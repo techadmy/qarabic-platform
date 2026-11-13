@@ -13,7 +13,12 @@ async function signIn(page: Page, email = 'admin@qarabic.test', path = '/leads')
 
 /** Picks tomorrow (in `tz`) in the shadcn calendar of the `التاريخ` date button inside `scope`. */
 async function pickTomorrow(page: Page, scope: ReturnType<Page['getByRole']>, tz: string) {
-  const tomorrow = new Date(Date.now() + 86_400_000);
+  await pickDay(page, scope, tz, 1);
+}
+
+/** Picks the day `days` ahead (in `tz`, at most a month) in that calendar. */
+async function pickDay(page: Page, scope: ReturnType<Page['getByRole']>, tz: string, days: number) {
+  const tomorrow = new Date(Date.now() + days * 86_400_000);
   const part = (o: Intl.DateTimeFormatOptions) =>
     new Intl.DateTimeFormat('ar', { ...o, timeZone: tz, numberingSystem: 'latn' }).format(tomorrow);
   const today = new Date();
@@ -48,20 +53,25 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
 
-  // Step 2: teacher, tomorrow (family zone), a time; the teacher's time is shown live.
-  await book.getByRole('combobox', { name: 'المعلم' }).click();
-  await page.getByRole('option', { name: 'Ahmed Fathy' }).click();
+  // Step 2: tomorrow (family zone), a time, then a teacher from the server's ranked list (T2: the
+  // eligible teachers for this child, course and time); the teacher's time is shown live.
   await pickTomorrow(page, book, 'Europe/London');
   await book.getByRole('combobox', { name: 'الوقت' }).click();
   await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
+  const teachers = book.getByRole('radiogroup', { name: 'المعلم' });
+  await expect(teachers.locator('label').first()).toContainText('#1');
+  await teachers.getByRole('radio').first().check();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
-  // 4 am London = 6 am Cairo, before the demo teacher's hours (08:00–23:30, Sat–Thu) on any day:
-  // booking needs the acknowledgement. (6 pm London was outside them only when tomorrow was a
-  // Friday, the teacher's day off.)
+  // The warnings of this teacher and time (outside hours, DST, …) each need a tick before booking.
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
-  await expect(book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.')).toBeVisible();
-  await book.getByRole('checkbox', { name: 'خارج ساعات عمل المعلم' }).check();
-  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  const booked = page.getByText('حُجزت الحصة التجريبية.');
+  const needAck = book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.');
+  await expect(booked.or(needAck)).toBeVisible();
+  if (await needAck.isVisible()) {
+    for (const tick of await book.getByRole('alert').getByRole('checkbox').all())
+      await tick.check();
+    await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  }
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(book).toBeHidden();
 
@@ -95,6 +105,58 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await expect(page.getByText('تحوّلت العائلة إلى منتظمة.')).toBeVisible();
   await expect(convert).toBeHidden();
   await expect(page.getByText(/تحوّل إلى منتظم في /)).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+});
+
+test('trial booking: a teacher who takes no trials needs an override reason (T2)', async ({
+  page,
+}) => {
+  // Lead 6 already has a family and a child: the dialog opens on the trial step.
+  await signIn(page, 'admin@qarabic.test', '/leads/6');
+  await page
+    .getByRole('button', { name: /احجز حصة تجريبية|أعد حجز التجريبية/ })
+    .first()
+    .click();
+  const book = page.getByRole('dialog', { name: 'حجز حصة تجريبية' });
+  await expect(book.getByText('اختر الطالب والدورة والموعد لعرض المعلمين المتاحين.')).toBeVisible();
+  await pickDay(page, book, 'America/New_York', 2);
+  await book.getByRole('combobox', { name: 'الوقت' }).click();
+  await page.getByRole('option', { name: '10:00 ص' }).click();
+  await book.getByRole('button', { name: /^عرض غير المتاحين/ }).click();
+  const card = book.locator('label').filter({ hasText: 'Mahmoud Saeed' });
+  await expect(card).toContainText('لا يقبل الحصص التجريبية');
+  await card.getByRole('radio').check();
+  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  await expect(book.getByText('اذكر سبب التجاوز (3 أحرف على الأقل).')).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  await book.getByRole('textbox', { name: 'سبب التجاوز' }).fill('The family asked for him');
+  // Whatever warnings this day brings (a Friday is outside the hours) get their tick.
+  for (const tick of await book.getByRole('alert').getByRole('checkbox').all()) await tick.check();
+  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
+});
+
+test('trial booking on a phone, in English: the list fits, «Book» stays in reach (T2)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'admin@qarabic.test', '/leads/6');
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await page
+    .getByRole('button', { name: /^(Book a trial class|Rebook the trial)$/ })
+    .first()
+    .click();
+  const book = page.getByRole('dialog', { name: /trial/i });
+  await book.getByRole('combobox', { name: 'Time' }).click();
+  await page.getByRole('option', { name: '10:00 PM' }).click();
+  const teachers = book.getByRole('radiogroup', { name: 'Teacher' });
+  await expect(teachers.getByRole('radio').first()).toBeVisible();
+  await expect(teachers.locator('label').first()).toContainText('#1');
+  await expect(teachers.locator('label').first()).toContainText('Their time');
+  // The footer is sticky: «Book» is on screen without scrolling the long form.
+  await expect(book.getByRole('button', { name: 'Book the class', exact: true })).toBeInViewport();
+  await expectNoHorizontalScroll(page);
   await expectNoSeriousA11yViolations(page);
 });
 

@@ -57,6 +57,22 @@ describe('dashboard rules', () => {
 });
 
 describe('bell rows', () => {
+  it('a trial notice names the course and time, and opens the class (T2; no family data)', () => {
+    const r = n('trial', 'trial_booked', {
+      sessionId: 31,
+      course: 'تلاوة القرآن',
+      startsAt: '2026-11-20T16:00:00Z',
+      studentAge: 9,
+    });
+    expect(bellText(r)).toEqual({
+      kind: 'message',
+      key: 'trial.trial_booked',
+      values: { course: 'تلاوة القرآن', startsAt: '2026-11-20T16:00:00Z' },
+    });
+    expect(bellHref(r, 'teacher')).toBe('/my-classes?session=31');
+    expect(bellText(n('trial', 'something_new', {}))).toEqual({ kind: 'other' });
+  });
+
   it('a class reminder opens the class sheet on the right page for the role', () => {
     const r = n('class_reminder', 'upcoming', {
       sessionId: 9,
@@ -92,5 +108,7 @@ describe('bell rows', () => {
     expect(kindsFor({ permissions: ['leads.view'] })).toEqual(['class_reminder', 'lead']);
     // Trial offers and bookings reach the people who teach (T2–T4).
     expect(kindsFor({ permissions: ['sessions.conduct'] })).toEqual(['class_reminder', 'trial']);
+    // SLA breach notices reach the support staff (S4).
+    expect(kindsFor({ permissions: ['support.view'] })).toEqual(['class_reminder', 'support']);
   });
 });

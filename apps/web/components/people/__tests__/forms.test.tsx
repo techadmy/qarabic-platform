@@ -133,6 +133,43 @@ describe('Add / edit sheet', () => {
   });
 });
 
+describe('Teacher trial settings (T2)', () => {
+  it('shows them on the profile and edits them: takes trials, weekly cap, age group, languages', async () => {
+    let body: Record<string, unknown> | null = null;
+    server.use(
+      http.patch('*/api/v1/teachers/1', async ({ request }) => {
+        body = (await request.clone().json()) as Record<string, unknown>;
+        return undefined;
+      }),
+    );
+    renderPage(<TeacherProfile id={1} />, { path: '/teachers/1' });
+    const editTrials = await screen.findByRole('button', { name: 'تعديل: الحصص التجريبية' });
+    const section = editTrials.closest('[data-slot="collapsible"]')!;
+    expect(section).toHaveTextContent('يقبل الحصص التجريبية');
+    expect(section).toHaveTextContent('بلا حد');
+    const user = userEvent.setup({ delay: null });
+    await user.click(editTrials);
+    const sheet = await screen.findByRole('dialog');
+    await within(sheet).findByLabelText(/الاسم الأول/);
+    await user.click(within(sheet).getByRole('switch', { name: 'يقبل الحصص التجريبية' }));
+    await user.type(
+      within(sheet).getByRole('spinbutton', { name: 'أقصى عدد للحصص التجريبية في الأسبوع' }),
+      '3',
+    );
+    await user.click(within(sheet).getByRole('checkbox', { name: 'الأردية' }));
+    await user.click(within(sheet).getByRole('button', { name: 'حفظ' }));
+    await waitFor(() =>
+      expect(body).toEqual({
+        acceptsTrials: false,
+        maxTrialsPerWeek: 3,
+        languages: expect.any(Array),
+      }),
+    );
+    expect(body!.languages).toEqual(expect.arrayContaining(['urdu']));
+    await waitFor(() => expect(people.teachers.find((x) => x.id === 1)?.maxTrialsPerWeek).toBe(3));
+  });
+});
+
 describe('Status dialog', () => {
   it('requires the reason the shared FAMILY_STATUSES_NEEDING_REASON lists, explains the effect, then changes it', async () => {
     // The status history is the «السجل» tab (D141 §7).
