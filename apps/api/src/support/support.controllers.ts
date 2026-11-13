@@ -38,6 +38,8 @@ import {
   type TicketListResponse,
   updateSupportSettingsSchema,
   updateTicketSchema,
+  supportReportQuerySchema,
+  type SupportReportDto,
 } from '@qarabic/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -53,6 +55,7 @@ import { ZodQuery } from '../common/zod-query.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { InboxService } from './inbox.service.js';
+import { SupportReports } from './reports.service.js';
 import { SupportContext, SupportPolicy } from './policy.js';
 import { extensionFor, FileStorage } from './storage.js';
 import { TicketsService, userActor } from './tickets.service.js';
@@ -258,7 +261,19 @@ export class SupportController {
     private readonly inbox: InboxService,
     private readonly tickets: TicketsService,
     private readonly context: SupportContext,
+    private readonly reports: SupportReports,
   ) {}
+
+  /** S4: volume, first response, SLA met and time to resolve inside the viewer's queues. */
+  @Can('support.view')
+  @Get('reports')
+  async report(
+    @ZodQuery(supportReportQuerySchema) q: z.output<typeof supportReportQuerySchema>,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: SupportReportDto }> {
+    const v = await this.context.viewer(user);
+    return { data: await this.reports.report(q.from, q.to, v) };
+  }
 
   @Can('support.view')
   @RateLimit('search')

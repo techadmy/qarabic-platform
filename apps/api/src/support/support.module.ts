@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { InboxService } from './inbox.service.js';
+import { SupportReports } from './reports.service.js';
 import { SupportContext } from './policy.js';
 import {
   FeedbackController,
@@ -28,10 +29,11 @@ import { WhatsAppConfig, WhatsAppIntake, WhatsAppWebhookController } from './wha
     SupportContext,
     TicketsService,
     InboxService,
+    SupportReports,
     TicketCli,
     WhatsAppConfig,
     WhatsAppIntake,
   ],
-  exports: [TicketsService, TicketCli, WhatsAppConfig],
+  exports: [TicketsService, TicketCli, WhatsAppConfig, SupportReports],
 })
 export class SupportModule {}

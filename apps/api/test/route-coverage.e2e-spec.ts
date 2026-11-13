@@ -250,6 +250,7 @@ describe('route permission coverage', () => {
       'POST feedback/tickets/:id/seen': 'all:feedback.request',
       'GET feedback/attachments/:id': any,
       'GET support/inbox': 'all:support.view',
+      'GET support/reports': 'all:support.view',
       'GET support/summary': 'all:support.view',
       'GET support/assignees': 'any:support.handle|support.manage',
       'GET support/people': 'all:support.view',

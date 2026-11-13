@@ -76,6 +76,8 @@ export function kindsFor(me: { permissions: readonly string[] }): NotificationKi
         ? has('announcements.view')
         : k === 'lead'
           ? has('leads.view')
-          : true,
+          : k === 'support'
+            ? has('support.view')
+            : true,
   );
 }

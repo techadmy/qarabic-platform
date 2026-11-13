@@ -90,5 +90,7 @@ describe('bell rows', () => {
       'class_reminder',
     ]);
     expect(kindsFor({ permissions: ['leads.view'] })).toEqual(['class_reminder', 'lead']);
+    // SLA breach notices reach the support staff (S4).
+    expect(kindsFor({ permissions: ['support.view'] })).toEqual(['class_reminder', 'support']);
   });
 });
