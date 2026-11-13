@@ -50,6 +50,7 @@ import {
   type CommentRow,
   type TicketRow,
 } from './support-db';
+import { supportReport } from './support-report';
 import { tdb } from './teaching-db';
 
 /**
@@ -774,6 +775,24 @@ export const supportHandlers: HttpHandler[] = [
         counts,
       },
     });
+  }),
+
+  http.get(`${API}/support/reports`, ({ request }) => {
+    const g = guard(request, 'support.view');
+    if ('error' in g) return g.error;
+    const q = new URL(request.url).searchParams;
+    const today = new Date().toISOString().slice(0, 10);
+    const to = q.get('to') || today;
+    const from = q.get('from') || `${today.slice(0, 8)}01`;
+    if (to < from)
+      return validationFailed([{ path: ['to'], message: 'The end is before the start.' }]);
+    if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > 366) {
+      return apiError(422, 'range_too_long', 'Choose a period of at most one year.', {
+        to: ['Choose a period of at most one year.'],
+      });
+    }
+    const visible = supdb.tickets.filter((t) => staffView(g.me, t));
+    return HttpResponse.json({ data: supportReport(visible, from, to) });
   }),
 
   http.get(`${API}/support/summary`, ({ request }) => {

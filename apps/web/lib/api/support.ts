@@ -5,6 +5,7 @@ import {
   parentHomeSchema,
   personRefSchema,
   supportPeopleSchema,
+  supportReportSchema,
   supportSummarySchema,
   ticketCommentSchema,
   ticketDetailSchema,
@@ -20,6 +21,7 @@ import {
   type PersonRef,
   type SupportPeopleDto,
   type SupportSettingsDto,
+  type SupportReportDto,
   type SupportSummaryDto,
   type TicketCommentDto,
   type TicketDetailDto,
@@ -207,6 +209,16 @@ export async function fetchParentHome(signal?: AbortSignal): Promise<ParentHomeD
   return (await apiFetch('/parent/home', { schema: one(parentHomeSchema), signal })).data;
 }
 
+/** S4: the support report for a period (academy days). */
+export async function fetchSupportReport(
+  query: { from: string; to: string },
+  signal?: AbortSignal,
+): Promise<SupportReportDto> {
+  const qs = new URLSearchParams(query).toString();
+  return (await apiFetch(`/support/reports?${qs}`, { schema: one(supportReportSchema), signal }))
+    .data;
+}
+
 export const supportKeys = {
   all: ['support'] as const,
   feedbackSummary: ['support', 'feedback-summary'] as const,
@@ -219,5 +231,6 @@ export const supportKeys = {
   people: (query: unknown) => ['support', 'people', query] as const,
   mine: (query: unknown) => ['support', 'mine', query] as const,
   settings: ['support', 'settings'] as const,
+  report: (query: unknown) => ['support', 'report', query] as const,
   parentHome: ['support', 'parent-home'] as const,
 };

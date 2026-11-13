@@ -48,13 +48,21 @@ import { Switch } from '@qarabic/ui/components/switch';
 import { Textarea } from '@qarabic/ui/components/textarea';
 import { cn } from '@qarabic/ui/lib/utils';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { InboxIcon, SearchXIcon, UserRoundSearchIcon, XIcon } from 'lucide-react';
+import {
+  ChartNoAxesColumnIcon,
+  InboxIcon,
+  SearchXIcon,
+  UserRoundSearchIcon,
+  XIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useId, useState, type FormEvent } from 'react';
 import { toast } from 'sonner';
 import { RequestCard } from '@/app/(app)/requests/requests-view';
+import { ListActions } from '@/components/list/list-actions';
 import { ListPagination } from '@/components/list/list-pagination';
+import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
 import {
   ClearFiltersButton,
   FilterSelect,
@@ -64,6 +72,7 @@ import {
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
 import { MAX_STATUS_TABS, ViewsMenu } from '@/components/list/views-menu';
 import { PageHeader } from '@/components/page-header';
+import { SlaTiles } from './sla-tiles';
 import { TicketDetailView } from './ticket-detail';
 import { SessionSheet } from '@/components/sessions/session-sheet';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
@@ -494,6 +503,7 @@ export function InboxView() {
       </>
     );
   }
+  const live = refreshState(list);
   const meta = list.data?.meta;
   const rows = list.data?.data ?? [];
   const queues = meta?.queues ?? [];
@@ -542,6 +552,13 @@ export function InboxView() {
       }
       description={t('subtitle')}
       meta={meta ? t('count', { count: meta.total }) : undefined}
+      actions={
+        <ListActions
+          more={[
+            { label: t('reportsLink'), icon: ChartNoAxesColumnIcon, href: '/support/reports' },
+          ]}
+        />
+      }
     />
   );
   const search = {
@@ -605,6 +622,17 @@ export function InboxView() {
   return (
     <>
       {header}
+      <SlaTiles
+        breached={breached}
+        unassigned={assignee === 'none'}
+        onPick={(k) =>
+          params.set({
+            breached: k === 'breached' ? 1 : null,
+            assignee: k === 'unassigned' ? 'none' : null,
+          })
+        }
+      />
+      {live.stale && <RefreshFailed onRetry={() => void list.refetch()} />}
       <Card className="gap-0 py-0 shadow-none">
         <ListToolbar
           search={search}
@@ -698,7 +726,7 @@ export function InboxView() {
             )
           }
         />
-        {list.isError ? (
+        {live.failed ? (
           <div className="p-4">
             <ErrorState onRetry={() => void list.refetch()} />
           </div>

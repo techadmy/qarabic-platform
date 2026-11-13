@@ -290,7 +290,11 @@
       "hide": "Hide details"
     },
     "activeFilters": "Filters:",
-    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}"
+    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}",
+    "refresh": {
+      "stale": "Couldn’t refresh; showing the last data loaded.",
+      "retry": "Try again"
+    }
   },
   "time": {
     "dayAhead": "next day",
@@ -1912,7 +1916,14 @@
       "filterFamily": "Show this family's requests",
       "openFamily": "Open the family profile",
       "noPanel": "No family or teacher is linked to this request.",
-      "detail": "Request details"
+      "detail": "Request details",
+      "tilesLabel": "Now",
+      "tiles": {
+        "open": "Open",
+        "breached": "Past the deadline",
+        "unassigned": "Unassigned"
+      },
+      "reportsLink": "Support report"
     },
     "feedback": {
       "title": "Feedback triage",
@@ -2010,6 +2021,37 @@
       "closed": "This request is closed. If it happens again, send a new one.",
       "description": "Write at least 10 characters.",
       "invalid": "Check the details you entered."
+    },
+    "reports": {
+      "title": "Support report",
+      "description": "For the requests that came in the period, in your queues: volume, first answer, answered in time, and time to close.",
+      "back": "Support",
+      "summary": "Period summary",
+      "total": "Total",
+      "ofTotal": "{n} of {total}",
+      "minutes": "{count, plural, one {# min} other {# min}}",
+      "hours": "{count, plural, one {# hour} other {# hours}}",
+      "days": "{count, plural, one {# day} other {# days}}",
+      "rangeTooLong": "Choose a period of at most one year.",
+      "emptyTitle": "No requests in this period",
+      "empty": "Choose another period.",
+      "byQueue": "By queue",
+      "byCategory": "By category",
+      "byChannel": "By channel",
+      "byWeek": "Week by week",
+      "weekOf": "Week of {date}",
+      "cols": {
+        "created": "Received",
+        "open": "Still open",
+        "closed": "Closed",
+        "firstResponse": "First answer (median)",
+        "slaMet": "Answered in time",
+        "resolve": "Time to close (median)",
+        "queue": "Queue",
+        "category": "Category",
+        "channel": "Channel",
+        "week": "Week"
+      }
     }
   },
   "bell": {
@@ -2030,7 +2072,8 @@
       "due_soon": "A task is due within the hour: <bdi>{title}</bdi>"
     },
     "announcement": "New announcement: <bdi>{title}</bdi>",
-    "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}"
+    "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}",
+    "supportSlaBreach": "Request <bdi>{number}</bdi> ({queue}) passed its first-response deadline"
   },
   "crm": {
     "title": "Leads",
