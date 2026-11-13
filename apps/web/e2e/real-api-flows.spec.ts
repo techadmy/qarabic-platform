@@ -1,6 +1,5 @@
 import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
-import { conflictResultSchema, trialTeachersResponseSchema } from '@qarabic/shared';
-import { z } from 'zod';
+import { trialTeachersResponseSchema } from '@qarabic/shared';
 import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 
 /**
@@ -12,7 +11,6 @@ import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 test.skip(!REAL_API, 'set E2E_REAL_API=1 (needs the API and Postgres)');
 test.describe.configure({ mode: 'serial' });
 
-const conflictAnswer = z.object({ data: conflictResultSchema });
 const trialTeachersAnswer = trialTeachersResponseSchema;
 
 /** The first option of an open combobox / select list. */
@@ -98,81 +96,58 @@ function* distinctTimes() {
   for (let k = 0; k < 96; k++) yield start + k * 7; // 7 and 96 are coprime: 96 distinct times
 }
 
+/** «4:45 م» for `16:45`, as the time select shows it. */
+function timeLabel(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+}
+
 /**
  * T2 trial booking: steps through distinct times; for each, the ranked teachers
- * (`/trial-teachers`) answer first, a teacher is chosen among the eligible ones by the run's tag
- * (repeated runs spread their trials), and the live check of that teacher and time decides. The
- * check is matched by its request (teacher + time), so an answer for an earlier choice never counts.
+ * (`/trial-teachers`) answer, and each listed teacher carries the booking's own check for that
+ * exact date and time (#57: the dialog then sends no `/schedule/check`). A teacher with no hard
+ * conflict is chosen among the eligible by the run's tag (repeated runs spread their trials); its
+ * check is returned. The list answer is matched to the time on screen, so an answer still in
+ * flight for an earlier time never counts.
  */
 async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Iterator<number>) {
-  const checks: { teacherId: number; time: string; body: unknown }[] = [];
-  const lists: { time: string; body: unknown }[] = [];
-  const onResponse = async (r: Response) => {
-    if (/\/trial-teachers\?/.test(r.url()) && r.request().method() === 'GET') {
-      lists.push({
-        time: new URL(r.url()).searchParams.get('localTime') ?? '',
-        body: await r.json().catch(() => null),
-      });
-      return;
-    }
-    if (!r.url().endsWith('/schedule/check') || r.request().method() !== 'POST') return;
-    const sent = JSON.parse(r.request().postData() ?? '{}') as {
-      teacherId?: number;
-      localStartTime?: string;
+  const select = dialog.getByRole('combobox', { name: 'الوقت' });
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const answers: { time: string; body: unknown }[] = [];
+    const onResponse = async (r: Response) => {
+      if (!/\/trial-teachers\?/.test(r.url()) || r.request().method() !== 'GET') return;
+      const time = new URL(r.url()).searchParams.get('localTime') ?? '';
+      answers.push({ time, body: await r.json().catch(() => null) });
     };
-    checks.push({
-      teacherId: Number(sent.teacherId),
-      time: String(sent.localStartTime),
-      body: await r.json().catch(() => null),
-    });
-  };
-  page.on('response', onResponse);
-  try {
-    let previous = '';
-    for (let attempt = 0; attempt < 20; attempt++) {
-      const from = lists.length;
-      await chooseOption(
-        page,
-        dialog.getByRole('combobox', { name: 'الوقت' }),
-        tries.next().value!,
-      );
-      // The list for this time: an answer still in flight for the previous time doesn't count.
-      let listed: { time: string; body: unknown } | undefined;
-      await expect
-        .poll(() => (listed = lists.slice(from).find((l) => l.time && l.time !== previous)), {
-          timeout: 15_000,
-        })
-        .toBeTruthy();
-      const time = listed!.time;
-      previous = time;
-      const { data } = trialTeachersAnswer.parse(listed!.body);
-      if (!data.eligible.length) continue;
-      const pick = data.eligible[Number(runTag()) % data.eligible.length]!;
-      await dialog
-        .getByRole('radiogroup', { name: 'المعلم' })
-        .getByRole('radio', { name: pick.teacher.name, exact: true })
-        .check();
-      let answer: unknown = null;
+    page.on('response', onResponse);
+    let body: unknown = null;
+    try {
+      await chooseOption(page, select, tries.next().value!);
+      const shown = (await select.textContent())!.trim();
       await expect
         .poll(
           () => {
-            answer =
-              checks.find((c) => c.teacherId === pick.teacher.id && c.time === time)?.body ?? null;
-            return answer !== null;
+            body = answers.find((x) => timeLabel(x.time) === shown)?.body ?? null;
+            return body !== null;
           },
           { timeout: 15_000 },
         )
         .toBe(true);
-      const check = conflictAnswer.parse(answer).data;
-      if (check.conflicts.length === 0) {
-        await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);
-        return check;
-      }
+    } finally {
+      page.off('response', onResponse);
     }
-    throw new Error('no time with a free eligible teacher after 20 tries');
-  } finally {
-    page.off('response', onResponse);
+    const { data } = trialTeachersAnswer.parse(body);
+    const free = data.eligible.filter((o) => o.check.conflicts.length === 0);
+    if (!free.length) continue;
+    const pick = free[Number(runTag()) % free.length]!;
+    await dialog
+      .getByRole('radiogroup', { name: 'المعلم' })
+      .getByRole('radio', { name: pick.teacher.name, exact: true })
+      .check();
+    await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);
+    return pick.check;
   }
+  throw new Error('no time with a free eligible teacher after 20 tries');
 }
 
 test('real API (N3): staff edit a lesson report; the edit is saved', async ({ page }) => {
