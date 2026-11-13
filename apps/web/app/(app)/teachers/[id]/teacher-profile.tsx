@@ -2,7 +2,12 @@
 
 import { useRecordPane } from '@/components/list/split-view';
 import { cn } from '@qarabic/ui/lib/utils';
-import { countryName, GENDER_LABELS } from '@qarabic/shared';
+import {
+  countryName,
+  GENDER_LABELS,
+  TEACHER_AUDIENCE_LABELS,
+  TEACHER_LANGUAGE_LABELS,
+} from '@qarabic/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -134,6 +139,35 @@ export function TeacherProfile({ id }: { id: number }) {
                   {
                     label: tp('fields.createdAt'),
                     value: formatInstant(x.createdAt, me.timezone, locale),
+                  },
+                ]}
+              />
+              <InfoSection
+                title={tp('sections.trials')}
+                onEdit={editable ? () => edit('trials') : undefined}
+                rows={[
+                  {
+                    label: tp('fields.acceptsTrials'),
+                    value: tp(x.acceptsTrials ? 'trials.yes' : 'trials.no'),
+                  },
+                  {
+                    label: tp('fields.maxTrialsPerWeek'),
+                    value:
+                      x.maxTrialsPerWeek == null
+                        ? tp('trials.noLimit')
+                        : tp('trials.perWeek', { count: x.maxTrialsPerWeek }),
+                  },
+                  {
+                    label: tp('fields.audience'),
+                    value: TEACHER_AUDIENCE_LABELS[x.audience][locale],
+                  },
+                  {
+                    label: tp('fields.languages'),
+                    value: x.languages.length
+                      ? new Intl.ListFormat(locale, { type: 'conjunction' }).format(
+                          x.languages.map((l) => TEACHER_LANGUAGE_LABELS[l][locale]),
+                        )
+                      : null,
                   },
                 ]}
               />
