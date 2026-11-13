@@ -291,7 +291,11 @@
       "hide": "إخفاء التفاصيل"
     },
     "activeFilters": "عوامل التصفية:",
-    "moreFilters": "{count, plural, one {تصفية أخرى} two {تصفيتان أخريان} few {# تصفيات أخرى} many {# تصفية أخرى} other {# تصفية أخرى}}"
+    "moreFilters": "{count, plural, one {تصفية أخرى} two {تصفيتان أخريان} few {# تصفيات أخرى} many {# تصفية أخرى} other {# تصفية أخرى}}",
+    "refresh": {
+      "stale": "تعذّر تحديث البيانات؛ المعروض هو آخر ما حُمِّل.",
+      "retry": "أعد المحاولة"
+    }
   },
   "time": {
     "dayAhead": "اليوم التالي",
@@ -2422,7 +2426,7 @@
         "reminders": "تذكير المعلم قبل الحصة",
         "remindersHint": "قبلها بيوم وبساعة، داخل النظام.",
         "familyReminders": "تذكير العائلة قبل الحصة",
-        "familyRemindersHint": "لا يُرسل شيء إلى العائلات قبل اعتماد ذلك (D140).",
+        "familyRemindersHint": "لا يُرسل شيء إلى العائلات قبل اعتماد ذلك.",
         "offer_expiry_minutes": "مهلة الرد على العرض (بالدقائق)",
         "offer_expiry_minutesHint": "بعدها يُغلق العرض ويصلك تنبيه لاختيار المعلم.",
         "offer_min_hours_before": "يُغلق العرض قبل الحصة بـ (ساعات)",
@@ -2472,8 +2476,8 @@
       "report": "التقرير",
       "alerts": "التنبيهات",
       "startedOnTime": "في موعده",
-      "startedLate": "متأخرًا {minutes} د",
-      "notStartedFor": "لم يبدأ منذ {minutes} د",
+      "startedLate": "{minutes, plural, one {متأخرًا دقيقة} two {متأخرًا دقيقتين} few {متأخرًا # دقائق} many {متأخرًا # دقيقة} other {متأخرًا # دقيقة}}",
+      "notStartedFor": "{minutes, plural, one {لم يبدأ منذ دقيقة} two {لم يبدأ منذ دقيقتين} few {لم يبدأ منذ # دقائق} many {لم يبدأ منذ # دقيقة} other {لم يبدأ منذ # دقيقة}}",
       "notYet": "لم يحن الموعد",
       "unknown": "غير معروف",
       "yes": "نعم",
@@ -2481,7 +2485,9 @@
       "reportIn": "وصل",
       "reportMissing": "لم يصل",
       "none": "لا حصص تجريبية في هذا اليوم.",
-      "noneNeedAttention": "لا حصص تجريبية تحتاج متابعة الآن."
+      "noneNeedAttention": "لا حصص تجريبية تحتاج متابعة الآن.",
+      "stage": "الحالة",
+      "zone": "الأوقات بتوقيتك ({city})"
     }
   },
   "trialForm": {

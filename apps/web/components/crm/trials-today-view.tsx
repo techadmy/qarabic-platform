@@ -1,16 +1,33 @@
 'use client';
 
-import { TRIAL_CHECK_ALERT_LABELS, type TrialChecklistItemDto } from '@qarabic/shared';
+import {
+  SESSION_STAGE_LABELS,
+  TRIAL_CHECK_ALERT_LABELS,
+  type SessionStage,
+  type TrialChecklistItemDto,
+} from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@qarabic/ui/components/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { ChevronLeftIcon, ChevronRightIcon, UserCheckIcon } from 'lucide-react';
+import {
+  BanIcon,
+  CheckIcon,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  CircleAlertIcon,
+  CircleDotIcon,
+  ClockAlertIcon,
+  FileCheckIcon,
+  TriangleAlertIcon,
+  UserCheckIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useSearchParams } from 'next/navigation';
 import { DatePicker } from '@/components/forms/date-time';
 import { StatusTabs } from '@/components/list/list-toolbar';
+import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
 import { ResponsiveList } from '@/components/list/responsive-list';
 import { PageHeader } from '@/components/page-header';
 import { ToneBadge } from '@/components/sessions/badges';
@@ -23,6 +40,7 @@ import { crmKeys, fetchTrialsToday } from '@/lib/api/crm';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { addDays, clock, dateKeyIn } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 
 const isDateKey = (v: string) => /^\d{4}-\d{2}-\d{2}$/.test(v);
 
@@ -61,6 +79,7 @@ export function TrialsTodayView() {
       </>
     );
   }
+  const live = refreshState(list);
   const all = list.data ?? [];
   const attention = all.filter((x) => x.alerts.length > 0);
   const rows = view === 'all' ? all : attention;
@@ -70,18 +89,38 @@ export function TrialsTodayView() {
     return `/trials?${next.toString()}`;
   };
 
+  // Every status says itself in words and an icon, not colour alone.
   const started = (x: TrialChecklistItemDto) =>
     x.teacherStarted ? (
       x.lateMinutes ? (
-        <ToneBadge tone="brown" label={t('startedLate', { minutes: x.lateMinutes })} />
+        <ToneBadge
+          tone="brown"
+          icon={ClockAlertIcon}
+          label={t('startedLate', { minutes: x.lateMinutes })}
+        />
       ) : (
-        <ToneBadge tone="green" label={t('startedOnTime')} />
+        <ToneBadge tone="green" icon={CheckIcon} label={t('startedOnTime')} />
       )
     ) : x.lateMinutes ? (
-      <ToneBadge tone="red" label={t('notStartedFor', { minutes: x.lateMinutes })} />
+      <ToneBadge
+        tone="red"
+        icon={CircleAlertIcon}
+        label={t('notStartedFor', { minutes: x.lateMinutes })}
+      />
     ) : (
       <span className="text-muted-foreground">{t('notYet')}</span>
     );
+  const stage = (x: TrialChecklistItemDto) => {
+    const label = SESSION_STAGE_LABELS[x.stage as SessionStage]?.[locale] ?? x.stage;
+    const off = x.stage === 'cancelled' || x.stage === 'absent' || x.stage === 'moved_out';
+    return (
+      <ToneBadge
+        tone={off ? 'grey' : x.stage === 'taken' ? 'green' : 'brown'}
+        icon={off ? BanIcon : x.stage === 'taken' ? CheckIcon : CircleDotIcon}
+        label={label}
+      />
+    );
+  };
   const joined = (x: TrialChecklistItemDto) =>
     x.studentJoined === null ? (
       <span className="text-muted-foreground">{t('unknown')}</span>
@@ -92,7 +131,7 @@ export function TrialsTodayView() {
     );
   const report = (x: TrialChecklistItemDto) =>
     x.reportSubmitted ? (
-      <ToneBadge tone="green" label={t('reportIn')} />
+      <ToneBadge tone="green" icon={FileCheckIcon} label={t('reportIn')} />
     ) : (
       <span className="text-muted-foreground">{t('reportMissing')}</span>
     );
@@ -100,7 +139,12 @@ export function TrialsTodayView() {
     x.alerts.length ? (
       <span className="flex flex-wrap gap-1">
         {x.alerts.map((a) => (
-          <ToneBadge key={a} tone="red" label={TRIAL_CHECK_ALERT_LABELS[a][locale]} />
+          <ToneBadge
+            key={a}
+            tone="red"
+            icon={TriangleAlertIcon}
+            label={TRIAL_CHECK_ALERT_LABELS[a][locale]}
+          />
         ))}
       </span>
     ) : null;
@@ -116,6 +160,7 @@ export function TrialsTodayView() {
         <bdi className="font-semibold tabular-nums">{clock(x.startsAt, tz, locale)}</bdi>
       ),
     },
+    { id: 'stage', header: t('stage'), cell: ({ row: { original: x } }) => stage(x) },
     {
       id: 'student',
       header: t('student'),
@@ -142,7 +187,12 @@ export function TrialsTodayView() {
       <PageHeader
         title={t('title')}
         description={t('description')}
-        meta={list.data ? t('count', { count: all.length }) : undefined}
+        // D30: the times are the viewer's, said once with the city.
+        meta={
+          list.data
+            ? `${t('count', { count: all.length })} · ${t('zone', { city: cityOf(tz, locale) })}`
+            : undefined
+        }
         actions={
           <div className="flex items-center gap-1">
             <Tooltip>
@@ -185,7 +235,10 @@ export function TrialsTodayView() {
           <StatusTabs
             label={t('viewLabel')}
             value={view}
-            onChange={(v) => params.set({ view: v === 'all' ? 'all' : null }, { resetPage: false })}
+            // StatusTabs reports «all» as ''.
+            onChange={(v) =>
+              params.set({ view: v === 'attention' ? null : 'all' }, { resetPage: false })
+            }
             options={[
               {
                 value: 'attention',
@@ -196,7 +249,12 @@ export function TrialsTodayView() {
             ]}
           />
         </div>
-        {list.isError ? (
+        {live.stale && (
+          <div className="border-b p-4">
+            <RefreshFailed onRetry={() => void list.refetch()} />
+          </div>
+        )}
+        {live.failed ? (
           <div className="p-4">
             <ErrorState onRetry={() => void list.refetch()} />
           </div>
@@ -217,6 +275,7 @@ export function TrialsTodayView() {
                     <bdi className="font-semibold tabular-nums">
                       {clock(x.startsAt, tz, locale)}
                     </bdi>
+                    {stage(x)}
                     <bdi className="font-medium">{x.student.name}</bdi>
                   </span>
                   {report(x)}

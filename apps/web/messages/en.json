@@ -291,7 +291,11 @@
       "hide": "Hide details"
     },
     "activeFilters": "Filters:",
-    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}"
+    "moreFilters": "{count, plural, one {# more filter} other {# more filters}}",
+    "refresh": {
+      "stale": "Couldn’t refresh; showing the last data loaded.",
+      "retry": "Try again"
+    }
   },
   "time": {
     "dayAhead": "next day",
@@ -2422,7 +2426,7 @@
         "reminders": "Remind the teacher before the class",
         "remindersHint": "A day and an hour before, in the app.",
         "familyReminders": "Remind the family before the class",
-        "familyRemindersHint": "Nothing is sent to families until approved (D140).",
+        "familyRemindersHint": "Nothing is sent to families until approved.",
         "offer_expiry_minutes": "Time to answer an offer (minutes)",
         "offer_expiry_minutesHint": "Then it closes and you’re told to choose the teacher.",
         "offer_min_hours_before": "An offer closes before the class by (hours)",
@@ -2472,8 +2476,8 @@
       "report": "Report",
       "alerts": "Alerts",
       "startedOnTime": "On time",
-      "startedLate": "{minutes} min late",
-      "notStartedFor": "Not started for {minutes} min",
+      "startedLate": "{minutes, plural, one {# min late} other {# min late}}",
+      "notStartedFor": "{minutes, plural, one {Not started for # min} other {Not started for # min}}",
       "notYet": "Not yet due",
       "unknown": "Unknown",
       "yes": "Yes",
@@ -2481,7 +2485,9 @@
       "reportIn": "In",
       "reportMissing": "Not in",
       "none": "No trial classes on this day.",
-      "noneNeedAttention": "No trial class needs attention right now."
+      "noneNeedAttention": "No trial class needs attention right now.",
+      "stage": "Status",
+      "zone": "Times in your zone ({city})"
     }
   },
   "trialForm": {

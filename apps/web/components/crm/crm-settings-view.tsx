@@ -173,6 +173,12 @@ const TRIAL_NUMBERS = [
   ['crm.trial_stale_lost_days', 2, 180],
 ] as const;
 
+/** After a failed save: the first field marked invalid gets the focus (§5.6). */
+const focusFirstError = () =>
+  requestAnimationFrame(() =>
+    document.querySelector<HTMLElement>('#crm-settings [aria-invalid="true"]')?.focus(),
+  );
+
 function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
   const t = useTranslations('crm.settings');
   const locale = useUiLocale();
@@ -214,7 +220,16 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
       queryClient.setQueryData(crmKeys.settings, data);
       toast.success(t('saved'));
     },
-    onError: (e) => toast.error(message(e)),
+    onError: (e) => {
+      // A 422 points at fields: mark them and take the focus there, like the client check.
+      const fields = isApiError(e, 422) ? Object.keys(e.error?.errors ?? {}) : [];
+      if (fields.length) {
+        setErrors(Object.fromEntries(fields.map((k) => [k, t('invalid')])));
+        focusFirstError();
+        return;
+      }
+      toast.error(message(e));
+    },
   });
   const staffRoles = ROLES.filter((r) => SYSTEM_ROLES[r].kind === 'staff');
   const roleNames = v['crm.auto_assign_roles'].map(
@@ -231,6 +246,7 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
       setErrors(
         Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), t('invalid')])),
       );
+      focusFirstError();
       return;
     }
     setErrors({});
@@ -250,6 +266,7 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
 
   return (
     <form
+      id="crm-settings"
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) => {
