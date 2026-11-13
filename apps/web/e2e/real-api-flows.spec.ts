@@ -72,23 +72,28 @@ async function chooseOption(page: Page, combo: Locator, index: number) {
 }
 
 /**
- * Picks a time in `combo` that the live schedule check does not block («لا يمكن الحفظ»): earlier
- * runs left trials and weekly times on the same teacher, so it steps through the list until clear.
+ * T2 trial booking: picks a time, waits for the ranked teachers (`/trial-teachers`), takes the
+ * top eligible one, and keeps the time if the live check doesn't block it; otherwise the next
+ * time. With nobody eligible at a time it tries the next one too (earlier runs fill the seed).
  */
-async function pickFreeTime(page: Page, dialog: Locator, combo: string) {
+async function pickTimeAndTeacher(page: Page, dialog: Locator) {
   const blocked = dialog.getByText(/لا يمكن الحفظ/);
   const start = Number(runTag());
   for (let attempt = 0; attempt < 20; attempt++) {
-    // Read the alert only once the check of this choice has answered (it keeps the last result).
+    const listed = page.waitForResponse(
+      (r) => /\/trial-teachers\?/.test(r.url()) && r.request().method() === 'GET',
+    );
+    await chooseOption(page, dialog.getByRole('combobox', { name: 'الوقت' }), start + attempt * 7);
+    const body = (await (await listed).json()) as { data: { eligible: unknown[] } };
+    if (!body.data.eligible.length) continue;
     const checked = page.waitForResponse(
       (r) => r.url().endsWith('/schedule/check') && r.request().method() === 'POST',
     );
-    await chooseOption(page, dialog.getByRole('combobox', { name: combo }), start + attempt * 7);
+    await dialog.getByRole('radiogroup', { name: 'المعلم' }).getByRole('radio').first().check();
     await checked;
-    await expect(dialog.getByRole('combobox', { name: combo })).not.toHaveText('');
     if (!(await blocked.isVisible())) return;
   }
-  throw new Error(`no free time in «${combo}» after 20 tries`);
+  throw new Error('no time with a free eligible teacher after 20 tries');
 }
 
 /**
@@ -234,10 +239,9 @@ test('real API (N5): a lead → call → trial → interested → converted to r
   await firstOption(page).click();
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
-  await book.getByRole('combobox', { name: 'المعلم' }).click();
-  await firstOption(page).click();
+  // T2: date and time first, then the teacher from the server's ranked list (busy ones disabled).
   await pickTomorrow(page, book, 'Africa/Cairo');
-  await pickFreeTime(page, book, 'الوقت');
+  await pickTimeAndTeacher(page, book);
   await submitAcknowledging(page, book, 'احجز الحصة', 'حُجزت الحصة التجريبية.');
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(book).toBeHidden();

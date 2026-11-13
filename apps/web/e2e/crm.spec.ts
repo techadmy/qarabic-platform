@@ -11,16 +11,23 @@ async function signIn(page: Page, email = 'admin@qarabic.test', path = '/leads')
   await expect(page).toHaveURL(new RegExp(`${path}$`));
 }
 
-/** Picks tomorrow (in `tz`) in the shadcn calendar of the `التاريخ` date button inside `scope`. */
-async function pickTomorrow(page: Page, scope: ReturnType<Page['getByRole']>, tz: string) {
-  const tomorrow = new Date(Date.now() + 86_400_000);
+/** Days from today (in `tz`) to the next Friday, 1–7: the demo teachers' day off (Sat–Thu hours). */
+function daysToFriday(tz: string) {
+  const day = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: tz }).format(new Date());
+  const iso = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(day) + 1;
+  return (5 - iso + 7) % 7 || 7;
+}
+
+/** Picks the day `days` ahead (in `tz`) in the shadcn calendar of the `التاريخ` date button. */
+async function pickDay(page: Page, scope: ReturnType<Page['getByRole']>, tz: string, days: number) {
+  const target = new Date(Date.now() + days * 86_400_000);
   const part = (o: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('ar', { ...o, timeZone: tz, numberingSystem: 'latn' }).format(tomorrow);
+    new Intl.DateTimeFormat('ar', { ...o, timeZone: tz, numberingSystem: 'latn' }).format(target);
   const today = new Date();
   const monthOf = (d: Date) =>
     new Intl.DateTimeFormat('en', { month: 'numeric', timeZone: tz }).format(d);
   await scope.getByRole('button', { name: 'التاريخ' }).click();
-  if (monthOf(tomorrow) !== monthOf(today)) {
+  if (monthOf(target) !== monthOf(today)) {
     await page.getByRole('button', { name: 'اذهب إلى الشهر التالي' }).click();
   }
   const label = `${part({ month: 'long' })} ${Number(part({ day: 'numeric' }))}, ${part({ year: 'numeric' })}`;
@@ -48,17 +55,28 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
 
-  // Step 2: teacher, tomorrow (family zone), a time; the teacher's time is shown live.
-  await book.getByRole('combobox', { name: 'المعلم' }).click();
-  await page.getByRole('option', { name: 'Ahmed Fathy' }).click();
-  await pickTomorrow(page, book, 'Europe/London');
+  // Step 2: the next Friday (family zone), a time, then a teacher from the server's ranked list
+  // (T2: the eligible teachers for this child, course and time); the teacher's time shows live.
+  await pickDay(page, book, 'Europe/London', daysToFriday('Europe/London'));
   await book.getByRole('combobox', { name: 'الوقت' }).click();
   await page.getByRole('option', { name: '6:00 م' }).click();
+  const teachers = book.getByRole('radiogroup', { name: 'المعلم' });
+  await expect(teachers.locator('label').first()).toContainText('#1');
+  // Friday is outside the Cairo teachers' hours (they rank after anyone it suits): pick one of them.
+  await teachers
+    .locator('label')
+    .filter({ hasText: 'خارج ساعات العمل' })
+    .first()
+    .getByRole('radio')
+    .check();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
-  // 6 pm London = 8 pm Cairo, outside the demo teacher's hours: booking needs the acknowledgement.
+  // Friday is the demo teacher's day off (work hours Sat–Thu): booking needs the acknowledgement.
+  // (It was «tomorrow», which only worked when tomorrow was a Friday.)
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
   await expect(book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.')).toBeVisible();
   await book.getByRole('checkbox', { name: 'خارج ساعات عمل المعلم' }).check();
+  // A teacher in another zone also brings the DST note: every warning listed needs its tick.
+  for (const tick of await book.getByRole('alert').getByRole('checkbox').all()) await tick.check();
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(book).toBeHidden();
@@ -94,6 +112,33 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await expect(convert).toBeHidden();
   await expect(page.getByText(/تحوّل إلى منتظم في /)).toBeVisible();
   await expectNoSeriousA11yViolations(page);
+});
+
+test('trial booking: a teacher who takes no trials needs an override reason (T2)', async ({
+  page,
+}) => {
+  // Lead 6 already has a family and a child: the dialog opens on the trial step.
+  await signIn(page, 'admin@qarabic.test', '/leads/6');
+  await page
+    .getByRole('button', { name: /احجز حصة تجريبية|أعد حجز التجريبية/ })
+    .first()
+    .click();
+  const book = page.getByRole('dialog', { name: 'حجز حصة تجريبية' });
+  await expect(book.getByText('اختر الطالب والدورة والموعد لعرض المعلمين المتاحين.')).toBeVisible();
+  // The Saturday after the next Friday: inside the demo teachers' hours (no warning to tick).
+  await pickDay(page, book, 'America/New_York', daysToFriday('America/New_York') + 1);
+  await book.getByRole('combobox', { name: 'الوقت' }).click();
+  await page.getByRole('option', { name: '10:00 ص' }).click();
+  await book.getByRole('button', { name: /^عرض غير المتاحين/ }).click();
+  const card = book.locator('label').filter({ hasText: 'Mahmoud Saeed' });
+  await expect(card).toContainText('لا يقبل الحصص التجريبية');
+  await card.getByRole('radio').check();
+  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  await expect(book.getByText('اذكر سبب التجاوز (3 أحرف على الأقل).')).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  await book.getByRole('textbox', { name: 'سبب التجاوز' }).fill('The family asked for him');
+  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
 });
 
 test('public trial form: required fields, then the thank-you message', async ({ page }) => {

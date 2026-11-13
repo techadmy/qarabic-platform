@@ -35,6 +35,9 @@ import {
   type TrialOutcomeInput,
   type UpdateCrmSettingsInput,
   type UpdateLeadInput,
+  trialTeachersResponseSchema,
+  type TrialTeachersQuery,
+  type TrialTeachersResponse,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
@@ -143,6 +146,18 @@ export async function bookTrial(
   return { lead: res.data, trial: res.meta.trial };
 }
 
+/** T2: the teachers for a trial at this time, eligible ones ranked (docs/33 §4.1–4.2). */
+export async function fetchTrialTeachers(
+  id: number,
+  query: TrialTeachersQuery,
+  signal?: AbortSignal,
+): Promise<TrialTeachersResponse> {
+  return apiFetch(`/leads/${id}/trial-teachers${qs(query)}`, {
+    schema: trialTeachersResponseSchema,
+    signal,
+  });
+}
+
 export async function recordTrialOutcome(
   id: number,
   body: TrialOutcomeInput,
@@ -189,6 +204,7 @@ export const crmKeys = {
   funnel: (range: unknown) => ['crm', 'funnel', range] as const,
   assignees: ['crm', 'assignees'] as const,
   lead: (id: number) => ['crm', 'lead', id] as const,
+  trialTeachers: (id: number, query: unknown) => ['crm', 'trial-teachers', id, query] as const,
   settings: ['crm', 'settings'] as const,
   publicCourses: ['public', 'courses'] as const,
 };

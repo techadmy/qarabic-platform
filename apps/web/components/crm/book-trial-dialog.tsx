@@ -5,6 +5,8 @@ import {
   type ConflictResultDto,
   type CreateLeadAccountInput,
   type LeadDetailDto,
+  type TrialTeacherOptionDto,
+  type TrialTeachersQuery,
 } from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
@@ -41,13 +43,7 @@ import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import {
-  Combobox,
-  ComboboxField,
-  NumberField,
-  SelectField,
-  TextField,
-} from '@/components/forms/fields';
+import { ComboboxField, NumberField, SelectField, TextField } from '@/components/forms/fields';
 import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { PhoneField, TimeZoneField } from '@/components/forms/people-fields';
 import { useLookups } from '@/components/people/person-sheet';
@@ -63,15 +59,17 @@ import { conflictsOf } from '@/lib/sessions/errors';
 import { clock, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { cityOf, isValidTimeZone } from '@/lib/time';
 import { useCrmError } from './crm-bits';
+import { TrialTeacherPicker } from './trial-teacher-picker';
 
 const DURATIONS = [30, 45, 60] as const;
 
 /**
  * «احجز حصة تجريبية» (docs/26 §9.4): step 1 only when the lead has no family yet — the trial
  * family, the parent login (no password sent) and the children; step 2 the trial: child, course,
- * teacher, date and time in the family's zone with the teacher's and the viewer's time shown live,
- * the N2 schedule check (hard conflicts block, warnings need a tick). A rebooking moves the
- * earlier trial out.
+ * date and time in the family's zone, then the teacher from the server's ranked list (T2: eligible
+ * first, the others with reasons and an override with a reason), with the teacher's and the
+ * viewer's time shown live and the N2 schedule check (hard conflicts block, warnings need a tick).
+ * A rebooking moves the earlier trial out.
  */
 export function BookTrialDialog({
   lead: initial,
@@ -351,7 +349,6 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
   const ids = {
     student: useId(),
     course: useId(),
-    teacher: useId(),
     date: useId(),
     time: useId(),
     duration: useId(),
@@ -364,6 +361,9 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
   const [teacherId, setTeacherId] = useState<string | null>(
     lead.trials[0] ? String(lead.trials[0].teacher.id) : null,
   );
+  const [option, setOption] = useState<TrialTeacherOptionDto | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const [teacherRefusal, setTeacherRefusal] = useState('');
   const [date, setDate] = useState(dateKeyIn(familyTz));
   const [time, setTime] = useState('');
   const [duration, setDuration] = useState('30');
@@ -378,7 +378,19 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     queryFn: ({ signal }) => fetchPerson('teachers', Number(teacherId), signal),
     enabled: !!teacherId,
   });
-  const teacherTz = teacher.data?.timezone;
+  const teacherTz = option?.teacher.timezone ?? teacher.data?.timezone;
+  // T2: the ranked teachers for this child, course and time (docs/33 §4.2).
+  const teachersQuery: TrialTeachersQuery | null =
+    studentId && courseId && date && time
+      ? {
+          studentId: Number(studentId),
+          courseId: Number(courseId),
+          localDate: date,
+          localTime: time,
+          timezone: familyTz,
+          durationMinutes: Number(duration),
+        }
+      : null;
   const ready = !!studentId && !!teacherId && !!date && !!time;
   const checkInput = ready
     ? {
@@ -415,6 +427,8 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
         durationMinutes: Number(duration),
         meetingUrl: meetingUrl.trim() || null,
         acknowledgeWarnings: ack,
+        // Only for a teacher the server lists as not eligible (T2 override).
+        overrideReason: option && !option.eligible ? overrideReason.trim() : null,
       }),
     onSuccess: ({ lead: next }) => {
       toast.success(t('booked'));
@@ -424,12 +438,21 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     onError: (e) => {
       const c = conflictsOf(e);
       if (c) setServer({ key: inputKey, result: c });
+      if (isApiError(e) && e.code === 'teacher_not_eligible') setTeacherRefusal(t('notEligible'));
     },
   });
   const errors = {
     student: !studentId ? t('studentRequired') : '',
     course: !courseId ? t('courseRequired') : '',
-    teacher: !teacherId ? t('teacherRequired') : '',
+    teacher: !teacherId
+      ? t('teacherRequired')
+      : option?.reasons.includes('busy')
+        ? t('teacherBusy')
+        : teacherRefusal,
+    override:
+      option && !option.eligible && overrideReason.trim().length < 3
+        ? t('teachers.reasonRequired')
+        : '',
     date: !date ? t('dateRequired') : '',
     time: !time ? t('timeRequired') : past ? t('pastTime') : '',
     url: meetingUrl.trim() && !/^https:\/\/\S+\.\S+/.test(meetingUrl.trim()) ? t('urlInvalid') : '',
@@ -442,10 +465,6 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     book.mutate();
   };
   const courses = (lookups.data?.courses ?? []).filter((c) => c.isActive);
-  const teachers = (lookups.data?.teachers ?? []).map((x) => ({
-    value: String(x.id),
-    label: x.name,
-  }));
   const invalid = (k: keyof typeof errors) => touched && !!errors[k];
 
   return (
@@ -512,19 +531,6 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             {invalid('course') && <FieldError>{errors.course}</FieldError>}
           </Field>
         </div>
-        <Field data-invalid={invalid('teacher')}>
-          <FieldLabel htmlFor={ids.teacher}>{t('teacher')}</FieldLabel>
-          <Combobox
-            id={ids.teacher}
-            value={teacherId}
-            onChange={setTeacherId}
-            options={teachers}
-            placeholder={t('chooseTeacher')}
-            searchPlaceholder={t('searchTeacher')}
-            invalid={invalid('teacher')}
-          />
-          {invalid('teacher') && <FieldError>{errors.teacher}</FieldError>}
-        </Field>
         <div className="grid gap-4 sm:grid-cols-[1fr_9rem_8rem]">
           <Field data-invalid={invalid('date')}>
             <FieldLabel htmlFor={ids.date}>{t('date')}</FieldLabel>
@@ -587,6 +593,20 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             )}
           </div>
         )}
+        <TrialTeacherPicker
+          leadId={lead.id}
+          query={teachersQuery}
+          value={teacherId}
+          onChange={(id) => {
+            setTeacherId(id);
+            setTeacherRefusal('');
+          }}
+          onSelected={(o) => setOption(o ?? null)}
+          overrideReason={overrideReason}
+          onOverrideReason={setOverrideReason}
+          showErrors={touched}
+          error={errors.teacher}
+        />
         <Field data-invalid={invalid('url')}>
           <FieldLabel htmlFor={ids.url}>
             {t('meetingUrl')}{' '}
