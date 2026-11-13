@@ -14,36 +14,29 @@ import { PasswordsService } from '../auth/passwords.service.js';
 import { Clock } from '../common/clock.js';
 import { Crypto } from '../common/crypto.js';
 import { notFound, validationError } from '../common/errors.js';
+import { TRIAL_NOTIFICATION_LABELS, type TrialNotificationEvent } from '@qarabic/shared';
 import { Prisma, type Lead } from '../generated/prisma/client.js';
 import { recordStatusChange, type Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { ConflictChecker, zoneOr } from '../schedule/conflicts.js';
 import { EnrollmentsService } from '../schedule/enrollments.service.js';
 import { LIVE_ENROLLMENT } from '../schedule/scope.js';
-import { addDays, local, maxDate, toDbDate, fromDbDate, toUtc } from '../schedule/time.js';
+import { addDays, local, maxDate, toDbDate, fromDbDate } from '../schedule/time.js';
 import type { ResyncScope } from '../sessions/resync.js';
 import { SessionsService } from '../sessions/sessions.service.js';
 import { Actor, SessionStateMachine } from '../sessions/state-machine.js';
 import { ZoomDriver } from '../sessions/zoom.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { NotificationCentre } from '../operations/notification-centre.js';
 import { TRIAL_DEFAULT_MINUTES } from './crm.config.js';
+import { localToUtc, TrialEligibility } from './eligibility.js';
 import { crmError, leadTransition } from './errors.js';
 import { LeadService } from './lead.service.js';
 import { Outbox } from './notifier.js';
 
 type Out<S extends z.ZodType> = z.output<S>;
 
-/** Local wall time in `zone` → UTC ms; a time skipped by a clock change is a 422 on `field`. */
-export function localToUtc(date: string, time: string, zone: string, field: string): number {
-  const at = toUtc(date, time, zone);
-  const back = local(at, zone);
-  if (back.date !== date || back.time !== time.slice(0, 5)) {
-    throw validationError({
-      [field]: ['This time does not exist in the time zone (clock change).'],
-    });
-  }
-  return at;
-}
+export { localToUtc } from './eligibility.js';
 
 /**
  * Lead → family account → trial class → regular family (docs/26 §6, D109–D111). Port of Laravel
@@ -68,6 +61,8 @@ export class LeadTrialService {
     private readonly crypto: Crypto,
     private readonly passwords: PasswordsService,
     @Inject(AuthService) private readonly auth: AuthService,
+    private readonly eligibility: TrialEligibility,
+    private readonly centre: NotificationCentre,
   ) {}
 
   // ---------------------------------------------------------------- 6.1 account
@@ -247,12 +242,36 @@ export class LeadTrialService {
     const minutes = input.durationMinutes ?? TRIAL_DEFAULT_MINUTES;
     const sessionUser = await Actor.of(this.prisma, actor);
     const outbox = new Outbox();
+    let overridden: string[] = [];
+    const cancelledFor: Array<{ sessionId: number; teacherId: number }> = [];
 
     const sessionId = await this.checker.locked([input.teacherId], [student.id], async (tx) => {
       const row = await this.leads.lockRow(tx, leadId);
       if (row.familyId !== lead.familyId) throw notFound();
       if (!['new', 'contacted', 'trial_scheduled', 'trial_done'].includes(row.status)) {
         throw leadTransition();
+      }
+      // T2: an ineligible teacher needs a reason (docs/33 §4.2); a clash stays a 409 below.
+      const [judged] = await this.eligibility.evaluate(
+        tx,
+        {
+          studentId: student.id,
+          courseId: input.courseId,
+          startsAt,
+          minutes,
+          teacherGenderPref: row.teacherGenderPref,
+          studentAge: student.age,
+          studentLanguage: student.language,
+        },
+        st,
+        [input.teacherId],
+      );
+      overridden = (judged?.reasons ?? []).filter((r) => r !== 'busy');
+      if (overridden.length && !input.overrideReason) {
+        throw crmError(HttpStatus.UNPROCESSABLE_ENTITY, 'teacher_not_eligible', {
+          errors: { overrideReason: ['Give a reason to book a teacher who is not eligible.'] },
+          data: { reasons: overridden },
+        });
       }
       let enrollment = await tx.enrollment.findFirst({
         where: { studentId: student.id, courseId: input.courseId, ...LIVE_ENROLLMENT },
@@ -316,7 +335,7 @@ export class LeadTrialService {
       // Rebook: the previous still-scheduled trial of this student is moved out first (D109).
       const previous = await tx.classSession.findMany({
         where: { studentId: student.id, kind: 'trial', stage: 'scheduled', deletedAt: null },
-        select: { id: true },
+        select: { id: true, teacherId: true },
         orderBy: { id: 'asc' },
       });
       for (const old of previous) {
@@ -328,6 +347,9 @@ export class LeadTrialService {
           tx,
         );
         outbox.cancelledSessions.push(old.id);
+        if (old.teacherId !== input.teacherId) {
+          cancelledFor.push({ sessionId: old.id, teacherId: old.teacherId });
+        }
         await this.leads.log(
           tx,
           leadId,
@@ -381,6 +403,9 @@ export class LeadTrialService {
           familyLocal: `${local(startsAt, zone).date} ${local(startsAt, zone).time} ${zone}`,
           teacherLocal: `${local(startsAt, teacherZone).date} ${local(startsAt, teacherZone).time} ${teacherZone}`,
           rebooked: previous.length > 0,
+          ...(overridden.length
+            ? { eligibilityOverride: { reasons: overridden, reason: input.overrideReason } }
+            : {}),
         },
         actor.id,
       );
@@ -395,6 +420,9 @@ export class LeadTrialService {
             studentId: student.id,
             teacherId: input.teacherId,
             startsAt: at.toISOString(),
+            ...(overridden.length
+              ? { eligibilityOverride: { reasons: overridden, reason: input.overrideReason } }
+              : {}),
           },
         },
         tx,
@@ -402,7 +430,73 @@ export class LeadTrialService {
       return id;
     });
     await this.leads.flush(outbox);
+    await this.notifyTeacher('trial_booked', input.teacherId, sessionId);
+    for (const c of cancelledFor)
+      await this.notifyTeacher('trial_cancelled', c.teacherId, c.sessionId);
     return sessionId;
+  }
+
+  /**
+   * Tells a teacher about a trial (kind `trial`): course, time in their zone, length, the child's
+   * age and gender. Never the family's name or contacts (docs/33 §4.3).
+   */
+  private async notifyTeacher(
+    event: TrialNotificationEvent,
+    teacherId: number,
+    sessionId: number,
+  ): Promise<void> {
+    const [teacher, session, st] = await Promise.all([
+      this.prisma.teacher.findUnique({
+        where: { id: teacherId },
+        select: { userId: true, timezone: true },
+      }),
+      this.prisma.classSession.findUnique({
+        where: { id: sessionId },
+        select: {
+          startsAt: true,
+          durationMinutes: true,
+          course: { select: { id: true, nameAr: true, nameEn: true } },
+          student: { select: { age: true, gender: true } },
+        },
+      }),
+      this.settings.all(),
+    ]);
+    if (!teacher || !session?.course) return;
+    const course = session.course;
+    const zone = zoneOr(teacher.timezone, st['academy.timezone']);
+    const at = local(session.startsAt.getTime(), zone);
+    const label = TRIAL_NOTIFICATION_LABELS[event];
+    const age = session.student.age;
+    const child = {
+      ar: [session.student.gender === 'female' ? 'طالبة' : 'طالب', age ? `العمر ${age}` : null]
+        .filter(Boolean)
+        .join('، '),
+      en: [session.student.gender ?? 'student', age ? `age ${age}` : null]
+        .filter(Boolean)
+        .join(', '),
+    };
+    const when = `${at.date} ${at.time} (${zone})`;
+    await this.centre.send({
+      userIds: [teacher.userId],
+      kind: 'trial',
+      event,
+      data: {
+        sessionId,
+        courseId: course.id,
+        course: course.nameAr,
+        startsAt: session.startsAt.toISOString(),
+        teacherLocal: `${at.date} ${at.time}`,
+        durationMinutes: session.durationMinutes,
+        studentAge: age,
+        studentGender: session.student.gender,
+      },
+      email: {
+        subject: `${label.ar} — ${label.en}`,
+        text:
+          `${label.ar}: ${course.nameAr} — ${when} — ${session.durationMinutes} دقيقة — ${child.ar}\n` +
+          `${label.en}: ${course.nameEn} — ${when} — ${session.durationMinutes} min — ${child.en}`,
+      },
+    });
   }
 
   /**

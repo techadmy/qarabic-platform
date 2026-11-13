@@ -15,6 +15,7 @@ const MESSAGES = {
   webhook_disabled: 'Webhook disabled.',
   captcha_failed: 'The captcha check failed. Please try again.',
   too_many_requests: 'Too many attempts. Please try again later.',
+  teacher_not_eligible: 'This teacher is not eligible for the trial. Give a reason to book anyway.',
 } as const;
 export type CrmErrorCode = keyof typeof MESSAGES;
 

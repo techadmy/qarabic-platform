@@ -50,4 +50,7 @@ web app itself (or reuses servers already on 3000/3001; `E2E_PORT`, `E2E_API_POR
 invoice month and payroll month each run, so the suite can run again without reseeding. The API's
 rate limits are in memory: running it many times within an hour (10 tickets an hour per user,
 5 logins a minute) needs an API restart in between. A public-form lead sent again from the same
-address within the hour is scored as spam; the test accepts «جديد» or «مزعج».
+address within the hour is scored as spam; the test accepts «جديد» or «مزعج». Every run adds a trial and a
+weekly time on a demo teacher (spread by the run's tag); after a few hundred runs the demo
+teachers' days fill up and the N5 flow finds no free time: point `DATABASE_URL` at a fresh
+`_dev` database, then `db:deploy` and `db:seed`. CI always starts from an empty one.
