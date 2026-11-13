@@ -71,6 +71,10 @@ describe('bell rows', () => {
     });
     expect(bellHref(r, 'teacher')).toBe('/my-classes?session=31');
     expect(bellText(n('trial', 'something_new', {}))).toEqual({ kind: 'other' });
+    // An offer (T3) opens the teacher home's offers card.
+    const offer = n('trial', 'trial_offer', { offerId: 4, course: 'تلاوة', startsAt: 'x' });
+    expect(bellText(offer)).toMatchObject({ key: 'trial.trial_offer' });
+    expect(bellHref(offer, 'teacher')).toBe('/#trial-offers');
   });
 
   it('a class reminder opens the class sheet on the right page for the role', () => {

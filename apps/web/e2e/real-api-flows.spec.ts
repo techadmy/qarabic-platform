@@ -149,7 +149,7 @@ async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Itera
       if (!data.eligible.length) continue;
       const pick = data.eligible[Number(runTag()) % data.eligible.length]!;
       await dialog
-        .getByRole('radiogroup', { name: 'المعلم' })
+        .getByRole('radiogroup', { name: 'المعلم', exact: true })
         .getByRole('radio', { name: pick.teacher.name, exact: true })
         .check();
       let answer: unknown = null;

@@ -58,7 +58,7 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await pickTomorrow(page, book, 'Europe/London');
   await book.getByRole('combobox', { name: 'الوقت' }).click();
   await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
-  const teachers = book.getByRole('radiogroup', { name: 'المعلم' });
+  const teachers = book.getByRole('radiogroup', { name: 'المعلم', exact: true });
   await expect(teachers.locator('label').first()).toContainText('#1');
   await teachers.getByRole('radio').first().check();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
@@ -150,7 +150,7 @@ test('trial booking on a phone, in English: the list fits, «Book» stays in rea
   const book = page.getByRole('dialog', { name: /trial/i });
   await book.getByRole('combobox', { name: 'Time' }).click();
   await page.getByRole('option', { name: '10:00 PM' }).click();
-  const teachers = book.getByRole('radiogroup', { name: 'Teacher' });
+  const teachers = book.getByRole('radiogroup', { name: 'Teacher', exact: true });
   await expect(teachers.getByRole('radio').first()).toBeVisible();
   await expect(teachers.locator('label').first()).toContainText('#1');
   await expect(teachers.locator('label').first()).toContainText('Their time');

@@ -34,6 +34,7 @@ import { resetScheduleDb } from './schedule-db';
 import { resetSupportDb } from './support-db';
 import { supportHandlers } from './support-handlers';
 import { resetTeachingDb } from './teaching-db';
+import { resetTrialOffers, trialOfferHandlers } from './trial-offers';
 import { teachingHandlers } from './teaching-handlers';
 import {
   apiError,
@@ -70,6 +71,7 @@ export function resetMockState() {
   resetTeachingDb();
   resetSupportDb();
   resetCrmDb();
+  resetTrialOffers();
   resetBillingDb();
   resetOperationsDb();
   resetAccountingDb();
@@ -310,6 +312,7 @@ export const handlers: HttpHandler[] = [
 
   ...supportHandlers,
   ...crmHandlers,
+  ...trialOfferHandlers,
   ...billingHandlers,
   ...operationsHandlers,
   ...accountingHandlers,

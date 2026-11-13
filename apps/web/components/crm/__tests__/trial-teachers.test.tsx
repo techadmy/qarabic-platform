@@ -266,4 +266,20 @@ describe('T2 booking dialog', () => {
       within(dialog).queryByText('هذا المعلم غير مؤهل لهذه الحصة؛ اذكر سبب التجاوز للحجز معه.'),
     ).toBeNull();
   });
+
+  it('offer mode (T3): a shortlist needs a teacher; the offer goes to the chosen ones', async () => {
+    const { user, dialog } = await openDialog();
+    await user.click(within(dialog).getByRole('radio', { name: 'اعرضها على المعلمين' }));
+    await user.click(within(dialog).getByRole('radio', { name: 'قائمة أختارها' }));
+    await user.click(within(dialog).getByRole('button', { name: 'أرسل العرض' }));
+    expect(await within(dialog).findByText('اختر معلمًا واحدًا على الأقل.')).toBeInTheDocument();
+    const boxes = within(dialog).getAllByRole('checkbox');
+    await user.click(boxes[0]!);
+    await user.click(within(dialog).getByRole('radio', { name: /تطوّع ثم اختيار/ }));
+    await user.click(within(dialog).getByRole('button', { name: 'أرسل العرض' }));
+    // The seeded offer for this child is still open: the API says so.
+    expect(
+      await within(dialog).findByText('للطالب عرض مفتوح بالفعل؛ ألغِه أو انتظر نتيجته.'),
+    ).toBeInTheDocument();
+  });
 });

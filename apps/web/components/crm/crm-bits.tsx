@@ -93,6 +93,15 @@ export function useCrmError() {
     if (code === 'email_taken') return t('emailTaken');
     if (code === 'no_family') return t('noFamily');
     if (code === 'already_enrolled') return t('alreadyEnrolled');
+    // T3 open offers.
+    if (code === 'offer_open') return t('offerOpen');
+    if (code === 'no_eligible_teachers') return t('noEligibleTeachers');
+    if (code === 'offer_too_late') return t('offerTooLate');
+    if (code === 'offer_taken') return t('offerTaken');
+    if (code === 'offer_closed') return t('offerClosed');
+    if (code === 'offer_unavailable') return t('offerUnavailable');
+    if (code === 'claim_limit') return t('claimLimit');
+    if (code === 'not_a_teacher') return t('notATeacher');
     if (errors.localTime) return t('pastTime');
     if (errors.meetingUrl) return t('meetingUrl');
     if (errors.userId) return t('assignee');
