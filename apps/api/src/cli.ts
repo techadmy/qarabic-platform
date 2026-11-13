@@ -8,6 +8,7 @@ import { configureApp } from './app.setup.js';
 import { buildOpenApiDocument } from './common/openapi.js';
 import { TrialFollowUp } from './crm/followup.service.js';
 import { TrialOffers } from './crm/offers.service.js';
+import { SupportReports } from './support/reports.service.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
 import { runLegacy } from './legacy/legacy-cli.js';
@@ -23,6 +24,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *                                                    [--enrollment=ID] [--dry-run]
  *   pnpm --filter @qarabic/api cli session-requests:expire
  *   pnpm --filter @qarabic/api cli zoom:ensure-upcoming
+ *   pnpm --filter @qarabic/api cli support:sla   (first-response SLA breach notices, S4)
  *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
  *   pnpm --filter @qarabic/api cli trials:follow-up   (trial reminders, late alerts, stale leads, T4)
  *   pnpm --filter @qarabic/api cli trials:expire-offers   (close trial offers past their deadline, T3)
@@ -148,6 +150,9 @@ async function main(): Promise<number> {
       case 'zoom:ensure-upcoming':
         console.log(`Checked ${await jobs.ensureZoom()} class(es) for meetings.`);
         return 0;
+      case 'support:sla':
+        console.log(`SLA breach notices sent: ${await app.get(SupportReports).slaBreaches()}.`);
+        return 0;
       case 'leads:notify': {
         const sent = await app.get(LeadAlerts).run();
         console.log(`Follow-ups due: ${sent.followUps}; SLA breaches: ${sent.sla}.`);
@@ -198,7 +203,7 @@ async function main(): Promise<number> {
       }
       default:
         console.error(
-          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, trials:expire-offers, trials:follow-up, ' +
+          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, trials:expire-offers, trials:follow-up, support:sla, ' +
             'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, payroll:compute, ' +
             'ledger:post, openapi:export, legacy:import, legacy:verify',
         );
