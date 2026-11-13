@@ -3477,6 +3477,7 @@
       "saved": "Notification preferences saved.",
       "save": "Save preferences",
       "reset": "Undo changes",
+      "pushOff": "Mobile app push is not switched on on the server yet; it starts with the mobile app.",
       "whatsappOff": "WhatsApp notifications are not switched on for the academy yet.",
       "switchLabel": "{kind} · {channel}"
     }

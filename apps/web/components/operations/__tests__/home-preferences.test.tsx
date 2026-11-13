@@ -50,6 +50,35 @@ describe('Notification preferences', () => {
     await waitFor(() => expect(odb.prefs.get(12)?.task?.email).toBe(true));
     expect(await screen.findByRole('switch', { name: 'المهام · البريد الإلكتروني' })).toBeChecked();
   });
+
+  it('has a mobile push column: off with its note while the server has no push driver', async () => {
+    const { unmount } = renderPage(<PreferencesCard />, {
+      as: 'monitor@qarabic.test',
+      path: '/account',
+    });
+    const push = await screen.findByRole('switch', { name: 'المهام · إشعارات تطبيق الجوال' });
+    expect(push).toBeDisabled();
+    expect(push).not.toBeChecked();
+    expect(push).toHaveAccessibleDescription(
+      'إشعارات تطبيق الجوال غير مفعّلة في الخادم بعد، وتعمل مع إطلاق التطبيق.',
+    );
+    unmount();
+
+    // Once the server's push driver is on, the column works like the others (default on).
+    server.use(
+      http.get('*/api/v1/me/notification-preferences', () =>
+        HttpResponse.json({
+          data: [{ kind: 'task', inApp: true, email: false, push: true, whatsapp: false }],
+          channels: { in_app: true, email: true, push: true, whatsapp: false },
+        }),
+      ),
+    );
+    renderPage(<PreferencesCard />, { as: 'monitor@qarabic.test', path: '/account' });
+    const on = await screen.findByRole('switch', { name: 'المهام · إشعارات تطبيق الجوال' });
+    expect(on).toBeEnabled();
+    expect(on).toBeChecked();
+    expect(screen.queryByText(/غير مفعّلة في الخادم/)).toBeNull();
+  });
 });
 
 describe('Bell', () => {

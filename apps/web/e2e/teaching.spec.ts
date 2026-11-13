@@ -102,7 +102,11 @@ test('staff: reports without a report → open the class', async ({ page }) => {
 });
 
 test('staff: schedule a test, then record its result', async ({ page }) => {
-  await page.clock.install();
+  // Midday in Cairo today (12:00 UTC+2): with the real clock, a run after 23:45 picked tomorrow's
+  // 00:00 as «the next quarter hour» while the date stayed today (a time in the past).
+  const day = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+  const now = Date.parse(`${day}T12:00:00+02:00`);
+  await page.clock.install({ time: new Date(now) });
   await signIn(page, 'admin@qarabic.test', '/tests');
   await expect(page.getByRole('heading', { level: 1, name: 'الاختبارات والنتائج' })).toBeVisible();
   await page.getByRole('button', { name: 'جدولة اختبار' }).click();
@@ -110,7 +114,7 @@ test('staff: schedule a test, then record its result', async ({ page }) => {
   await dialog.getByRole('combobox', { name: /الطالب/ }).click();
   await page.getByRole('option').nth(3).click();
   // The next quarter hour: within the 30 minutes before the test the result can be recorded.
-  const next = Math.ceil(Date.now() / 900_000) * 900_000;
+  const next = Math.ceil((now + 1) / 900_000) * 900_000;
   await dialog.locator('#test-time').click();
   await page.getByRole('option', { name: cairoClock(next), exact: true }).click();
   // A student has one scheduled test per track: try the tracks until one is free.
