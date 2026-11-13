@@ -21,4 +21,8 @@ export const CRM_SETTING_DEFAULTS = {
   /** D140: no message to a family until Ahmed approves it (Laravel default was on for the app form). */
   'crm.trial_form_confirmation': false as boolean,
   'crm.web_lead_confirmation': false as boolean,
+  /** T3 open offers (docs/33 §4.3): 2 h to answer, closing ≥ 6 h before the trial, ≤ 3 held. */
+  'crm.trial_offer_expiry_minutes': 120,
+  'crm.trial_offer_min_hours_before': 6,
+  'crm.trial_offer_max_open_claims': 3,
 };

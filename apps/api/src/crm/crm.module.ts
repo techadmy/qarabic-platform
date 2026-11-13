@@ -13,6 +13,13 @@ import {
   ReferralsController,
 } from './crm.controllers.js';
 import { CrmConfig } from './crm.config.js';
+import { TrialEligibility } from './eligibility.js';
+import {
+  LeadTrialOffersController,
+  MyTrialOffersController,
+  TrialOffersController,
+} from './offers.controllers.js';
+import { TrialOffers } from './offers.service.js';
 import { LeadService } from './lead.service.js';
 import { LeadNotifier } from './notifier.js';
 import { PublicIntake } from './public-intake.service.js';
@@ -35,6 +42,9 @@ import { WebLeadMapper } from './web-lead-mapper.js';
     PublicFormsController,
     LegacyClassRequestController,
     CrmSettingsController,
+    LeadTrialOffersController,
+    TrialOffersController,
+    MyTrialOffersController,
   ],
   providers: [
     CrmConfig,
@@ -45,10 +55,12 @@ import { WebLeadMapper } from './web-lead-mapper.js';
     LeadService,
     LeadReports,
     LeadTrialService,
+    TrialEligibility,
+    TrialOffers,
     LeadAlerts,
     PublicIntake,
     WebLeadMapper,
   ],
-  exports: [LeadAlerts, CrmConfig, CaptchaVerifier],
+  exports: [LeadAlerts, CrmConfig, CaptchaVerifier, TrialOffers],
 })
 export class CrmModule {}

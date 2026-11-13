@@ -45,12 +45,17 @@ import { useOperationsError } from './ops-bits';
 const CHANNELS = [
   { key: 'inApp', channel: 'in_app' },
   { key: 'email', channel: 'email' },
+  { key: 'push', channel: 'push' },
   { key: 'whatsapp', channel: 'whatsapp' },
 ] as const;
 
+/** Channels that can be off for the whole academy, each with its own note under the table. */
+const GATED = ['push', 'whatsapp'] as const;
+
 /**
- * «الإشعارات» on «حسابي» (M8 notification centre): per kind, in the app / by email / by WhatsApp.
- * Channels the academy has switched off (WhatsApp until B50) show disabled with the reason.
+ * «الإشعارات» on «حسابي» (M8 notification centre): per kind, in the app / by email / mobile push /
+ * by WhatsApp. Channels the academy has switched off (`channels`: push until the server's push
+ * driver is on, WhatsApp until B50) show disabled, each with its reason.
  */
 export function PreferencesCard() {
   const t = useTranslations('operations.preferences');
@@ -73,7 +78,8 @@ export function PreferencesCard() {
     onError: (e) => toast.error(message(e)),
   });
   const kinds = kindsFor(me);
-  const waId = useId();
+  const noteId = useId();
+  const noteFor = (channel: string) => `${noteId}-${channel}`;
   // Toggled but not saved: leaving the page asks first (§5.6).
   useBeforeUnload(!!draft);
   const rows = (draft ?? query.data?.data ?? []).filter((p) => kinds.includes(p.kind));
@@ -100,9 +106,10 @@ export function PreferencesCard() {
           <Table aria-label={t('title')}>
             <TableHeader>
               <TableRow className="hover:bg-transparent">
-                <TableHead>{t('kind')}</TableHead>
+                <TableHead className="whitespace-normal">{t('kind')}</TableHead>
                 {CHANNELS.map((c) => (
-                  <TableHead key={c.key} className="text-center">
+                  // Channel names wrap so all four channels fit on a phone (no sideways scroll).
+                  <TableHead key={c.key} className="w-16 px-1 text-center whitespace-normal">
                     {NOTIFICATION_CHANNEL_LABELS[c.channel][locale]}
                   </TableHead>
                 ))}
@@ -111,7 +118,7 @@ export function PreferencesCard() {
             <TableBody>
               {rows.map((p) => (
                 <TableRow key={p.kind}>
-                  <TableCell className="font-medium">
+                  <TableCell className="font-medium whitespace-normal">
                     {NOTIFICATION_KIND_LABELS[p.kind][locale]}
                   </TableCell>
                   {CHANNELS.map((c) => {
@@ -126,7 +133,11 @@ export function PreferencesCard() {
                           checked={!off && p[c.key]}
                           disabled={off || save.isPending}
                           aria-label={label}
-                          aria-describedby={off && c.channel === 'whatsapp' ? waId : undefined}
+                          aria-describedby={
+                            off && (GATED as readonly string[]).includes(c.channel)
+                              ? noteFor(c.channel)
+                              : undefined
+                          }
                           onCheckedChange={(v) => set(p.kind, c.key, v)}
                         />
                       </TableCell>
@@ -137,10 +148,13 @@ export function PreferencesCard() {
             </TableBody>
           </Table>
         )}
-        {channels?.whatsapp === false && (
-          <p id={waId} className="mt-3 text-sm text-muted-foreground">
-            {t('whatsappOff')}
-          </p>
+        {GATED.map(
+          (c) =>
+            channels?.[c] === false && (
+              <p key={c} id={noteFor(c)} className="mt-3 text-sm text-muted-foreground">
+                {t(c === 'push' ? 'pushOff' : 'whatsappOff')}
+              </p>
+            ),
         )}
       </CardContent>
       <CardFooter className="justify-end gap-2 border-t">
