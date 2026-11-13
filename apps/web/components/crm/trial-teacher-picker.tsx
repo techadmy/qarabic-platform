@@ -63,7 +63,8 @@ export function TrialTeacherPicker({
   value: string | null;
   onChange: (teacherId: string) => void;
   /** The chosen teacher's row in the current list (undefined while loading or not listed). */
-  onSelected: (option: TrialTeacherOptionDto | undefined) => void;
+  /** The chosen row, and whether it answers the current time (not a previous one kept on screen). */
+  onSelected: (option: TrialTeacherOptionDto | undefined, current: boolean) => void;
   overrideReason: string;
   onOverrideReason: (reason: string) => void;
   showErrors: boolean;
@@ -84,9 +85,9 @@ export function TrialTeacherPicker({
   const selected = selectedOption(data, value);
   // The row changes with the time (eligibility, reasons): keep the dialog's copy current.
   useEffect(() => {
-    onSelected(selected);
+    onSelected(selected, !list.isPlaceholderData);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- `onSelected` is a fresh closure each render; the row is what matters.
-  }, [selected]);
+  }, [selected, list.isPlaceholderData]);
   const needsReason = !!selected && !selected.eligible;
   const reasonError =
     showErrors && needsReason && overrideReason.trim().length < 3 ? t('reasonRequired') : '';
@@ -206,7 +207,12 @@ export function TrialTeacherPicker({
             aria-describedby={showErrors && error ? ids.error : undefined}
             value={value ?? ''}
             onValueChange={(v) => {
-              if (selectedOption(data, v)) onChange(v);
+              const picked = selectedOption(data, v);
+              if (!picked) return;
+              // Hand the row over in the same update as the id, so the dialog never asks for a
+              // separate check of a teacher whose row already carries one.
+              onSelected(picked, !list.isPlaceholderData);
+              onChange(v);
             }}
             aria-busy={list.isFetching || undefined}
           >
