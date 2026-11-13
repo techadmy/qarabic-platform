@@ -25,4 +25,11 @@ export const CRM_SETTING_DEFAULTS = {
   'crm.trial_offer_expiry_minutes': 120,
   'crm.trial_offer_min_hours_before': 6,
   'crm.trial_offer_max_open_claims': 3,
+  /** T4 (docs/33 §3.5–3.7, B85, B86): staff-side reminders on; family reminders off (D140). */
+  'crm.trial_reminders_enabled': true as boolean,
+  'crm.trial_family_reminders': false as boolean,
+  'crm.trial_late_alert_minutes': 5,
+  'crm.trial_report_required': true as boolean,
+  'crm.trial_stale_remind_days': 3,
+  'crm.trial_stale_lost_days': 14,
 };
