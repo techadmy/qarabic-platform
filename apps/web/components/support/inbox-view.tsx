@@ -521,8 +521,10 @@ export function InboxView() {
       };
     }),
   ];
-  // More than five queues move into the title (D141 §2); five or fewer stay tabs.
-  const useViews = queueOptions.length > MAX_STATUS_TABS;
+  // More than five queues move into the title (D141 §2; «كل الأقسام» does not count); five or fewer
+  // stay tabs. Before the first answer, decide from every queue, so a cold load does not swap the
+  // tabs for the menu once the data arrives.
+  const useViews = (meta ? queues.length : TICKET_QUEUES.length) > MAX_STATUS_TABS;
   const header = (
     <PageHeader
       title={
@@ -566,7 +568,7 @@ export function InboxView() {
         <SplitView
           selectedId={split.selectedId}
           wide={split.wide}
-          detailLabel={t('title')}
+          detailLabel={t('detail')}
           onClose={split.close}
           fullHref={`/tickets/${split.selectedId}`}
           list={

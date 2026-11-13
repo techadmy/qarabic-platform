@@ -103,17 +103,22 @@ export function ParentDueCard() {
         ))}
       </ul>
       {open.length > SHOWN && (
-        <p className="mt-3 text-sm text-muted-foreground">
+        // One name for one destination: the line links to «فواتيري», like the header link.
+        <Link
+          href="/invoices"
+          className="mt-3 inline-flex min-h-11 items-center text-sm text-primary hover:underline md:min-h-0"
+        >
           {t('moreDue', { count: open.length - SHOWN })}
-        </p>
+        </Link>
       )}
     </DueShell>
   );
 }
 
-/** The card: «المستحق عليكم» + «كل الفواتير», then the body. */
+/** The card: «المستحق عليكم» + «فواتيري», then the body. */
 function DueShell({ busy, children }: { busy?: boolean; children: ReactNode }) {
   const t = useTranslations('billing.parent');
+  const tn = useTranslations('nav');
   return (
     <section aria-labelledby="home-due" aria-busy={busy || undefined}>
       <Card className="gap-3 shadow-none">
@@ -121,9 +126,9 @@ function DueShell({ busy, children }: { busy?: boolean; children: ReactNode }) {
           <CardTitle className="text-lg font-bold">
             <h2 id="home-due">{t('homeDue')}</h2>
           </CardTitle>
-          <Button variant="ghost" asChild className="h-10 px-0 text-primary">
+          <Button variant="ghost" asChild className="h-11 px-0 text-primary md:h-10">
             <Link href="/invoices">
-              {t('allInvoices')}
+              {tn('myInvoices')}
               <ChevronLeftIcon className="ltr:rotate-180" />
             </Link>
           </Button>

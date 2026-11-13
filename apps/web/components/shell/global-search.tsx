@@ -100,14 +100,6 @@ export function GlobalSearch() {
   const [q, setQ] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // The dialog's focus trap focuses its first control (the section picker) on open; the field is
-  // what `/` is for, so focus it once the dialog has mounted.
-  useEffect(() => {
-    if (!open) return;
-    const frame = requestAnimationFrame(() => inputRef.current?.focus());
-    return () => cancelAnimationFrame(frame);
-  }, [open]);
-
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!here || !isSearchShortcut(e)) return;
@@ -161,6 +153,13 @@ export function GlobalSearch() {
         title={t('title')}
         description={t('description')}
         className="sm:max-w-xl"
+        contentProps={{
+          // The dialog would focus its first control (the section picker); `/` is for the field.
+          onOpenAutoFocus: (e) => {
+            e.preventDefault();
+            inputRef.current?.focus();
+          },
+        }}
       >
         <Command
           shouldFilter={false}
