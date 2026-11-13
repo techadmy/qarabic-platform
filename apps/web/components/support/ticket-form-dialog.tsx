@@ -6,6 +6,7 @@ import {
   type TicketCategory,
   type TicketSubcategory,
   type TicketSubjectType,
+  isTypedRequest,
 } from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
@@ -44,6 +45,8 @@ import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { fetchPeopleList } from '@/lib/api/people';
 import { createTicket, supportKeys } from '@/lib/api/support';
+import { dateKeyIn } from '@/lib/schedule-time';
+import { emptyRequest, RequestFields, requestPayload, type RequestDraft } from './request-fields';
 import { collectContext } from '@/lib/support/context';
 import { useSupportError } from '@/lib/support/errors';
 
@@ -67,6 +70,8 @@ export interface TicketIntent {
   subject?: { type: TicketSubjectType; id: number; label: string };
   /** Let the parent pick a child (the first is pre-selected; «جميع الأبناء» sends none). */
   picker?: 'student';
+  /** The child a class-based request is about (S3: schedule change from a class card). */
+  studentId?: number;
   behalf?: Behalf;
 }
 
@@ -127,6 +132,7 @@ export function TicketFormDialog({
 }) {
   const t = useTranslations('support.form');
   const tb = useTranslations('support.contact.behalf');
+  const tr = useTranslations('support.request');
   const locale = useLocale();
   const ui = useUiLocale();
   const tz = useViewerTz();
@@ -145,6 +151,18 @@ export function TicketFormDialog({
   const trimmed = text.trim();
   const error = !trimmed ? t('required') : trimmed.length < MIN ? t('short') : null;
   const behalf = intent.behalf;
+  // S3: a typed request (schedule / teacher / subscription change, invoice question).
+  const kind = isTypedRequest(intent.subcategory) ? intent.subcategory : null;
+  const [draft, setDraft] = useState<RequestDraft>(() => emptyRequest(dateKeyIn(tz)));
+  const pickedChild = child && child !== ALL ? Number(child) : null;
+  const studentId =
+    intent.studentId ??
+    (intent.subject?.type === 'student' ? intent.subject.id : null) ??
+    pickedChild ??
+    behalf?.studentId ??
+    null;
+  const typed = kind ? requestPayload(kind, draft, studentId, tz) : null;
+  const typedProblem = !!typed && !typed.payload;
 
   const create = useMutation({
     mutationFn: () => {
@@ -161,6 +179,7 @@ export function TicketFormDialog({
         ...(intent.subcategory ? { subcategory: intent.subcategory } : {}),
         ...subject,
         ...(behalf ? { familyId: behalf.familyId, channel } : {}),
+        ...(typed?.payload ? { request: typed.payload } : {}),
         description: trimmed,
         context: collectContext({
           pathname,
@@ -184,6 +203,13 @@ export function TicketFormDialog({
   function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
+    if (typedProblem) {
+      // The first structured field with a problem.
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>('[data-typed-request] [aria-invalid="true"]')?.focus(),
+      );
+      return;
+    }
     if (error) {
       textRef.current?.focus();
       return;
@@ -232,6 +258,22 @@ export function TicketFormDialog({
             )}
             {!intent.subject && !behalf && intent.picker === 'student' && (
               <ChildPicker value={child} onChange={setChild} />
+            )}
+            {kind && (
+              <div data-typed-request className="flex flex-col gap-4">
+                {touched && typed?.errors.studentId && (
+                  <p role="alert" className="text-sm font-medium text-destructive">
+                    {tr('studentRequired')}
+                  </p>
+                )}
+                <RequestFields
+                  kind={kind}
+                  value={draft}
+                  onChange={setDraft}
+                  errors={typed?.errors ?? {}}
+                  showErrors={touched}
+                />
+              </div>
             )}
             <Field data-invalid={touched && !!error}>
               <FieldLabel htmlFor={textId}>

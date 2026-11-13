@@ -165,3 +165,33 @@ test('staff at 375 px: the inbox and a ticket fit; settings and triage pass axe'
   await expect(page.getByRole('table', { name: 'فرز البلاغات' })).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
+
+test('a parent (phone) asks to pause the subscription: dates and reason, then «طلباتي» (S3)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/login');
+  await login(page, 'parent@qarabic.test');
+  await page.getByRole('button', { name: 'تواصل معنا' }).filter({ visible: true }).first().click();
+  const hub = page.getByRole('dialog', { name: 'تواصل معنا' });
+  await hub.getByRole('button', { name: /الفواتير والاشتراك/ }).click();
+  await page.getByRole('button', { name: 'إيقاف مؤقت أو إلغاء الاشتراك' }).click();
+  const form = page.getByRole('dialog', { name: 'إيقاف مؤقت أو إلغاء الاشتراك' });
+  await expect(form.getByRole('radio', { name: 'إيقاف مؤقت' })).toBeChecked();
+  await form
+    .getByRole('textbox')
+    .last()
+    .fill('We travel for the summer and will be back in August.');
+  await form.getByRole('button', { name: 'أرسل' }).click();
+  // The end of the pause and the reason are required.
+  await expect(form.getByText('حدد نهاية الإيقاف المؤقت.')).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  await form.getByRole('button', { name: 'إلى' }).click();
+  await page.getByRole('button', { name: 'اذهب إلى الشهر التالي' }).click();
+  await page.getByRole('gridcell').filter({ hasText: /^20$/ }).first().getByRole('button').click();
+  await form.getByRole('combobox', { name: 'السبب' }).click();
+  await page.getByRole('option', { name: 'سفر' }).click();
+  await form.getByRole('button', { name: 'أرسل' }).click();
+  await expect(page.getByText(/أُرسل طلبك رقم #\d+/).first()).toBeVisible();
+  await expectNoHorizontalScroll(page);
+});

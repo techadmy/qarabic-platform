@@ -83,6 +83,7 @@ import { topicLabel } from '@/lib/support/labels';
 import { PriorityBadge, QueueBadge, RestrictedBadge, SlaBadge, TicketStatusBadge } from './badges';
 import { StatusDialog } from './status-dialog';
 import { useRecordPane } from '@/components/list/split-view';
+import { RequestCard } from './request-card';
 
 const MAX_FILES = TICKET_UPLOAD_LIMITS.maxImagesPerRequest;
 const TYPES: readonly string[] = TICKET_UPLOAD_LIMITS.imageMimes;
@@ -731,6 +732,8 @@ export function TicketDetailView({ id }: { id: number }) {
         )}
       >
         <div className="flex min-w-0 flex-col gap-4">
+          {/* S3: a typed request, with its next step. */}
+          {ticket.request && <RequestCard ticket={ticket} />}
           <Section title={t('description')} id="ticket-description">
             <p className="break-words whitespace-pre-wrap">{ticket.description}</p>
             {subject && (

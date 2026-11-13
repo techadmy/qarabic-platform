@@ -3,6 +3,10 @@ import {
   confirmTicketSchema,
   createTicketCommentSchema,
   createTicketSchema,
+  isTypedRequest,
+  REQUEST_PAYLOAD_SCHEMAS,
+  requestActionSchema,
+  requestAnswerSchema,
   isSubcategoryOf,
   NOTE_REQUIRED_STATUSES,
   PRIORITY_REQUIRED_STATUSES,
@@ -155,7 +159,7 @@ function ticketDto(t: TicketRow, me: MockUser): TicketDto {
     slaState: slaState(t),
     firstResponseAt: t.firstResponseAt,
     handledBy: t.assignee ? (t.assignee.name.split(/\s+/)[0] ?? null) : null,
-    request: null,
+    request: t.request ?? null,
   };
   if (staffView(me, t)) {
     Object.assign(data, {
@@ -329,6 +333,60 @@ const statusMatch = (t: TicketRow, s: string) =>
 // ------------------------------------------------------------------ handlers
 
 export const supportHandlers: HttpHandler[] = [
+  // S3: the staff's step on a typed request, and the requester's answer to a proposal.
+  http.post(`${API}/support/tickets/:id/request`, async ({ request, params }) => {
+    const g = guard(request, 'support.view');
+    if ('error' in g) return g.error;
+    const t = supdb.tickets.find((x) => x.id === Number(params.id));
+    if (!t || !sees(g.me, t)) return notFound();
+    if (!canManage(g.me, t)) return apiError(403, 'forbidden', 'Forbidden.');
+    const parsed = requestActionSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const r = t.request;
+    if (!r) return apiError(409, 'request_transition', 'Not a typed request.');
+    const v = parsed.data;
+    const open = !['rejected', 'done'].includes(r.state);
+    const teacher = r.kind === 'teacher_change';
+    const ok =
+      v.action === 'reject'
+        ? open
+        : v.action === 'propose'
+          ? teacher && ['submitted', 'declined', 'proposed'].includes(r.state)
+          : v.action === 'approve'
+            ? !teacher && r.state === 'submitted'
+            : teacher
+              ? r.state === 'accepted'
+              : r.state === 'approved';
+    if (!ok) return apiError(409, 'request_transition', 'Not from this state.');
+    if (v.action === 'propose') {
+      const p = v.proposal!;
+      const tt = people.teachers.find((x) => x.id === p.teacherId);
+      if (!tt) return fieldError('proposal.teacherId', 'The selected teacher is invalid.');
+      r.proposal = { teacher: { id: tt.id, name: tt.name }, fromDate: p.fromDate };
+      r.state = 'proposed';
+    } else {
+      r.state = v.action === 'approve' ? 'approved' : v.action === 'reject' ? 'rejected' : 'done';
+    }
+    t.updatedAt = iso(Date.now());
+    if (v.note) t.lastPublicAt = t.updatedAt;
+    return HttpResponse.json({ data: ticketDto(t, g.me) });
+  }),
+
+  http.post(`${API}/support/tickets/:id/request/answer`, async ({ request, params }) => {
+    const g = guard(request, 'feedback.request');
+    if ('error' in g) return g.error;
+    const t = supdb.tickets.find((x) => x.id === Number(params.id));
+    if (!t || !owns(g.me, t)) return notFound();
+    const parsed = requestAnswerSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    if (!t.request || t.request.state !== 'proposed') {
+      return apiError(409, 'request_transition', 'Nothing to answer.');
+    }
+    t.request.state = parsed.data.accept ? 'accepted' : 'declined';
+    t.updatedAt = iso(Date.now());
+    return HttpResponse.json({ data: ticketDto(t, g.me) });
+  }),
+
   http.get(`${API}/feedback/summary`, ({ request }) => {
     const g = guardAny(request, ...ANY);
     if ('error' in g) return g.error;
@@ -441,6 +499,21 @@ export const supportHandlers: HttpHandler[] = [
     const now = Date.now();
     const hours = supdb.settings['support.sla_hours'][queue] ?? 12;
     const text = input.description.trim();
+    // S3: a typed request's payload is checked against its subcategory.
+    let typed: TicketRow['request'] = null;
+    if (input.request !== undefined && input.request !== null) {
+      if (!isTypedRequest(input.subcategory)) {
+        return fieldError('request', 'This subcategory takes no request.');
+      }
+      const payload = REQUEST_PAYLOAD_SCHEMAS[input.subcategory].safeParse(input.request);
+      if (!payload.success) return validationFailed(payload.error.issues);
+      typed = {
+        kind: input.subcategory,
+        state: 'submitted',
+        payload: payload.data as Record<string, unknown>,
+        proposal: null,
+      };
+    }
     const t: TicketRow = {
       id: supdb.nextId.ticket++,
       channel: input.channel ?? 'in_app',
@@ -476,6 +549,7 @@ export const supportHandlers: HttpHandler[] = [
       createdAt: iso(now),
       updatedAt: iso(now),
       context: input.context ?? {},
+      request: typed,
     };
     supdb.tickets.push(t);
     storeFiles(t, files, null);

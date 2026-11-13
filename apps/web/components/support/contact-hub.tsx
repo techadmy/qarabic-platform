@@ -472,6 +472,7 @@ export function ContactHub({
       intent: {
         ...intentOf(a.choice, behalf),
         picker: undefined,
+        studentId: s.student.id,
         subject: { type: 'session', id: s.id, label },
       },
     });
