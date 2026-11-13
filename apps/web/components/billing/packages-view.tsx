@@ -125,6 +125,8 @@ export function PackagesView() {
       {
         id: 'prices',
         header: t('prices'),
+        // Money is end-aligned (docs/15 §5.13).
+        meta: { numeric: true } satisfies ColumnMeta,
         cell: ({ row: { original: p } }) => <Prices p={p} />,
       },
       {
@@ -251,7 +253,8 @@ export function PackagesView() {
 
 function Prices({ p }: { p: FeePackageDto }) {
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-1">
+    // Inline, so an end-aligned (numeric) cell puts it at the end.
+    <span className="inline-flex flex-wrap gap-x-3 gap-y-1">
       {p.prices.map((x) => (
         <Money key={x.currency} amount={x.monthlyAmount} currency={x.currency} />
       ))}

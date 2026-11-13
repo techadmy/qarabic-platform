@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { InboxService } from './inbox.service.js';
+import { SupportRequestsService } from './requests.service.js';
 import { SupportReports } from './reports.service.js';
 import { SupportContext } from './policy.js';
 import {
@@ -29,6 +30,7 @@ import { WhatsAppConfig, WhatsAppIntake, WhatsAppWebhookController } from './wha
     SupportContext,
     TicketsService,
     InboxService,
+    SupportRequestsService,
     SupportReports,
     TicketCli,
     WhatsAppConfig,

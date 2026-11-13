@@ -137,7 +137,10 @@ describe('N5 CRM contract', () => {
   });
 
   it('validates every CRM setting and refuses unknown keys', () => {
-    expect(Object.keys(CRM_SETTING_RULES)).toHaveLength(11);
+    expect(Object.keys(CRM_SETTING_RULES)).toHaveLength(14);
+    expect(updateCrmSettingsSchema.safeParse({ 'crm.trial_offer_expiry_minutes': 5 }).success).toBe(
+      false,
+    );
     expect(updateCrmSettingsSchema.safeParse({ 'crm.shift_source': 'always' }).success).toBe(false);
     expect(updateCrmSettingsSchema.safeParse({ 'crm.unknown': 1 }).success).toBe(false);
     expect(updateCrmSettingsSchema.safeParse({ 'crm.working_hours_start': '09:30' }).success).toBe(
