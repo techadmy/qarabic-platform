@@ -11,7 +11,14 @@ import {
   type TypedRequest,
 } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
-import { Field, FieldError, FieldLabel, FieldLegend, FieldSet } from '@qarabic/ui/components/field';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@qarabic/ui/components/field';
 import { Input } from '@qarabic/ui/components/input';
 import { RadioGroup, RadioGroupItem } from '@qarabic/ui/components/radio-group';
 import {
@@ -27,6 +34,7 @@ import { useId } from 'react';
 import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { useUiLocale } from '@/components/sessions/times';
 import { STAFF_WEEK, weekdayName } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 
 /** The form's draft of a typed request (strings while editing). */
 export interface RequestDraft {
@@ -105,12 +113,15 @@ export function RequestFields({
   onChange,
   errors,
   showErrors,
+  timezone,
 }: {
   kind: TypedRequest;
   value: RequestDraft;
   onChange: (next: RequestDraft) => void;
   errors: Record<string, true>;
   showErrors: boolean;
+  /** The zone the times are in (the sender's), said with the times (D30). */
+  timezone: string;
 }) {
   const t = useTranslations('support.request');
   const locale = useUiLocale();
@@ -157,6 +168,7 @@ export function RequestFields({
       <>
         <FieldSet data-invalid={bad('slots')}>
           <FieldLegend variant="label">{t('newTimes')}</FieldLegend>
+          <FieldDescription>{t('timesZone', { city: cityOf(timezone, locale) })}</FieldDescription>
           {value.slots.map((slot, i) => (
             <div key={i} className="flex items-end gap-2">
               <Select
@@ -168,7 +180,7 @@ export function RequestFields({
                 <SelectTrigger
                   className="h-10! flex-1"
                   aria-label={t('day', { n: i + 1 })}
-                  aria-invalid={bad(`slots.${i}.weekday`)}
+                  aria-invalid={bad(`slots.${i}.weekday`) || (bad('slots') && !slot.weekday)}
                 >
                   <SelectValue placeholder={t('day', { n: i + 1 })} />
                 </SelectTrigger>
@@ -186,7 +198,7 @@ export function RequestFields({
                 onChange={(v) =>
                   set({ slots: value.slots.map((s, j) => (j === i ? { ...s, time: v } : s)) })
                 }
-                invalid={bad(`slots.${i}.localTime`)}
+                invalid={bad(`slots.${i}.localTime`) || (bad('slots') && !slot.time)}
                 className="w-32"
               />
               {value.slots.length > 1 && (
@@ -222,6 +234,7 @@ export function RequestFields({
           <FieldLabel htmlFor={ids.startsOn}>{t('startsOn')}</FieldLabel>
           <DatePicker
             id={ids.startsOn}
+            invalid={bad('startsOn')}
             value={value.startsOn}
             onChange={(v) => set({ startsOn: v })}
           />
@@ -290,11 +303,17 @@ export function RequestFields({
               </Field>
             ))}
           </RadioGroup>
+          <FieldDescription>{t(`actions.${value.action}Effect`)}</FieldDescription>
         </FieldSet>
         <div className="grid gap-4 sm:grid-cols-2">
           <Field data-invalid={bad('from')}>
             <FieldLabel htmlFor={ids.from}>{t('from')}</FieldLabel>
-            <DatePicker id={ids.from} value={value.from} onChange={(v) => set({ from: v })} />
+            <DatePicker
+              id={ids.from}
+              invalid={bad('from')}
+              value={value.from}
+              onChange={(v) => set({ from: v })}
+            />
           </Field>
           {value.action === 'pause' && (
             <Field data-invalid={bad('to')}>

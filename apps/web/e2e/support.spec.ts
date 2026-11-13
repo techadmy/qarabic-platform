@@ -195,3 +195,67 @@ test('a parent (phone) asks to pause the subscription: dates and reason, then «
   await expect(page.getByText(/أُرسل طلبك رقم #\d+/).first()).toBeVisible();
   await expectNoHorizontalScroll(page);
 });
+
+test('teacher change (S3): staff propose at 1440 in English, the family accepts after a confirm', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page, 'parent@qarabic.test');
+  await contactButton(page).click();
+  const hub = page.getByRole('dialog', { name: 'تواصل معنا' });
+  await hub.getByRole('button', { name: /^المعلم والمستوى الدراسي/ }).click();
+  await page.getByRole('button', { name: /^طلب تغيير المعلم/ }).click();
+  const form = page.getByRole('dialog', { name: 'طلب تغيير المعلم' });
+  await form.getByRole('combobox', { name: 'سبب طلب تغيير المعلم' }).click();
+  await page.getByRole('option', { name: 'اللغة' }).click();
+  await form.getByRole('textbox').last().fill('We would like a teacher who explains in English.');
+  await form.getByRole('button', { name: 'أرسل' }).click();
+  const sent = await page
+    .getByText(/أُرسل طلبك رقم #\d+/)
+    .first()
+    .textContent();
+  const number = /#(\d+)/.exec(sent ?? '')![1]!;
+
+  // Staff, in English: the request card on the ticket, then a proposal.
+  await signOutAndIn(page, 'admin@qarabic.test');
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await page
+    .getByRole('link', { name: /^Support/ })
+    .first()
+    .click();
+  await page
+    .getByRole('link', { name: new RegExp(`#${number}\\b`) })
+    .first()
+    .click();
+  const card = page.getByRole('region', { name: /Ask for another teacher/ });
+  await expect(card.getByText('New', { exact: true })).toBeVisible();
+  await card.getByRole('button', { name: 'Propose a teacher' }).click();
+  const propose = page.getByRole('dialog', { name: 'Propose a teacher' });
+  await propose.getByRole('combobox', { name: 'Teacher' }).click();
+  await page.getByRole('option').first().click();
+  await expectNoSeriousA11yViolations(page);
+  await propose.getByRole('button', { name: 'Send the proposal' }).click();
+  await expect(card.getByText('Waiting for the family', { exact: true })).toBeVisible();
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10_000 });
+  await expectNoSeriousA11yViolations(page);
+  await page.locator('header').getByRole('button', { name: 'التبديل إلى العربية' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
+
+  // The family: the consequence first, then «تأكيد».
+  await signOutAndIn(page, 'parent@qarabic.test');
+  await page
+    .getByRole('link', { name: /^طلباتي/ })
+    .first()
+    .click();
+  await page
+    .getByRole('link', { name: new RegExp(`#${number}\\b`) })
+    .first()
+    .click();
+  await page.getByRole('button', { name: 'أوافق على المعلم المقترح' }).click();
+  const confirm = page.getByRole('dialog', { name: 'الموافقة على المعلم المقترح؟' });
+  await expect(confirm).toContainText('ابتداءً من');
+  await expectNoSeriousA11yViolations(page);
+  await confirm.getByRole('button', { name: 'أوافق على المعلم المقترح' }).click();
+  await expect(page.getByText('وافقت على الاقتراح')).toBeVisible();
+});

@@ -78,7 +78,16 @@ export interface TicketIntent {
 const ALL = 'all';
 const MIN = 10;
 
-function ChildPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ChildPicker({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Said under the field (a typed request is about one child). */
+  error?: string;
+}) {
   const t = useTranslations('support.form');
   const id = useId();
   const kids = useQuery({
@@ -94,10 +103,10 @@ function ChildPicker({ value, onChange }: { value: string; onChange: (v: string)
   if (rows.length === 0) return null;
   const current = value || String(first);
   return (
-    <Field>
+    <Field data-invalid={!!error || undefined}>
       <FieldLabel htmlFor={id}>{t('child')}</FieldLabel>
       <Select value={current} onValueChange={onChange}>
-        <SelectTrigger id={id} className="h-10! w-full">
+        <SelectTrigger id={id} className="h-10! w-full" aria-invalid={!!error || undefined}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -109,6 +118,7 @@ function ChildPicker({ value, onChange }: { value: string; onChange: (v: string)
           {rows.length > 1 && <SelectItem value={ALL}>{t('allChildren')}</SelectItem>}
         </SelectContent>
       </Select>
+      {error && <FieldError>{error}</FieldError>}
     </Field>
   );
 }
@@ -206,7 +216,7 @@ export function TicketFormDialog({
     if (typedProblem) {
       // The first structured field with a problem.
       requestAnimationFrame(() =>
-        document.querySelector<HTMLElement>('[data-typed-request] [aria-invalid="true"]')?.focus(),
+        document.querySelector<HTMLElement>('[data-ticket-form] [aria-invalid="true"]')?.focus(),
       );
       return;
     }
@@ -222,7 +232,7 @@ export function TicketFormDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !create.isPending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-lg" data-feedback-ignore>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <form onSubmit={submit} noValidate data-ticket-form className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{t(`choice.${intent.key}`)}</DialogTitle>
             {intent.subject ? (
@@ -257,14 +267,16 @@ export function TicketFormDialog({
               </>
             )}
             {!intent.subject && !behalf && intent.picker === 'student' && (
-              <ChildPicker value={child} onChange={setChild} />
+              <ChildPicker
+                value={child}
+                onChange={setChild}
+                error={touched && typed?.errors.studentId ? tr('studentRequired') : undefined}
+              />
             )}
             {kind && (
               <div data-typed-request className="flex flex-col gap-4">
-                {touched && typed?.errors.studentId && (
-                  <p role="alert" className="text-sm font-medium text-destructive">
-                    {tr('studentRequired')}
-                  </p>
+                {touched && typed?.errors.studentId && intent.picker !== 'student' && (
+                  <p className="text-sm font-medium text-destructive">{tr('studentRequired')}</p>
                 )}
                 <RequestFields
                   kind={kind}
@@ -272,6 +284,7 @@ export function TicketFormDialog({
                   onChange={setDraft}
                   errors={typed?.errors ?? {}}
                   showErrors={touched}
+                  timezone={tz}
                 />
               </div>
             )}

@@ -78,11 +78,19 @@ describe('S3 typed requests', () => {
       path: `/tickets/${t.id}`,
     });
     await user.click(await screen.findByRole('button', { name: 'أوافق على المعلم المقترح' }));
+    // The consequence first (who, from when), then «تأكيد».
+    const accept = await screen.findByRole('dialog', { name: 'الموافقة على المعلم المقترح؟' });
+    expect(accept).toHaveTextContent(/ابتداءً من/);
+    await user.click(within(accept).getByRole('button', { name: 'أوافق على المعلم المقترح' }));
     await waitFor(() => expect(t.request!.state).toBe('accepted'));
     second.unmount();
 
     renderPage(<TicketDetailView id={t.id} />, { path: `/tickets/${t.id}` });
+    // Staff see their own wording of the state.
+    expect(await screen.findByText('وافقت الأسرة')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'تم التنفيذ' }));
+    const complete = await screen.findByRole('dialog', { name: 'تسجيل الطلب منفّذًا؟' });
+    await user.click(within(complete).getByRole('button', { name: 'تم التنفيذ' }));
     await waitFor(() => expect(t.request!.state).toBe('done'));
   });
 });

@@ -33,7 +33,8 @@ import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { answerRequest, requestAction, supportKeys } from '@/lib/api/support';
 import { can } from '@/lib/auth/use-me';
-import { dateKeyIn, dayLabel, weekdayName } from '@/lib/schedule-time';
+import { dateKeyIn, dayLabel, otherSideOf, wallTime, weekdayName } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 import { useSupportError } from '@/lib/support/errors';
 
 const TONE = {
@@ -63,11 +64,18 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
   const queryClient = useQueryClient();
   const message = useSupportError();
   const r = ticket.request!;
-  const staff = !ticket.isMine && (can(me, 'support.handle') || can(me, 'feedback.manage'));
+  // Until the API sends allowedActions: the people who handle the queue (support.manage included).
+  const staff =
+    !ticket.isMine &&
+    (can(me, 'support.handle') || can(me, 'support.manage') || can(me, 'feedback.manage'));
   const open = r.state !== 'rejected' && r.state !== 'done';
   const teacher = r.kind === 'teacher_change';
   const [proposing, setProposing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  /** A step that waits for «تأكيد» (D31): what it does is said first. */
+  const [confirming, setConfirming] = useState<
+    'approve' | 'complete' | 'accept' | 'decline' | null
+  >(null);
   const done = () => {
     void queryClient.invalidateQueries({ queryKey: supportKeys.all });
   };
@@ -76,29 +84,32 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
     onSuccess: (_, v) => {
       setProposing(false);
       setRejecting(false);
+      setConfirming(null);
       done();
       toast.success(t(`done.${v.action}`));
     },
-    onError: (e, v) => {
-      if (v.action !== 'reject' && v.action !== 'propose') toast.error(message(e));
-    },
+    // Refusals show inside the open dialog.
+    onError: () => undefined,
   });
   const answer = useMutation({
-    mutationFn: (accept: boolean) => answerRequest(ticket.id, { accept }),
-    onSuccess: (_, accept) => {
+    mutationFn: (v: { accept: boolean; note?: string }) =>
+      answerRequest(ticket.id, { accept: v.accept, note: v.note || undefined }),
+    onSuccess: (_, v) => {
+      setConfirming(null);
       done();
-      toast.success(t(accept ? 'answered.accept' : 'answered.decline'));
+      toast.success(t(v.accept ? 'answered.accept' : 'answered.decline'));
     },
-    onError: (e) => toast.error(message(e)),
   });
 
-  const rows = details(r, locale, t);
+  const rows = details(r, locale, tz, t);
+  const stateLabel = staff ? t(`staffState.${r.state}`) : REQUEST_STATE_LABELS[r.state][locale];
+  const btn = 'h-11 md:h-10';
   return (
-    <Card className="gap-2 shadow-none" aria-labelledby="ticket-request">
+    <Card role="region" className="gap-2 shadow-none" aria-labelledby="ticket-request">
       <CardHeader className="border-b">
         <CardTitle className="flex flex-wrap items-center gap-2 text-base font-bold">
           <h2 id="ticket-request">{t('title', { kind: tf(`choice.${r.kind}`) })}</h2>
-          <ToneBadge tone={TONE[r.state]} label={REQUEST_STATE_LABELS[r.state][locale]} />
+          <ToneBadge tone={TONE[r.state]} label={stateLabel} />
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -123,19 +134,13 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
         </dl>
         {ticket.isMine && r.state === 'proposed' && (
           <div className="flex flex-wrap gap-2">
-            <Button
-              className="h-11 md:h-10"
-              disabled={answer.isPending}
-              onClick={() => answer.mutate(true)}
-            >
-              {answer.isPending && answer.variables && <Spinner />}
+            <Button className={btn} onClick={() => (answer.reset(), setConfirming('accept'))}>
               {t('accept')}
             </Button>
             <Button
               variant="outline"
-              className="h-11 md:h-10"
-              disabled={answer.isPending}
-              onClick={() => answer.mutate(false)}
+              className={btn}
+              onClick={() => (answer.reset(), setConfirming('decline'))}
             >
               {t('decline')}
             </Button>
@@ -144,22 +149,23 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
         {staff && open && (
           <div className="flex flex-wrap gap-2">
             {teacher && ['submitted', 'declined', 'proposed'].includes(r.state) && (
-              <Button onClick={() => setProposing(true)}>
+              <Button className={btn} onClick={() => (act.reset(), setProposing(true))}>
                 {r.state === 'proposed' ? t('reproposeTeacher') : t('proposeTeacher')}
               </Button>
             )}
             {!teacher && r.state === 'submitted' && (
-              <Button disabled={act.isPending} onClick={() => act.mutate({ action: 'approve' })}>
+              <Button className={btn} onClick={() => (act.reset(), setConfirming('approve'))}>
                 {t('approve')}
               </Button>
             )}
             {((teacher && r.state === 'accepted') || (!teacher && r.state === 'approved')) && (
-              <Button disabled={act.isPending} onClick={() => act.mutate({ action: 'complete' })}>
+              <Button className={btn} onClick={() => (act.reset(), setConfirming('complete'))}>
                 {t('complete')}
               </Button>
             )}
             <Button
               variant="ghost"
+              className={btn}
               onClick={() => {
                 act.reset();
                 setRejecting(true);
@@ -184,6 +190,45 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
         busy={act.isPending}
         error={act.isError && act.variables?.action === 'reject' ? message(act.error) : null}
         onConfirm={({ text }) => act.mutate({ action: 'reject', note: text })}
+      />
+      <ReasonDialog
+        open={confirming === 'approve' || confirming === 'complete'}
+        onOpenChange={(o) => !o && setConfirming(null)}
+        title={confirming === 'complete' ? t('completeTitle') : t('approveTitle')}
+        description={confirming === 'complete' ? t('completeHint') : t('approveHint')}
+        confirmLabel={confirming === 'complete' ? t('complete') : t('approve')}
+        textLabel={t('noteOptional')}
+        busy={act.isPending}
+        error={
+          act.isError &&
+          (act.variables?.action === 'approve' || act.variables?.action === 'complete')
+            ? message(act.error)
+            : null
+        }
+        onConfirm={({ text }) =>
+          act.mutate({
+            action: confirming === 'complete' ? 'complete' : 'approve',
+            note: text || undefined,
+          })
+        }
+      />
+      <ReasonDialog
+        open={confirming === 'accept' || confirming === 'decline'}
+        onOpenChange={(o) => !o && setConfirming(null)}
+        title={confirming === 'accept' ? t('acceptTitle') : t('declineTitle')}
+        description={
+          r.proposal
+            ? t(confirming === 'accept' ? 'acceptHint' : 'declineHint', {
+                name: r.proposal.teacher.name,
+                date: dayLabel(r.proposal.fromDate, locale),
+              })
+            : undefined
+        }
+        confirmLabel={confirming === 'accept' ? t('accept') : t('decline')}
+        textLabel={confirming === 'decline' ? t('declineNote') : undefined}
+        busy={answer.isPending}
+        error={answer.isError ? message(answer.error) : null}
+        onConfirm={({ text }) => answer.mutate({ accept: confirming === 'accept', note: text })}
       />
       {proposing && (
         <ProposeDialog
@@ -225,6 +270,14 @@ function ProposeDialog({
           <DialogTitle>{t('proposeTeacher')}</DialogTitle>
           <DialogDescription>{t('proposeHint')}</DialogDescription>
         </DialogHeader>
+        {lookups.isError && (
+          <p role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+            {t('teachersFailed')}
+            <Button variant="outline" size="sm" onClick={() => void lookups.refetch()}>
+              {t('retry')}
+            </Button>
+          </p>
+        )}
         <Field>
           <FieldLabel htmlFor={ids.teacher}>{t('teacher')}</FieldLabel>
           <Combobox
@@ -249,10 +302,11 @@ function ProposeDialog({
           </p>
         )}
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" className="h-11 md:h-10" onClick={onClose}>
             {t('back')}
           </Button>
           <Button
+            className="h-11 md:h-10"
             disabled={!teacherId || !fromDate || busy}
             onClick={() => teacherId && onPropose(Number(teacherId), fromDate)}
           >
@@ -269,6 +323,7 @@ function ProposeDialog({
 function details(
   r: SupportRequestDto,
   locale: 'ar' | 'en',
+  viewerTz: string,
   t: ReturnType<typeof useTranslations<'support.request'>>,
 ): [string, ReactNode][] {
   const p = r.payload;
@@ -276,15 +331,41 @@ function details(
     const slots = Array.isArray(p.slots)
       ? (p.slots as { weekday: number; localTime: string }[])
       : [];
+    // D30: the times in the zone they were asked in, labelled, and the viewer's own beside them.
+    const zone = str(p.timezone) || viewerTz;
+    const from = str(p.startsOn) || dateKeyIn(viewerTz);
     return [
       [
         t('newTimes'),
-        <span key="s" className="flex flex-col">
-          {slots.map((s, i) => (
-            <bdi key={i}>
-              {weekdayName(s.weekday, locale)} {s.localTime}
-            </bdi>
-          ))}
+        <span key="s" className="flex flex-col gap-1">
+          {slots.map((s, i) => {
+            const mine =
+              zone !== viewerTz
+                ? otherSideOf(
+                    { weekday: s.weekday, localStartTime: s.localTime, timezone: zone },
+                    viewerTz,
+                    from,
+                  )
+                : null;
+            return (
+              <span key={i}>
+                <bdi>
+                  {weekdayName(s.weekday, locale)} {wallTime(s.localTime, locale)} (
+                  {cityOf(zone, locale)})
+                </bdi>
+                {mine && (
+                  <span className="block text-sm text-muted-foreground">
+                    <bdi>
+                      {t('yourTime', {
+                        time: `${weekdayName(mine.weekday, locale)} ${wallTime(mine.time, locale)}`,
+                        city: cityOf(viewerTz, locale),
+                      })}
+                    </bdi>
+                  </span>
+                )}
+              </span>
+            );
+          })}
         </span>,
       ],
       [t('startsOn'), dayLabel(str(p.startsOn), locale)],

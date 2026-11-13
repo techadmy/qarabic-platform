@@ -2009,7 +2009,9 @@
       "files": "A file was refused: PNG, JPEG or WebP images only, up to 5 MB.",
       "closed": "This request is closed. If it happens again, send a new one.",
       "description": "Write at least 10 characters.",
-      "invalid": "Check the details you entered."
+      "invalid": "Check the details you entered.",
+      "requestState": "This request has moved on. Refresh to see where it stands.",
+      "proposalTeacher": "This teacher cannot take the child at these times. Choose another."
     },
     "request": {
       "choose": "Choose…",
@@ -2031,7 +2033,9 @@
       "subscriptionAction": "What you need",
       "actions": {
         "pause": "Pause",
-        "stop": "Stop the subscription"
+        "stop": "Stop the subscription",
+        "pauseEffect": "If approved, the classes in this period are paused and resume after it.",
+        "stopEffect": "If approved, the classes stop from this date."
       },
       "from": "From",
       "to": "To",
@@ -2073,7 +2077,30 @@
       "fromValue": "From {from}",
       "who": "For",
       "oneChild": "One child",
-      "wholeFamily": "The whole family"
+      "wholeFamily": "The whole family",
+      "staffState": {
+        "submitted": "New",
+        "proposed": "Waiting for the family",
+        "accepted": "Family accepted",
+        "declined": "Family declined",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "done": "Done"
+      },
+      "approveTitle": "Approve this request?",
+      "approveHint": "The family is told it was approved. Make the change with the usual tools, then mark it done.",
+      "completeTitle": "Mark the request done?",
+      "completeHint": "Only after the change was made. The family is told it is done.",
+      "noteOptional": "Note to the family (optional)",
+      "acceptTitle": "Accept the proposed teacher?",
+      "acceptHint": "{name} will teach from {date}. The academy then makes the change.",
+      "declineTitle": "Decline the proposed teacher?",
+      "declineHint": "{name} will not take over from {date}. The academy proposes someone else or contacts you.",
+      "declineNote": "Why (optional)",
+      "teachersFailed": "The teachers could not be loaded.",
+      "retry": "Try again",
+      "yourTime": "Your time: {time} ({city})",
+      "timesZone": "Times in your zone ({city})."
     }
   },
   "bell": {
