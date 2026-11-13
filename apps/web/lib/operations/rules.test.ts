@@ -108,5 +108,7 @@ describe('bell rows', () => {
     expect(kindsFor({ permissions: ['leads.view'] })).toEqual(['class_reminder', 'lead']);
     // Trial offers and bookings reach the people who teach (T2–T4).
     expect(kindsFor({ permissions: ['sessions.conduct'] })).toEqual(['class_reminder', 'trial']);
+    // SLA breach notices reach the support staff (S4).
+    expect(kindsFor({ permissions: ['support.view'] })).toEqual(['class_reminder', 'support']);
   });
 });
