@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { timeZoneSchema } from './countries.js';
 import { LEAD_SOURCES, LOST_REASONS } from './crm.js';
 import { courseRefSchema, dateOnlySchema, genderSchema, personRefSchema } from './people.js';
-import { acknowledgeWarningsSchema, localTimeSchema } from './schedule.js';
+import { acknowledgeWarningsSchema, conflictResultSchema, localTimeSchema } from './schedule.js';
 
 /**
  * Trial classes, steps T2–T5 of docs/33 (D136, D137): choosing the teacher (eligibility and
@@ -85,6 +85,12 @@ export const trialTeacherOptionSchema = z.object({
   /** The trial time in the teacher's zone (D30). */
   teacherLocal: z.object({ date: z.string(), time: z.string() }),
   inWorkHours: z.boolean(),
+  /**
+   * The booking's own check for this teacher at this exact date and time (one-off classes,
+   * blocks and weekly times included): the same hard conflicts (409) and soft warnings
+   * (`acknowledgeWarnings`) `POST /leads/:id/trials` applies. Defaults keep older mocks valid.
+   */
+  check: conflictResultSchema.default({ conflicts: [], warnings: [] }),
   /** The teacher teaches in the student's language; null when the student's language is not set. */
   languageMatch: z.boolean().nullable(),
   /** Trials in the last 90 days and how many became regular; `rate` 0–100, null with no trials. */

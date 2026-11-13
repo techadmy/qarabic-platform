@@ -1,4 +1,6 @@
 import {
+  isTypedRequest,
+  type RequestState,
   isClosedStatus,
   TICKET_TRANSITIONS,
   type TicketAttachmentDto,
@@ -10,6 +12,26 @@ import type { Prisma } from '../generated/prisma/client.js';
 import { isoZ } from '../schedule/time.js';
 import { SupportPolicy, type SupportViewer } from './policy.js';
 import { SlaClock } from './sla.js';
+
+/** S3: the typed request on a ticket, or null for a plain one. */
+function requestDto(t: {
+  subcategory: string | null;
+  request: Prisma.JsonValue;
+  requestState: RequestState | null;
+  proposal: Prisma.JsonValue;
+}): TicketDto['request'] {
+  if (!t.requestState || !isTypedRequest(t.subcategory)) return null;
+  const p = t.proposal as { teacherId?: number; teacherName?: string; fromDate?: string } | null;
+  return {
+    kind: t.subcategory,
+    state: t.requestState,
+    payload: (t.request ?? {}) as Record<string, unknown>,
+    proposal:
+      p?.teacherId && p.fromDate
+        ? { teacher: { id: p.teacherId, name: p.teacherName ?? '' }, fromDate: p.fromDate }
+        : null,
+  };
+}
 
 export const ticketInclude = {
   reporter: { select: { id: true, name: true } },
@@ -118,6 +140,7 @@ export const TicketPresenter = {
       slaState: SlaClock.state(t.slaDueAt, t.firstResponseAt, open, nowMs),
       firstResponseAt: isoZ(t.firstResponseAt),
       handledBy: t.assignee ? (t.assignee.name.trim().split(/\s+/)[0] ?? null) : null,
+      request: requestDto(t),
     };
     if (staff) {
       Object.assign(data, {

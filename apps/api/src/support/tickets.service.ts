@@ -8,6 +8,8 @@ import {
   type createTicketSchema,
   isClosedStatus,
   isSubcategoryOf,
+  isTypedRequest,
+  REQUEST_PAYLOAD_SCHEMAS,
   NOTE_REQUIRED_STATUSES,
   OPEN_TICKET_STATUSES,
   PRIORITY_REQUIRED_STATUSES,
@@ -141,6 +143,50 @@ export class TicketsService {
         throw validationError({ subjectId: ['You cannot link this item to a request.'] });
       }
     }
+    if (input.request !== undefined) await this.validateRequest(user, input, category);
+  }
+
+  /**
+   * S3: the typed payload of a request (by subcategory). Children must be the requester's own (or,
+   * filed by staff, of `familyId`); an invoice question needs the invoice as its subject.
+   */
+  private async validateRequest(
+    user: AuthUser,
+    input: CreateInput,
+    category: TicketCategory,
+  ): Promise<void> {
+    const sub = input.subcategory;
+    if (!isTypedRequest(sub) || !isSubcategoryOf(category, sub)) {
+      throw validationError({ request: ['This kind of request takes no details.'] });
+    }
+    const parsed = REQUEST_PAYLOAD_SCHEMAS[sub].safeParse(input.request);
+    if (!parsed.success) {
+      const errors: Record<string, string[]> = {};
+      for (const issue of parsed.error.issues) {
+        const key = ['request', ...issue.path.map(String)].join('.');
+        (errors[key] ??= []).push(issue.message);
+      }
+      throw validationError(errors);
+    }
+    const payload = parsed.data as Record<string, unknown>;
+    const students = [
+      ...(typeof payload.studentId === 'number' ? [payload.studentId] : []),
+      ...(Array.isArray(payload.studentIds) ? (payload.studentIds as number[]) : []),
+    ];
+    for (const studentId of students) {
+      const own = await this.canReference(user, 'student', studentId);
+      const inFamily =
+        input.familyId === undefined ||
+        (await this.prisma.student.count({ where: { id: studentId, familyId: input.familyId } })) >
+          0;
+      if (!own || !inFamily) {
+        throw validationError({ 'request.studentId': ['Choose one of the family’s children.'] });
+      }
+    }
+    if (sub === 'invoice_question' && input.subjectType !== 'invoice') {
+      throw validationError({ subjectId: ['Choose the invoice the question is about.'] });
+    }
+    input.request = payload;
   }
 
   /** Whether `user` may attach this subject (same row scope as the rest of the API, D138). */
@@ -260,8 +306,12 @@ export class TicketsService {
     const type: TicketType = input.category ? categoryType(category) : (input.type ?? 'bug');
     const sub =
       input.subcategory && isSubcategoryOf(category, input.subcategory) ? input.subcategory : null;
-    const subjectType = input.subjectType ?? null;
-    const subjectId = subjectType ? (input.subjectId ?? null) : null;
+    const typed = input.request !== undefined && isTypedRequest(sub) ? sub : null;
+    // A schedule or teacher change about one child is about that child (family, teacher).
+    const childId =
+      typed && typeof input.request?.studentId === 'number' ? input.request.studentId : null;
+    const subjectType = input.subjectType ?? (childId ? 'student' : null);
+    const subjectId = input.subjectType ? (input.subjectId ?? null) : childId;
     const queue = SupportPolicy.forCategory(cfg, category, sub);
     const people = await this.people(
       this.prisma,
@@ -296,6 +346,12 @@ export class TicketsService {
             contactHash: input.contactHash ?? null,
             area,
             context: context as Prisma.InputJsonValue,
+            ...(typed
+              ? {
+                  request: input.request as Prisma.InputJsonValue,
+                  requestState: 'submitted' as const,
+                }
+              : {}),
             lastPublicAt: now,
             reporterSeenAt: now,
             whatsappWindowUntil: channel === 'whatsapp' ? new Date(nowMs + DAY) : null,
@@ -552,7 +608,7 @@ export class TicketsService {
     });
   }
 
-  private statusData(
+  statusData(
     t: { triagedAt: Date | null },
     to: TicketStatus,
     now: Date,
@@ -567,7 +623,7 @@ export class TicketsService {
   }
 
   /** The first public answer from someone other than the reporter stops the SLA clock. */
-  private answersFirst(
+  answersFirst(
     t: { firstResponseAt: Date | null; reporterId: number | null },
     actor: Actor,
   ): boolean {
