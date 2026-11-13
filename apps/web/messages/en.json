@@ -2405,6 +2405,43 @@
       "send": "Send the recommendation",
       "sent": "Thank you, your recommendation was sent.",
       "cancel": "Cancel"
+    },
+    "kpis": {
+      "title": "Lead KPIs",
+      "description": "For the leads that came in the period: response speed, bookings, show-up, enrolment, and why leads were lost.",
+      "back": "Leads",
+      "summary": "Period summary",
+      "pct": "{pct}%",
+      "ofTotal": "{n} of {total}",
+      "minutes": "{count, plural, one {# min} other {# min}}",
+      "hours": "{count, plural, one {# hour} other {# hours}}",
+      "days": "{count, plural, =0 {under a day} one {# day} other {# days}}",
+      "total": "Total",
+      "unassigned": "Unassigned",
+      "bySource": "By source",
+      "byAssignee": "By owner",
+      "byTeacher": "Trial classes by teacher",
+      "byCourse": "Trial classes by course",
+      "lostReasons": "{count, plural, one {Why leads were lost (# lead)} other {Why leads were lost (# leads)}}",
+      "emptyTitle": "No leads in this period",
+      "empty": "Choose another period.",
+      "cols": {
+        "leads": "Leads",
+        "firstResponse": "First response (median)",
+        "withinSla": "Answered in time",
+        "leadToTrial": "Booked a trial",
+        "showUp": "Came to the trial",
+        "toRegular": "Enrolled after it",
+        "daysToRegular": "Days to enrol (median)",
+        "source": "Source",
+        "owner": "Owner",
+        "teacher": "Teacher",
+        "course": "Course",
+        "trials": "Trials",
+        "reason": "Reason",
+        "count": "Count",
+        "bySource": "By source"
+      }
     }
   },
   "trialForm": {

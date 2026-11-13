@@ -35,6 +35,8 @@ import {
   type TrialOutcomeInput,
   type UpdateCrmSettingsInput,
   type UpdateLeadInput,
+  leadKpisSchema,
+  type LeadKpisDto,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
@@ -143,6 +145,14 @@ export async function bookTrial(
   return { lead: res.data, trial: res.meta.trial };
 }
 
+/** T5: the CRM rates for a period (docs/33 §6). */
+export async function fetchLeadKpis(
+  query: { from?: string; to?: string },
+  signal?: AbortSignal,
+): Promise<LeadKpisDto> {
+  return (await apiFetch(`/leads/kpis${qs(query)}`, { schema: one(leadKpisSchema), signal })).data;
+}
+
 export async function recordTrialOutcome(
   id: number,
   body: TrialOutcomeInput,
@@ -190,5 +200,6 @@ export const crmKeys = {
   assignees: ['crm', 'assignees'] as const,
   lead: (id: number) => ['crm', 'lead', id] as const,
   settings: ['crm', 'settings'] as const,
+  kpis: (query: unknown) => ['crm', 'kpis', query] as const,
   publicCourses: ['public', 'courses'] as const,
 };

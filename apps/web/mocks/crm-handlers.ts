@@ -26,6 +26,7 @@ import { http, HttpResponse, type HttpHandler } from 'msw';
 import type { MockUser } from './data';
 import { crmdb, CRM_STAFF, iso, staffRef, trialOf, type LeadRow } from './crm-db';
 import { COURSES, db as people } from './people-db';
+import { leadKpis } from './lead-kpis';
 import { checkSlot, paginate, queryOf } from './schedule-handlers';
 import {
   apiError,
@@ -220,6 +221,23 @@ function canWorkLeads(userId: number) {
 
 export const crmHandlers: HttpHandler[] = [
   // ---------------------------------------------------------------- queue
+  // T5 rates (before /leads/:id, which would read «kpis» as an id).
+  http.get(`${API}/leads/kpis`, ({ request }) => {
+    const g = guard(request, 'leads.view');
+    if ('error' in g) return g.error;
+    const q = new URL(request.url).searchParams;
+    const today = new Date().toISOString().slice(0, 10);
+    const to = q.get('to') || today;
+    const from =
+      q.get('from') || new Date(Date.parse(to) - 29 * 86_400_000).toISOString().slice(0, 10);
+    if (to < from) {
+      return apiError(422, 'validation_failed', 'The given data was invalid.', {
+        to: ['The end is before the start.'],
+      });
+    }
+    return HttpResponse.json({ data: leadKpis(from, to) });
+  }),
+
   http.get(`${API}/leads/summary`, ({ request }) => {
     const g = guard(request, 'leads.view');
     if ('error' in g) return g.error;
