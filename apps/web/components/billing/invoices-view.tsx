@@ -225,14 +225,25 @@ export function InvoicesView() {
     />
   );
 
+  // The same summary on both layouts: in the split view too, nothing urgent hides (docs/15 §8).
+  const summaryBlock = seesKpi && (
+    <CollapsibleSummary
+      storageKey={`invoices:${me.id}`}
+      hint={<OverdueHint summary={summary.data} />}
+    >
+      <SummaryTiles summary={summary} />
+    </CollapsibleSummary>
+  );
+
   if (split.selectedId) {
     return (
       <>
         {header}
+        {summaryBlock}
         <SplitView
           selectedId={split.selectedId}
           wide={split.wide}
-          detailLabel={t('invoices.title')}
+          detailLabel={t('invoices.detail')}
           onClose={split.close}
           fullHref={split.fullHref}
           list={
@@ -282,14 +293,7 @@ export function InvoicesView() {
   return (
     <>
       {header}
-      {seesKpi && (
-        <CollapsibleSummary
-          storageKey={`invoices:${me.id}`}
-          hint={<OverdueHint summary={summary.data} />}
-        >
-          <SummaryTiles summary={summary} />
-        </CollapsibleSummary>
-      )}
+      {summaryBlock}
       <Card className="gap-0 py-0 shadow-none">
         <ListToolbar
           search={search}

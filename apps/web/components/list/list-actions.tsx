@@ -48,7 +48,8 @@ export function ListActions({
   moreCreate = [],
   more = [],
 }: {
-  create?: { label: string; onClick: () => void };
+  /** `href` makes it a link (opens in a new tab with a middle-click); `onClick` opens a sheet. */
+  create?: { label: string; onClick?: () => void; href?: string };
   /** Other create actions, behind the chevron of the primary button. */
   moreCreate?: ListAction[];
   /** Import, export, sort, settings… behind «⋯». */
@@ -61,10 +62,7 @@ export function ListActions({
       {create &&
         (moreCreate.length ? (
           <ButtonGroup>
-            <Button onClick={create.onClick}>
-              <PlusIcon />
-              {create.label}
-            </Button>
+            <CreateButton create={create} />
             <DropdownMenu dir={dir}>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -83,10 +81,7 @@ export function ListActions({
             </DropdownMenu>
           </ButtonGroup>
         ) : (
-          <Button onClick={create.onClick}>
-            <PlusIcon />
-            {create.label}
-          </Button>
+          <CreateButton create={create} />
         ))}
       {more.length > 0 && (
         <DropdownMenu dir={dir}>
@@ -103,5 +98,25 @@ export function ListActions({
         </DropdownMenu>
       )}
     </>
+  );
+}
+
+function CreateButton({
+  create,
+}: {
+  create: { label: string; onClick?: () => void; href?: string };
+}) {
+  return create.href ? (
+    <Button asChild>
+      <Link href={create.href}>
+        <PlusIcon />
+        {create.label}
+      </Link>
+    </Button>
+  ) : (
+    <Button onClick={create.onClick}>
+      <PlusIcon />
+      {create.label}
+    </Button>
   );
 }

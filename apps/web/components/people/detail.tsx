@@ -220,6 +220,8 @@ export function ArchivedBanner({
 }
 
 export function ProfileSkeleton() {
+  // Same breakpoints as the loaded profile, so the split-view pane does not jump (D141 §1).
+  const pane = useRecordPane();
   return (
     <div className="flex flex-col gap-4" aria-busy="true">
       <div className="flex items-center gap-3">
@@ -229,12 +231,12 @@ export function ProfileSkeleton() {
           <Skeleton className="h-4 w-40" />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className={cn('grid grid-cols-2 gap-3', pane ? '@3xl:grid-cols-4' : 'lg:grid-cols-4')}>
         {Array.from({ length: 4 }, (_, i) => (
           <Skeleton key={i} className="h-20" />
         ))}
       </div>
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className={cn('grid gap-4', pane ? '@5xl:grid-cols-2' : 'lg:grid-cols-2')}>
         <Skeleton className="h-64" />
         <Skeleton className="h-64" />
       </div>

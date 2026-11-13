@@ -50,6 +50,8 @@ test('staff: Today board → mark a class → undo', async ({ page }) => {
     .filter({ hasText: 'مجدولة' })
     .first()
     .getAttribute('data-session-id');
+  // A clear failure when the day has no scheduled class (instead of a timeout on "null").
+  expect(id, 'a «مجدولة» class tomorrow').toBeTruthy();
   const row = page.locator(`tr[data-session-id="${id}"]`);
   const name = (await row.getByRole('button').first().textContent())!.trim();
   await expect(row.getByText('مجدولة')).toBeVisible();
@@ -74,8 +76,8 @@ test('staff: Today board → mark a class → undo', async ({ page }) => {
 
 test('staff: create an enrollment with weekly times (warning acknowledged)', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', '/schedule');
-  // D141: «اشتراك جديد» is the ListActions create button.
-  await page.getByRole('button', { name: 'اشتراك جديد' }).click();
+  // D141: «اشتراك جديد» is the ListActions create link.
+  await page.getByRole('link', { name: 'اشتراك جديد' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'اشتراك جديد' })).toBeVisible();
 
   // Step 1: the demo parent's child Ali (New York) with Ahmed Fathy.
