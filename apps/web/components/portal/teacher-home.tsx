@@ -24,6 +24,7 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState } from 'react';
+import { TrialOffersCard } from '@/components/portal/trial-offers-card';
 import { KeyFacts } from '@/components/people/detail';
 import { PageHeader } from '@/components/page-header';
 import { TodayCard } from '@/components/payroll/attendance-view';
@@ -315,6 +316,8 @@ export function TeacherHomeView() {
       ) : (
         <EmptyState icon={CalendarDaysIcon} title={t('noNext')} description={t('noNextHint')} />
       )}
+      {/* T3: trials offered to this teacher (accept / volunteer / decline). */}
+      <TrialOffersCard />
       {can(me, 'attendance.request') && <TodayCard />}
       <section aria-labelledby="home-today" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
