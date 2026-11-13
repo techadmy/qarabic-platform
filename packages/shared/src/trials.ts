@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { timeZoneSchema } from './countries.js';
-import { dateOnlySchema, genderSchema } from './people.js';
-import { localTimeSchema } from './schedule.js';
+import { courseRefSchema, dateOnlySchema, genderSchema, personRefSchema } from './people.js';
+import { acknowledgeWarningsSchema, conflictResultSchema, localTimeSchema } from './schedule.js';
 
 /**
  * Trial classes, steps T2–T5 of docs/33 (D136, D137): choosing the teacher (eligibility and
@@ -12,6 +12,16 @@ import { localTimeSchema } from './schedule.js';
 type Labels<T extends string> = Record<T, { ar: string; en: string }>;
 
 const queryId = z.coerce.number().int().positive();
+const id = z.number().int().positive();
+const blankToNull = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? null : v);
+const optionalText = (max: number) =>
+  z.preprocess(blankToNull, z.string().trim().max(max).nullable()).optional();
+const trialMinutes = z
+  .number()
+  .int()
+  .min(15)
+  .max(90)
+  .refine((n) => n % 5 === 0, { message: 'Use steps of 5 minutes.' });
 
 // ------------------------------------------------------------------ T2 eligibility + ranking
 
@@ -74,6 +84,12 @@ export const trialTeacherOptionSchema = z.object({
   /** The trial time in the teacher's zone (D30). */
   teacherLocal: z.object({ date: z.string(), time: z.string() }),
   inWorkHours: z.boolean(),
+  /**
+   * The booking's own check for this teacher at this exact date and time (one-off classes,
+   * blocks and weekly times included): the same hard conflicts (409) and soft warnings
+   * (`acknowledgeWarnings`) `POST /leads/:id/trials` applies. Defaults keep older mocks valid.
+   */
+  check: conflictResultSchema.default({ conflicts: [], warnings: [] }),
   /** The teacher teaches in the student's language; null when the student's language is not set. */
   languageMatch: z.boolean().nullable(),
   /** Trials in the last 90 days and how many became regular; `rate` 0–100, null with no trials. */
@@ -113,9 +129,268 @@ export const trialTeachersResponseSchema = z.object({
 export type TrialTeachersResponse = z.infer<typeof trialTeachersResponseSchema>;
 
 /** Teacher-facing trial notices (kind `trial`): never the family's name or contacts. */
-export const TRIAL_NOTIFICATION_EVENTS = ['trial_booked', 'trial_cancelled'] as const;
+export const TRIAL_NOTIFICATION_EVENTS = [
+  'trial_booked',
+  'trial_cancelled',
+  'trial_offer',
+  'trial_offer_taken',
+  'trial_reminder',
+  'trial_late',
+] as const;
 export type TrialNotificationEvent = (typeof TRIAL_NOTIFICATION_EVENTS)[number];
 export const TRIAL_NOTIFICATION_LABELS: Labels<TrialNotificationEvent> = {
   trial_booked: { ar: 'حصة تجريبية جديدة', en: 'New trial class' },
   trial_cancelled: { ar: 'أُلغيت حصة تجريبية', en: 'Trial class cancelled' },
+  trial_offer: { ar: 'عرض حصة تجريبية', en: 'Trial class offer' },
+  trial_offer_taken: { ar: 'تم إسناد الحصة التجريبية', en: 'Trial offer taken' },
+  trial_reminder: { ar: 'تذكير بحصة تجريبية', en: 'Trial class reminder' },
+  trial_late: { ar: 'تأخر بدء حصة تجريبية', en: 'Trial class not started on time' },
 };
+
+// ------------------------------------------------------------------ T3 open offers
+
+/**
+ * Open offers (docs/33 §4.3): the CSR offers a trial to the eligible teachers (or a shortlist).
+ * `first_accept`: the first teacher to accept is booked (atomic). `volunteer`: teachers volunteer
+ * and the CSR picks one. An offer closes at `expiresAt` (≤ 6 h before the trial by default).
+ */
+export const TRIAL_OFFER_STATUSES = ['open', 'claimed', 'expired', 'cancelled'] as const;
+export type TrialOfferStatus = (typeof TRIAL_OFFER_STATUSES)[number];
+export const TRIAL_OFFER_STATUS_LABELS: Labels<TrialOfferStatus> = {
+  open: { ar: 'مفتوح', en: 'Open' },
+  claimed: { ar: 'تم الإسناد', en: 'Assigned' },
+  expired: { ar: 'انتهت المهلة', en: 'Expired' },
+  cancelled: { ar: 'ملغى', en: 'Cancelled' },
+};
+export const TRIAL_OFFER_POLICIES = ['first_accept', 'volunteer'] as const;
+export type TrialOfferPolicy = (typeof TRIAL_OFFER_POLICIES)[number];
+export const TRIAL_OFFER_POLICY_LABELS: Labels<TrialOfferPolicy> = {
+  first_accept: { ar: 'أول من يقبل', en: 'First to accept' },
+  volunteer: { ar: 'تطوّع ثم اختيار', en: 'Volunteers, then pick' },
+};
+export const TRIAL_OFFER_AUDIENCES = ['eligible', 'shortlist'] as const;
+export type TrialOfferAudience = (typeof TRIAL_OFFER_AUDIENCES)[number];
+export const TRIAL_OFFER_RESPONSES = ['accept', 'volunteer', 'decline'] as const;
+export type TrialOfferResponse = (typeof TRIAL_OFFER_RESPONSES)[number];
+export const TRIAL_OFFER_RESPONSE_LABELS: Labels<TrialOfferResponse> = {
+  accept: { ar: 'قبل', en: 'Accepted' },
+  volunteer: { ar: 'يرغب', en: 'Volunteered' },
+  decline: { ar: 'اعتذر', en: 'Declined' },
+};
+
+/** `POST /leads/:id/trial-offers`. */
+export const createTrialOfferSchema = z
+  .object({
+    studentId: id,
+    courseId: id,
+    localDate: dateOnlySchema,
+    localTime: localTimeSchema,
+    timezone: timeZoneSchema.nullable().optional(),
+    durationMinutes: trialMinutes.nullable().optional(),
+    policy: z.enum(TRIAL_OFFER_POLICIES).default('first_accept'),
+    audience: z.enum(TRIAL_OFFER_AUDIENCES).default('eligible'),
+    /** The shortlist (eligible teachers only); required with `audience: shortlist`. */
+    teacherIds: z
+      .array(id)
+      .min(1)
+      .max(50)
+      .transform((a) => [...new Set(a)])
+      .optional(),
+    /** Default `crm.trial_offer_expiry_minutes`; always capped ≥ N h before the trial. */
+    expiresInMinutes: z.number().int().min(15).max(1440).optional(),
+    meetingUrl: z
+      .preprocess(
+        blankToNull,
+        z
+          .string()
+          .trim()
+          .max(500)
+          .refine((v) => /^https:\/\/[a-z0-9.-]+\.[a-z]{2,}(:\d+)?([/?#][^\s]*)?$/i.test(v), {
+            message: 'Use a full https:// link.',
+          })
+          .nullable(),
+      )
+      .optional(),
+    /** Shown to the teachers: no family names or contacts. */
+    note: optionalText(500),
+  })
+  .superRefine((v, ctx) => {
+    if (v.audience === 'shortlist' && !v.teacherIds?.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['teacherIds'],
+        message: 'Choose the teachers of the shortlist.',
+      });
+    }
+  });
+export type CreateTrialOfferInput = z.input<typeof createTrialOfferSchema>;
+
+/** `POST /trial-offers/:id/assign` (volunteer policy, or any open offer): book this teacher. */
+export const assignTrialOfferSchema = z.object({
+  teacherId: id,
+  acknowledgeWarnings: acknowledgeWarningsSchema,
+});
+export type AssignTrialOfferInput = z.input<typeof assignTrialOfferSchema>;
+
+/** `POST /trial-offers/:id/resend`: open again (expired or open) with a new deadline. */
+export const resendTrialOfferSchema = z.object({
+  expiresInMinutes: z.number().int().min(15).max(1440).optional(),
+});
+export type ResendTrialOfferInput = z.input<typeof resendTrialOfferSchema>;
+
+/** `POST /trial-offers/:id/cancel`. */
+export const cancelTrialOfferSchema = z.object({ reason: optionalText(500) });
+
+const localMoment = z.object({ date: z.string(), time: z.string() });
+
+/** The CSR's view of an offer. */
+export const trialOfferSchema = z.object({
+  id: z.number().int(),
+  leadId: z.number().int(),
+  studentId: z.number().int(),
+  course: courseRefSchema,
+  startsAt: z.string(),
+  durationMinutes: z.number().int(),
+  familyZone: z.string(),
+  familyLocal: localMoment,
+  policy: z.enum(TRIAL_OFFER_POLICIES),
+  audience: z.enum(TRIAL_OFFER_AUDIENCES),
+  status: z.enum(TRIAL_OFFER_STATUSES),
+  expiresAt: z.string(),
+  note: z.string().nullable(),
+  createdBy: personRefSchema.nullable(),
+  claimedTeacher: personRefSchema.nullable(),
+  sessionId: z.number().int().nullable(),
+  closedAt: z.string().nullable(),
+  /** Every teacher it went to: rank when offered (null = shortlist outside the ranking). */
+  teachers: z.array(
+    z.object({
+      teacher: personRefSchema,
+      rank: z.number().int().nullable(),
+      response: z.enum(TRIAL_OFFER_RESPONSES).nullable(),
+      respondedAt: z.string().nullable(),
+    }),
+  ),
+  createdAt: z.string(),
+});
+export type TrialOfferDto = z.infer<typeof trialOfferSchema>;
+
+/**
+ * A teacher's card in «عروض الحصص التجريبية». `state`: `open` (can answer), `mine` (booked for
+ * me), `taken` («تم إسناد هذه الحصة»), `closed` (expired or cancelled). Never family details.
+ */
+export const myTrialOfferSchema = z.object({
+  id: z.number().int(),
+  course: courseRefSchema,
+  startsAt: z.string(),
+  durationMinutes: z.number().int(),
+  teacherZone: z.string(),
+  teacherLocal: localMoment,
+  student: z.object({
+    age: z.number().int().nullable(),
+    gender: genderSchema.nullable(),
+    /** Not known before the trial report (T4). */
+    level: z.string().nullable(),
+  }),
+  note: z.string().nullable(),
+  policy: z.enum(TRIAL_OFFER_POLICIES),
+  state: z.enum(['open', 'mine', 'taken', 'closed']),
+  expiresAt: z.string(),
+  myResponse: z.enum(TRIAL_OFFER_RESPONSES).nullable(),
+  sessionId: z.number().int().nullable(),
+});
+export type MyTrialOfferDto = z.infer<typeof myTrialOfferSchema>;
+
+// ------------------------------------------------------------------ T4 follow-up
+
+/** The teacher's trial report (docs/33 §3.6, B85: required to close the trial class). */
+export const TRIAL_ATTENDANCES = ['on_time', 'late', 'left_early'] as const;
+export type TrialAttendance = (typeof TRIAL_ATTENDANCES)[number];
+export const TRIAL_ATTENDANCE_LABELS: Labels<TrialAttendance> = {
+  on_time: { ar: 'حضر في الموعد', en: 'On time' },
+  late: { ar: 'تأخر', en: 'Late' },
+  left_early: { ar: 'غادر مبكرًا', en: 'Left early' },
+};
+export const TRIAL_LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
+export type TrialLevel = (typeof TRIAL_LEVELS)[number];
+export const TRIAL_LEVEL_LABELS: Labels<TrialLevel> = {
+  beginner: { ar: 'مبتدئ', en: 'Beginner' },
+  intermediate: { ar: 'متوسط', en: 'Intermediate' },
+  advanced: { ar: 'متقدم', en: 'Advanced' },
+};
+export const TRIAL_ENGAGEMENTS = ['low', 'medium', 'high'] as const;
+export type TrialEngagement = (typeof TRIAL_ENGAGEMENTS)[number];
+export const TRIAL_ENGAGEMENT_LABELS: Labels<TrialEngagement> = {
+  low: { ar: 'ضعيف', en: 'Low' },
+  medium: { ar: 'متوسط', en: 'Medium' },
+  high: { ar: 'مرتفع', en: 'High' },
+};
+
+/**
+ * `PUT /sessions/:id/trial-report` (≤ 1 minute to fill): on an ended trial class it closes the
+ * class (`taken`, like the lesson report), moves the lead to «تمت الحصة التجريبية», tells the CSR
+ * and opens their follow-up task; on a taken one it edits the report inside the edit window.
+ */
+export const trialReportInputSchema = z.object({
+  attendance: z.enum(TRIAL_ATTENDANCES),
+  level: z.enum(TRIAL_LEVELS),
+  recommendedCourseId: id.nullable().optional(),
+  classesPerWeek: z.number().int().min(1).max(7),
+  minutesPerClass: trialMinutes,
+  engagement: z.enum(TRIAL_ENGAGEMENTS),
+  /** For the CSR; never shown to the family. */
+  notes: optionalText(2000),
+});
+export type TrialReportInput = z.input<typeof trialReportInputSchema>;
+
+export const trialReportSchema = z.object({
+  sessionId: z.number().int(),
+  leadId: z.number().int().nullable(),
+  attendance: z.enum(TRIAL_ATTENDANCES),
+  level: z.enum(TRIAL_LEVELS),
+  recommendedCourse: courseRefSchema.nullable(),
+  classesPerWeek: z.number().int(),
+  minutesPerClass: z.number().int(),
+  engagement: z.enum(TRIAL_ENGAGEMENTS),
+  notes: z.string().nullable(),
+  submittedBy: personRefSchema.nullable(),
+  submittedAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TrialReportDto = z.infer<typeof trialReportSchema>;
+
+/** `GET /trials/today`: the monitor's checklist of today's trial classes (docs/33 §3.5). */
+export const trialsTodayQuerySchema = z.object({
+  /** A day in `tz` (default today in the academy zone). */
+  date: dateOnlySchema.optional(),
+  tz: timeZoneSchema.optional(),
+});
+
+export const TRIAL_CHECK_ALERTS = ['not_started', 'started_late', 'no_report'] as const;
+export type TrialCheckAlert = (typeof TRIAL_CHECK_ALERTS)[number];
+export const TRIAL_CHECK_ALERT_LABELS: Labels<TrialCheckAlert> = {
+  not_started: { ar: 'لم يبدأ المعلم الحصة', en: 'Teacher has not started' },
+  started_late: { ar: 'بدأ المعلم متأخرًا', en: 'Teacher started late' },
+  no_report: { ar: 'لا يوجد تقرير الحصة التجريبية', en: 'No trial report' },
+};
+
+export const trialChecklistItemSchema = z.object({
+  sessionId: z.number().int(),
+  leadId: z.number().int().nullable(),
+  startsAt: z.string(),
+  durationMinutes: z.number().int(),
+  stage: z.string(),
+  local: localMoment,
+  student: personRefSchema,
+  teacher: personRefSchema,
+  course: courseRefSchema.nullable(),
+  /** Pressed «ابدأ» (`startedAt`). */
+  teacherStarted: z.boolean(),
+  /** Minutes after the start when the teacher started (or so far, when not yet); null when on time. */
+  lateMinutes: z.number().int().nullable(),
+  /** From the meeting (Zoom); null when the platform cannot tell. */
+  studentJoined: z.boolean().nullable(),
+  reportSubmitted: z.boolean(),
+  alerts: z.array(z.enum(TRIAL_CHECK_ALERTS)),
+});
+export type TrialChecklistItemDto = z.infer<typeof trialChecklistItemSchema>;

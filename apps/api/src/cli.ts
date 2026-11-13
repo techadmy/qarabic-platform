@@ -6,6 +6,8 @@ import { OutboxService } from './accounting/outbox.service.js';
 import { AppModule } from './app.module.js';
 import { configureApp } from './app.setup.js';
 import { buildOpenApiDocument } from './common/openapi.js';
+import { TrialFollowUp } from './crm/followup.service.js';
+import { TrialOffers } from './crm/offers.service.js';
 import { LeadAlerts } from './crm/alerts.js';
 import { billingCommand } from './billing/cli.js';
 import { runLegacy } from './legacy/legacy-cli.js';
@@ -22,6 +24,8 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli session-requests:expire
  *   pnpm --filter @qarabic/api cli zoom:ensure-upcoming
  *   pnpm --filter @qarabic/api cli leads:notify   (follow-up due + first-response SLA alerts, N5)
+ *   pnpm --filter @qarabic/api cli trials:follow-up   (trial reminders, late alerts, stale leads, T4)
+ *   pnpm --filter @qarabic/api cli trials:expire-offers   (close trial offers past their deadline, T3)
  *   pnpm --filter @qarabic/api cli sessions:audit-overlaps [--days=30]   (exit 1 on overlaps)
  *   pnpm --filter @qarabic/api cli payroll:compute [--period=YYYY-MM]       (N7; default: this month)
  *   pnpm --filter @qarabic/api cli openapi:export [--out=openapi.json]   (the whole API as OpenAPI 3)
@@ -149,6 +153,14 @@ async function main(): Promise<number> {
         console.log(`Follow-ups due: ${sent.followUps}; SLA breaches: ${sent.sla}.`);
         return 0;
       }
+      case 'trials:follow-up': {
+        const r = await app.get(TrialFollowUp).run();
+        console.log(`Trial reminders: ${r.reminders}; late alerts: ${r.late}; stale: ${r.stale}.`);
+        return 0;
+      }
+      case 'trials:expire-offers':
+        console.log(`Expired ${await app.get(TrialOffers).expireDue()} trial offer(s).`);
+        return 0;
       case 'sessions:audit-overlaps': {
         const overlaps = await jobs.auditOverlaps(Number(option(args, 'days') ?? 30));
         if (!overlaps.length) {
@@ -186,7 +198,7 @@ async function main(): Promise<number> {
       }
       default:
         console.error(
-          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, ' +
+          'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, trials:expire-offers, trials:follow-up, ' +
             'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, payroll:compute, ' +
             'ledger:post, openapi:export, legacy:import, legacy:verify',
         );

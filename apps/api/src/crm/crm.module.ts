@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { OperationsModule } from '../operations/operations.module.js';
 import { PayrollModule } from '../payroll/payroll.module.js';
 import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
@@ -14,6 +15,18 @@ import {
 } from './crm.controllers.js';
 import { CrmConfig } from './crm.config.js';
 import { TrialEligibility } from './eligibility.js';
+import {
+  LeadTrialReportsController,
+  TrialReportsController,
+  TrialsTodayController,
+} from './followup.controllers.js';
+import { TrialFollowUp } from './followup.service.js';
+import {
+  LeadTrialOffersController,
+  MyTrialOffersController,
+  TrialOffersController,
+} from './offers.controllers.js';
+import { TrialOffers } from './offers.service.js';
 import { LeadService } from './lead.service.js';
 import { LeadNotifier } from './notifier.js';
 import { PublicIntake } from './public-intake.service.js';
@@ -29,13 +42,19 @@ import { WebLeadMapper } from './web-lead-mapper.js';
  * module's own instances, exported from it.
  */
 @Module({
-  imports: [AuthModule, ScheduleModule, PayrollModule],
+  imports: [AuthModule, ScheduleModule, PayrollModule, OperationsModule],
   controllers: [
     LeadsController,
     ReferralsController,
     PublicFormsController,
     LegacyClassRequestController,
     CrmSettingsController,
+    LeadTrialOffersController,
+    TrialOffersController,
+    MyTrialOffersController,
+    TrialReportsController,
+    LeadTrialReportsController,
+    TrialsTodayController,
   ],
   providers: [
     CrmConfig,
@@ -47,10 +66,12 @@ import { WebLeadMapper } from './web-lead-mapper.js';
     LeadReports,
     LeadTrialService,
     TrialEligibility,
+    TrialOffers,
+    TrialFollowUp,
     LeadAlerts,
     PublicIntake,
     WebLeadMapper,
   ],
-  exports: [LeadAlerts, CrmConfig, CaptchaVerifier],
+  exports: [LeadAlerts, CrmConfig, CaptchaVerifier, TrialOffers, TrialFollowUp],
 })
 export class CrmModule {}

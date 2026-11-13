@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { supportRequestSchema } from './support-requests.js';
 
 /**
  * «تواصل معنا» tickets (N4): pilot feedback (docs/22) grown into the support centre (docs/32, D99,
@@ -302,6 +303,11 @@ export const createTicketSchema = z.object({
   familyId: formId,
   description: z.string().trim().min(10).max(5000),
   context: formJson,
+  /**
+   * S3: the structured part of a typed request (`REQUEST_PAYLOAD_SCHEMAS[subcategory]`), as JSON
+   * in a form field. Optional: without it the ticket stays a plain message.
+   */
+  request: formJson,
 });
 export type CreateTicketInput = z.input<typeof createTicketSchema>;
 
@@ -468,6 +474,8 @@ export const ticketSchema = z.object({
   hasContactPhone: z.boolean().optional(),
   family: ref.nullable().optional(),
   teacher: ref.nullable().optional(),
+  /** S3 typed request (schedule / teacher change, pause or stop, invoice question). */
+  request: supportRequestSchema.nullable().default(null),
 });
 export type TicketDto = z.infer<typeof ticketSchema>;
 
