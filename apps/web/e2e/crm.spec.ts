@@ -11,23 +11,16 @@ async function signIn(page: Page, email = 'admin@qarabic.test', path = '/leads')
   await expect(page).toHaveURL(new RegExp(`${path}$`));
 }
 
-/** Days from today (in `tz`) to the next Friday, 1–7: the demo teachers' day off (Sat–Thu hours). */
-function daysToFriday(tz: string) {
-  const day = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: tz }).format(new Date());
-  const iso = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(day) + 1;
-  return (5 - iso + 7) % 7 || 7;
-}
-
-/** Picks the day `days` ahead (in `tz`) in the shadcn calendar of the `التاريخ` date button. */
-async function pickDay(page: Page, scope: ReturnType<Page['getByRole']>, tz: string, days: number) {
-  const target = new Date(Date.now() + days * 86_400_000);
+/** Picks tomorrow (in `tz`) in the shadcn calendar of the `التاريخ` date button inside `scope`. */
+async function pickTomorrow(page: Page, scope: ReturnType<Page['getByRole']>, tz: string) {
+  const tomorrow = new Date(Date.now() + 86_400_000);
   const part = (o: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat('ar', { ...o, timeZone: tz, numberingSystem: 'latn' }).format(target);
+    new Intl.DateTimeFormat('ar', { ...o, timeZone: tz, numberingSystem: 'latn' }).format(tomorrow);
   const today = new Date();
   const monthOf = (d: Date) =>
     new Intl.DateTimeFormat('en', { month: 'numeric', timeZone: tz }).format(d);
   await scope.getByRole('button', { name: 'التاريخ' }).click();
-  if (monthOf(target) !== monthOf(today)) {
+  if (monthOf(tomorrow) !== monthOf(today)) {
     await page.getByRole('button', { name: 'اذهب إلى الشهر التالي' }).click();
   }
   const label = `${part({ month: 'long' })} ${Number(part({ day: 'numeric' }))}, ${part({ year: 'numeric' })}`;
@@ -55,15 +48,16 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
 
-  // Step 2: teacher, the next Friday (family zone), a time; the teacher's time is shown live.
+  // Step 2: teacher, tomorrow (family zone), a time; the teacher's time is shown live.
   await book.getByRole('combobox', { name: 'المعلم' }).click();
   await page.getByRole('option', { name: 'Ahmed Fathy' }).click();
-  await pickDay(page, book, 'Europe/London', daysToFriday('Europe/London'));
+  await pickTomorrow(page, book, 'Europe/London');
   await book.getByRole('combobox', { name: 'الوقت' }).click();
-  await page.getByRole('option', { name: '6:00 م' }).click();
+  await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
-  // Friday is the demo teacher's day off (work hours Sat–Thu): booking needs the acknowledgement.
-  // (It was «tomorrow», which only worked when tomorrow was a Friday.)
+  // 4 am London = 6 am Cairo, before the demo teacher's hours (08:00–23:30, Sat–Thu) on any day:
+  // booking needs the acknowledgement. (6 pm London was outside them only when tomorrow was a
+  // Friday, the teacher's day off.)
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
   await expect(book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.')).toBeVisible();
   await book.getByRole('checkbox', { name: 'خارج ساعات عمل المعلم' }).check();
