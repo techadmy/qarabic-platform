@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
 
 /**
@@ -82,6 +82,27 @@ test('teacher: week → start → end → write the report → edit it inside th
   await expect(sheet.getByText('Repeat the lesson three times.')).toBeVisible();
 });
 
+/**
+ * Opens the first class of the list that is a lesson: a trial class closes through the trial
+ * report instead (T4, B85), and the list does not show the kind, so it looks at the sheet.
+ */
+async function openLesson(page: Page, table: Locator) {
+  const sheet = page.getByRole('dialog', { name: 'تفاصيل الحصة' });
+  for (let i = 0; i < 8; i++) {
+    const row = table.locator('tbody tr').nth(i);
+    const name = (await row.getByRole('button').first().textContent())!.trim();
+    await row.getByRole('button', { name }).first().click();
+    await expect(sheet.getByText(name).first()).toBeVisible();
+    const trial = sheet.getByRole('region', { name: 'تقرير الحصة التجريبية' });
+    const lesson = sheet.getByRole('region', { name: 'تقرير الحصة', exact: true });
+    await expect(trial.or(lesson)).toBeVisible();
+    if (await lesson.isVisible()) return { sheet, name };
+    await page.keyboard.press('Escape');
+    await expect(sheet).toBeHidden();
+  }
+  throw new Error('no lesson among the first 8 classes');
+}
+
 test('staff: reports without a report → open the class', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', '/');
   await page.getByRole('link', { name: 'تقارير الحصص' }).click();
@@ -89,12 +110,8 @@ test('staff: reports without a report → open the class', async ({ page }) => {
   await page.getByRole('radio', { name: /^بلا تقرير/ }).click();
   await expect(page).toHaveURL(/state=missing/);
   const table = page.getByRole('table', { name: 'تقارير الحصص' });
-  const row = table.locator('tbody tr').first();
-  await expect(row.getByText('بلا تقرير').first()).toBeVisible();
-  const name = (await row.getByRole('button').first().textContent())!.trim();
-  await row.getByRole('button', { name }).click();
-  const sheet = page.getByRole('dialog', { name: 'تفاصيل الحصة' });
-  await expect(sheet.getByText(name).first()).toBeVisible();
+  await expect(table.locator('tbody tr').first().getByText('بلا تقرير').first()).toBeVisible();
+  const { sheet } = await openLesson(page, table);
   await expect(sheet.getByText('لم يُرسَل تقرير هذه الحصة بعد.')).toBeVisible();
   // Staff may write it on the teacher's behalf.
   await expect(sheet.getByRole('button', { name: 'اكتب التقرير' })).toBeVisible();
@@ -193,8 +210,7 @@ test.describe('phone (375 px)', () => {
 
 test('accessibility: report form, tests, a test and progress', async ({ page }) => {
   await signIn(page, 'admin@qarabic.test', '/lesson-reports?state=missing');
-  const row = page.getByRole('table', { name: 'تقارير الحصص' }).locator('tbody tr').first();
-  await row.getByRole('button').first().click();
+  await openLesson(page, page.getByRole('table', { name: 'تقارير الحصص' }));
   await page.getByRole('dialog').getByRole('button', { name: 'اكتب التقرير' }).click();
   await expect(page.getByRole('form', { name: 'تقرير الحصة' })).toBeVisible();
   await expectNoSeriousA11yViolations(page);

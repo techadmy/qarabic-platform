@@ -5,6 +5,7 @@ import {
   type RequestStatus,
   type RequestType,
   type SessionDetailDto,
+  type TrialReportDto,
   type SessionStage,
 } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
@@ -25,9 +26,10 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { ReportForm } from '@/components/reports/report-form';
+import { TrialReportForm, TrialReportView } from '@/components/reports/trial-report-form';
 import { ReportView } from '@/components/reports/report-view';
 import { ErrorState } from '@/components/states';
-import { fetchSession, sessionKeys } from '@/lib/api/sessions';
+import { fetchSession, fetchTrialReport, sessionKeys } from '@/lib/api/sessions';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { useDirection } from '@/lib/use-direction';
@@ -115,6 +117,25 @@ export function SessionSheet() {
 function SessionDetail({ session: s }: { session: SessionDetailDto }) {
   const { reportMode, openReport, closeReport } = useOpenSession();
   const canReport = s.allowedActions.includes('submit_report');
+  const trial = s.kind === 'trial';
+  // T4 (B85): a trial class closes through the teacher's trial report, not the lesson report.
+  const trialReport = useQuery({
+    queryKey: sessionKeys.trialReport(s.id),
+    queryFn: ({ signal }) => fetchTrialReport(s.id, signal),
+    enabled: trial && (s.stage === 'ended' || s.stage === 'taken'),
+  });
+  if (reportMode && canReport && trial) {
+    if (trialReport.isPending) return <Skeleton className="h-64" />;
+    return (
+      <TrialReportForm
+        key={`${s.id}-${s.lockVersion}`}
+        session={s}
+        report={trialReport.data ?? null}
+        onDone={closeReport}
+        onCancel={closeReport}
+      />
+    );
+  }
   if (reportMode && canReport) {
     return (
       <ReportForm
@@ -126,20 +147,31 @@ function SessionDetail({ session: s }: { session: SessionDetailDto }) {
       />
     );
   }
-  return <SessionInfo session={s} canReport={canReport} onReport={() => openReport(s.id)} />;
+  return (
+    <SessionInfo
+      session={s}
+      canReport={canReport}
+      onReport={() => openReport(s.id)}
+      trialReport={trial ? (trialReport.data ?? null) : undefined}
+    />
+  );
 }
 
 function SessionInfo({
   session: s,
   canReport,
   onReport,
+  trialReport,
 }: {
   session: SessionDetailDto;
   canReport: boolean;
   onReport: () => void;
+  /** A trial class: its trial report (null until written); undefined for other classes. */
+  trialReport?: TrialReportDto | null;
 }) {
   const t = useTranslations('classes');
   const trep = useTranslations('reports');
+  const ttrial = useTranslations('reports.trial');
   const tr = useTranslations('requests');
   const locale = useUiLocale();
   const tz = useViewerTz();
@@ -203,36 +235,59 @@ function SessionInfo({
           ))}
         </ul>
       )}
-      {(s.stage === 'ended' || s.stage === 'taken' || s.lessonReport) && (
+      {trialReport !== undefined && (s.stage === 'ended' || s.stage === 'taken') && (
         <>
           <Separator />
-          <Section title={trep('title')}>
-            {s.lessonReport ? (
-              <ReportView report={s.lessonReport} />
+          <Section title={ttrial('title')}>
+            {trialReport ? (
+              <TrialReportView report={trialReport} />
             ) : (
-              <p className="text-sm text-muted-foreground">{trep('notSent')}</p>
+              <p className="text-sm text-muted-foreground">{ttrial('notSent')}</p>
             )}
-            {canReport ? (
+            {canReport && (
               <Button
-                variant={s.lessonReport ? 'outline' : 'default'}
+                variant={trialReport ? 'outline' : 'default'}
                 className="self-start"
                 onClick={onReport}
               >
-                {s.lessonReport ? <PencilIcon /> : <FilePenLineIcon />}
-                {s.lessonReport ? trep('edit') : trep('write')}
+                {trialReport ? <PencilIcon /> : <FilePenLineIcon />}
+                {trialReport ? ttrial('editTitle') : ttrial('write')}
               </Button>
-            ) : (
-              s.stage === 'taken' &&
-              ownTeacher && (
-                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <LockIcon aria-hidden className="size-3.5" />
-                  {trep('locked')}
-                </p>
-              )
             )}
           </Section>
         </>
       )}
+      {trialReport === undefined &&
+        (s.stage === 'ended' || s.stage === 'taken' || s.lessonReport) && (
+          <>
+            <Separator />
+            <Section title={trep('title')}>
+              {s.lessonReport ? (
+                <ReportView report={s.lessonReport} />
+              ) : (
+                <p className="text-sm text-muted-foreground">{trep('notSent')}</p>
+              )}
+              {canReport ? (
+                <Button
+                  variant={s.lessonReport ? 'outline' : 'default'}
+                  className="self-start"
+                  onClick={onReport}
+                >
+                  {s.lessonReport ? <PencilIcon /> : <FilePenLineIcon />}
+                  {s.lessonReport ? trep('edit') : trep('write')}
+                </Button>
+              ) : (
+                s.stage === 'taken' &&
+                ownTeacher && (
+                  <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                    <LockIcon aria-hidden className="size-3.5" />
+                    {trep('locked')}
+                  </p>
+                )
+              )}
+            </Section>
+          </>
+        )}
       <Separator />
       <Section title={t('detail.evidence')}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">

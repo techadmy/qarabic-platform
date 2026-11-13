@@ -201,8 +201,15 @@ export function SelectField<T extends FieldValues>({
   options,
   placeholder,
   clearable,
+  numeric,
   ...props
-}: Base<T> & { options: Option[]; placeholder?: string; clearable?: boolean }) {
+}: Base<T> & {
+  options: Option[];
+  placeholder?: string;
+  clearable?: boolean;
+  /** The form value is a number (the options' values are its digits). */
+  numeric?: boolean;
+}) {
   const t = useTranslations('form');
   const NONE = '__none__';
   return (
@@ -211,8 +218,14 @@ export function SelectField<T extends FieldValues>({
       render={(field, state, id) => (
         <Select
           name={field.name}
-          value={(field.value as string | null | undefined) ?? (clearable ? NONE : '')}
-          onValueChange={(v) => field.onChange(v === NONE ? null : v)}
+          value={
+            field.value === null || field.value === undefined
+              ? clearable
+                ? NONE
+                : ''
+              : String(field.value)
+          }
+          onValueChange={(v) => field.onChange(v === NONE ? null : numeric ? Number(v) : v)}
         >
           <SelectTrigger
             ref={field.ref}

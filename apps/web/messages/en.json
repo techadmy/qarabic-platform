@@ -1394,6 +1394,31 @@
       "emptyHint": "Classes appear here once they end, with their report state.",
       "dueWas": "was due {ago}",
       "dueIn": "due {ago}"
+    },
+    "trial": {
+      "title": "Trial class report",
+      "editTitle": "Edit the trial report",
+      "write": "Write the trial report",
+      "notSent": "No trial report yet; it closes the class.",
+      "help": "What you saw in {name}’s trial: it goes to customer service to follow up with the family, never to the family.",
+      "attendance": "Attendance",
+      "level": "Level",
+      "course": "Recommended course",
+      "classesPerWeek": "Recommended classes",
+      "minutesPerClass": "Recommended length",
+      "perWeek": "{count, plural, one {# a week} other {# a week}}",
+      "minutes": "{count} min",
+      "plan": "Recommended plan",
+      "planValue": "{perWeek}, {minutes}",
+      "engagement": "Engagement",
+      "notes": "Notes for customer service",
+      "notesHelp": "Optional. Not shown to the family.",
+      "cancel": "Cancel",
+      "submit": "Send the report and close the class",
+      "update": "Save changes",
+      "saved": "Trial report for {name} sent.",
+      "updated": "Report updated.",
+      "locked": "The edit window of this report has closed."
     }
   },
   "progress": {
