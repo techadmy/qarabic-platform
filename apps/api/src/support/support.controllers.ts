@@ -38,6 +38,8 @@ import {
   type TicketListResponse,
   updateSupportSettingsSchema,
   updateTicketSchema,
+  requestActionSchema,
+  requestAnswerSchema,
 } from '@qarabic/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -53,6 +55,7 @@ import { ZodQuery } from '../common/zod-query.pipe.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { InboxService } from './inbox.service.js';
+import { SupportRequestsService } from './requests.service.js';
 import { SupportContext, SupportPolicy } from './policy.js';
 import { extensionFor, FileStorage } from './storage.js';
 import { TicketsService, userActor } from './tickets.service.js';
@@ -258,7 +261,42 @@ export class SupportController {
     private readonly inbox: InboxService,
     private readonly tickets: TicketsService,
     private readonly context: SupportContext,
+    private readonly requests: SupportRequestsService,
   ) {}
+
+  /**
+   * S3 typed requests: a staff step — `propose` a teacher (teacher change), `approve`, `complete`
+   * (after the change was made with the usual tools) or `reject` (with a note). 409
+   * `request_transition` when the step does not fit the request's state.
+   */
+  @CanAny('support.handle', 'support.manage', 'feedback.manage')
+  @Post('tickets/:id/request')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(requestActionSchema) })
+  async requestStep(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(requestActionSchema) body: z.output<typeof requestActionSchema>,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: TicketDetailDto }> {
+    const v = await this.context.viewer(user);
+    await this.requests.act(id, body, v);
+    return { data: await this.tickets.detail(id, v) };
+  }
+
+  /** S3: the requester accepts or declines the proposed teacher. */
+  @CanAny('feedback.request', 'session_requests.request')
+  @Post('tickets/:id/request/answer')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(requestAnswerSchema) })
+  async requestAnswer(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(requestAnswerSchema) body: z.output<typeof requestAnswerSchema>,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: TicketDetailDto }> {
+    const v = await this.context.viewer(user);
+    await this.requests.answer(id, body, v, user);
+    return { data: await this.tickets.detail(id, v) };
+  }
 
   @Can('support.view')
   @RateLimit('search')

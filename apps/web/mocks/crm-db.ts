@@ -108,6 +108,9 @@ export const CRM_DEFAULTS: CrmSettingsDto = {
   'crm.working_hours_end': '22:00',
   'crm.working_hours_timezone': 'Africa/Cairo',
   'crm.unanswered_attempts_suggest_lost': 3,
+  'crm.trial_offer_expiry_minutes': 120,
+  'crm.trial_offer_min_hours_before': 6,
+  'crm.trial_offer_max_open_claims': 3,
   'crm.trial_form_confirmation': false,
   'crm.web_lead_confirmation': false,
 };
