@@ -436,6 +436,14 @@ export const bookTrialSchema = z.object({
     .optional(),
   meetingUrl: z.preprocess(blankToNull, httpsUrl.nullable()).optional(),
   acknowledgeWarnings: acknowledgeWarningsSchema,
+  /**
+   * Required (≥ 3 characters) to book a teacher who is not eligible (T2, docs/33 §4.2): not
+   * teaching the course, not taking trials, weekly cap, gender, age group or leave. 422
+   * `teacher_not_eligible` without it, with the reasons in `data.reasons`.
+   */
+  overrideReason: z
+    .preprocess(blankToNull, z.string().trim().min(3).max(500).nullable())
+    .optional(),
 });
 export type BookTrialInput = z.input<typeof bookTrialSchema>;
 

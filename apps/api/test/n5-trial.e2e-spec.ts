@@ -57,6 +57,8 @@ beforeEach(async () => {
   ).id;
   courseId = (await makeCourse(ctx)).id;
   teacherId = (await m2Teacher(ctx, 'Africa/Cairo')).id;
+  // T2: an eligible teacher teaches the trial's course.
+  await ctx.prisma.teacherCourse.create({ data: { teacherId, courseId } });
 });
 
 const account = (extra: Record<string, unknown> = {}) =>

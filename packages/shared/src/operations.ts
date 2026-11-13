@@ -256,13 +256,21 @@ export const NOTIFICATION_CHANNEL_LABELS: Labels<NotificationChannel> = {
 };
 
 /** Notification kinds a person can tune (`notifications.kind`). */
-export const NOTIFICATION_KINDS = ['task', 'announcement', 'class_reminder', 'lead'] as const;
+export const NOTIFICATION_KINDS = [
+  'task',
+  'announcement',
+  'class_reminder',
+  'lead',
+  'trial',
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export const NOTIFICATION_KIND_LABELS: Labels<NotificationKind> = {
   task: { ar: 'المهام', en: 'Tasks' },
   announcement: { ar: 'الإعلانات', en: 'Announcements' },
   class_reminder: { ar: 'التذكير قبل الحصة', en: 'Class reminders' },
   lead: { ar: 'العملاء المحتملون', en: 'Leads' },
+  /** Teachers: trial classes booked, offered or reminded (T2–T4). */
+  trial: { ar: 'الحصص التجريبية', en: 'Trial classes' },
 };
 /** Defaults when a person has not chosen: in-app on, email off, WhatsApp off. */
 export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {

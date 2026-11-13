@@ -13,6 +13,7 @@ import {
   ReferralsController,
 } from './crm.controllers.js';
 import { CrmConfig } from './crm.config.js';
+import { TrialEligibility } from './eligibility.js';
 import { LeadService } from './lead.service.js';
 import { LeadNotifier } from './notifier.js';
 import { PublicIntake } from './public-intake.service.js';
@@ -45,6 +46,7 @@ import { WebLeadMapper } from './web-lead-mapper.js';
     LeadService,
     LeadReports,
     LeadTrialService,
+    TrialEligibility,
     LeadAlerts,
     PublicIntake,
     WebLeadMapper,

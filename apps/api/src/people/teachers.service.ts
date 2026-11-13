@@ -81,6 +81,10 @@ function snapshot(row: Row): Record<string, unknown> {
     address: row.address,
     skypeId: row.skypeId,
     description: row.description,
+    acceptsTrials: row.acceptsTrials,
+    maxTrialsPerWeek: row.maxTrialsPerWeek,
+    audience: row.audience,
+    languages: row.languages,
   };
 }
 
@@ -377,6 +381,10 @@ export class TeachersService {
       'address',
       'skypeId',
       'description',
+      'acceptsTrials',
+      'maxTrialsPerWeek',
+      'audience',
+      'languages',
     ] as const;
     const data: Record<string, unknown> = {};
     for (const key of keys) if (input[key] !== undefined) data[key] = input[key];
@@ -406,6 +414,10 @@ export class TeachersService {
       age: row.age,
       ...teacherRate(row.payProfile, defaultCurrency),
       courses: row.courses.map((c) => c.course),
+      acceptsTrials: row.acceptsTrials,
+      maxTrialsPerWeek: row.maxTrialsPerWeek,
+      audience: row.audience,
+      languages: row.languages as TeacherDto['languages'],
       qualification: row.qualification,
       experience: row.experience,
       address: row.address,
