@@ -88,6 +88,8 @@ describe('S3 typed requests', () => {
     renderPage(<TicketDetailView id={t.id} />, { path: `/tickets/${t.id}` });
     // Staff see their own wording of the state.
     expect(await screen.findByText('وافقت الأسرة')).toBeInTheDocument();
+    // Who took the last step, and when (#64).
+    expect(screen.getByText('آخر إجراء')).toBeInTheDocument();
     await user.click(await screen.findByRole('button', { name: 'تم التنفيذ' }));
     const complete = await screen.findByRole('dialog', { name: 'تسجيل الطلب منفّذًا؟' });
     await user.click(within(complete).getByRole('button', { name: 'تم التنفيذ' }));

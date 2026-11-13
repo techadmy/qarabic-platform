@@ -2114,7 +2114,9 @@
       "teachersFailed": "تعذّر تحميل قائمة المعلمين.",
       "retry": "أعد المحاولة",
       "yourTime": "بتوقيتك: {time} ({city})",
-      "timesZone": "المواعيد بتوقيتك ({city})."
+      "timesZone": "المواعيد بتوقيتك ({city}).",
+      "lastStep": "آخر إجراء",
+      "note": "الملاحظة"
     }
   },
   "bell": {

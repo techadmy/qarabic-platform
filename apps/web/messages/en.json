@@ -2114,7 +2114,9 @@
       "teachersFailed": "The teachers could not be loaded.",
       "retry": "Try again",
       "yourTime": "Your time: {time} ({city})",
-      "timesZone": "Times in your zone ({city})."
+      "timesZone": "Times in your zone ({city}).",
+      "lastStep": "Last step",
+      "note": "Note"
     }
   },
   "bell": {

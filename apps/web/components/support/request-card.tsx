@@ -5,6 +5,7 @@ import {
   REQUEST_STATE_LABELS,
   SUBSCRIPTION_REASON_LABELS,
   TEACHER_CHANGE_REASON_LABELS,
+  type SupportRequestAction,
   type SupportRequestDto,
   type TicketDetailDto,
 } from '@qarabic/shared';
@@ -33,7 +34,14 @@ import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { answerRequest, requestAction, supportKeys } from '@/lib/api/support';
 import { can } from '@/lib/auth/use-me';
-import { dateKeyIn, dayLabel, otherSideOf, wallTime, weekdayName } from '@/lib/schedule-time';
+import {
+  dateKeyIn,
+  dayAndClock,
+  dayLabel,
+  otherSideOf,
+  wallTime,
+  weekdayName,
+} from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
 import { useSupportError } from '@/lib/support/errors';
 
@@ -64,12 +72,13 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
   const queryClient = useQueryClient();
   const message = useSupportError();
   const r = ticket.request!;
-  // Until the API sends allowedActions: the people who handle the queue (support.manage included).
+  // What this viewer may do next comes from the server (state and permission rules, #64).
+  const may = (a: SupportRequestAction) => r.allowedActions.includes(a);
+  const staffSteps = (['propose', 'approve', 'complete', 'reject'] as const).some(may);
+  // Staff wording for the people who handle requests, the family's wording for the family.
   const staff =
     !ticket.isMine &&
     (can(me, 'support.handle') || can(me, 'support.manage') || can(me, 'feedback.manage'));
-  const open = r.state !== 'rejected' && r.state !== 'done';
-  const teacher = r.kind === 'teacher_change';
   const [proposing, setProposing] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   /** A step that waits for «تأكيد» (D31): what it does is said first. */
@@ -131,51 +140,71 @@ export function RequestCard({ ticket }: { ticket: TicketDetailDto }) {
               </dd>
             </div>
           )}
+          {r.decidedBy && r.decidedAt && (
+            <div className="contents">
+              <dt className="text-muted-foreground">{t('lastStep')}</dt>
+              <dd>
+                <bdi>{r.decidedBy.name}</bdi> · {dayAndClock(r.decidedAt, tz, locale)}
+              </dd>
+            </div>
+          )}
+          {r.note && (
+            <div className="contents">
+              <dt className="text-muted-foreground">{t('note')}</dt>
+              <dd className="whitespace-pre-line">{r.note}</dd>
+            </div>
+          )}
         </dl>
-        {ticket.isMine && r.state === 'proposed' && (
+        {(may('accept') || may('decline')) && (
           <div className="flex flex-wrap gap-2">
-            <Button className={btn} onClick={() => (answer.reset(), setConfirming('accept'))}>
-              {t('accept')}
-            </Button>
-            <Button
-              variant="outline"
-              className={btn}
-              onClick={() => (answer.reset(), setConfirming('decline'))}
-            >
-              {t('decline')}
-            </Button>
+            {may('accept') && (
+              <Button className={btn} onClick={() => (answer.reset(), setConfirming('accept'))}>
+                {t('accept')}
+              </Button>
+            )}
+            {may('decline') && (
+              <Button
+                variant="outline"
+                className={btn}
+                onClick={() => (answer.reset(), setConfirming('decline'))}
+              >
+                {t('decline')}
+              </Button>
+            )}
           </div>
         )}
-        {staff && open && (
+        {staffSteps && (
           <div className="flex flex-wrap gap-2">
-            {teacher && ['submitted', 'declined', 'proposed'].includes(r.state) && (
+            {may('propose') && (
               <Button className={btn} onClick={() => (act.reset(), setProposing(true))}>
                 {r.state === 'proposed' ? t('reproposeTeacher') : t('proposeTeacher')}
               </Button>
             )}
-            {!teacher && r.state === 'submitted' && (
+            {may('approve') && (
               <Button className={btn} onClick={() => (act.reset(), setConfirming('approve'))}>
                 {t('approve')}
               </Button>
             )}
-            {((teacher && r.state === 'accepted') || (!teacher && r.state === 'approved')) && (
+            {may('complete') && (
               <Button className={btn} onClick={() => (act.reset(), setConfirming('complete'))}>
                 {t('complete')}
               </Button>
             )}
-            <Button
-              variant="ghost"
-              className={btn}
-              onClick={() => {
-                act.reset();
-                setRejecting(true);
-              }}
-            >
-              {t('reject')}
-            </Button>
+            {may('reject') && (
+              <Button
+                variant="ghost"
+                className={btn}
+                onClick={() => {
+                  act.reset();
+                  setRejecting(true);
+                }}
+              >
+                {t('reject')}
+              </Button>
+            )}
           </div>
         )}
-        {staff && open && <p className="text-sm text-muted-foreground">{t('doneHint')}</p>}
+        {staffSteps && <p className="text-sm text-muted-foreground">{t('doneHint')}</p>}
       </CardContent>
       <ReasonDialog
         open={rejecting}

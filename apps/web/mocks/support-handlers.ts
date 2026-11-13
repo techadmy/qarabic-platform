@@ -27,6 +27,8 @@ import {
   type TicketDto,
   type TicketQueue,
   type TicketStatus,
+  type SupportRequestAction,
+  type SupportRequestDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import type { MockUser } from './data';
@@ -106,6 +108,39 @@ function slaState(t: TicketRow, now = Date.now()): SlaState {
   return due - now <= SLA_DUE_SOON_MINUTES * MIN ? 'due_soon' : 'ok';
 }
 
+/** S3: the next step allowed from a state (mirrors the API's `stepAfter`). */
+function stepFits(r: NonNullable<TicketRow['request']>, action: string): boolean {
+  const open = !['rejected', 'done'].includes(r.state);
+  const teacher = r.kind === 'teacher_change';
+  return action === 'reject'
+    ? open
+    : action === 'propose'
+      ? teacher && ['submitted', 'declined', 'proposed'].includes(r.state)
+      : action === 'approve'
+        ? !teacher && r.state === 'submitted'
+        : teacher
+          ? r.state === 'accepted'
+          : r.state === 'approved';
+}
+
+/** The typed request as this viewer sees it, with what they may do next. */
+function requestDto(t: TicketRow, me: MockUser): SupportRequestDto | null {
+  const r = t.request;
+  if (!r) return null;
+  const allowed: SupportRequestAction[] = [];
+  const handler =
+    has(me, 'support.handle') || has(me, 'support.manage') || has(me, 'feedback.manage');
+  if (handler && canManage(me, t)) {
+    for (const step of ['propose', 'approve', 'complete', 'reject'] as const) {
+      if (stepFits(r, step)) allowed.push(step);
+    }
+  }
+  if (r.state === 'proposed' && owns(me, t) && has(me, 'feedback.request')) {
+    allowed.push('accept', 'decline');
+  }
+  return { ...r, allowedActions: allowed };
+}
+
 // ------------------------------------------------------------------ presenters
 
 function attachmentDto(a: AttachmentRow): TicketAttachmentDto {
@@ -159,7 +194,7 @@ function ticketDto(t: TicketRow, me: MockUser): TicketDto {
     slaState: slaState(t),
     firstResponseAt: t.firstResponseAt,
     handledBy: t.assignee ? (t.assignee.name.split(/\s+/)[0] ?? null) : null,
-    request: t.request ?? null,
+    request: requestDto(t, me),
   };
   if (staffView(me, t)) {
     Object.assign(data, {
@@ -345,19 +380,7 @@ export const supportHandlers: HttpHandler[] = [
     const r = t.request;
     if (!r) return apiError(409, 'request_transition', 'Not a typed request.');
     const v = parsed.data;
-    const open = !['rejected', 'done'].includes(r.state);
-    const teacher = r.kind === 'teacher_change';
-    const ok =
-      v.action === 'reject'
-        ? open
-        : v.action === 'propose'
-          ? teacher && ['submitted', 'declined', 'proposed'].includes(r.state)
-          : v.action === 'approve'
-            ? !teacher && r.state === 'submitted'
-            : teacher
-              ? r.state === 'accepted'
-              : r.state === 'approved';
-    if (!ok) return apiError(409, 'request_transition', 'Not from this state.');
+    if (!stepFits(r, v.action)) return apiError(409, 'request_transition', 'Not from this state.');
     if (v.action === 'propose') {
       const p = v.proposal!;
       const tt = people.teachers.find((x) => x.id === p.teacherId);
@@ -368,6 +391,11 @@ export const supportHandlers: HttpHandler[] = [
       r.state = v.action === 'approve' ? 'approved' : v.action === 'reject' ? 'rejected' : 'done';
     }
     t.updatedAt = iso(Date.now());
+    Object.assign(r, {
+      decidedBy: { id: g.me.id, name: g.me.name },
+      decidedAt: t.updatedAt,
+      note: v.note ?? null,
+    });
     if (v.note) t.lastPublicAt = t.updatedAt;
     return HttpResponse.json({ data: ticketDto(t, g.me) });
   }),
@@ -384,6 +412,11 @@ export const supportHandlers: HttpHandler[] = [
     }
     t.request.state = parsed.data.accept ? 'accepted' : 'declined';
     t.updatedAt = iso(Date.now());
+    Object.assign(t.request, {
+      decidedBy: { id: g.me.id, name: g.me.name },
+      decidedAt: t.updatedAt,
+      note: parsed.data.note ?? null,
+    });
     return HttpResponse.json({ data: ticketDto(t, g.me) });
   }),
 
@@ -512,6 +545,10 @@ export const supportHandlers: HttpHandler[] = [
         state: 'submitted',
         payload: payload.data as Record<string, unknown>,
         proposal: null,
+        allowedActions: [],
+        decidedBy: null,
+        decidedAt: null,
+        note: null,
       };
     }
     const t: TicketRow = {
