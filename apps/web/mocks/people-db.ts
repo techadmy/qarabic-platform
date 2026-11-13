@@ -205,9 +205,10 @@ function build(): Db {
       hourlyRate: `${(90 + id * 5).toFixed(2)}`,
       hourlyRateCurrency: 'EGP',
       courses: [courseRef(1 + (id % 3))!, courseRef(4 + (id % 3))!],
-      acceptsTrials: true,
+      // T2 variety: teacher 3 takes no trials, teacher 5 only adults.
+      acceptsTrials: id !== 3,
       maxTrialsPerWeek: null,
-      audience: 'both',
+      audience: id === 5 ? 'adults' : 'both',
       languages: ['arabic', 'english'],
       qualification: 'Ijazah in Hafs an Asim',
       experience: `${id + 2} years teaching online`,
