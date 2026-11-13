@@ -141,7 +141,7 @@ async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Itera
     if (!free.length) continue;
     const pick = free[Number(runTag()) % free.length]!;
     await dialog
-      .getByRole('radiogroup', { name: 'المعلم' })
+      .getByRole('radiogroup', { name: 'المعلم', exact: true })
       .getByRole('radio', { name: pick.teacher.name, exact: true })
       .check();
     await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);

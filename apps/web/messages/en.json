@@ -1636,6 +1636,33 @@
         "today": "Today's classes"
       },
       "openMissing": "Open classes without a report"
+    },
+    "offers": {
+      "title": "Trial class offers",
+      "minutes": "{count} min",
+      "age": "{age} years old",
+      "answerBy": "Answer by <bdi>{at}</bdi> ({rel})",
+      "accept": "Accept the class",
+      "volunteer": "I’d like this class",
+      "decline": "Decline",
+      "openClass": "Open the class",
+      "mine": "Booked for you",
+      "taken": "Assigned to another teacher",
+      "youVolunteered": "You volunteered",
+      "youDeclined": "You declined",
+      "booked": "The trial class is booked for you.",
+      "volunteered": "Noted; customer service will pick the teacher.",
+      "declined": "Your decline is noted.",
+      "loadError": "Couldn’t load the offers.",
+      "retry": "Try again",
+      "back": "Back",
+      "confirmWhat": "{course}, {when}.",
+      "acceptTitle": "Accept the trial class?",
+      "acceptHint": "The class is booked for you at once and shows in your classes.",
+      "volunteerTitle": "Volunteer for this class?",
+      "volunteerHint": "Customer service picks the teacher among the volunteers.",
+      "declineTitle": "Decline the offer?",
+      "declineHint": "This offer won’t come back to you."
     }
   },
   "support": {
@@ -2077,7 +2104,9 @@
     "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}",
     "trial": {
       "trial_booked": "New trial class: <bdi>{course}</bdi> on {when}",
-      "trial_cancelled": "Trial class cancelled: <bdi>{course}</bdi> on {when}"
+      "trial_cancelled": "Trial class cancelled: <bdi>{course}</bdi> on {when}",
+      "trial_offer": "Trial class offer: <bdi>{course}</bdi> on {when}",
+      "trial_offer_taken": "Trial offer taken by another teacher: <bdi>{course}</bdi>"
     }
   },
   "crm": {
@@ -2198,7 +2227,15 @@
       "pastTime": "The time is in the past. Choose a later time.",
       "meetingUrl": "The teacher has no fixed class link. Enter an https:// link.",
       "assignee": "Leads cannot be assigned to this person.",
-      "invalid": "Check the data you entered."
+      "invalid": "Check the data you entered.",
+      "offerOpen": "The student already has an open offer; cancel it or wait for its answer.",
+      "noEligibleTeachers": "No teacher is eligible for this trial at this time.",
+      "offerTooLate": "Too close to the class to offer it to teachers; choose the teacher directly.",
+      "offerTaken": "Another teacher took this trial.",
+      "offerClosed": "This offer has expired or was cancelled.",
+      "offerUnavailable": "The teacher is no longer free for this trial; the offer is open again.",
+      "claimLimit": "You already hold the most trials you can take from offers.",
+      "notATeacher": "Offers are for teachers only."
     },
     "funnel": {
       "title": "Conversion report",
@@ -2397,6 +2434,33 @@
         "overrideReason": "Override reason",
         "overrideHelp": "The reason is saved with the booking in the lead’s history.",
         "reasonRequired": "Give an override reason (at least 3 characters)."
+      },
+      "offer": {
+        "mode": "How to choose the teacher",
+        "modes": {
+          "direct": "Choose the teacher now",
+          "offer": "Offer it to the teachers"
+        },
+        "chooseTimeFirst": "Choose the child, course and time first.",
+        "policy": "How is it assigned?",
+        "policyHelp": {
+          "first_accept": "The first teacher to accept gets the class.",
+          "volunteer": "Teachers volunteer, then you pick one."
+        },
+        "audience": "Who gets the offer?",
+        "allEligible": "{count, plural, one {The one eligible teacher} other {All eligible teachers (#)}}",
+        "shortlist": "A shortlist I choose",
+        "noneEligible": "No teacher is eligible at this time; try another time.",
+        "shortlistEmpty": "Choose at least one teacher.",
+        "note": "Note for the teachers",
+        "optional": "optional",
+        "noteHelp": "Shown with the offer. Don’t write the family’s name or contacts.",
+        "expiryHelp": "The offer closes after 2 hours, or 6 hours before the class if sooner; then you’re told to choose the teacher directly.",
+        "send": "Send the offer",
+        "sent": "{count, plural, one {Offer sent to # teacher.} other {Offer sent to # teachers.}}",
+        "shortlistLegend": "{count, plural, =0 {Choose the teachers (none chosen)} one {Choose the teachers (# chosen)} other {Choose the teachers (# chosen)}}",
+        "loadError": "Couldn’t load the eligible teachers.",
+        "retry": "Try again"
       }
     },
     "outcome": {
@@ -2481,6 +2545,33 @@
       "send": "Send the recommendation",
       "sent": "Thank you, your recommendation was sent.",
       "cancel": "Cancel"
+    },
+    "offers": {
+      "heading": "Trial offers to teachers",
+      "title": "Trial offer: {course}",
+      "claimedBy": "Assigned to {name}",
+      "teachers": "Teachers who got the offer",
+      "noAnswer": "No answer yet",
+      "pick": "Pick",
+      "resend": "Send the offer again",
+      "cancel": "Cancel the offer",
+      "done": {
+        "assign": "The trial is booked with the chosen teacher.",
+        "resend": "Offer sent again.",
+        "cancel": "Offer cancelled."
+      },
+      "when": "<bdi>{at}</bdi> ({rel})",
+      "closes": "Closes",
+      "closed": "Closed",
+      "loadError": "Couldn’t load the offers.",
+      "retry": "Try again",
+      "cancelTitle": "Cancel the offer?",
+      "cancelHint": "The offer closes for every teacher who got it; you can send it again later.",
+      "cancelReason": "Reason for cancelling",
+      "pickTitle": "Book the class with {name}",
+      "pickHint": "The time check for this teacher: confirm the warnings to go on; a clash blocks the booking.",
+      "pickConfirm": "Book with this teacher",
+      "back": "Back"
     }
   },
   "trialForm": {

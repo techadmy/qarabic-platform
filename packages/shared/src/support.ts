@@ -1,9 +1,11 @@
 import { z } from 'zod';
 import { timeZoneSchema } from './countries.js';
+import { dateOnlySchema as dateOnly } from './people.js';
 import { sessionRequestSchema, REQUEST_STATUSES, REQUEST_TYPES } from './requests.js';
 import {
   SLA_STATES,
   TICKET_CATEGORIES,
+  TICKET_CHANNELS,
   TICKET_PRIORITIES,
   TICKET_QUEUES,
   TICKET_STATUSES,
@@ -445,3 +447,49 @@ export const myRequestsResponseSchema = z.object({
   }),
 });
 export type MyRequestsResponse = z.infer<typeof myRequestsResponseSchema>;
+
+// ------------------------------------------------------------------ S4 reports
+
+/** `GET /support/reports?from&to` (`support.view`): tickets created in the period (academy days). */
+export const supportReportQuerySchema = z
+  .object({ from: dateOnly.optional(), to: dateOnly.optional() })
+  .superRefine((v, ctx) => {
+    if (v.from && v.to && v.to < v.from) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'The end is before the start.' });
+    }
+  });
+
+/** `pct` 0–100 (one decimal), null when there is nothing to divide. */
+const supportRateSchema = z.object({
+  numerator: z.number().int(),
+  denominator: z.number().int(),
+  pct: z.number().nullable(),
+});
+
+/**
+ * One row of the support report (docs/32 §8 S4): volume, open now, first response (median minutes,
+ * share inside the SLA deadline), time to resolve (median hours, closed ones).
+ */
+export const supportReportRowSchema = z.object({
+  created: z.number().int(),
+  open: z.number().int(),
+  closed: z.number().int(),
+  firstResponseMedianMinutes: z.number().int().nullable(),
+  slaMet: supportRateSchema,
+  resolveMedianHours: z.number().nullable(),
+});
+export type SupportReportRowDto = z.infer<typeof supportReportRowSchema>;
+
+export const supportReportSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  total: supportReportRowSchema,
+  byQueue: z.array(supportReportRowSchema.extend({ queue: queueEnum })),
+  byCategory: z.array(supportReportRowSchema.extend({ category: z.enum(TICKET_CATEGORIES) })),
+  byChannel: z.array(supportReportRowSchema.extend({ channel: z.enum(TICKET_CHANNELS) })),
+  /** Monday-based weeks (academy zone). */
+  byWeek: z.array(
+    z.object({ weekStart: z.string(), created: z.number().int(), closed: z.number().int() }),
+  ),
+});
+export type SupportReportDto = z.infer<typeof supportReportSchema>;

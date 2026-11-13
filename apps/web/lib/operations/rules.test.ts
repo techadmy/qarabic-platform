@@ -71,6 +71,10 @@ describe('bell rows', () => {
     });
     expect(bellHref(r, 'teacher')).toBe('/my-classes?session=31');
     expect(bellText(n('trial', 'something_new', {}))).toEqual({ kind: 'other' });
+    // An offer (T3) opens the teacher home's offers card.
+    const offer = n('trial', 'trial_offer', { offerId: 4, course: 'تلاوة', startsAt: 'x' });
+    expect(bellText(offer)).toMatchObject({ key: 'trial.trial_offer' });
+    expect(bellHref(offer, 'teacher')).toBe('/#trial-offers');
   });
 
   it('a class reminder opens the class sheet on the right page for the role', () => {
@@ -108,5 +112,7 @@ describe('bell rows', () => {
     expect(kindsFor({ permissions: ['leads.view'] })).toEqual(['class_reminder', 'lead']);
     // Trial offers and bookings reach the people who teach (T2–T4).
     expect(kindsFor({ permissions: ['sessions.conduct'] })).toEqual(['class_reminder', 'trial']);
+    // SLA breach notices reach the support staff (S4).
+    expect(kindsFor({ permissions: ['support.view'] })).toEqual(['class_reminder', 'support']);
   });
 });

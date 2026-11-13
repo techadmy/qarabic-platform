@@ -35,6 +35,7 @@ import { resetSupportDb } from './support-db';
 import { supportHandlers } from './support-handlers';
 import { resetTeachingDb } from './teaching-db';
 import { resetTrialReports, teachingHandlers } from './teaching-handlers';
+import { resetTrialOffers, trialOfferHandlers } from './trial-offers';
 import {
   apiError,
   CSRF_TOKEN,
@@ -71,6 +72,7 @@ export function resetMockState() {
   resetTrialReports();
   resetSupportDb();
   resetCrmDb();
+  resetTrialOffers();
   resetBillingDb();
   resetOperationsDb();
   resetAccountingDb();
@@ -311,6 +313,7 @@ export const handlers: HttpHandler[] = [
 
   ...supportHandlers,
   ...crmHandlers,
+  ...trialOfferHandlers,
   ...billingHandlers,
   ...operationsHandlers,
   ...accountingHandlers,

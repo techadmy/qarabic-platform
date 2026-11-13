@@ -70,6 +70,8 @@ export function bellHref(n: NotificationDto, roleKind: string | null | undefined
     const id = num(n.data.announcementId);
     return id ? `/announcements#ann-${id}` : '/announcements';
   }
+  // An offer leads to the teacher home's «عروض الحصص التجريبية».
+  if (n.kind === 'trial' && num(n.data.offerId) && !num(n.data.sessionId)) return '/#trial-offers';
   if ((n.kind === 'class_reminder' || n.kind === 'trial') && num(n.data.sessionId)) {
     return `${portal ? '/my-classes' : '/today'}?session=${num(n.data.sessionId)}`;
   }
@@ -88,6 +90,8 @@ export function kindsFor(me: { permissions: readonly string[] }): NotificationKi
           ? has('leads.view')
           : k === 'trial'
             ? has('sessions.conduct')
-            : true,
+            : k === 'support'
+              ? has('support.view')
+              : true,
   );
 }
