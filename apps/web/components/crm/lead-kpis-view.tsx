@@ -12,12 +12,14 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFooter,
   TableHead,
   TableHeader,
   TableRow,
 } from '@qarabic/ui/components/table';
 import { useQuery } from '@tanstack/react-query';
 import { ChartNoAxesColumnIcon } from 'lucide-react';
+import { cn } from '@qarabic/ui/lib/utils';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { DateRangeFilters } from '@/components/accounting/accounting-bits';
@@ -27,10 +29,33 @@ import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
+import { ACADEMY_TZ } from '@/lib/billing/labels';
 import { crmKeys, fetchLeadKpis } from '@/lib/api/crm';
 import { can } from '@/lib/auth/use-me';
 import { useListParams } from '@/lib/list-params';
 import { addDays, dateKeyIn } from '@/lib/schedule-time';
+import { intlLocale } from '@/lib/time';
+
+/** The longest period the report takes (the API says `range_too_long` past it). */
+const MAX_DAYS = 366;
+/** The first column stays put while the rest scrolls sideways on a phone. */
+const STICKY = 'sticky start-0 z-10 bg-card';
+
+function Col({ children, end }: { children: ReactNode; end?: boolean }) {
+  return (
+    <TableHead scope="col" className={cn(end && 'text-end', !end && STICKY)}>
+      {children}
+    </TableHead>
+  );
+}
+
+function RowHead({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <TableHead scope="row" className={cn('font-medium', STICKY, className)}>
+      {children}
+    </TableHead>
+  );
+}
 
 /**
  * «مؤشرات العملاء المحتملين» (T5, docs/33 §6): for the leads that came in a period, how fast they
@@ -44,15 +69,16 @@ export function LeadKpisView() {
   const me = useCurrentUser();
   const params = useListParams();
   const allowed = can(me, 'leads.view');
-  const today = dateKeyIn('Africa/Cairo');
+  const today = dateKeyIn(ACADEMY_TZ);
   const to = params.get('to') || today;
   const from = params.get('from') || addDays(to, -29);
   const bad = from > to;
+  const tooLong = !bad && (Date.parse(to) - Date.parse(from)) / 86_400_000 > MAX_DAYS;
   const query = { from, to };
   const kpis = useQuery({
     queryKey: crmKeys.kpis(query),
     queryFn: ({ signal }) => fetchLeadKpis(query, signal),
-    enabled: allowed && !bad,
+    enabled: allowed && !bad && !tooLong,
   });
   const header = (
     <PageHeader
@@ -70,12 +96,16 @@ export function LeadKpisView() {
     );
   }
 
+  const percent = new Intl.NumberFormat(intlLocale(locale), {
+    style: 'percent',
+    maximumFractionDigits: 1,
+  });
   const pct = (r: RateDto): ReactNode =>
     r.pct === null ? (
       <span className="text-muted-foreground">—</span>
     ) : (
       <span>
-        <bdi className="font-semibold tabular-nums">{t('pct', { pct: r.pct })}</bdi>{' '}
+        <bdi className="font-semibold tabular-nums">{percent.format(r.pct / 100)}</bdi>{' '}
         <span className="text-sm text-muted-foreground">
           ({t('ofTotal', { n: r.numerator, total: r.denominator })})
         </span>
@@ -115,14 +145,22 @@ export function LeadKpisView() {
   const leadHead = (first: string) => (
     <TableHeader>
       <TableRow className="hover:bg-transparent">
-        <TableHead>{first}</TableHead>
-        <TableHead className="text-end">{t('cols.leads')}</TableHead>
-        <TableHead className="text-end">{t('cols.firstResponse')}</TableHead>
-        <TableHead className="text-end">{t('cols.withinSla')}</TableHead>
-        <TableHead className="text-end">{t('cols.leadToTrial')}</TableHead>
-        <TableHead className="text-end">{t('cols.showUp')}</TableHead>
-        <TableHead className="text-end">{t('cols.toRegular')}</TableHead>
-        <TableHead className="text-end">{t('cols.daysToRegular')}</TableHead>
+        <Col>{first}</Col>
+        {(
+          [
+            'leads',
+            'firstResponse',
+            'withinSla',
+            'leadToTrial',
+            'showUp',
+            'toRegular',
+            'daysToRegular',
+          ] as const
+        ).map((c) => (
+          <Col key={c} end>
+            {t(`cols.${c}`)}
+          </Col>
+        ))}
       </TableRow>
     </TableHeader>
   );
@@ -148,7 +186,11 @@ export function LeadKpisView() {
           onChange={(v) => params.set(v, { resetPage: false })}
         />
       </div>
-      {bad ? null : kpis.isError ? (
+      {bad ? null : tooLong || isApiError(kpis.error, 422) ? (
+        <p role="alert" className="text-sm text-destructive">
+          {t('rangeTooLong')}
+        </p>
+      ) : kpis.isError ? (
         <ErrorState onRetry={() => void kpis.refetch()} />
       ) : !d ? (
         <div className="flex flex-col gap-4" aria-busy="true">
@@ -180,17 +222,17 @@ export function LeadKpisView() {
               <TableBody>
                 {d.bySource.map((r) => (
                   <TableRow key={r.source}>
-                    <TableCell className="font-medium">
-                      {LEAD_SOURCE_LABELS[r.source][locale]}
-                    </TableCell>
+                    <RowHead>{LEAD_SOURCE_LABELS[r.source][locale]}</RowHead>
                     {leadColumns(r)}
                   </TableRow>
                 ))}
+              </TableBody>
+              <TableFooter>
                 <TableRow className="font-semibold">
-                  <TableCell>{t('total')}</TableCell>
+                  <RowHead className="bg-muted">{t('total')}</RowHead>
                   {leadColumns(d.total)}
                 </TableRow>
-              </TableBody>
+              </TableFooter>
             </Table>,
           )}
           {section(
@@ -201,9 +243,7 @@ export function LeadKpisView() {
               <TableBody>
                 {d.byAssignee.map((r) => (
                   <TableRow key={r.user?.id ?? 'none'}>
-                    <TableCell className="font-medium">
-                      {r.user ? <bdi>{r.user.name}</bdi> : t('unassigned')}
-                    </TableCell>
+                    <RowHead>{r.user ? <bdi>{r.user.name}</bdi> : t('unassigned')}</RowHead>
                     {leadColumns(r)}
                   </TableRow>
                 ))}
@@ -217,18 +257,25 @@ export function LeadKpisView() {
               <Table aria-labelledby="kpi-teachers">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>{t('cols.teacher')}</TableHead>
-                    <TableHead className="text-end">{t('cols.trials')}</TableHead>
-                    <TableHead className="text-end">{t('cols.showUp')}</TableHead>
-                    <TableHead className="text-end">{t('cols.toRegular')}</TableHead>
+                    <Col>{t('cols.teacher')}</Col>
+                    <Col end>{t('cols.trials')}</Col>
+                    <Col end>{t('cols.showUp')}</Col>
+                    <Col end>{t('cols.toRegular')}</Col>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {d.byTeacher.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        {t('noTrials')}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {d.byTeacher.map((r) => (
                     <TableRow key={r.teacher.id}>
-                      <TableCell className="font-medium">
+                      <RowHead>
                         <bdi>{r.teacher.name}</bdi>
-                      </TableCell>
+                      </RowHead>
                       <TableCell className="text-end tabular-nums">{r.trials}</TableCell>
                       <TableCell className="text-end">{pct(r.showUp)}</TableCell>
                       <TableCell className="text-end">{pct(r.toRegular)}</TableCell>
@@ -243,18 +290,23 @@ export function LeadKpisView() {
               <Table aria-labelledby="kpi-courses">
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
-                    <TableHead>{t('cols.course')}</TableHead>
-                    <TableHead className="text-end">{t('cols.trials')}</TableHead>
-                    <TableHead className="text-end">{t('cols.showUp')}</TableHead>
-                    <TableHead className="text-end">{t('cols.toRegular')}</TableHead>
+                    <Col>{t('cols.course')}</Col>
+                    <Col end>{t('cols.trials')}</Col>
+                    <Col end>{t('cols.showUp')}</Col>
+                    <Col end>{t('cols.toRegular')}</Col>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
+                  {d.byCourse.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="text-center text-muted-foreground">
+                        {t('noTrials')}
+                      </TableCell>
+                    </TableRow>
+                  )}
                   {d.byCourse.map((r) => (
                     <TableRow key={r.course.id}>
-                      <TableCell className="font-medium">
-                        {locale === 'ar' ? r.course.nameAr : r.course.nameEn}
-                      </TableCell>
+                      <RowHead>{locale === 'ar' ? r.course.nameAr : r.course.nameEn}</RowHead>
                       <TableCell className="text-end tabular-nums">{r.trials}</TableCell>
                       <TableCell className="text-end">{pct(r.showUp)}</TableCell>
                       <TableCell className="text-end">{pct(r.toRegular)}</TableCell>
@@ -270,17 +322,15 @@ export function LeadKpisView() {
             <Table aria-labelledby="kpi-lost">
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
-                  <TableHead>{t('cols.reason')}</TableHead>
-                  <TableHead className="text-end">{t('cols.count')}</TableHead>
-                  <TableHead>{t('cols.bySource')}</TableHead>
+                  <Col>{t('cols.reason')}</Col>
+                  <Col end>{t('cols.count')}</Col>
+                  <Col>{t('cols.bySource')}</Col>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {d.lostReasons.map((r) => (
                   <TableRow key={r.reason}>
-                    <TableCell className="font-medium">
-                      {LOST_REASON_LABELS[r.reason][locale]}
-                    </TableCell>
+                    <RowHead>{LOST_REASON_LABELS[r.reason][locale]}</RowHead>
                     <TableCell className="text-end tabular-nums">{r.count}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {r.bySource.length ? (

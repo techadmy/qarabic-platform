@@ -235,6 +235,11 @@ export const crmHandlers: HttpHandler[] = [
         to: ['The end is before the start.'],
       });
     }
+    if ((Date.parse(to) - Date.parse(from)) / 86_400_000 > 366) {
+      return apiError(422, 'range_too_long', 'Choose a period of at most one year.', {
+        to: ['Choose a period of at most one year.'],
+      });
+    }
     return HttpResponse.json({ data: leadKpis(from, to) });
   }),
 

@@ -2411,7 +2411,6 @@
       "description": "For the leads that came in the period: response speed, bookings, show-up, enrolment, and why leads were lost.",
       "back": "Leads",
       "summary": "Period summary",
-      "pct": "{pct}%",
       "ofTotal": "{n} of {total}",
       "minutes": "{count, plural, one {# min} other {# min}}",
       "hours": "{count, plural, one {# hour} other {# hours}}",
@@ -2441,7 +2440,9 @@
         "reason": "Reason",
         "count": "Count",
         "bySource": "By source"
-      }
+      },
+      "rangeTooLong": "Choose a period of at most one year.",
+      "noTrials": "No trial classes in this period."
     }
   },
   "trialForm": {
