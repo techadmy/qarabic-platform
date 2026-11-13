@@ -21,6 +21,7 @@ import {
   TrialsTodayController,
 } from './followup.controllers.js';
 import { TrialFollowUp } from './followup.service.js';
+import { LeadKpis } from './kpis.service.js';
 import {
   LeadTrialOffersController,
   MyTrialOffersController,
@@ -68,6 +69,7 @@ import { WebLeadMapper } from './web-lead-mapper.js';
     TrialEligibility,
     TrialOffers,
     TrialFollowUp,
+    LeadKpis,
     LeadAlerts,
     PublicIntake,
     WebLeadMapper,
