@@ -282,6 +282,7 @@ export class TrialEligibility {
         rank: null,
         teacherLocal: { date: at.date, time: at.time },
         inWorkHours,
+        check: check.toDto(),
         languageMatch: wanted ? languages.some((l) => wanted.includes(l)) : null,
         conversion: {
           trials: mine.length,
