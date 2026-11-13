@@ -166,6 +166,17 @@ export type RequestActionInput = z.input<typeof requestActionSchema>;
 export const requestAnswerSchema = z.object({ accept: z.boolean(), note: optionalText(2000) });
 export type RequestAnswerInput = z.input<typeof requestAnswerSchema>;
 
+/** What the viewer may do next: staff steps, or the requester's answer to a proposal. */
+export const SUPPORT_REQUEST_ACTIONS = [
+  'propose',
+  'approve',
+  'complete',
+  'reject',
+  'accept',
+  'decline',
+] as const;
+export type SupportRequestAction = (typeof SUPPORT_REQUEST_ACTIONS)[number];
+
 /** On the ticket (`ticketSchema.request`); null for a plain ticket. */
 export const supportRequestSchema = z.object({
   kind: z.enum(TYPED_REQUESTS),
@@ -178,5 +189,12 @@ export const supportRequestSchema = z.object({
       fromDate: z.string(),
     })
     .nullable(),
+  /** For this viewer (the server's state and permission rules); empty when nothing is open to them. */
+  allowedActions: z.array(z.enum(SUPPORT_REQUEST_ACTIONS)).default([]),
+  /** Who took the latest step and when (staff or the family). */
+  decidedBy: z.object({ id: z.number().int(), name: z.string() }).nullable().default(null),
+  decidedAt: z.string().nullable().default(null),
+  /** The latest step's note (a rejection's reason, a decline's words); shown to the family. */
+  note: z.string().nullable().default(null),
 });
 export type SupportRequestDto = z.infer<typeof supportRequestSchema>;

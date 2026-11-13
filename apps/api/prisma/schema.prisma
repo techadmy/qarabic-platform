@@ -189,6 +189,8 @@ model User {
   trialOffersCreated TrialOffer[] @relation("TrialOfferCreatedBy")
   trialOffersClosed  TrialOffer[] @relation("TrialOfferClosedBy")
 
+  ticketRequestsDecided Ticket[] @relation("TicketRequestDecidedBy")
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -1182,18 +1184,23 @@ model Ticket {
   requestState        TicketRequestState? @map("request_state")
   /// Teacher change: `{ teacherId, fromDate }` proposed by staff.
   proposal            Json?
+  /// Who took the request's latest step, when, and their note (shown to the family).
+  requestDecidedById  Int?                @map("request_decided_by")
+  requestDecidedAt    DateTime?           @map("request_decided_at") @db.Timestamptz(6)
+  requestNote         String?             @map("request_note") @db.VarChar(2000)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Written from the app clock on every change.
   updatedAt           DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  reporter    User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
-  assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  family      Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  teacher     Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  duplicateOf Ticket?            @relation("TicketDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates  Ticket[]           @relation("TicketDuplicate")
-  comments    TicketComment[]
-  attachments TicketAttachment[]
+  reporter         User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  assignee         User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  family           Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  teacher          Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  duplicateOf      Ticket?            @relation("TicketDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates       Ticket[]           @relation("TicketDuplicate")
+  requestDecidedBy User?              @relation("TicketRequestDecidedBy", fields: [requestDecidedById], references: [id], onDelete: SetNull)
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
 
   @@index([status, priority])
   @@index([queue, status])
@@ -1305,6 +1312,8 @@ enum LostReason {
   schedule
   duplicate
   other
+  /// T5 (docs/33 §3.7): the family did not take to the teacher.
+  teacher
 }
 
 enum TrialOutcome {

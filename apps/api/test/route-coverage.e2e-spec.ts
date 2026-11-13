@@ -272,6 +272,7 @@ describe('route permission coverage', () => {
       'GET leads/summary': 'all:leads.view',
       'GET leads/assignees': 'all:leads.view',
       'GET leads/funnel': 'all:leads.view',
+      'GET leads/kpis': 'all:leads.view',
       'POST leads/bulk/assign': 'all:leads.assign',
       'POST leads/bulk/status': 'all:leads.manage',
       'GET leads': 'all:leads.view',

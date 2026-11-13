@@ -46,6 +46,8 @@ import {
   WEB_LEAD_SIGNATURE_HEADER,
   WEB_LEAD_TIMESTAMP_HEADER,
   wpformsLeadSchema,
+  leadKpisQuerySchema,
+  type LeadKpisDto,
   trialTeachersQuerySchema,
   type TrialTeachersResponse,
 } from '@qarabic/shared';
@@ -66,6 +68,7 @@ import { SettingsService, type SettingKey } from '../settings/settings.service.j
 import { CaptchaVerifier } from './captcha.js';
 import { CrmConfig, verifyWebLead } from './crm.config.js';
 import { TrialEligibility } from './eligibility.js';
+import { LeadKpis } from './kpis.service.js';
 import { crmError } from './errors.js';
 import { LeadService } from './lead.service.js';
 import { PublicIntake } from './public-intake.service.js';
@@ -90,6 +93,7 @@ export class LeadsController {
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
     private readonly eligibility: TrialEligibility,
+    private readonly kpiService: LeadKpis,
   ) {}
 
   @Can('leads.view')
@@ -113,6 +117,15 @@ export class LeadsController {
     @ZodQuery(leadFunnelQuerySchema) q: Out<typeof leadFunnelQuerySchema>,
   ): Promise<{ data: LeadFunnelDto }> {
     return { data: await this.reports.funnel(q.from, q.to) };
+  }
+
+  /** T5 (docs/33 §6): the CRM rates and the lost reasons for leads created in the period. */
+  @Can('leads.view')
+  @Get('kpis')
+  async kpis(
+    @ZodQuery(leadKpisQuerySchema) q: Out<typeof leadKpisQuerySchema>,
+  ): Promise<{ data: LeadKpisDto }> {
+    return { data: await this.kpiService.kpis(q.from, q.to) };
   }
 
   @Can('leads.assign')

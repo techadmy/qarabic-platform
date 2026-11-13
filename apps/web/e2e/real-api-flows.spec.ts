@@ -1,6 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
-import { conflictResultSchema } from '@qarabic/shared';
-import { z } from 'zod';
+import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
+import { trialTeachersResponseSchema } from '@qarabic/shared';
 import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 
 /**
@@ -12,7 +11,7 @@ import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 test.skip(!REAL_API, 'set E2E_REAL_API=1 (needs the API and Postgres)');
 test.describe.configure({ mode: 'serial' });
 
-const conflictAnswer = z.object({ data: conflictResultSchema });
+const trialTeachersAnswer = trialTeachersResponseSchema;
 
 /** The first option of an open combobox / select list. */
 const firstOption = (page: Page) => page.getByRole('option').first();
@@ -97,26 +96,58 @@ function* distinctTimes() {
   for (let k = 0; k < 96; k++) yield start + k * 7; // 7 and 96 are coprime: 96 distinct times
 }
 
+/** «4:45 م» for `16:45`, as the time select shows it. */
+function timeLabel(hhmm: string) {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+}
+
 /**
- * Picks a time in `combo` that the live schedule check does not block («لا يمكن الحفظ»): earlier
- * runs left trials and weekly times on the same teacher, so it steps through the list until clear.
+ * T2 trial booking: steps through distinct times; for each, the ranked teachers
+ * (`/trial-teachers`) answer, and each listed teacher carries the booking's own check for that
+ * exact date and time (#57: the dialog then sends no `/schedule/check`). A teacher with no hard
+ * conflict is chosen among the eligible by the run's tag (repeated runs spread their trials); its
+ * check is returned. The list answer is matched to the time on screen, so an answer still in
+ * flight for an earlier time never counts.
  */
-async function pickFreeTime(page: Page, dialog: Locator, combo: string, tries: Iterator<number>) {
+async function pickTrialTimeAndTeacher(page: Page, dialog: Locator, tries: Iterator<number>) {
+  const select = dialog.getByRole('combobox', { name: 'الوقت' });
   for (let attempt = 0; attempt < 20; attempt++) {
-    // Decide from the check's own answer: its alert renders a beat later (a read of the screen
-    // right after the response could still miss «لا يمكن الحفظ»).
-    const checked = page.waitForResponse(
-      (r) => r.url().endsWith('/schedule/check') && r.request().method() === 'POST',
-    );
-    await chooseOption(page, dialog.getByRole('combobox', { name: combo }), tries.next().value!);
-    const { data } = conflictAnswer.parse(await (await checked).json());
-    if (data.conflicts.length === 0) {
-      // Let the screen catch up with this answer before the caller submits.
-      await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);
-      return data;
+    const answers: { time: string; body: unknown }[] = [];
+    const onResponse = async (r: Response) => {
+      if (!/\/trial-teachers\?/.test(r.url()) || r.request().method() !== 'GET') return;
+      const time = new URL(r.url()).searchParams.get('localTime') ?? '';
+      answers.push({ time, body: await r.json().catch(() => null) });
+    };
+    page.on('response', onResponse);
+    let body: unknown = null;
+    try {
+      await chooseOption(page, select, tries.next().value!);
+      const shown = (await select.textContent())!.trim();
+      await expect
+        .poll(
+          () => {
+            body = answers.find((x) => timeLabel(x.time) === shown)?.body ?? null;
+            return body !== null;
+          },
+          { timeout: 15_000 },
+        )
+        .toBe(true);
+    } finally {
+      page.off('response', onResponse);
     }
+    const { data } = trialTeachersAnswer.parse(body);
+    const free = data.eligible.filter((o) => o.check.conflicts.length === 0);
+    if (!free.length) continue;
+    const pick = free[Number(runTag()) % free.length]!;
+    await dialog
+      .getByRole('radiogroup', { name: 'المعلم' })
+      .getByRole('radio', { name: pick.teacher.name, exact: true })
+      .check();
+    await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);
+    return pick.check;
   }
-  throw new Error(`no free time in «${combo}» after 20 tries`);
+  throw new Error('no time with a free eligible teacher after 20 tries');
 }
 
 test('real API (N3): staff edit a lesson report; the edit is saved', async ({ page }) => {
@@ -246,18 +277,15 @@ test('real API (N5): a lead → call → trial → interested → converted to r
   await firstOption(page).click();
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
-  // A teacher by the run's tag: repeated runs on one dev database spread their trials instead of
-  // filling one demo teacher's day.
-  await book.getByRole('combobox', { name: 'المعلم' }).click();
-  const teachers = page.getByRole('option');
-  await teachers.nth(Number(runTag()) % (await teachers.count())).click();
+  // T2: date and time first, then a teacher from the server's ranked list (see
+  // pickTrialTimeAndTeacher: by the run's tag among the eligible, so runs spread their trials).
   await pickTomorrow(page, book, 'Africa/Cairo');
   // The live check looks at the weekly pattern; the booking also checks the one date and can
   // still refuse a clash with a one-off class there: then try the next free time.
   const times = distinctTimes();
   for (let attempt = 0; ; attempt++) {
     expect(attempt, 'a bookable trial time after 10 tries').toBeLessThan(10);
-    const check = await pickFreeTime(page, book, 'الوقت', times);
+    const check = await pickTrialTimeAndTeacher(page, book, times);
     // Tick the warnings this answer reported (e.g. the teacher's daily limit, as earlier runs pile
     // classes on the demo teacher): the dialog sends nothing until they are acknowledged.
     const boxes = book.getByRole('alert').getByRole('checkbox');
