@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { conflictResultSchema } from '@qarabic/shared';
+import { z } from 'zod';
 import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 
 /**
@@ -9,6 +11,8 @@ import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
  */
 test.skip(!REAL_API, 'set E2E_REAL_API=1 (needs the API and Postgres)');
 test.describe.configure({ mode: 'serial' });
+
+const conflictAnswer = z.object({ data: conflictResultSchema });
 
 /** The first option of an open combobox / select list. */
 const firstOption = (page: Page) => page.getByRole('option').first();
@@ -56,57 +60,63 @@ async function pickMonth(page: Page, trigger: Locator, key: string) {
 }
 
 /**
- * Chooses the option at `index` (wrapped) in the select `combo` and waits until the list has
- * closed. In a long list (96 times) a click could land while Radix was still positioning it and
- * leave it open, hiding the dialog behind it; then it tries again.
+ * Moves the select `combo` to another option with the keyboard (open, `steps` × ↓, Enter) and
+ * waits until the list has closed. Pointer clicks in the long list (96 times) missed under heavy
+ * load while Radix was still positioning it, which left the list open over the dialog.
  */
 async function chooseOption(page: Page, combo: Locator, index: number) {
-  await expect(async () => {
-    if (!(await page.getByRole('listbox').isVisible())) await combo.click();
-    const options = page.getByRole('option');
-    const option = options.nth(index % (await options.count()));
-    await option.scrollIntoViewIfNeeded();
-    await option.click({ timeout: 2_000 });
-    await expect(page.getByRole('listbox')).toBeHidden({ timeout: 2_000 });
-  }).toPass({ timeout: 15_000 });
+  await combo.focus();
+  await combo.press('Enter');
+  const list = page.getByRole('listbox');
+  await expect(list).toBeVisible();
+  const options = list.getByRole('option');
+  const target = index % (await options.count());
+  // Step from the option Radix highlighted on opening (the current value) towards the target,
+  // one key at a time and reading where the highlight is (presses sent back to back got lost).
+  // Radix moves focus to the highlighted option: the keys go to the page, not the list element.
+  const at = () =>
+    options.evaluateAll((all) => all.findIndex((o) => o.hasAttribute('data-highlighted')));
+  for (let n = 0; n < 200; n++) {
+    const from = await at();
+    if (from === target) break;
+    await page.keyboard.press(from === -1 || from < target ? 'ArrowDown' : 'ArrowUp');
+    // On a busy machine the highlight moves a beat later: wait for it before the next key.
+    await expect.poll(at).not.toBe(from);
+  }
+  await expect(options.nth(target)).toHaveAttribute('data-highlighted');
+  await page.keyboard.press('Enter');
+  await expect(list).toBeHidden();
+}
+
+/**
+ * Option indexes for the time lists, never the same twice in a test: a time already checked is
+ * answered from the dialog's cache (no new request to wait for).
+ */
+function* distinctTimes() {
+  const start = Number(runTag());
+  for (let k = 0; k < 96; k++) yield start + k * 7; // 7 and 96 are coprime: 96 distinct times
 }
 
 /**
  * Picks a time in `combo` that the live schedule check does not block («لا يمكن الحفظ»): earlier
  * runs left trials and weekly times on the same teacher, so it steps through the list until clear.
  */
-async function pickFreeTime(page: Page, dialog: Locator, combo: string) {
-  const blocked = dialog.getByText(/لا يمكن الحفظ/);
-  const start = Number(runTag());
+async function pickFreeTime(page: Page, dialog: Locator, combo: string, tries: Iterator<number>) {
   for (let attempt = 0; attempt < 20; attempt++) {
-    // Read the alert only once the check of this choice has answered (it keeps the last result).
+    // Decide from the check's own answer: its alert renders a beat later (a read of the screen
+    // right after the response could still miss «لا يمكن الحفظ»).
     const checked = page.waitForResponse(
       (r) => r.url().endsWith('/schedule/check') && r.request().method() === 'POST',
     );
-    await chooseOption(page, dialog.getByRole('combobox', { name: combo }), start + attempt * 7);
-    await checked;
-    await expect(dialog.getByRole('combobox', { name: combo })).not.toHaveText('');
-    if (!(await blocked.isVisible())) return;
+    await chooseOption(page, dialog.getByRole('combobox', { name: combo }), tries.next().value!);
+    const { data } = conflictAnswer.parse(await (await checked).json());
+    if (data.conflicts.length === 0) {
+      // Let the screen catch up with this answer before the caller submits.
+      await expect(dialog.getByText(/لا يمكن الحفظ/)).toHaveCount(0);
+      return data;
+    }
   }
   throw new Error(`no free time in «${combo}» after 20 tries`);
-}
-
-/**
- * Submits with `button` and waits for `done` (the success toast) or the request to acknowledge the
- * warnings (e.g. the teacher's daily limit, as earlier runs pile classes on the demo teacher);
- * then ticks them and submits again.
- */
-async function submitAcknowledging(page: Page, dialog: Locator, button: string, done: string) {
-  const success = page.getByText(done);
-  const needAck = dialog.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.');
-  await dialog.getByRole('button', { name: button }).click();
-  await expect(success.or(needAck)).toBeVisible();
-  if (await needAck.isVisible()) {
-    for (const box of await dialog.getByRole('alert').getByRole('checkbox').all())
-      await box.check();
-    await dialog.getByRole('button', { name: button }).click();
-  }
-  await expect(success).toBeVisible();
 }
 
 test('real API (N3): staff edit a lesson report; the edit is saved', async ({ page }) => {
@@ -201,6 +211,8 @@ test('real API (N5): the public trial form stores a lead (no sign-in)', async ({
 test('real API (N5): a lead → call → trial → interested → converted to regular', async ({
   page,
 }) => {
+  // A long flow (8 dialogs, each with server checks): more than the default 30 s on a busy runner.
+  test.setTimeout(90_000);
   // 1. Staff add a phone lead.
   const parent = `E2E Parent ${runTag()}`;
   await signInReal(page, '/leads');
@@ -234,11 +246,30 @@ test('real API (N5): a lead → call → trial → interested → converted to r
   await firstOption(page).click();
   await book.getByRole('button', { name: 'أنشئ الحساب وتابع' }).click();
   await expect(page.getByText('أُنشئ حساب العائلة.')).toBeVisible();
+  // A teacher by the run's tag: repeated runs on one dev database spread their trials instead of
+  // filling one demo teacher's day.
   await book.getByRole('combobox', { name: 'المعلم' }).click();
-  await firstOption(page).click();
+  const teachers = page.getByRole('option');
+  await teachers.nth(Number(runTag()) % (await teachers.count())).click();
   await pickTomorrow(page, book, 'Africa/Cairo');
-  await pickFreeTime(page, book, 'الوقت');
-  await submitAcknowledging(page, book, 'احجز الحصة', 'حُجزت الحصة التجريبية.');
+  // The live check looks at the weekly pattern; the booking also checks the one date and can
+  // still refuse a clash with a one-off class there: then try the next free time.
+  const times = distinctTimes();
+  for (let attempt = 0; ; attempt++) {
+    expect(attempt, 'a bookable trial time after 10 tries').toBeLessThan(10);
+    const check = await pickFreeTime(page, book, 'الوقت', times);
+    // Tick the warnings this answer reported (e.g. the teacher's daily limit, as earlier runs pile
+    // classes on the demo teacher): the dialog sends nothing until they are acknowledged.
+    const boxes = book.getByRole('alert').getByRole('checkbox');
+    await expect(boxes).toHaveCount(check.warnings.length);
+    for (const box of await boxes.all()) await box.check();
+    const answer = page.waitForResponse(
+      (r) => /\/leads\/\d+\/trials$/.test(r.url()) && r.request().method() === 'POST',
+    );
+    await book.getByRole('button', { name: 'احجز الحصة' }).click();
+    if ((await answer).ok()) break;
+  }
+  await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(book).toBeHidden();
 
@@ -255,12 +286,13 @@ test('real API (N5): a lead → call → trial → interested → converted to r
   await convert.getByRole('combobox', { name: 'يوم الموعد 1' }).click();
   await page.getByRole('option', { name: 'السبت' }).click();
   // No live check here: a clash with an earlier run's weekly time comes back on submit.
+  const slotTimes = distinctTimes();
   for (let attempt = 0; ; attempt++) {
     expect(attempt, 'a free weekly time after 20 tries').toBeLessThan(20);
     await chooseOption(
       page,
       convert.getByRole('combobox', { name: 'وقت الموعد 1' }),
-      Number(runTag()) + attempt * 7,
+      slotTimes.next().value!,
     );
     const answer = page.waitForResponse(
       (r) => /\/leads\/\d+\/convert$/.test(r.url()) && r.request().method() === 'POST',
