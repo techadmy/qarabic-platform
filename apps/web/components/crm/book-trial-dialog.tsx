@@ -383,6 +383,7 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     lead.trials[0] ? String(lead.trials[0].teacher.id) : null,
   );
   const [option, setOption] = useState<TrialTeacherOptionDto | null>(null);
+  const [optionCurrent, setOptionCurrent] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
   // T3: choose the teacher now (mode A) or offer the trial to the teachers (mode B).
   const [mode, setMode] = useState<'direct' | 'offer'>('direct');
@@ -430,12 +431,14 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
   const check = useQuery({
     queryKey: ['crm', 'trial-check', checkInput],
     queryFn: ({ signal }) => checkSchedule(checkInput!, signal),
-    enabled: !!checkInput,
+    // A teacher from the ranked list carries the booking's own check (#57); ask only otherwise.
+    enabled: !!checkInput && !(option && optionCurrent),
     placeholderData: keepPreviousData,
   });
   const inputKey = JSON.stringify(checkInput);
   const serverConflicts = server?.key === inputKey ? server.result : null;
-  const result = serverConflicts ?? (checkInput ? check.data : null);
+  const result =
+    serverConflicts ?? (!checkInput ? null : option && optionCurrent ? option.check : check.data);
   const at = date && time ? zonedInstant(date, time, familyTz) : null;
   const past = !!at && Date.parse(at) < now.getTime();
 
@@ -725,7 +728,10 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
               setTeacherId(id);
               setTeacherRefusal('');
             }}
-            onSelected={(o) => setOption(o ?? null)}
+            onSelected={(o, current) => {
+              setOption(o ?? null);
+              setOptionCurrent(current);
+            }}
             overrideReason={overrideReason}
             onOverrideReason={(r) => {
               setOverrideReason(r);

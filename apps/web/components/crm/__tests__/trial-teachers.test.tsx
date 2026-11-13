@@ -1,4 +1,8 @@
-import type { TrialTeacherOptionDto, TrialTeachersQuery } from '@qarabic/shared';
+import {
+  trialTeachersQuerySchema,
+  type TrialTeacherOptionDto,
+  type TrialTeachersQuery,
+} from '@qarabic/shared';
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
@@ -10,6 +14,7 @@ import { crmdb } from '@/mocks/crm-db';
 import { presentDetail, zonedUtc } from '@/mocks/crm-handlers';
 import { MOCK_USERS } from '@/mocks/data';
 import { server } from '@/mocks/node';
+import { queryOf } from '@/mocks/schedule-handlers';
 import { trialTeachers } from '@/mocks/trial-teachers';
 import { renderPage } from '@/test/people';
 
@@ -222,6 +227,47 @@ describe('T2 booking dialog', () => {
     await within(dialog).findByRole('radiogroup', { name: 'المعلم' });
     return { user, dialog };
   }
+
+  it('a teacher from the list brings the booking’s own check; no separate check is asked (#57)', async () => {
+    const checks: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (new URL(request.url).pathname.endsWith('/schedule/check')) checks.push(request.url);
+    });
+    server.use(
+      http.get('*/api/v1/leads/:id/trial-teachers', ({ request }) => {
+        const lead = crmdb.leads.find((l) => l.id === LEAD)!;
+        const q = trialTeachersQuerySchema.parse(queryOf(request));
+        const tz = q.timezone ?? lead.timezone;
+        const data = trialTeachers(
+          lead,
+          { ...q, timezone: tz, durationMinutes: q.durationMinutes ?? 30 },
+          zonedUtc(q.localDate, q.localTime, tz),
+        );
+        data.data.eligible = data.data.eligible.map((o) => ({
+          ...o,
+          check: {
+            conflicts: [],
+            warnings: [
+              {
+                code: 'mock_soft_warning',
+                severity: 'soft' as const,
+                message: 'A test warning',
+                with: null,
+                firstDate: null,
+              },
+            ],
+          },
+        }));
+        return HttpResponse.json(data);
+      }),
+    );
+    const { user, dialog } = await openDialog();
+    const group = within(dialog).getByRole('radiogroup', { name: 'المعلم' });
+    await user.click(within(group).getAllByRole('radio')[0]!);
+    expect(await within(dialog).findByText('A test warning')).toBeInTheDocument();
+    expect(checks).toHaveLength(0);
+    server.events.removeAllListeners('request:start');
+  });
 
   it('booking without a teacher says so and takes the focus to the list', async () => {
     const { user, dialog } = await openDialog();

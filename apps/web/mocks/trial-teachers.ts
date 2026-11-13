@@ -82,6 +82,7 @@ export function trialTeachers(
           time: `${part('hour')}:${part('minute')}`,
         },
         inWorkHours: !check.warnings.some((w) => w.code === 'outside_work_hours'),
+        check: { conflicts: check.conflicts, warnings: check.warnings },
         languageMatch: null,
         conversion: { trials, converted, rate: Math.round((converted / trials) * 100) },
         weeklyFreeHours: t.id === 7 ? null : 40 - ((t.id * 3) % 20),

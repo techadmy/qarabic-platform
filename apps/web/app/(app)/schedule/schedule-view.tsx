@@ -13,7 +13,6 @@ import type { ColumnDef } from '@tanstack/react-table';
 import { CalendarPlusIcon, CalendarRangeIcon, SearchXIcon, UserSearchIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { ListPagination } from '@/components/list/list-pagination';
 import { ClearFiltersButton, ListToolbar, StatusTabs } from '@/components/list/list-toolbar';
@@ -49,7 +48,6 @@ export function ScheduleView() {
   const me = useCurrentUser();
   const params = useListParams();
   const slotsText = useSlotsText();
-  const router = useRouter();
   const split = useSplitView('/schedule');
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(`enrollments:${me.id}`);
   const status = params.get('status');
@@ -199,7 +197,7 @@ export function ScheduleView() {
       actions={
         canManage && (
           <ListActions
-            create={{ label: t('newEnrollment'), onClick: () => router.push('/schedule/new') }}
+            create={{ label: t('newEnrollment'), href: '/schedule/new' }}
             more={[
               { label: t('availability'), icon: UserSearchIcon, href: '/schedule/availability' },
             ]}
@@ -229,7 +227,7 @@ export function ScheduleView() {
         <SplitView
           selectedId={split.selectedId}
           wide={split.wide}
-          detailLabel={t('title')}
+          detailLabel={t('detail')}
           onClose={split.close}
           fullHref={split.fullHref}
           list={

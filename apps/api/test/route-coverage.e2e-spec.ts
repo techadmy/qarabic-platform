@@ -254,6 +254,8 @@ describe('route permission coverage', () => {
       'GET support/assignees': 'any:support.handle|support.manage',
       'GET support/people': 'all:support.view',
       'POST support/tickets/:id/take': 'any:support.handle|support.manage',
+      'POST support/tickets/:id/request': 'any:support.handle|support.manage|feedback.manage',
+      'POST support/tickets/:id/request/answer': 'any:feedback.request|session_requests.request',
       'GET support/mine': 'any:feedback.request|session_requests.request',
       'GET settings/support': 'all:settings.view',
       'PUT settings/support': 'all:settings.manage',

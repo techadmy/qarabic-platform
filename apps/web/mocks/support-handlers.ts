@@ -155,6 +155,7 @@ function ticketDto(t: TicketRow, me: MockUser): TicketDto {
     slaState: slaState(t),
     firstResponseAt: t.firstResponseAt,
     handledBy: t.assignee ? (t.assignee.name.split(/\s+/)[0] ?? null) : null,
+    request: null,
   };
   if (staffView(me, t)) {
     Object.assign(data, {
