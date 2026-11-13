@@ -21,6 +21,7 @@ import {
   type LeadDetailDto,
   type LeadDto,
   type LeadStatus,
+  trialTeachersQuerySchema,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import type { MockUser } from './data';
@@ -28,6 +29,7 @@ import { crmdb, CRM_STAFF, iso, staffRef, trialOf, type LeadRow } from './crm-db
 import { COURSES, db as people } from './people-db';
 import { leadKpis } from './lead-kpis';
 import { checkSlot, paginate, queryOf } from './schedule-handlers';
+import { trialTeachers } from './trial-teachers';
 import {
   apiError,
   currentUser,
@@ -619,6 +621,21 @@ export const crmHandlers: HttpHandler[] = [
     return HttpResponse.json({ data: presentDetail(l, g.me), meta: {} }, { status: 201 });
   }),
 
+  http.get(`${API}/leads/:id/trial-teachers`, ({ request, params }) => {
+    const g = guard(request, 'leads.manage', 'schedule.manage');
+    if ('error' in g) return g.error;
+    const l = leadOr404(params.id);
+    if (!l) return notFound();
+    const parsed = trialTeachersQuerySchema.safeParse(queryOf(request));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const q = parsed.data;
+    const tz = q.timezone ?? l.timezone;
+    const startsAt = zonedUtc(q.localDate, q.localTime, tz);
+    return HttpResponse.json(
+      trialTeachers(l, { ...q, timezone: tz, durationMinutes: q.durationMinutes ?? 30 }, startsAt),
+    );
+  }),
+
   http.post(`${API}/leads/:id/trials`, async ({ request, params }) => {
     const g = guard(request, 'leads.manage', 'schedule.manage');
     if ('error' in g) return g.error;
@@ -653,6 +670,28 @@ export const crmHandlers: HttpHandler[] = [
     });
     if (check.conflicts.length) {
       return apiError(409, 'schedule_conflict', 'The class clashes.', undefined, check);
+    }
+    // T2: an ineligible teacher needs a reason (busy is a clash, refused above).
+    const option = trialTeachers(
+      l,
+      {
+        studentId: v.studentId,
+        courseId: v.courseId,
+        localDate: v.localDate,
+        localTime: v.localTime,
+        timezone: tz,
+        durationMinutes: v.durationMinutes ?? 30,
+      },
+      new Date(at).toISOString(),
+    ).data.ineligible.find((o) => o.teacher.id === v.teacherId);
+    if (option && !v.overrideReason) {
+      return apiError(
+        422,
+        'teacher_not_eligible',
+        'The teacher is not eligible for this trial.',
+        { overrideReason: ['Give a reason to book this teacher.'] },
+        { reasons: option.reasons },
+      );
     }
     const missing = check.warnings.filter((w) => !v.acknowledgeWarnings?.includes(w.code));
     if (missing.length) {
@@ -893,7 +932,7 @@ export const crmHandlers: HttpHandler[] = [
 ];
 
 /** The instant of a wall time on a date in `tz` (UTC ISO). */
-function zonedUtc(date: string, time: string, tz: string): string {
+export function zonedUtc(date: string, time: string, tz: string): string {
   const [y, m, d] = date.split('-').map(Number);
   const [h, min] = time.split(':').map(Number);
   const guess = Date.UTC(y!, m! - 1, d!, h!, min!);

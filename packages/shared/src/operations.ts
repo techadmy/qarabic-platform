@@ -262,6 +262,7 @@ export const NOTIFICATION_KINDS = [
   'class_reminder',
   'lead',
   'trial',
+  'support',
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 export const NOTIFICATION_KIND_LABELS: Labels<NotificationKind> = {
@@ -271,6 +272,8 @@ export const NOTIFICATION_KIND_LABELS: Labels<NotificationKind> = {
   lead: { ar: 'العملاء المحتملون', en: 'Leads' },
   /** Teachers: trial classes booked, offered or reminded (T2–T4). */
   trial: { ar: 'الحصص التجريبية', en: 'Trial classes' },
+  /** Staff: «تواصل معنا» requests past their first-response deadline (S4). */
+  support: { ar: 'طلبات تواصل معنا', en: 'Support requests' },
 };
 /** Defaults when a person has not chosen: in-app on, email off, WhatsApp off. */
 export const NOTIFICATION_DEFAULTS: Record<NotificationChannel, boolean> = {
