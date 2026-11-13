@@ -54,6 +54,9 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
       '/tests/1',
       '/tickets/4',
       '/invoices/1',
+      // Receipts of the mock's seeded payments: card (invoice 2) and a part bank transfer (4).
+      '/invoices/2/receipts/1',
+      '/invoices/4/receipts/2',
       '/payroll/runs/2',
       '/payroll/payslips/2',
     ],
@@ -72,7 +75,8 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
   },
   parent: {
     email: 'parent@qarabic.test',
-    pages: ['/', '/my-family', '/my-requests', '/invoices'],
+    // Their own card payment's receipt too.
+    pages: ['/', '/my-family', '/my-requests', '/invoices', '/invoices/2/receipts/1'],
   },
   teacher: {
     email: 'teacher@qarabic.test',
@@ -91,6 +95,8 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
 
 /** Covered by standards.spec.ts (admin) or not a product screen. */
 const ELSEWHERE = [
+  // support.spec.ts: the S5 deep link opens «تواصل معنا» after sign-in (axe, 375 px).
+  '/contact',
   // operations.spec.ts sweeps tasks and announcements (375/768/1440 × ar/en, axe, no overflow).
   '/tasks',
   '/tasks/1',
@@ -114,9 +120,6 @@ const ELSEWHERE = [
   '/payroll',
   '/attendance',
   '/dev/components',
-  // Needs a recorded payment, and the mock seeds none: billing.spec.ts records one; the receipt
-  // itself is listed as a gap in docs/31.
-  '/invoices/1/receipts/1',
 ];
 
 /**

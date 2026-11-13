@@ -547,6 +547,12 @@
       "passwordNote": "The account gets a random password; its owner sets their own with “Forgot your password?”.",
       "rateHelp": "In the pay currency ({currency}).",
       "ownRole": "You cannot change your own role. An owner or another user who manages staff can change it."
+    },
+    "detail": {
+      "families": "Family record",
+      "students": "Student record",
+      "teachers": "Teacher record",
+      "staff": "Staff record"
     }
   },
   "families": {
@@ -1130,7 +1136,8 @@
       "noEnrollments": "No enrollments.",
       "upcoming": "Upcoming classes",
       "noUpcoming": "No classes in the next two weeks."
-    }
+    },
+    "detail": "Enrollment details"
   },
   "timetable": {
     "pageTitle": "Teacher's timetable",
@@ -1934,7 +1941,8 @@
       "pendingRequests": "Pending class requests: {count}",
       "filterFamily": "Show this family's requests",
       "openFamily": "Open the family profile",
-      "noPanel": "No family or teacher is linked to this request."
+      "noPanel": "No family or teacher is linked to this request.",
+      "detail": "Request details"
     },
     "feedback": {
       "title": "Feedback triage",
@@ -2513,7 +2521,8 @@
       "noResultsMonth": "No matching invoices for {month}.",
       "clear": "Clear filters",
       "empty": "No invoices yet",
-      "emptyHint": "Issue this month's invoices to see them here."
+      "emptyHint": "Issue this month's invoices to see them here.",
+      "detail": "Invoice details"
     },
     "kpi": {
       "title": "Amounts by currency",
@@ -2769,8 +2778,7 @@
       "cancelled": "Nothing was charged; you can pay later.",
       "dismiss": "Dismiss",
       "homeDue": "Amount due",
-      "allInvoices": "All invoices",
-      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}",
+      "moreDue": "{count, plural, one {And # more invoice due} other {And # more invoices due}}",
       "homeDueError": "Couldn’t load what is due."
     },
     "pay": {
@@ -3016,7 +3024,8 @@
       "issues": "Errors / warnings",
       "paidOf": "{paid} of {total}",
       "mine": "My payslips",
-      "noMoneyMoves": "The system never transfers money: «Record payment» stores what Accounts paid outside it."
+      "noMoneyMoves": "The system never transfers money: «Record payment» stores what Accounts paid outside it.",
+      "detail": "Payroll run details"
     },
     "newRun": {
       "title": "New payroll run",
