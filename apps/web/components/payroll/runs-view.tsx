@@ -47,7 +47,8 @@ export const runHref = (r: Pick<PayrollRunDto, 'id'>) => `/payroll/runs/${r.id}`
 export function TotalsInline({ totals }: { totals: PayrollRunDto['totals'] }) {
   if (!totals.length) return <span className="text-muted-foreground">—</span>;
   return (
-    <span className="flex flex-wrap gap-x-3 gap-y-1">
+    // Inline, so an end-aligned (numeric) cell puts it at the end.
+    <span className="inline-flex flex-wrap gap-x-3 gap-y-1">
       {totals.map((x) => (
         <Money key={x.currency} amount={x.net} currency={x.currency} />
       ))}
@@ -108,6 +109,8 @@ export function RunsView() {
     {
       id: 'net',
       header: t('runs.net'),
+      // Money is end-aligned (docs/15 §5.13).
+      meta: { numeric: true } satisfies ColumnMeta,
       cell: ({ row: { original: r } }) => <TotalsInline totals={r.totals} />,
     },
     {
@@ -173,7 +176,7 @@ export function RunsView() {
         <SplitView
           selectedId={split.selectedId}
           wide={split.wide}
-          detailLabel={t('runs.title')}
+          detailLabel={t('runs.detail')}
           onClose={split.close}
           fullHref={`/payroll/runs/${split.selectedId}`}
           list={

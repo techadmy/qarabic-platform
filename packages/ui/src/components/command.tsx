@@ -39,12 +39,15 @@ function CommandDialog({
   children,
   className,
   showCloseButton = false,
+  contentProps,
   ...props
 }: React.ComponentProps<typeof Dialog> & {
   title?: string
   description?: string
   className?: string
   showCloseButton?: boolean
+  /** Qarabic: passed to `DialogContent` (e.g. `onOpenAutoFocus` to focus the search field). */
+  contentProps?: Omit<React.ComponentProps<typeof DialogContent>, "className" | "children">
 }) {
   return (
     <Dialog {...props}>
@@ -58,6 +61,7 @@ function CommandDialog({
           className
         )}
         showCloseButton={showCloseButton}
+        {...contentProps}
       >
         {children}
       </DialogContent>

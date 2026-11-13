@@ -225,6 +225,9 @@ export const LEAD_NOTIFICATION_EVENTS = [
   'unassigned',
   'follow_up_due',
   'sla_breach',
+  'trial_offer_claimed',
+  'trial_offer_volunteer',
+  'trial_offer_expired',
 ] as const;
 export type LeadNotificationEvent = (typeof LEAD_NOTIFICATION_EVENTS)[number];
 export const LEAD_NOTIFICATION_LABELS: Labels<LeadNotificationEvent> = {
@@ -232,6 +235,15 @@ export const LEAD_NOTIFICATION_LABELS: Labels<LeadNotificationEvent> = {
   unassigned: { ar: 'طلب جديد بلا مسؤول', en: 'A new lead has no owner' },
   follow_up_due: { ar: 'حان موعد المتابعة', en: 'Follow-up due' },
   sla_breach: { ar: 'تأخر أول تواصل مع الطلب', en: 'First response overdue' },
+  trial_offer_claimed: { ar: 'قبل معلم عرض الحصة التجريبية', en: 'A teacher took the trial offer' },
+  trial_offer_volunteer: {
+    ar: 'معلم يرغب في الحصة التجريبية',
+    en: 'A teacher volunteered for the trial',
+  },
+  trial_offer_expired: {
+    ar: 'انتهت مهلة عرض الحصة التجريبية: أسند معلمًا مباشرة',
+    en: 'Trial offer expired: assign a teacher directly',
+  },
 };
 
 /** «في الشيفت» for auto-assignment (D137: `any` = no shift limit). */
@@ -887,6 +899,12 @@ export const CRM_SETTING_RULES = {
   'crm.trial_form_confirmation': z.boolean(),
   /** Confirmation to the family for website leads (D140: off). */
   'crm.web_lead_confirmation': z.boolean(),
+  /** T3 open offers: how long teachers have to answer (docs/33 §4.3). */
+  'crm.trial_offer_expiry_minutes': z.number().int().min(15).max(1440),
+  /** An offer always closes at least this many hours before the trial. */
+  'crm.trial_offer_min_hours_before': z.number().int().min(0).max(72),
+  /** Fairness guard: upcoming trials a teacher may hold from offers at once. */
+  'crm.trial_offer_max_open_claims': z.number().int().min(1).max(20),
 } as const;
 export type CrmSettingKey = keyof typeof CRM_SETTING_RULES;
 export const crmSettingsSchema = z.object(CRM_SETTING_RULES);
