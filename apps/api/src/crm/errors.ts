@@ -23,6 +23,10 @@ const MESSAGES = {
   claim_limit: 'You already hold the most trial classes from offers. Try again after one of them.',
   offer_unavailable: 'You can no longer take this trial at this time.',
   not_a_teacher: 'Only teachers can answer trial offers.',
+  not_a_trial: 'This is not a trial class.',
+  trial_not_ended: 'The trial report is written once the class has ended.',
+  trial_report_locked: 'The edit window of this trial report has closed.',
+  invalid_course: 'The selected course is invalid.',
   teacher_not_eligible: 'This teacher is not eligible for the trial. Give a reason to book anyway.',
 } as const;
 export type CrmErrorCode = keyof typeof MESSAGES;

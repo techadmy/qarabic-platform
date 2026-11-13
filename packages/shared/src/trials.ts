@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { timeZoneSchema } from './countries.js';
+import { LEAD_SOURCES, LOST_REASONS } from './crm.js';
 import { courseRefSchema, dateOnlySchema, genderSchema, personRefSchema } from './people.js';
-import { acknowledgeWarningsSchema, localTimeSchema } from './schedule.js';
+import { acknowledgeWarningsSchema, conflictResultSchema, localTimeSchema } from './schedule.js';
 
 /**
  * Trial classes, steps T2–T5 of docs/33 (D136, D137): choosing the teacher (eligibility and
@@ -84,6 +85,12 @@ export const trialTeacherOptionSchema = z.object({
   /** The trial time in the teacher's zone (D30). */
   teacherLocal: z.object({ date: z.string(), time: z.string() }),
   inWorkHours: z.boolean(),
+  /**
+   * The booking's own check for this teacher at this exact date and time (one-off classes,
+   * blocks and weekly times included): the same hard conflicts (409) and soft warnings
+   * (`acknowledgeWarnings`) `POST /leads/:id/trials` applies. Defaults keep older mocks valid.
+   */
+  check: conflictResultSchema.default({ conflicts: [], warnings: [] }),
   /** The teacher teaches in the student's language; null when the student's language is not set. */
   languageMatch: z.boolean().nullable(),
   /** Trials in the last 90 days and how many became regular; `rate` 0–100, null with no trials. */
@@ -128,6 +135,8 @@ export const TRIAL_NOTIFICATION_EVENTS = [
   'trial_cancelled',
   'trial_offer',
   'trial_offer_taken',
+  'trial_reminder',
+  'trial_late',
 ] as const;
 export type TrialNotificationEvent = (typeof TRIAL_NOTIFICATION_EVENTS)[number];
 export const TRIAL_NOTIFICATION_LABELS: Labels<TrialNotificationEvent> = {
@@ -135,6 +144,8 @@ export const TRIAL_NOTIFICATION_LABELS: Labels<TrialNotificationEvent> = {
   trial_cancelled: { ar: 'أُلغيت حصة تجريبية', en: 'Trial class cancelled' },
   trial_offer: { ar: 'عرض حصة تجريبية', en: 'Trial class offer' },
   trial_offer_taken: { ar: 'تم إسناد الحصة التجريبية', en: 'Trial offer taken' },
+  trial_reminder: { ar: 'تذكير بحصة تجريبية', en: 'Trial class reminder' },
+  trial_late: { ar: 'تأخر بدء حصة تجريبية', en: 'Trial class not started on time' },
 };
 
 // ------------------------------------------------------------------ T3 open offers
@@ -290,3 +301,164 @@ export const myTrialOfferSchema = z.object({
   sessionId: z.number().int().nullable(),
 });
 export type MyTrialOfferDto = z.infer<typeof myTrialOfferSchema>;
+
+// ------------------------------------------------------------------ T4 follow-up
+
+/** The teacher's trial report (docs/33 §3.6, B85: required to close the trial class). */
+export const TRIAL_ATTENDANCES = ['on_time', 'late', 'left_early'] as const;
+export type TrialAttendance = (typeof TRIAL_ATTENDANCES)[number];
+export const TRIAL_ATTENDANCE_LABELS: Labels<TrialAttendance> = {
+  on_time: { ar: 'حضر في الموعد', en: 'On time' },
+  late: { ar: 'تأخر', en: 'Late' },
+  left_early: { ar: 'غادر مبكرًا', en: 'Left early' },
+};
+export const TRIAL_LEVELS = ['beginner', 'intermediate', 'advanced'] as const;
+export type TrialLevel = (typeof TRIAL_LEVELS)[number];
+export const TRIAL_LEVEL_LABELS: Labels<TrialLevel> = {
+  beginner: { ar: 'مبتدئ', en: 'Beginner' },
+  intermediate: { ar: 'متوسط', en: 'Intermediate' },
+  advanced: { ar: 'متقدم', en: 'Advanced' },
+};
+export const TRIAL_ENGAGEMENTS = ['low', 'medium', 'high'] as const;
+export type TrialEngagement = (typeof TRIAL_ENGAGEMENTS)[number];
+export const TRIAL_ENGAGEMENT_LABELS: Labels<TrialEngagement> = {
+  low: { ar: 'ضعيف', en: 'Low' },
+  medium: { ar: 'متوسط', en: 'Medium' },
+  high: { ar: 'مرتفع', en: 'High' },
+};
+
+/**
+ * `PUT /sessions/:id/trial-report` (≤ 1 minute to fill): on an ended trial class it closes the
+ * class (`taken`, like the lesson report), moves the lead to «تمت الحصة التجريبية», tells the CSR
+ * and opens their follow-up task; on a taken one it edits the report inside the edit window.
+ */
+export const trialReportInputSchema = z.object({
+  attendance: z.enum(TRIAL_ATTENDANCES),
+  level: z.enum(TRIAL_LEVELS),
+  recommendedCourseId: id.nullable().optional(),
+  classesPerWeek: z.number().int().min(1).max(7),
+  minutesPerClass: trialMinutes,
+  engagement: z.enum(TRIAL_ENGAGEMENTS),
+  /** For the CSR; never shown to the family. */
+  notes: optionalText(2000),
+});
+export type TrialReportInput = z.input<typeof trialReportInputSchema>;
+
+export const trialReportSchema = z.object({
+  sessionId: z.number().int(),
+  leadId: z.number().int().nullable(),
+  attendance: z.enum(TRIAL_ATTENDANCES),
+  level: z.enum(TRIAL_LEVELS),
+  recommendedCourse: courseRefSchema.nullable(),
+  classesPerWeek: z.number().int(),
+  minutesPerClass: z.number().int(),
+  engagement: z.enum(TRIAL_ENGAGEMENTS),
+  notes: z.string().nullable(),
+  submittedBy: personRefSchema.nullable(),
+  submittedAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TrialReportDto = z.infer<typeof trialReportSchema>;
+
+/** `GET /trials/today`: the monitor's checklist of today's trial classes (docs/33 §3.5). */
+export const trialsTodayQuerySchema = z.object({
+  /** A day in `tz` (default today in the academy zone). */
+  date: dateOnlySchema.optional(),
+  tz: timeZoneSchema.optional(),
+});
+
+export const TRIAL_CHECK_ALERTS = ['not_started', 'started_late', 'no_report'] as const;
+export type TrialCheckAlert = (typeof TRIAL_CHECK_ALERTS)[number];
+export const TRIAL_CHECK_ALERT_LABELS: Labels<TrialCheckAlert> = {
+  not_started: { ar: 'لم يبدأ المعلم الحصة', en: 'Teacher has not started' },
+  started_late: { ar: 'بدأ المعلم متأخرًا', en: 'Teacher started late' },
+  no_report: { ar: 'لا يوجد تقرير الحصة التجريبية', en: 'No trial report' },
+};
+
+export const trialChecklistItemSchema = z.object({
+  sessionId: z.number().int(),
+  leadId: z.number().int().nullable(),
+  startsAt: z.string(),
+  durationMinutes: z.number().int(),
+  stage: z.string(),
+  local: localMoment,
+  student: personRefSchema,
+  teacher: personRefSchema,
+  course: courseRefSchema.nullable(),
+  /** Pressed «ابدأ» (`startedAt`). */
+  teacherStarted: z.boolean(),
+  /** Minutes after the start when the teacher started (or so far, when not yet); null when on time. */
+  lateMinutes: z.number().int().nullable(),
+  /** From the meeting (Zoom); null when the platform cannot tell. */
+  studentJoined: z.boolean().nullable(),
+  reportSubmitted: z.boolean(),
+  alerts: z.array(z.enum(TRIAL_CHECK_ALERTS)),
+});
+export type TrialChecklistItemDto = z.infer<typeof trialChecklistItemSchema>;
+
+// ------------------------------------------------------------------ T5 rates
+
+/** `GET /leads/kpis?from&to` (leads created in the period, academy days; ≤ 1 year). */
+export const leadKpisQuerySchema = z
+  .object({ from: dateOnlySchema.optional(), to: dateOnlySchema.optional() })
+  .superRefine((v, ctx) => {
+    if (v.from && v.to && v.to < v.from) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'The end is before the start.' });
+    }
+  });
+
+/** A rate with its parts: `pct` 0–100 (one decimal), null when there is nothing to divide. */
+export const rateSchema = z.object({
+  numerator: z.number().int(),
+  denominator: z.number().int(),
+  pct: z.number().nullable(),
+});
+export type RateDto = z.infer<typeof rateSchema>;
+
+/**
+ * The CRM rates (docs/33 §6), real data only:
+ * - first response: minutes from the request to the first contact (median), and the share
+ *   answered inside the SLA in working minutes (`crm.first_response_minutes`);
+ * - lead → trial booked; trial show-up (held ÷ held + absent); trial → regular (converted ÷ held);
+ * - days from the request to «منتظم» (median).
+ */
+export const leadKpiRowSchema = z.object({
+  leads: z.number().int(),
+  firstResponse: z.object({
+    measured: z.number().int(),
+    medianMinutes: z.number().int().nullable(),
+    withinSla: rateSchema,
+  }),
+  leadToTrial: rateSchema,
+  trialShowUp: rateSchema,
+  trialToRegular: rateSchema,
+  medianDaysToRegular: z.number().nullable(),
+});
+export type LeadKpiRowDto = z.infer<typeof leadKpiRowSchema>;
+
+/** Per teacher / course: the trials they held and how they turned out. */
+export const trialKpiRowSchema = z.object({
+  trials: z.number().int(),
+  showUp: rateSchema,
+  toRegular: rateSchema,
+});
+
+export const leadKpisSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  total: leadKpiRowSchema,
+  bySource: z.array(leadKpiRowSchema.extend({ source: z.enum(LEAD_SOURCES) })),
+  byAssignee: z.array(leadKpiRowSchema.extend({ user: personRefSchema.nullable() })),
+  byTeacher: z.array(trialKpiRowSchema.extend({ teacher: personRefSchema })),
+  byCourse: z.array(trialKpiRowSchema.extend({ course: courseRefSchema })),
+  /** Leads lost in the period, by reason (all reasons listed, zeros included), and by source. */
+  lostReasons: z.array(
+    z.object({
+      reason: z.enum(LOST_REASONS),
+      count: z.number().int(),
+      bySource: z.array(z.object({ source: z.enum(LEAD_SOURCES), count: z.number().int() })),
+    }),
+  ),
+  lostTotal: z.number().int(),
+});
+export type LeadKpisDto = z.infer<typeof leadKpisSchema>;

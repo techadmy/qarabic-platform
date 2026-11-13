@@ -3,6 +3,7 @@ import {
   NOTIFICATION_KINDS,
   TICKET_QUEUE_LABELS,
   TASK_NOTIFICATION_EVENTS,
+  TRIAL_NOTIFICATION_EVENTS,
   type LeadNotificationEvent,
   type NotificationDto,
   type NotificationKind,
@@ -12,6 +13,7 @@ import {
 /** Rules of the bell rows and the notification preferences (M8), kept out of the components. */
 
 const TASK_EVENTS = new Set<string>(TASK_NOTIFICATION_EVENTS);
+const TRIAL_EVENTS = new Set<string>(TRIAL_NOTIFICATION_EVENTS);
 const str = (v: unknown) => (typeof v === 'string' ? v : '');
 const num = (v: unknown) => (typeof v === 'number' ? v : null);
 
@@ -38,6 +40,14 @@ export function bellText(n: NotificationDto, locale: 'ar' | 'en' = 'ar'): BellTe
   }
   if (n.kind === 'announcement') {
     return { kind: 'message', key: 'announcement', values: { title: str(n.data.title) } };
+  }
+  // T2: a trial booked for the teacher, or moved away from them (course and time, no family data).
+  if (n.kind === 'trial' && TRIAL_EVENTS.has(n.event)) {
+    return {
+      kind: 'message',
+      key: `trial.${n.event}`,
+      values: { course: str(n.data.course), startsAt: str(n.data.startsAt) },
+    };
   }
   if (n.kind === 'class_reminder') {
     return {
@@ -71,7 +81,7 @@ export function bellHref(n: NotificationDto, roleKind: string | null | undefined
     return id ? `/announcements#ann-${id}` : '/announcements';
   }
   if (n.kind === 'support' && num(n.data.ticketId)) return `/tickets/${num(n.data.ticketId)}`;
-  if (n.kind === 'class_reminder' && num(n.data.sessionId)) {
+  if ((n.kind === 'class_reminder' || n.kind === 'trial') && num(n.data.sessionId)) {
     return `${portal ? '/my-classes' : '/today'}?session=${num(n.data.sessionId)}`;
   }
   return null;

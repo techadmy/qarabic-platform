@@ -91,6 +91,7 @@ export const LOST_REASONS = [
   'schedule',
   'duplicate',
   'other',
+  'teacher',
 ] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
 export const LOST_REASON_LABELS: Labels<LostReason> = {
@@ -100,6 +101,7 @@ export const LOST_REASON_LABELS: Labels<LostReason> = {
   schedule: { ar: 'المواعيد غير مناسبة', en: 'Schedule' },
   duplicate: { ar: 'طلب مكرر', en: 'Duplicate' },
   other: { ar: 'سبب آخر', en: 'Other' },
+  teacher: { ar: 'المعلم', en: 'Teacher' },
 };
 
 export const TRIAL_OUTCOMES = ['interested', 'not_interested', 'no_show'] as const;
@@ -228,6 +230,9 @@ export const LEAD_NOTIFICATION_EVENTS = [
   'trial_offer_claimed',
   'trial_offer_volunteer',
   'trial_offer_expired',
+  'trial_report',
+  'trial_stale',
+  'trial_stale_lost',
 ] as const;
 export type LeadNotificationEvent = (typeof LEAD_NOTIFICATION_EVENTS)[number];
 export const LEAD_NOTIFICATION_LABELS: Labels<LeadNotificationEvent> = {
@@ -243,6 +248,15 @@ export const LEAD_NOTIFICATION_LABELS: Labels<LeadNotificationEvent> = {
   trial_offer_expired: {
     ar: 'انتهت مهلة عرض الحصة التجريبية: أسند معلمًا مباشرة',
     en: 'Trial offer expired: assign a teacher directly',
+  },
+  trial_report: { ar: 'وصل تقرير الحصة التجريبية', en: 'Trial report received' },
+  trial_stale: {
+    ar: 'حصة تجريبية تمت ولم يُحسم التسجيل بعد',
+    en: 'Trial done, not converted yet',
+  },
+  trial_stale_lost: {
+    ar: 'مر وقت طويل على الحصة التجريبية: هل الطلب مفقود؟',
+    en: 'Trial done long ago: mark the lead lost?',
   },
 };
 
@@ -905,6 +919,17 @@ export const CRM_SETTING_RULES = {
   'crm.trial_offer_min_hours_before': z.number().int().min(0).max(72),
   /** Fairness guard: upcoming trials a teacher may hold from offers at once. */
   'crm.trial_offer_max_open_claims': z.number().int().min(1).max(20),
+  /** T4: reminders 24 h and 1 h before a trial, to the teacher (in the app). */
+  'crm.trial_reminders_enabled': z.boolean(),
+  /** The same reminders to the family (D140: off until approved). */
+  'crm.trial_family_reminders': z.boolean(),
+  /** Monitors are alerted when the teacher has not started this many minutes in. */
+  'crm.trial_late_alert_minutes': z.number().int().min(1).max(60),
+  /** B85: a trial class closes only with the teacher's trial report. */
+  'crm.trial_report_required': z.boolean(),
+  /** B86: trial done but not converted → remind after N days, suggest «مفقود» after M. */
+  'crm.trial_stale_remind_days': z.number().int().min(1).max(60),
+  'crm.trial_stale_lost_days': z.number().int().min(2).max(180),
 } as const;
 export type CrmSettingKey = keyof typeof CRM_SETTING_RULES;
 export const crmSettingsSchema = z.object(CRM_SETTING_RULES);

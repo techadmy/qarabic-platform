@@ -166,6 +166,50 @@ describe('T2 trial teachers: eligibility and ranking', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/@|\+20/);
   });
 
+  it('returns the booking’s own check per teacher: one-off classes on that date, warnings', async () => {
+    const free = await teacher('Amina', { gender: 'female' });
+    const taken = await teacher('Basma', { gender: 'female' });
+    // Amina works Monday mornings only: Wednesday 19:00 Cairo is outside her hours.
+    await ctx.prisma.teacherWorkHour.create({
+      data: {
+        teacherId: free.id,
+        weekday: 1,
+        localStartTime: '08:00',
+        localEndTime: '10:00',
+        timezone: 'Africa/Cairo',
+      },
+    });
+    // A one-off trial of another lead's child with Basma at the same instant.
+    const other = await crmLead(ctx, { status: 'contacted' });
+    const acc = await client.post(`/leads/${other.id}/account`, {
+      parentName: 'Abu Zaid',
+      email: 'abu.zaid@example.com',
+      timezone: 'Europe/London',
+      children: [{ name: 'Zaid', age: 9, gender: 'male', courseId }],
+    });
+    const booked = await client.post(`/leads/${other.id}/trials`, {
+      studentId: acc.body.data.students[0].id,
+      courseId,
+      teacherId: taken.id,
+      localDate: '2026-11-18',
+      localTime: '17:00',
+      acknowledgeWarnings: ['outside_work_hours'],
+    });
+    expect(booked.status).toBe(201);
+    const res = await query();
+    type Option = {
+      teacher: { id: number };
+      reasons: string[];
+      check: { conflicts: Array<{ code: string }>; warnings: Array<{ code: string }> };
+    };
+    const options = [...res.body.data.eligible, ...res.body.data.ineligible] as Option[];
+    const byId = (id: number) => options.find((o) => o.teacher.id === id)!;
+    expect(byId(free.id).check.conflicts).toEqual([]);
+    expect(byId(free.id).check.warnings.map((w) => w.code)).toContain('outside_work_hours');
+    expect(byId(taken.id).reasons).toEqual(['busy']);
+    expect(byId(taken.id).check.conflicts.map((c) => c.code)).toContain('teacher_overlap');
+  });
+
   it('counts the conversion rate and the recent trials of each teacher', async () => {
     const t = await teacher('Amina', { gender: 'female' });
     expect((await book(t.id)).status).toBe(201);
