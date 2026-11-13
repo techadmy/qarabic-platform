@@ -45,6 +45,13 @@ enum Gender {
   female
 }
 
+/// Who a teacher takes for trials (docs/33 §4.1).
+enum TeacherAudience {
+  children
+  adults
+  both
+}
+
 enum StudentLanguage {
   english
   urdu
@@ -376,30 +383,37 @@ model Student {
 
 /// A teacher = one teacher login (`user_id`) + profile. Email and phone live on the user.
 model Teacher {
-  id                Int          @id @default(autoincrement())
-  userId            Int          @unique @map("user_id")
-  firstName         String       @map("first_name") @db.VarChar(60)
-  lastName          String?      @map("last_name") @db.VarChar(60)
-  altPhone          String?      @map("alt_phone") @db.VarChar(16)
+  id                Int             @id @default(autoincrement())
+  userId            Int             @unique @map("user_id")
+  firstName         String          @map("first_name") @db.VarChar(60)
+  lastName          String?         @map("last_name") @db.VarChar(60)
+  altPhone          String?         @map("alt_phone") @db.VarChar(16)
   gender            Gender?
-  nationality       String?      @db.VarChar(60)
-  countryCode       String?      @map("country_code") @db.Char(2)
-  timezone          String       @db.VarChar(64)
-  age               Int?         @db.SmallInt
+  nationality       String?         @db.VarChar(60)
+  countryCode       String?         @map("country_code") @db.Char(2)
+  timezone          String          @db.VarChar(64)
+  age               Int?            @db.SmallInt
   qualification     String?
   experience        String?
-  address           String?      @db.VarChar(500)
-  skypeId           String?      @map("skype_id") @db.VarChar(100)
+  address           String?         @db.VarChar(500)
+  skypeId           String?         @map("skype_id") @db.VarChar(100)
   description       String?
-  status            ActiveStatus @default(active)
-  statusReason      String?      @map("status_reason") @db.VarChar(500)
-  statusChangedAt   DateTime?    @map("status_changed_at") @db.Timestamptz(6)
-  statusChangedById Int?         @map("status_changed_by")
-  archivedAt        DateTime?    @map("archived_at") @db.Timestamptz(6)
-  archivedById      Int?         @map("archived_by")
-  archiveReason     String?      @map("archive_reason") @db.VarChar(500)
-  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  status            ActiveStatus    @default(active)
+  statusReason      String?         @map("status_reason") @db.VarChar(500)
+  statusChangedAt   DateTime?       @map("status_changed_at") @db.Timestamptz(6)
+  statusChangedById Int?            @map("status_changed_by")
+  archivedAt        DateTime?       @map("archived_at") @db.Timestamptz(6)
+  archivedById      Int?            @map("archived_by")
+  archiveReason     String?         @map("archive_reason") @db.VarChar(500)
+  // T2 trial eligibility (docs/33 §4.1)
+  acceptsTrials     Boolean         @default(true) @map("accepts_trials")
+  /// null = no weekly cap.
+  maxTrialsPerWeek  Int?            @map("max_trials_per_week") @db.SmallInt
+  audience          TeacherAudience @default(both)
+  /// Languages the teacher teaches in (`TEACHER_LANGUAGES`).
+  languages         String[]        @default([]) @db.VarChar(16)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   // N4 support centre
   tickets Ticket[]
