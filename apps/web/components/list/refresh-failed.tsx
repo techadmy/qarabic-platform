@@ -22,7 +22,7 @@ export function refreshState(q: { data?: unknown; isError: boolean }) {
 export function RefreshFailed({ onRetry }: { onRetry: () => void }) {
   const t = useTranslations('list.refresh');
   return (
-    <Alert variant="warning">
+    <Alert variant="warning" role="status">
       <TriangleAlertIcon />
       <AlertTitle>{t('stale')}</AlertTitle>
       <AlertAction>
