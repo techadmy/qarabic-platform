@@ -29,6 +29,7 @@ import {
   FieldSet,
 } from '@qarabic/ui/components/field';
 import { Input } from '@qarabic/ui/components/input';
+import { RadioGroup, RadioGroupItem } from '@qarabic/ui/components/radio-group';
 import {
   Select,
   SelectContent,
@@ -50,7 +51,13 @@ import { useLookups } from '@/components/people/person-sheet';
 import { canSave, ConflictList } from '@/components/sessions/conflict-list';
 import { useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { isApiError } from '@/lib/api/client';
-import { bookTrial, createLeadAccount } from '@/lib/api/crm';
+import {
+  bookTrial,
+  createLeadAccount,
+  createTrialOffer,
+  crmKeys,
+  fetchTrialTeachers,
+} from '@/lib/api/crm';
 import { fetchPerson } from '@/lib/api/people';
 import { checkSchedule } from '@/lib/api/schedule';
 import { applyServerErrors } from '@/lib/forms/server-errors';
@@ -59,6 +66,15 @@ import { conflictsOf } from '@/lib/sessions/errors';
 import { clock, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { cityOf, isValidTimeZone } from '@/lib/time';
 import { useCrmError } from './crm-bits';
+import {
+  EMPTY_OFFER,
+  OFFER_AUDIENCE_ID,
+  OFFER_SHORTLIST_ID,
+  offerProblem,
+  shortlistOf,
+  TrialOfferFields,
+  type OfferDraft,
+} from './trial-offer-fields';
 import {
   TRIAL_OVERRIDE_REASON_ID,
   TRIAL_TEACHERS_ID,
@@ -369,6 +385,9 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
   const [option, setOption] = useState<TrialTeacherOptionDto | null>(null);
   const [optionCurrent, setOptionCurrent] = useState(false);
   const [overrideReason, setOverrideReason] = useState('');
+  // T3: choose the teacher now (mode A) or offer the trial to the teachers (mode B).
+  const [mode, setMode] = useState<'direct' | 'offer'>('direct');
+  const [offer, setOffer] = useState<OfferDraft>(EMPTY_OFFER);
   const [teacherRefusal, setTeacherRefusal] = useState('');
   const [date, setDate] = useState(dateKeyIn(familyTz));
   const [time, setTime] = useState('');
@@ -470,7 +489,63 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     url: meetingUrl.trim() && !/^https:\/\/\S+\.\S+/.test(meetingUrl.trim()) ? t('urlInvalid') : '',
   };
   const blocked = !!result && !canSave(result, ack);
+  const offerList = useQuery({
+    queryKey: crmKeys.trialTeachers(lead.id, teachersQuery),
+    queryFn: ({ signal }) => fetchTrialTeachers(lead.id, teachersQuery!, signal),
+    enabled: mode === 'offer' && !!teachersQuery,
+  });
+  const send = useMutation({
+    mutationFn: () =>
+      createTrialOffer(lead.id, {
+        studentId: Number(studentId),
+        courseId: Number(courseId),
+        localDate: date,
+        localTime: time,
+        timezone: familyTz,
+        durationMinutes: Number(duration),
+        policy: offer.policy,
+        audience: offer.audience,
+        ...(offer.audience === 'shortlist'
+          ? {
+              teacherIds: shortlistOf(
+                offer,
+                (offerList.data?.data.eligible ?? []).map((o) => o.teacher.id),
+              ),
+            }
+          : {}),
+        meetingUrl: meetingUrl.trim() || null,
+        note: offer.note.trim() || null,
+      }),
+    onSuccess: (o) => {
+      toast.success(t('offer.sent', { count: o.teachers.length }));
+      void queryClient.invalidateQueries({ queryKey: crmKeys.trialOffers(lead.id) });
+      onDone(lead);
+    },
+  });
+  const submitOffer = () => {
+    setTouched(true);
+    const fieldErrors = [errors.student, errors.course, errors.date, errors.time, errors.url];
+    if (fieldErrors.some(Boolean)) return;
+    const ids = offerList.data ? offerList.data.data.eligible.map((o) => o.teacher.id) : null;
+    const problem = offerProblem(offer, ids);
+    if (problem) {
+      // Take the focus to it: the shortlist's first box, else the audience choice.
+      document
+        .querySelector<HTMLElement>(
+          problem === 'shortlistEmpty'
+            ? `#${OFFER_SHORTLIST_ID} button[role="checkbox"]`
+            : `#${OFFER_AUDIENCE_ID} [role="radio"]`,
+        )
+        ?.focus();
+      return;
+    }
+    send.mutate();
+  };
   const submit = () => {
+    if (mode === 'offer') {
+      submitOffer();
+      return;
+    }
     setTouched(true);
     // The teacher step is the usual miss: take the user there (first radio, or the reason field)
     // once the fields above it are fine.
@@ -600,7 +675,7 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             className="flex flex-col gap-0.5 rounded-lg border bg-subtle p-3 text-sm"
             aria-live="polite"
           >
-            {teacherTz && isValidTimeZone(teacherTz) && (
+            {mode === 'direct' && teacherTz && isValidTimeZone(teacherTz) && (
               <span>
                 {t('teacherTime', {
                   time: clock(at, teacherTz, locale),
@@ -618,26 +693,54 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             )}
           </div>
         )}
-        <TrialTeacherPicker
-          leadId={lead.id}
-          query={teachersQuery}
-          value={teacherId}
-          onChange={(id) => {
-            setTeacherId(id);
-            setTeacherRefusal('');
-          }}
-          onSelected={(o, current) => {
-            setOption(o ?? null);
-            setOptionCurrent(current);
-          }}
-          overrideReason={overrideReason}
-          onOverrideReason={(r) => {
-            setOverrideReason(r);
-            setTeacherRefusal('');
-          }}
-          showErrors={touched}
-          error={errors.teacher}
-        />
+        <FieldSet>
+          <FieldLegend variant="label">{t('offer.mode')}</FieldLegend>
+          <RadioGroup
+            value={mode}
+            onValueChange={(v) => setMode(v as 'direct' | 'offer')}
+            className="flex flex-wrap gap-x-6 gap-y-3"
+            aria-label={t('offer.mode')}
+          >
+            {(['direct', 'offer'] as const).map((m) => (
+              <Field key={m} orientation="horizontal" className="w-auto">
+                <RadioGroupItem id={`trial-mode-${m}`} value={m} />
+                <FieldLabel htmlFor={`trial-mode-${m}`} className="font-normal">
+                  {t(`offer.modes.${m}`)}
+                </FieldLabel>
+              </Field>
+            ))}
+          </RadioGroup>
+        </FieldSet>
+        {mode === 'offer' ? (
+          <TrialOfferFields
+            leadId={lead.id}
+            query={teachersQuery}
+            value={offer}
+            onChange={setOffer}
+            showErrors={touched}
+          />
+        ) : (
+          <TrialTeacherPicker
+            leadId={lead.id}
+            query={teachersQuery}
+            value={teacherId}
+            onChange={(id) => {
+              setTeacherId(id);
+              setTeacherRefusal('');
+            }}
+            onSelected={(o, current) => {
+              setOption(o ?? null);
+              setOptionCurrent(current);
+            }}
+            overrideReason={overrideReason}
+            onOverrideReason={(r) => {
+              setOverrideReason(r);
+              setTeacherRefusal('');
+            }}
+            showErrors={touched}
+            error={errors.teacher}
+          />
+        )}
         <Field data-invalid={invalid('url')}>
           <FieldLabel htmlFor={ids.url}>
             {t('meetingUrl')}{' '}
@@ -656,18 +759,25 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
           {invalid('url') && <FieldError>{errors.url}</FieldError>}
         </Field>
       </FieldGroup>
-      <ConflictList
-        result={result}
-        checking={check.isFetching && !result}
-        acknowledged={ack}
-        onAcknowledge={setAck}
-      />
-      {touched && blocked && (
+      {mode === 'direct' && (
+        <ConflictList
+          result={result}
+          checking={check.isFetching && !result}
+          acknowledged={ack}
+          onAcknowledge={setAck}
+        />
+      )}
+      {mode === 'direct' && touched && blocked && (
         <p className="text-sm font-medium text-destructive">{t('resolveConflicts')}</p>
       )}
-      {book.isError && !conflictsOf(book.error) && (
+      {mode === 'direct' && book.isError && !conflictsOf(book.error) && (
         <Alert variant="destructive" role="alert">
           <AlertDescription>{message(book.error)}</AlertDescription>
+        </Alert>
+      )}
+      {mode === 'offer' && send.isError && (
+        <Alert variant="destructive" role="alert">
+          <AlertDescription>{message(send.error)}</AlertDescription>
         </Alert>
       )}
       {/* Sticky: on a phone the form runs several screens; «احجز الحصة» stays in reach. */}
@@ -677,9 +787,9 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             {t('cancel')}
           </Button>
         </DialogClose>
-        <Button type="submit" disabled={book.isPending}>
-          {book.isPending && <Spinner />}
-          {t('book')}
+        <Button type="submit" disabled={book.isPending || send.isPending}>
+          {(book.isPending || send.isPending) && <Spinner />}
+          {mode === 'offer' ? t('offer.send') : t('book')}
         </Button>
       </DialogFooter>
     </form>
