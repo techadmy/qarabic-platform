@@ -82,8 +82,8 @@ test('the warning alert uses the warning token surface', async ({ page }) => {
   await page.goto(`/login?next=${encodeURIComponent('/schedule')}`);
   await login(page);
   await expect(page).toHaveURL(/\/schedule$/);
-  // D141: «اشتراك جديد» is the ListActions create button.
-  await page.getByRole('button', { name: 'اشتراك جديد' }).click();
+  // D141: «اشتراك جديد» is the ListActions create link.
+  await page.getByRole('link', { name: 'اشتراك جديد' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'اشتراك جديد' })).toBeVisible();
   await page.getByRole('combobox', { name: /الطالب/ }).click();
   await page.getByPlaceholder('ابحث باسم الطالب').fill('Ali');

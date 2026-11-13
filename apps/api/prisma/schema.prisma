@@ -186,6 +186,9 @@ model User {
   classReminders          ClassReminder[]
   devices                 DeviceToken[]
 
+  trialOffersCreated TrialOffer[] @relation("TrialOfferCreatedBy")
+  trialOffersClosed  TrialOffer[] @relation("TrialOfferClosedBy")
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -281,6 +284,8 @@ model Course {
   sessions           ClassSession[]
   tests              StudentTest[]
 
+  trialOffers TrialOffer[]
+
   @@map("courses")
 }
 
@@ -374,6 +379,8 @@ model Student {
   feePackage   StudentFeePackage?
   invoiceLines InvoiceLine[]
 
+  trialOffers TrialOffer[]
+
   @@index([familyId])
   @@index([teacherId])
   @@index([status])
@@ -435,6 +442,9 @@ model Teacher {
   // N7: the hourly rate lives on the pay profile (D89); back-relations.
   payProfile PayProfile?
   payslips   Payslip[]
+
+  trialOfferInvites  TrialOfferTeacher[]
+  trialOffersClaimed TrialOffer[]        @relation("TrialOfferClaimedBy")
 
   @@index([status])
   @@index([archivedAt])
@@ -792,6 +802,8 @@ model ClassSession {
   payRuleSet     PayRuleSet?     @relation(fields: [payRuleSetId], references: [id], onDelete: SetNull)
   payAdjustments PayAdjustment[]
 
+  trialOffers TrialOffer[]
+
   @@unique([scheduleSlotId, occurrenceDate], map: "class_sessions_slot_occurrence_key")
   @@index([startsAt])
   @@index([teacherId, startsAt])
@@ -1092,6 +1104,17 @@ enum TicketVisibility {
   restricted
 }
 
+/// S3 typed requests (docs/32 §3 #4–#7): see `REQUEST_STATES`.
+enum TicketRequestState {
+  submitted
+  proposed
+  accepted
+  declined
+  approved
+  rejected
+  done
+}
+
 enum TicketCommentKind {
   comment
   status
@@ -1108,51 +1131,56 @@ enum TicketAttachmentSource {
 
 /// A «تواصل معنا» ticket (docs/22 §2, docs/32 §4). Shown to people as `#id`.
 model Ticket {
-  id                  Int                @id @default(autoincrement())
-  channel             TicketChannel      @default(in_app)
+  id                  Int                 @id @default(autoincrement())
+  channel             TicketChannel       @default(in_app)
   type                TicketType
   category            TicketCategory
   /// Fixed allow-list per category (`TICKET_SUBCATEGORIES`).
-  subcategory         String?            @db.VarChar(40)
-  subjectType         TicketSubjectType? @map("subject_type")
-  subjectId           Int?               @map("subject_id")
+  subcategory         String?             @db.VarChar(40)
+  subjectType         TicketSubjectType?  @map("subject_type")
+  subjectId           Int?                @map("subject_id")
   queue               TicketQueue
   /// restricted = complaints: the reporter and support.view_restricted only, never the teacher concerned.
-  visibility          TicketVisibility   @default(normal)
-  familyId            Int?               @map("family_id")
-  teacherId           Int?               @map("teacher_id")
+  visibility          TicketVisibility    @default(normal)
+  familyId            Int?                @map("family_id")
+  teacherId           Int?                @map("teacher_id")
   /// First-response deadline in working hours, capped by the class start (docs/32 §5).
-  slaDueAt            DateTime?          @map("sla_due_at") @db.Timestamptz(6)
-  firstResponseAt     DateTime?          @map("first_response_at") @db.Timestamptz(6)
-  slaBreachNotifiedAt DateTime?          @map("sla_breach_notified_at") @db.Timestamptz(6)
+  slaDueAt            DateTime?           @map("sla_due_at") @db.Timestamptz(6)
+  firstResponseAt     DateTime?           @map("first_response_at") @db.Timestamptz(6)
+  slaBreachNotifiedAt DateTime?           @map("sla_breach_notified_at") @db.Timestamptz(6)
   priority            TicketPriority?
-  status              TicketStatus       @default(new)
-  title               String             @db.VarChar(160)
+  status              TicketStatus        @default(new)
+  title               String              @db.VarChar(160)
   description         String
-  reporterId          Int?               @map("reporter_id")
-  reporterRole        String?            @map("reporter_role") @db.VarChar(100)
+  reporterId          Int?                @map("reporter_id")
+  reporterRole        String?             @map("reporter_role") @db.VarChar(100)
   /// WhatsApp sender, encrypted at rest (AES-256-GCM); never sent to any client.
-  contactPhone        String?            @map("contact_phone")
+  contactPhone        String?             @map("contact_phone")
   /// HMAC of the sender's digits: groups an unknown sender's messages without storing the number in clear.
-  contactHash         String?            @map("contact_hash") @db.Char(64)
-  area                String?            @db.VarChar(40)
+  contactHash         String?             @map("contact_hash") @db.Char(64)
+  area                String?             @db.VarChar(40)
   /// Sanitised client context (page, app version, zone, recent API errors): no form values or tokens.
   context             Json?
-  prUrl               String?            @map("pr_url") @db.VarChar(300)
+  prUrl               String?             @map("pr_url") @db.VarChar(300)
   resolution          String?
-  duplicateOfId       Int?               @map("duplicate_of_id")
-  assigneeId          Int?               @map("assignee_id")
-  triagedAt           DateTime?          @map("triaged_at") @db.Timestamptz(6)
-  fixedAt             DateTime?          @map("fixed_at") @db.Timestamptz(6)
-  verifiedAt          DateTime?          @map("verified_at") @db.Timestamptz(6)
-  closedAt            DateTime?          @map("closed_at") @db.Timestamptz(6)
+  duplicateOfId       Int?                @map("duplicate_of_id")
+  assigneeId          Int?                @map("assignee_id")
+  triagedAt           DateTime?           @map("triaged_at") @db.Timestamptz(6)
+  fixedAt             DateTime?           @map("fixed_at") @db.Timestamptz(6)
+  verifiedAt          DateTime?           @map("verified_at") @db.Timestamptz(6)
+  closedAt            DateTime?           @map("closed_at") @db.Timestamptz(6)
   /// Last change the reporter can see; `reporter_seen_at` older = "has an update".
-  lastPublicAt        DateTime?          @map("last_public_at") @db.Timestamptz(6)
-  reporterSeenAt      DateTime?          @map("reporter_seen_at") @db.Timestamptz(6)
-  whatsappWindowUntil DateTime?          @map("whatsapp_window_until") @db.Timestamptz(6)
-  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastPublicAt        DateTime?           @map("last_public_at") @db.Timestamptz(6)
+  reporterSeenAt      DateTime?           @map("reporter_seen_at") @db.Timestamptz(6)
+  whatsappWindowUntil DateTime?           @map("whatsapp_window_until") @db.Timestamptz(6)
+  /// S3: the structured payload of a typed request (by `subcategory`); null for a plain ticket.
+  request             Json?
+  requestState        TicketRequestState? @map("request_state")
+  /// Teacher change: `{ teacherId, fromDate }` proposed by staff.
+  proposal            Json?
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Written from the app clock on every change.
-  updatedAt           DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   reporter    User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
   assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
@@ -1361,6 +1389,8 @@ model Lead {
   createdBy      User?          @relation("LeadCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   convertedBy    User?          @relation("LeadConvertedBy", fields: [convertedById], references: [id], onDelete: SetNull)
   activities     LeadActivity[]
+
+  trialOffers TrialOffer[]
 
   @@index([status, createdAt])
   @@index([assignedToId, status])
@@ -2467,6 +2497,87 @@ model DeviceToken {
 
   @@index([userId])
   @@map("device_tokens")
+}
+
+// ====================================================================== T3 open trial offers
+// A trial offered to eligible teachers (docs/33 §4.3): first to accept wins, or teachers
+// volunteer and the CSR picks. Teachers see course, time, the child's age and gender only.
+
+enum TrialOfferStatus {
+  open
+  claimed
+  expired
+  cancelled
+}
+
+enum TrialOfferPolicy {
+  first_accept
+  volunteer
+}
+
+enum TrialOfferResponse {
+  accept
+  volunteer
+  decline
+}
+
+model TrialOffer {
+  id               Int              @id @default(autoincrement())
+  leadId           Int              @map("lead_id")
+  studentId        Int              @map("student_id")
+  courseId         Int              @map("course_id")
+  startsAt         DateTime         @map("starts_at") @db.Timestamptz(6)
+  durationMinutes  Int              @map("duration_minutes") @db.SmallInt
+  /// The family's zone (the CSR's view); teachers see their own zone.
+  timezone         String           @db.VarChar(64)
+  policy           TrialOfferPolicy @default(first_accept)
+  /// eligible | shortlist
+  audience         String           @db.VarChar(16)
+  status           TrialOfferStatus @default(open)
+  expiresAt        DateTime         @map("expires_at") @db.Timestamptz(6)
+  /// Encrypted class link for the booking (optional).
+  meetingUrl       String?          @map("meeting_url")
+  note             String?          @db.VarChar(500)
+  createdById      Int?             @map("created_by")
+  claimedTeacherId Int?             @map("claimed_teacher_id")
+  sessionId        Int?             @map("session_id")
+  closedAt         DateTime?        @map("closed_at") @db.Timestamptz(6)
+  closedById       Int?             @map("closed_by")
+  /// The CSR was told the offer expired (once).
+  expiryNotifiedAt DateTime?        @map("expiry_notified_at") @db.Timestamptz(6)
+  createdAt        DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  lead           Lead                @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  student        Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  course         Course              @relation(fields: [courseId], references: [id], onDelete: Restrict)
+  createdBy      User?               @relation("TrialOfferCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  closedBy       User?               @relation("TrialOfferClosedBy", fields: [closedById], references: [id], onDelete: SetNull)
+  claimedTeacher Teacher?            @relation("TrialOfferClaimedBy", fields: [claimedTeacherId], references: [id], onDelete: SetNull)
+  session        ClassSession?       @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  teachers       TrialOfferTeacher[]
+
+  @@index([status, expiresAt])
+  @@index([leadId])
+  @@index([studentId, status])
+  @@map("trial_offers")
+}
+
+/// A teacher the offer went to, and their answer.
+model TrialOfferTeacher {
+  offerId     Int                 @map("offer_id")
+  teacherId   Int                 @map("teacher_id")
+  /// Rank among the eligible teachers when offered.
+  rank        Int?                @db.SmallInt
+  response    TrialOfferResponse?
+  respondedAt DateTime?           @map("responded_at") @db.Timestamptz(6)
+
+  offer   TrialOffer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  teacher Teacher    @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+
+  @@id([offerId, teacherId])
+  @@index([teacherId])
+  @@map("trial_offer_teachers")
 }
 
 // ====================================================================== S5 WhatsApp off-ramp

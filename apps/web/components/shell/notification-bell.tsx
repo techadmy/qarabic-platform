@@ -86,6 +86,10 @@ export function NotificationBell() {
           )}
         </Button>
       </PopoverTrigger>
+      {/* A new alert is announced politely; the badge itself is hidden from screen readers. */}
+      <span className="sr-only" aria-live="polite">
+        {unread > 0 ? t('open', { count: unread }) : ''}
+      </span>
       <PopoverContent align="end" className="w-[min(22rem,calc(100vw-2rem))] p-0">
         <div className="flex items-center justify-between border-b px-4 py-3">
           <h2 className="font-bold">{t('title')}</h2>
