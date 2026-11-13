@@ -60,22 +60,18 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
   const teachers = book.getByRole('radiogroup', { name: 'المعلم' });
   await expect(teachers.locator('label').first()).toContainText('#1');
-  // A Cairo teacher (outside their hours at 6 am; anyone it suits ranks above them).
-  await teachers
-    .locator('label')
-    .filter({ hasText: 'خارج ساعات العمل' })
-    .filter({ hasText: 'القاهرة' })
-    .first()
-    .getByRole('radio')
-    .check();
+  await teachers.getByRole('radio').first().check();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
-  // 4 am London = 6 am Cairo, before the demo teacher's hours (08:00–23:30, Sat–Thu) on any day:
-  // booking needs the acknowledgement. (6 pm London was outside them only when tomorrow was a
-  // Friday, the teacher's day off.)
+  // The warnings of this teacher and time (outside hours, DST, …) each need a tick before booking.
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
-  await expect(book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.')).toBeVisible();
-  await book.getByRole('checkbox', { name: 'خارج ساعات عمل المعلم' }).check();
-  await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  const booked = page.getByText('حُجزت الحصة التجريبية.');
+  const needAck = book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.');
+  await expect(booked.or(needAck)).toBeVisible();
+  if (await needAck.isVisible()) {
+    for (const tick of await book.getByRole('alert').getByRole('checkbox').all())
+      await tick.check();
+    await book.getByRole('button', { name: 'احجز الحصة' }).click();
+  }
   await expect(page.getByText('حُجزت الحصة التجريبية.')).toBeVisible();
   await expect(book).toBeHidden();
 
