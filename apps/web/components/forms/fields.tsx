@@ -9,7 +9,15 @@ import {
   CommandItem,
   CommandList,
 } from '@qarabic/ui/components/command';
-import { Field, FieldDescription, FieldError, FieldLabel } from '@qarabic/ui/components/field';
+import { Checkbox } from '@qarabic/ui/components/checkbox';
+import {
+  Field,
+  FieldDescription,
+  FieldError,
+  FieldLabel,
+  FieldLegend,
+  FieldSet,
+} from '@qarabic/ui/components/field';
 import { Input } from '@qarabic/ui/components/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@qarabic/ui/components/popover';
 import {
@@ -19,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@qarabic/ui/components/select';
+import { Switch } from '@qarabic/ui/components/switch';
 import { Textarea } from '@qarabic/ui/components/textarea';
 import { cn } from '@qarabic/ui/lib/utils';
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
@@ -466,6 +475,84 @@ export function MultiComboboxField<T extends FieldValues>({
               </Command>
             </PopoverContent>
           </Popover>
+        );
+      }}
+    />
+  );
+}
+
+/** An on/off setting (shadcn `Switch` beside its label, the description under it). */
+export function SwitchField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  description,
+  className,
+}: Base<T>) {
+  const id = `field-${String(name)}`;
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <Field orientation="horizontal" className={className}>
+          <Switch
+            id={id}
+            checked={!!field.value}
+            onCheckedChange={field.onChange}
+            onBlur={field.onBlur}
+            aria-describedby={description ? `${id}-desc` : undefined}
+          />
+          <div className="flex flex-col gap-1">
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            {description && <FieldDescription id={`${id}-desc`}>{description}</FieldDescription>}
+          </div>
+        </Field>
+      )}
+    />
+  );
+}
+
+/** Several of a short fixed list (string values), as checkboxes in a `fieldset`. */
+export function CheckboxGroupField<T extends FieldValues>({
+  control,
+  name,
+  label,
+  description,
+  className,
+  options,
+}: Base<T> & { options: { value: string; label: string }[] }) {
+  const id = `field-${String(name)}`;
+  return (
+    <Controller
+      control={control}
+      name={name}
+      render={({ field, fieldState }) => {
+        const values = (field.value as string[] | null | undefined) ?? [];
+        return (
+          <FieldSet className={className} data-invalid={fieldState.invalid}>
+            <FieldLegend variant="label">{label}</FieldLegend>
+            {description && <FieldDescription>{description}</FieldDescription>}
+            <div className="flex flex-wrap gap-x-6 gap-y-3">
+              {options.map((o) => (
+                <Field key={o.value} orientation="horizontal" className="w-auto">
+                  <Checkbox
+                    id={`${id}-${o.value}`}
+                    checked={values.includes(o.value)}
+                    onCheckedChange={(on) =>
+                      field.onChange(
+                        on ? [...values, o.value] : values.filter((v) => v !== o.value),
+                      )
+                    }
+                  />
+                  <FieldLabel htmlFor={`${id}-${o.value}`} className="font-normal">
+                    {o.label}
+                  </FieldLabel>
+                </Field>
+              ))}
+            </div>
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </FieldSet>
         );
       }}
     />

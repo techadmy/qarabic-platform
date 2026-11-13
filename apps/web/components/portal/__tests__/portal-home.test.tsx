@@ -135,7 +135,7 @@ describe('M9 part 2', () => {
     const pay = await within(due).findAllByRole('link', { name: /^ادفع الآن/ });
     expect(pay.length).toBeGreaterThan(0);
     expect(pay[0]).toHaveAttribute('href', expect.stringMatching(/^\/invoices\/\d+\?pay=1$/));
-    expect(within(due).getByRole('link', { name: /كل الفواتير/ })).toHaveAttribute(
+    expect(within(due).getByRole('link', { name: /^فواتيري/ })).toHaveAttribute(
       'href',
       '/invoices',
     );

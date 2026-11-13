@@ -21,6 +21,10 @@ import {
   type StaffDto,
   type StudentDetailDto,
   type TeacherDetailDto,
+  TEACHER_AUDIENCE_LABELS,
+  TEACHER_AUDIENCES,
+  TEACHER_LANGUAGE_LABELS,
+  TEACHER_LANGUAGES,
 } from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import {
@@ -63,9 +67,11 @@ import type { z } from 'zod';
 import {
   ComboboxField,
   DateField,
+  CheckboxGroupField,
   MultiComboboxField,
   NumberField,
   SelectField,
+  SwitchField,
   TextareaField,
   TextField,
   type Option,
@@ -715,6 +721,10 @@ const TEACHER_FIELDS = [
   'age',
   'hourlyRate',
   'courseIds',
+  'acceptsTrials',
+  'maxTrialsPerWeek',
+  'audience',
+  'languages',
   'qualification',
   'experience',
   'address',
@@ -745,6 +755,10 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
       age: record?.age ?? null,
       hourlyRate: record?.hourlyRate ?? '',
       courseIds: record?.courses.map((x) => x.id) ?? [],
+      acceptsTrials: record?.acceptsTrials ?? true,
+      maxTrialsPerWeek: record?.maxTrialsPerWeek ?? null,
+      audience: record?.audience ?? 'both',
+      languages: record?.languages ?? [],
       qualification: record?.qualification ?? '',
       experience: record?.experience ?? '',
       address: record?.address ?? '',
@@ -828,6 +842,44 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
           name="courseIds"
           label={t('fields.courses')}
           options={courseOptions(lookups.data, locale)}
+        />
+      </Section>
+      {/* T2 (docs/33 §4.1): who can be offered a trial class, and how many a week. */}
+      <Section id="trials" title={t('sections.trials')}>
+        <SwitchField
+          control={c}
+          name="acceptsTrials"
+          label={t('fields.acceptsTrials')}
+          description={t('form.acceptsTrialsHelp')}
+        />
+        <Row>
+          <NumberField
+            control={c}
+            name="maxTrialsPerWeek"
+            label={t('fields.maxTrialsPerWeek')}
+            description={t('form.maxTrialsHelp')}
+            min={1}
+            max={50}
+          />
+          <SelectField
+            control={c}
+            name="audience"
+            label={t('fields.audience')}
+            options={TEACHER_AUDIENCES.map((a) => ({
+              value: a,
+              label: TEACHER_AUDIENCE_LABELS[a][locale],
+            }))}
+          />
+        </Row>
+        <CheckboxGroupField
+          control={c}
+          name="languages"
+          label={t('fields.languages')}
+          description={t('form.languagesHelp')}
+          options={TEACHER_LANGUAGES.map((l) => ({
+            value: l,
+            label: TEACHER_LANGUAGE_LABELS[l][locale],
+          }))}
         />
       </Section>
       <Section id="background" title={t('sections.background')}>

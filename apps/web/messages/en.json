@@ -400,7 +400,11 @@
       "skypeId": "Skype ID",
       "activeStudents": "Active students",
       "role": "Role",
-      "statusReason": "Status reason"
+      "statusReason": "Status reason",
+      "acceptsTrials": "Takes trial classes",
+      "maxTrialsPerWeek": "Max trial classes a week",
+      "audience": "Age group",
+      "languages": "Teaching languages"
     },
     "sections": {
       "contact": "Contact",
@@ -415,7 +419,8 @@
       "remarks": "Remarks",
       "personal": "Personal details",
       "work": "Work",
-      "background": "Qualifications and experience"
+      "background": "Qualifications and experience",
+      "trials": "Trial classes"
     },
     "history": {
       "title": "Status history",
@@ -551,7 +556,22 @@
       "fixErrors": "Fix the marked fields, then save.",
       "passwordNote": "The account gets a random password; its owner sets their own with “Forgot your password?”.",
       "rateHelp": "In the pay currency ({currency}).",
-      "ownRole": "You cannot change your own role. An owner or another user who manages staff can change it."
+      "ownRole": "You cannot change your own role. An owner or another user who manages staff can change it.",
+      "acceptsTrialsHelp": "When off, the teacher is not suggested for trials unless overridden with a reason.",
+      "maxTrialsHelp": "Leave empty for no limit.",
+      "languagesHelp": "A match with the student’s language ranks the teacher higher."
+    },
+    "trials": {
+      "yes": "Yes",
+      "no": "No",
+      "noLimit": "No limit",
+      "perWeek": "{count, plural, one {# a week} other {# a week}}"
+    },
+    "detail": {
+      "families": "Family record",
+      "students": "Student record",
+      "teachers": "Teacher record",
+      "staff": "Staff record"
     }
   },
   "families": {
@@ -1135,7 +1155,8 @@
       "noEnrollments": "No enrollments.",
       "upcoming": "Upcoming classes",
       "noUpcoming": "No classes in the next two weeks."
-    }
+    },
+    "detail": "Enrollment details"
   },
   "timetable": {
     "pageTitle": "Teacher's timetable",
@@ -1939,7 +1960,8 @@
       "pendingRequests": "Pending class requests: {count}",
       "filterFamily": "Show this family's requests",
       "openFamily": "Open the family profile",
-      "noPanel": "No family or teacher is linked to this request."
+      "noPanel": "No family or teacher is linked to this request.",
+      "detail": "Request details"
     },
     "feedback": {
       "title": "Feedback triage",
@@ -2057,7 +2079,11 @@
       "due_soon": "A task is due within the hour: <bdi>{title}</bdi>"
     },
     "announcement": "New announcement: <bdi>{title}</bdi>",
-    "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}"
+    "classReminder": "Reminder: <bdi>{student}</bdi>'s class at {when}",
+    "trial": {
+      "trial_booked": "New trial class: <bdi>{course}</bdi> on {when}",
+      "trial_cancelled": "Trial class cancelled: <bdi>{course}</bdi> on {when}"
+    }
   },
   "crm": {
     "title": "Leads",
@@ -2348,7 +2374,35 @@
       "dateRequired": "Choose the date.",
       "timeRequired": "Choose the time.",
       "pastTime": "The time is in the past.",
-      "resolveConflicts": "Resolve the conflicts or acknowledge the warnings before booking."
+      "resolveConflicts": "Resolve the conflicts or acknowledge the warnings before booking.",
+      "teacherBusy": "This teacher is busy at this time; choose another teacher or time.",
+      "notEligible": "This teacher is not eligible for this trial; give a reason to book them.",
+      "teachers": {
+        "legend": "Teacher",
+        "chooseTimeFirst": "Choose the child, course and time to see the available teachers.",
+        "rankingHelp": "Ranked by work hours, then the student’s language, then fewest recent trials, then conversion rate, then free hours.",
+        "loadError": "Couldn’t load the available teachers.",
+        "retry": "Try again",
+        "rank": "#{rank}",
+        "teacherTime": "Their time <bdi>{time}</bdi> ({city})",
+        "inHours": "Within work hours",
+        "outsideHours": "Outside work hours",
+        "languageMatch": "Speaks the student’s language",
+        "languageOther": "Doesn’t speak the student’s language",
+        "noTrialsYet": "No trials yet",
+        "conversion": "Conversion {rate}% ({converted} of {trials})",
+        "noWorkHours": "Work hours not set",
+        "freeHours": "{hours, plural, one {# free hour this week} other {# free hours this week}}",
+        "trialsWeek": "{count, plural, one {# trial this week} other {# trials this week}}",
+        "trialsWeekOf": "{count} of {max} trials this week",
+        "noneEligible": "No eligible teacher is free at this time. Try another time, or show the unavailable ones.",
+        "showOthers": "Show unavailable ({count})",
+        "othersHelp": "A teacher who is busy at this time can’t be booked. The others can, with an override reason.",
+        "overrideIntro": "{name} is not eligible for this trial: {reasons}.",
+        "overrideReason": "Override reason",
+        "overrideHelp": "The reason is saved with the booking in the lead’s history.",
+        "reasonRequired": "Give an override reason (at least 3 characters)."
+      }
     },
     "outcome": {
       "title": "Trial class outcome",
@@ -2574,7 +2628,8 @@
       "noResultsMonth": "No matching invoices for {month}.",
       "clear": "Clear filters",
       "empty": "No invoices yet",
-      "emptyHint": "Issue this month's invoices to see them here."
+      "emptyHint": "Issue this month's invoices to see them here.",
+      "detail": "Invoice details"
     },
     "kpi": {
       "title": "Amounts by currency",
@@ -2830,8 +2885,7 @@
       "cancelled": "Nothing was charged; you can pay later.",
       "dismiss": "Dismiss",
       "homeDue": "Amount due",
-      "allInvoices": "All invoices",
-      "moreDue": "{count, plural, one {And # more invoice due in “My invoices”.} other {And # more invoices due in “My invoices”.}}",
+      "moreDue": "{count, plural, one {And # more invoice due} other {And # more invoices due}}",
       "homeDueError": "Couldn’t load what is due."
     },
     "pay": {
@@ -3077,7 +3131,8 @@
       "issues": "Errors / warnings",
       "paidOf": "{paid} of {total}",
       "mine": "My payslips",
-      "noMoneyMoves": "The system never transfers money: «Record payment» stores what Accounts paid outside it."
+      "noMoneyMoves": "The system never transfers money: «Record payment» stores what Accounts paid outside it.",
+      "detail": "Payroll run details"
     },
     "newRun": {
       "title": "New payroll run",

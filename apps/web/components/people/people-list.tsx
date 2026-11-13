@@ -99,6 +99,7 @@ export function PeopleList<K extends PeopleKind>({
   renderSplitItem?: (row: ListRows[K]) => ReactNode;
 }) {
   const t = useTranslations('list');
+  const tp = useTranslations('people.detail');
   const locale = useLocale() === 'en' ? 'en' : 'ar';
   const params = useListParams();
   const me = useCurrentUser();
@@ -250,7 +251,7 @@ export function PeopleList<K extends PeopleKind>({
         <SplitView
           selectedId={split.selectedId}
           wide={split.wide}
-          detailLabel={text.title}
+          detailLabel={tp(kind as PeopleKind)}
           onClose={split.close}
           fullHref={split.fullHref}
           list={

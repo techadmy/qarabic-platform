@@ -1,5 +1,9 @@
 import { expect, test } from '@playwright/test';
+import { boardSchema } from '@qarabic/shared';
+import { z } from 'zod';
 import { REAL_API, seedAdmin, signInReal } from './real-api-helpers';
+
+const boardAnswer = z.object({ data: boardSchema });
 
 /**
  * Integration check against the real API and its dev database (opt-in: `pnpm test:e2e:real`).
@@ -89,14 +93,25 @@ test('real API: Today board on real data → open a class', async ({ page }) => 
   await expect(page.getByRole('heading', { level: 1, name: 'حصص اليوم' })).toBeVisible();
   await expect(page.getByRole('navigation', { name: 'عدادات اليوم' })).toBeVisible();
 
-  // The seed's demo weekly times: find the next day with classes (at most a week ahead).
+  // The seed's demo weekly times: find the next day with classes (at most a week ahead). The board
+  // keeps the previous day's rows on screen while the next day loads, so after «اليوم التالي» the
+  // decision comes from that day's answer and the row is found by its id (CI once broke out on
+  // stale rows that then disappeared).
   const rows = page.locator('tr[data-session-id]');
-  for (let i = 0; i < 7; i++) {
-    await expect(rows.first().or(page.getByText('لا توجد حصص في هذا اليوم'))).toBeVisible();
-    if (await rows.count()) break;
+  await expect(rows.first().or(page.getByText('لا توجد حصص في هذا اليوم'))).toBeVisible();
+  let row = rows.first();
+  for (let i = 0; i < 7 && !(await rows.count()); i++) {
+    const next = page.waitForResponse(
+      (r) => /\/sessions\/board\?/.test(r.url()) && !r.url().includes('since='),
+    );
     await page.getByRole('button', { name: 'اليوم التالي' }).click();
+    const { data } = boardAnswer.parse(await (await next).json());
+    if (data.sessions.length) {
+      row = page.locator(`tr[data-session-id="${data.sessions[0]!.id}"]`);
+      break;
+    }
+    await expect(page.getByText('لا توجد حصص في هذا اليوم')).toBeVisible();
   }
-  const row = rows.first();
   await expect(row).toBeVisible();
   const name = (await row.getByRole('button').first().textContent())!.trim();
   await row.getByRole('button', { name }).first().click();
