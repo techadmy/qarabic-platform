@@ -117,12 +117,16 @@ export function SessionSheet() {
 function SessionDetail({ session: s }: { session: SessionDetailDto }) {
   const { reportMode, openReport, closeReport } = useOpenSession();
   const canReport = s.allowedActions.includes('submit_report');
+  const me = useCurrentUser();
   const trial = s.kind === 'trial';
   // T4 (B85): a trial class closes through the teacher's trial report, not the lesson report.
+  // Only the people the API lets read it (teachers, class managers) ask for it; a family never
+  // sees it (it is notes for customer service).
+  const readsTrialReport = can(me, 'sessions.conduct') || can(me, 'sessions.manage');
   const trialReport = useQuery({
     queryKey: sessionKeys.trialReport(s.id),
     queryFn: ({ signal }) => fetchTrialReport(s.id, signal),
-    enabled: trial && (s.stage === 'ended' || s.stage === 'taken'),
+    enabled: trial && readsTrialReport && (s.stage === 'ended' || s.stage === 'taken'),
   });
   if (reportMode && canReport && trial) {
     if (trialReport.isPending) return <Skeleton className="h-64" />;
@@ -152,7 +156,16 @@ function SessionDetail({ session: s }: { session: SessionDetailDto }) {
       session={s}
       canReport={canReport}
       onReport={() => openReport(s.id)}
-      trialReport={trial ? (trialReport.data ?? null) : undefined}
+      trialReport={
+        !trial
+          ? undefined
+          : !readsTrialReport
+            ? 'hidden'
+            : trialReport.isError
+              ? 'error'
+              : (trialReport.data ?? null)
+      }
+      onRetryTrialReport={() => void trialReport.refetch()}
     />
   );
 }
@@ -162,12 +175,17 @@ function SessionInfo({
   canReport,
   onReport,
   trialReport,
+  onRetryTrialReport,
 }: {
   session: SessionDetailDto;
   canReport: boolean;
   onReport: () => void;
-  /** A trial class: its trial report (null until written); undefined for other classes. */
-  trialReport?: TrialReportDto | null;
+  /**
+   * A trial class: its trial report (null until written), `'error'` when it could not load,
+   * `'hidden'` for viewers who don't read it (a family); undefined for other classes.
+   */
+  trialReport?: TrialReportDto | null | 'error' | 'hidden';
+  onRetryTrialReport?: () => void;
 }) {
   const t = useTranslations('classes');
   const trep = useTranslations('reports');
@@ -235,28 +253,50 @@ function SessionInfo({
           ))}
         </ul>
       )}
-      {trialReport !== undefined && (s.stage === 'ended' || s.stage === 'taken') && (
-        <>
-          <Separator />
-          <Section title={ttrial('title')}>
-            {trialReport ? (
-              <TrialReportView report={trialReport} />
-            ) : (
-              <p className="text-sm text-muted-foreground">{ttrial('notSent')}</p>
-            )}
-            {canReport && (
-              <Button
-                variant={trialReport ? 'outline' : 'default'}
-                className="self-start"
-                onClick={onReport}
-              >
-                {trialReport ? <PencilIcon /> : <FilePenLineIcon />}
-                {trialReport ? ttrial('editTitle') : ttrial('write')}
-              </Button>
-            )}
-          </Section>
-        </>
-      )}
+      {trialReport !== undefined &&
+        trialReport !== 'hidden' &&
+        (s.stage === 'ended' || s.stage === 'taken') && (
+          <>
+            <Separator />
+            <Section title={ttrial('title')}>
+              {trialReport === 'error' ? (
+                <div role="alert" className="flex flex-wrap items-center gap-2 text-sm">
+                  <span className="text-muted-foreground">{ttrial('loadError')}</span>
+                  <Button variant="outline" size="sm" onClick={onRetryTrialReport}>
+                    {ttrial('retry')}
+                  </Button>
+                </div>
+              ) : trialReport ? (
+                <TrialReportView report={trialReport} />
+              ) : (
+                <p className="text-sm text-muted-foreground">{ttrial('notSent')}</p>
+              )}
+              {trialReport !== 'error' && trialReport && s.report.editableUntil && canReport && (
+                <p className="text-sm text-muted-foreground">
+                  {ttrial('editableUntil', {
+                    when: dayAndClock(s.report.editableUntil, tz, locale),
+                  })}
+                </p>
+              )}
+              {trialReport !== 'error' && !canReport && trialReport && ownTeacher && (
+                <p className="flex items-center gap-1.5 text-sm text-muted-foreground">
+                  <LockIcon aria-hidden className="size-3.5" />
+                  {ttrial('locked')}
+                </p>
+              )}
+              {trialReport !== 'error' && canReport && (
+                <Button
+                  variant={trialReport ? 'outline' : 'default'}
+                  className="self-start"
+                  onClick={onReport}
+                >
+                  {trialReport ? <PencilIcon /> : <FilePenLineIcon />}
+                  {trialReport ? ttrial('editTitle') : ttrial('write')}
+                </Button>
+              )}
+            </Section>
+          </>
+        )}
       {trialReport === undefined &&
         (s.stage === 'ended' || s.stage === 'taken' || s.lessonReport) && (
           <>

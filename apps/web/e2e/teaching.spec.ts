@@ -231,3 +231,47 @@ test('accessibility: report form, tests, a test and progress', async ({ page }) 
   await expect(page.getByRole('heading', { name: /^سجل الدروس/ })).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
+
+test('teacher (phone, English): the trial report closes a trial class (T4, B85)', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'teacher@qarabic.test', '/lesson-reports?state=missing');
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  // The list does not show the kind: open classes until a trial one (its sheet has the trial report).
+  const sheet = page.getByRole('dialog', { name: 'Class details' });
+  const write = sheet.getByRole('button', { name: 'Write the trial report' });
+  let found = false;
+  for (let i = 0; i < 12 && !found; i++) {
+    // Phone: each class is a card link to its sheet.
+    const rows = page.locator('main a[href*="session="]');
+    if (i >= (await rows.count())) break;
+    await rows.nth(i).click();
+    await expect(sheet).toBeVisible();
+    await expect(
+      sheet.getByRole('region', { name: /^(Trial class report|Lesson report)$/ }),
+    ).toBeVisible();
+    found = await write.isVisible();
+    if (!found) {
+      await page.keyboard.press('Escape');
+      await expect(sheet).toBeHidden();
+    }
+  }
+  expect(found, 'an ended trial class of the demo teacher').toBe(true);
+  await write.click();
+  const form = sheet.getByRole('form', { name: 'Trial class report' });
+  await expect(form).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  const send = form.getByRole('button', { name: 'Send the report and close the class' });
+  await expect(send).toBeInViewport();
+  await send.click();
+  await expect(form.getByText('Complete the required fields marked below.')).toBeVisible();
+  await expect(form.getByRole('radio', { name: 'On time' })).toBeFocused();
+  await form.getByRole('radio', { name: 'On time' }).check();
+  await form.getByRole('radio', { name: 'Beginner' }).check();
+  await form.getByRole('radio', { name: 'High' }).check();
+  await send.click();
+  await expect(page.getByText(/^Trial report for .+ sent\.$/)).toBeVisible();
+  await expectNoHorizontalScroll(page);
+});

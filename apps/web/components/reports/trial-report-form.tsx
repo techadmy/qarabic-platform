@@ -31,7 +31,8 @@ import { Controller, useForm, type Control, type FieldValues, type Path } from '
 import { toast } from 'sonner';
 import { ComboboxField, SelectField, TextareaField } from '@/components/forms/fields';
 import { useLookups } from '@/components/people/person-sheet';
-import { useUiLocale } from '@/components/sessions/times';
+import { useUiLocale, useViewerTz } from '@/components/sessions/times';
+import { dayAndClock } from '@/lib/schedule-time';
 import { isApiError } from '@/lib/api/client';
 import { saveTrialReport, sessionKeys } from '@/lib/api/sessions';
 import { applyServerErrors } from '@/lib/forms/server-errors';
@@ -71,6 +72,7 @@ export function TrialReportForm({
   const t = useTranslations('reports.trial');
   const tv = useTranslations('validation');
   const locale = useUiLocale();
+  const tz = useViewerTz();
   const lookups = useLookups();
   const queryClient = useQueryClient();
   const classError = useClassError();
@@ -101,6 +103,11 @@ export function TrialReportForm({
       onDone();
     },
     onError: (e) => {
+      if (isApiError(e, 409) && e.code === 'stale_session') {
+        setBanner(t('stale'));
+        void queryClient.invalidateQueries({ queryKey: sessionKeys.all });
+        return;
+      }
       if (isApiError(e, 422) && e.code === 'trial_report_locked') {
         setBanner(t('locked'));
         return;
@@ -126,14 +133,28 @@ export function TrialReportForm({
 
   return (
     <form
+      id="trial-report"
       noValidate
       aria-labelledby="trial-report-title"
       className="flex flex-col gap-4"
       onSubmit={(e) =>
-        void form.handleSubmit((v) => {
-          setBanner(null);
-          save.mutate(v);
-        })(e)
+        void form.handleSubmit(
+          (v) => {
+            setBanner(null);
+            save.mutate(v);
+          },
+          () => {
+            // Say so once, and take the focus to the first problem (a choice has no ref to focus).
+            setBanner(t('incomplete'));
+            requestAnimationFrame(() =>
+              document
+                .querySelector<HTMLElement>(
+                  '#trial-report [aria-invalid="true"] [role="radio"], #trial-report [aria-invalid="true"]',
+                )
+                ?.focus(),
+            );
+          },
+        )(e)
       }
     >
       <div className="flex flex-col gap-1">
@@ -141,6 +162,11 @@ export function TrialReportForm({
           {report ? t('editTitle') : t('title')}
         </h3>
         <p className="text-sm text-muted-foreground">{t('help', { name: session.student.name })}</p>
+        {report && session.report.editableUntil && (
+          <p className="text-sm font-medium">
+            {t('editableUntil', { when: dayAndClock(session.report.editableUntil, tz, locale) })}
+          </p>
+        )}
       </div>
       <FieldGroup>
         <ChoiceField
@@ -181,7 +207,12 @@ export function TrialReportForm({
             name="minutesPerClass"
             label={t('minutesPerClass')}
             numeric
-            options={MINUTES.map((n) => ({ value: String(n), label: t('minutes', { count: n }) }))}
+            // The usual lengths, plus the class's own (e.g. 40 min) so the select is never blank.
+            options={[
+              ...new Set([...MINUTES, session.durationMinutes, report?.minutesPerClass ?? 30]),
+            ]
+              .sort((a, b) => a - b)
+              .map((n) => ({ value: String(n), label: t('minutes', { count: n }) }))}
           />
         </div>
         <ChoiceField
@@ -200,13 +231,14 @@ export function TrialReportForm({
           <AlertDescription>{banner}</AlertDescription>
         </Alert>
       )}
-      <div className="flex flex-wrap justify-end gap-2">
-        <Button type="button" variant="outline" onClick={onCancel} disabled={save.isPending}>
-          {t('cancel')}
-        </Button>
-        <Button type="submit" disabled={save.isPending}>
+      {/* Like the lesson report: sticky, large on phones. */}
+      <div className="sticky bottom-0 -mx-4 flex gap-2 border-t bg-background px-4 py-3">
+        <Button type="submit" size="lg" className="flex-1 sm:flex-none" disabled={save.isPending}>
           {save.isPending && <Spinner />}
           {report ? t('update') : t('submit')}
+        </Button>
+        <Button type="button" size="lg" variant="outline" onClick={onCancel}>
+          {t('cancel')}
         </Button>
       </div>
     </form>

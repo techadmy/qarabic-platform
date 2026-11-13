@@ -2,6 +2,9 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { MyClassesView } from '@/app/(app)/my-classes/my-classes-view';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/mocks/node';
+import { db as people } from '@/mocks/people-db';
 import { sdb } from '@/mocks/schedule-db';
 import { lastReplacedUrl, renderPage } from '@/test/people';
 
@@ -46,6 +49,10 @@ describe('T4 trial report (B85)', () => {
       ).toHaveLength(3),
     );
     expect(s.stage).toBe('ended');
+    expect(within(form).getByText('أكمل الحقول المطلوبة المعلَّمة أدناه.')).toBeInTheDocument();
+    await waitFor(() =>
+      expect(within(form).getByRole('radio', { name: 'حضر في الموعد' })).toHaveFocus(),
+    );
 
     await user.click(within(form).getByRole('radio', { name: 'حضر في الموعد' }));
     await user.click(within(form).getByRole('radio', { name: 'مبتدئ' }));
@@ -61,5 +68,44 @@ describe('T4 trial report (B85)', () => {
       await within(sheet).findByRole('form', { name: 'تعديل تقرير الحصة التجريبية' }),
     ).toBeInTheDocument();
     expect(within(sheet).getByLabelText(/ملاحظات لخدمة العملاء/)).toHaveValue('Shy at first.');
+  });
+
+  it('a parent sees no trial report section (internal notes); nor does a failed load claim none', async () => {
+    const family = people.families.find((f) => f.parentUserId === 3)!;
+    const kids = people.students.filter((x) => x.familyId === family.id).map((x) => x.id);
+    // The latest past class of the demo parent's children, as an ended trial.
+    const s = sdb.sessions
+      .filter(
+        (x) => kids.includes(x.studentId) && !x.deleted && Date.parse(x.startsAt) < Date.now(),
+      )
+      .sort((a, b) => b.startsAt.localeCompare(a.startsAt))[0]!;
+    Object.assign(s, { kind: 'trial', stage: 'ended' });
+    const { unmount } = renderPage(<MyClassesView />, {
+      as: 'parent@qarabic.test',
+      path: `/my-classes?session=${s.id}`,
+    });
+    const sheet = await screen.findByRole('dialog', { name: 'تفاصيل الحصة' });
+    await within(sheet).findAllByText(/دقيقة/);
+    expect(within(sheet).queryByRole('region', { name: 'تقرير الحصة التجريبية' })).toBeNull();
+    expect(within(sheet).queryByText(/تُغلق الحصة به/)).toBeNull();
+    unmount();
+
+    // The teacher, when the report can't load: an error with a retry, not «no report yet».
+    const t = endedTrial();
+    server.use(
+      http.get('*/api/v1/sessions/:id/trial-report', () =>
+        HttpResponse.json({ message: 'boom', code: 'server' }, { status: 500 }),
+      ),
+    );
+    renderPage(<MyClassesView />, { as: TEACHER, path: `/my-classes?session=${t.id}` });
+    const teacherSheet = await screen.findByRole('dialog', { name: 'تفاصيل الحصة' });
+    expect(
+      await within(teacherSheet).findByText(
+        'تعذّر تحميل تقرير الحصة التجريبية.',
+        {},
+        { timeout: 8000 },
+      ),
+    ).toBeInTheDocument();
+    expect(within(teacherSheet).queryByText(/تُغلق الحصة به/)).toBeNull();
   });
 });

@@ -1418,7 +1418,12 @@
       "update": "Save changes",
       "saved": "Trial report for {name} sent.",
       "updated": "Report updated.",
-      "locked": "The edit window of this report has closed."
+      "locked": "The edit window of this report has closed.",
+      "loadError": "Couldn’t load the trial report.",
+      "retry": "Try again",
+      "editableUntil": "You can edit the report until {when}.",
+      "incomplete": "Complete the required fields marked below.",
+      "stale": "The class changed since you opened it; it has been refreshed. Check it and send again."
     }
   },
   "progress": {
