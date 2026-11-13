@@ -111,6 +111,12 @@ export const CRM_DEFAULTS: CrmSettingsDto = {
   'crm.trial_offer_expiry_minutes': 120,
   'crm.trial_offer_min_hours_before': 6,
   'crm.trial_offer_max_open_claims': 3,
+  'crm.trial_reminders_enabled': true,
+  'crm.trial_family_reminders': false,
+  'crm.trial_late_alert_minutes': 5,
+  'crm.trial_report_required': true,
+  'crm.trial_stale_remind_days': 3,
+  'crm.trial_stale_lost_days': 14,
   'crm.trial_form_confirmation': false,
   'crm.web_lead_confirmation': false,
 };

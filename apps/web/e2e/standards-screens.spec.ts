@@ -95,6 +95,8 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
 
 /** Covered by standards.spec.ts (admin) or not a product screen. */
 const ELSEWHERE = [
+  // support.spec.ts: the S5 deep link opens «تواصل معنا» after sign-in (axe, 375 px).
+  '/contact',
   // operations.spec.ts sweeps tasks and announcements (375/768/1440 × ar/en, axe, no overflow).
   '/tasks',
   '/tasks/1',

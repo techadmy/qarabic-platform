@@ -552,6 +552,8 @@ export class LeadTrialService {
           actor.id,
         );
         if (input.outcome === 'interested') {
+          // T4 stale rule: a fresh «trial done» starts its clock again.
+          await this.leads.save(tx, lead.id, { staleRemindedAt: null, staleLostSuggestedAt: null });
           await this.leads.moveTo(tx, lead, 'trial_done', actor.id);
         } else if (input.outcome === 'no_show') {
           await this.leads.moveTo(tx, lead, 'contacted', actor.id, { outcome: 'no_show' });
