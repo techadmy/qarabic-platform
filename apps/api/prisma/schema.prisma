@@ -1289,6 +1289,8 @@ enum LostReason {
   schedule
   duplicate
   other
+  /// T5 (docs/33 §3.7): the family did not take to the teacher.
+  teacher
 }
 
 enum TrialOutcome {

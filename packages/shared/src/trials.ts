@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { timeZoneSchema } from './countries.js';
+import { LEAD_SOURCES, LOST_REASONS } from './crm.js';
 import { courseRefSchema, dateOnlySchema, genderSchema, personRefSchema } from './people.js';
 import { acknowledgeWarningsSchema, localTimeSchema } from './schedule.js';
 
@@ -388,3 +389,70 @@ export const trialChecklistItemSchema = z.object({
   alerts: z.array(z.enum(TRIAL_CHECK_ALERTS)),
 });
 export type TrialChecklistItemDto = z.infer<typeof trialChecklistItemSchema>;
+
+// ------------------------------------------------------------------ T5 rates
+
+/** `GET /leads/kpis?from&to` (leads created in the period, academy days; ≤ 1 year). */
+export const leadKpisQuerySchema = z
+  .object({ from: dateOnlySchema.optional(), to: dateOnlySchema.optional() })
+  .superRefine((v, ctx) => {
+    if (v.from && v.to && v.to < v.from) {
+      ctx.addIssue({ code: 'custom', path: ['to'], message: 'The end is before the start.' });
+    }
+  });
+
+/** A rate with its parts: `pct` 0–100 (one decimal), null when there is nothing to divide. */
+export const rateSchema = z.object({
+  numerator: z.number().int(),
+  denominator: z.number().int(),
+  pct: z.number().nullable(),
+});
+export type RateDto = z.infer<typeof rateSchema>;
+
+/**
+ * The CRM rates (docs/33 §6), real data only:
+ * - first response: minutes from the request to the first contact (median), and the share
+ *   answered inside the SLA in working minutes (`crm.first_response_minutes`);
+ * - lead → trial booked; trial show-up (held ÷ held + absent); trial → regular (converted ÷ held);
+ * - days from the request to «منتظم» (median).
+ */
+export const leadKpiRowSchema = z.object({
+  leads: z.number().int(),
+  firstResponse: z.object({
+    measured: z.number().int(),
+    medianMinutes: z.number().int().nullable(),
+    withinSla: rateSchema,
+  }),
+  leadToTrial: rateSchema,
+  trialShowUp: rateSchema,
+  trialToRegular: rateSchema,
+  medianDaysToRegular: z.number().nullable(),
+});
+export type LeadKpiRowDto = z.infer<typeof leadKpiRowSchema>;
+
+/** Per teacher / course: the trials they held and how they turned out. */
+export const trialKpiRowSchema = z.object({
+  trials: z.number().int(),
+  showUp: rateSchema,
+  toRegular: rateSchema,
+});
+
+export const leadKpisSchema = z.object({
+  from: z.string(),
+  to: z.string(),
+  total: leadKpiRowSchema,
+  bySource: z.array(leadKpiRowSchema.extend({ source: z.enum(LEAD_SOURCES) })),
+  byAssignee: z.array(leadKpiRowSchema.extend({ user: personRefSchema.nullable() })),
+  byTeacher: z.array(trialKpiRowSchema.extend({ teacher: personRefSchema })),
+  byCourse: z.array(trialKpiRowSchema.extend({ course: courseRefSchema })),
+  /** Leads lost in the period, by reason (all reasons listed, zeros included), and by source. */
+  lostReasons: z.array(
+    z.object({
+      reason: z.enum(LOST_REASONS),
+      count: z.number().int(),
+      bySource: z.array(z.object({ source: z.enum(LEAD_SOURCES), count: z.number().int() })),
+    }),
+  ),
+  lostTotal: z.number().int(),
+});
+export type LeadKpisDto = z.infer<typeof leadKpisSchema>;
