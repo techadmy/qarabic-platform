@@ -1078,6 +1078,17 @@ enum TicketVisibility {
   restricted
 }
 
+/// S3 typed requests (docs/32 §3 #4–#7): see `REQUEST_STATES`.
+enum TicketRequestState {
+  submitted
+  proposed
+  accepted
+  declined
+  approved
+  rejected
+  done
+}
+
 enum TicketCommentKind {
   comment
   status
@@ -1094,51 +1105,56 @@ enum TicketAttachmentSource {
 
 /// A «تواصل معنا» ticket (docs/22 §2, docs/32 §4). Shown to people as `#id`.
 model Ticket {
-  id                  Int                @id @default(autoincrement())
-  channel             TicketChannel      @default(in_app)
+  id                  Int                 @id @default(autoincrement())
+  channel             TicketChannel       @default(in_app)
   type                TicketType
   category            TicketCategory
   /// Fixed allow-list per category (`TICKET_SUBCATEGORIES`).
-  subcategory         String?            @db.VarChar(40)
-  subjectType         TicketSubjectType? @map("subject_type")
-  subjectId           Int?               @map("subject_id")
+  subcategory         String?             @db.VarChar(40)
+  subjectType         TicketSubjectType?  @map("subject_type")
+  subjectId           Int?                @map("subject_id")
   queue               TicketQueue
   /// restricted = complaints: the reporter and support.view_restricted only, never the teacher concerned.
-  visibility          TicketVisibility   @default(normal)
-  familyId            Int?               @map("family_id")
-  teacherId           Int?               @map("teacher_id")
+  visibility          TicketVisibility    @default(normal)
+  familyId            Int?                @map("family_id")
+  teacherId           Int?                @map("teacher_id")
   /// First-response deadline in working hours, capped by the class start (docs/32 §5).
-  slaDueAt            DateTime?          @map("sla_due_at") @db.Timestamptz(6)
-  firstResponseAt     DateTime?          @map("first_response_at") @db.Timestamptz(6)
-  slaBreachNotifiedAt DateTime?          @map("sla_breach_notified_at") @db.Timestamptz(6)
+  slaDueAt            DateTime?           @map("sla_due_at") @db.Timestamptz(6)
+  firstResponseAt     DateTime?           @map("first_response_at") @db.Timestamptz(6)
+  slaBreachNotifiedAt DateTime?           @map("sla_breach_notified_at") @db.Timestamptz(6)
   priority            TicketPriority?
-  status              TicketStatus       @default(new)
-  title               String             @db.VarChar(160)
+  status              TicketStatus        @default(new)
+  title               String              @db.VarChar(160)
   description         String
-  reporterId          Int?               @map("reporter_id")
-  reporterRole        String?            @map("reporter_role") @db.VarChar(100)
+  reporterId          Int?                @map("reporter_id")
+  reporterRole        String?             @map("reporter_role") @db.VarChar(100)
   /// WhatsApp sender, encrypted at rest (AES-256-GCM); never sent to any client.
-  contactPhone        String?            @map("contact_phone")
+  contactPhone        String?             @map("contact_phone")
   /// HMAC of the sender's digits: groups an unknown sender's messages without storing the number in clear.
-  contactHash         String?            @map("contact_hash") @db.Char(64)
-  area                String?            @db.VarChar(40)
+  contactHash         String?             @map("contact_hash") @db.Char(64)
+  area                String?             @db.VarChar(40)
   /// Sanitised client context (page, app version, zone, recent API errors): no form values or tokens.
   context             Json?
-  prUrl               String?            @map("pr_url") @db.VarChar(300)
+  prUrl               String?             @map("pr_url") @db.VarChar(300)
   resolution          String?
-  duplicateOfId       Int?               @map("duplicate_of_id")
-  assigneeId          Int?               @map("assignee_id")
-  triagedAt           DateTime?          @map("triaged_at") @db.Timestamptz(6)
-  fixedAt             DateTime?          @map("fixed_at") @db.Timestamptz(6)
-  verifiedAt          DateTime?          @map("verified_at") @db.Timestamptz(6)
-  closedAt            DateTime?          @map("closed_at") @db.Timestamptz(6)
+  duplicateOfId       Int?                @map("duplicate_of_id")
+  assigneeId          Int?                @map("assignee_id")
+  triagedAt           DateTime?           @map("triaged_at") @db.Timestamptz(6)
+  fixedAt             DateTime?           @map("fixed_at") @db.Timestamptz(6)
+  verifiedAt          DateTime?           @map("verified_at") @db.Timestamptz(6)
+  closedAt            DateTime?           @map("closed_at") @db.Timestamptz(6)
   /// Last change the reporter can see; `reporter_seen_at` older = "has an update".
-  lastPublicAt        DateTime?          @map("last_public_at") @db.Timestamptz(6)
-  reporterSeenAt      DateTime?          @map("reporter_seen_at") @db.Timestamptz(6)
-  whatsappWindowUntil DateTime?          @map("whatsapp_window_until") @db.Timestamptz(6)
-  createdAt           DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastPublicAt        DateTime?           @map("last_public_at") @db.Timestamptz(6)
+  reporterSeenAt      DateTime?           @map("reporter_seen_at") @db.Timestamptz(6)
+  whatsappWindowUntil DateTime?           @map("whatsapp_window_until") @db.Timestamptz(6)
+  /// S3: the structured payload of a typed request (by `subcategory`); null for a plain ticket.
+  request             Json?
+  requestState        TicketRequestState? @map("request_state")
+  /// Teacher change: `{ teacherId, fromDate }` proposed by staff.
+  proposal            Json?
+  createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Written from the app clock on every change.
-  updatedAt           DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  updatedAt           DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
 
   reporter    User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
   assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
