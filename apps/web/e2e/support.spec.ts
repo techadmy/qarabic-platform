@@ -170,13 +170,13 @@ test('a WhatsApp deep link (S5): sign in, then «تواصل معنا» opens on 
   page,
 }) => {
   await page.setViewportSize({ width: 375, height: 812 });
-  await page.goto('/contact?card=billing&choice=invoice_question&invoice=3');
+  // (Which invoice ids are this parent's is the unit tests' business; here the link has none.)
+  await page.goto('/contact?card=billing&choice=invoice_question');
   // Not signed in: the login keeps the link and returns to it.
   await expect(page).toHaveURL(/\/login\?next=/);
   await login(page, 'parent@qarabic.test');
   const form = page.getByRole('dialog', { name: 'استفسار عن فاتورة أو دفعة' });
   await expect(form).toBeVisible();
-  await expect(form).toContainText('الفاتورة #3');
   await expectNoHorizontalScroll(page);
   await expectNoSeriousA11yViolations(page);
 });

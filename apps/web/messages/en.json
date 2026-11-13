@@ -1620,10 +1620,6 @@
         "change": "Change the student",
         "channel": "How did the request reach you?",
         "results": "Matching students"
-      },
-      "deepLink": {
-        "invoice": "Invoice #{id}",
-        "student": "The child in the link"
       }
     },
     "actions": {

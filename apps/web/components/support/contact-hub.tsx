@@ -385,6 +385,11 @@ export interface ContactDeepLink {
   sessionId?: number;
   invoiceId?: number;
   studentId?: number;
+  /**
+   * The invoice number or the child's name, once looked up for this family. Without it the form
+   * opens without a subject (an id that isn't theirs, or a lookup that failed).
+   */
+  subjectLabel?: string;
 }
 
 /**
@@ -395,7 +400,6 @@ export interface ContactDeepLink {
 function deepLinkStart(
   link: ContactDeepLink | undefined,
   cards: ContactUsCard[],
-  labels: { invoice: (id: number) => string; student: string },
 ): { view: View; child: Child | null } {
   const card = link && cards.find((c) => c.key === link.card);
   if (!link || !card) return { view: { at: 'home' }, child: null };
@@ -408,11 +412,12 @@ function deepLinkStart(
   ) {
     return { view: { at: 'card', card }, child: null };
   }
-  const subject =
-    link.invoiceId && choice.subject === 'invoice'
-      ? { type: 'invoice' as const, id: link.invoiceId, label: labels.invoice(link.invoiceId) }
+  const subject = !link.subjectLabel
+    ? undefined
+    : link.invoiceId && choice.subject === 'invoice'
+      ? { type: 'invoice' as const, id: link.invoiceId, label: link.subjectLabel }
       : link.studentId && choice.subject === 'student'
-        ? { type: 'student' as const, id: link.studentId, label: labels.student }
+        ? { type: 'student' as const, id: link.studentId, label: link.subjectLabel }
         : undefined;
   return {
     view: { at: 'card', card },
@@ -474,12 +479,7 @@ export function ContactHub({
         ? TEACHER_CONTACT_CARDS
         : [];
   // A deep link starts on its card, or on its choice's pre-filled form (S5).
-  const [start] = useState(() =>
-    deepLinkStart(initial, cards, {
-      invoice: (n) => t('deepLink.invoice', { id: n }),
-      student: t('deepLink.student'),
-    }),
-  );
+  const [start] = useState(() => deepLinkStart(initial, cards));
   const [view, setView] = useState<View>(start.view);
   const [child, setChild] = useState<Child | null>(start.child);
   const staffCards: StaffCard[] = [
