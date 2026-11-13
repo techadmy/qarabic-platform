@@ -281,6 +281,7 @@ describe('route permission coverage', () => {
       'POST leads/:id/assign': 'all:leads.manage',
       'POST leads/:id/status': 'all:leads.manage',
       'POST leads/:id/account': 'all:leads.manage|families.manage',
+      'GET leads/:id/trial-teachers': 'all:leads.manage|schedule.manage',
       'POST leads/:id/trials': 'all:leads.manage|schedule.manage',
       'POST leads/:id/trial-outcome': 'all:leads.manage',
       'POST leads/:id/convert': 'all:leads.manage|families.manage|schedule.manage',

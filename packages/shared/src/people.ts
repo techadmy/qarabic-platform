@@ -60,6 +60,25 @@ export const GENDER_LABELS: Labels<Gender> = {
 
 /** Student language (Laravel `Student::languages`: 1 English, 2 Urdu, 3 Eng-Urdu, 4 Pushto, 5 Arabic). */
 export const STUDENT_LANGUAGES = ['english', 'urdu', 'english_urdu', 'pashto', 'arabic'] as const;
+/** Languages a teacher teaches in (T2, docs/33 §4.1); a student's `english_urdu` matches either. */
+export const TEACHER_LANGUAGES = ['arabic', 'english', 'urdu', 'pashto'] as const;
+export type TeacherLanguage = (typeof TEACHER_LANGUAGES)[number];
+export const TEACHER_LANGUAGE_LABELS: Record<TeacherLanguage, { ar: string; en: string }> = {
+  arabic: { ar: 'العربية', en: 'Arabic' },
+  english: { ar: 'الإنجليزية', en: 'English' },
+  urdu: { ar: 'الأردية', en: 'Urdu' },
+  pashto: { ar: 'البشتو', en: 'Pashto' },
+};
+/** Who a teacher takes for trials: children (under 16), adults, or both. */
+export const TEACHER_AUDIENCES = ['children', 'adults', 'both'] as const;
+export type TeacherAudience = (typeof TEACHER_AUDIENCES)[number];
+export const TEACHER_AUDIENCE_LABELS: Record<TeacherAudience, { ar: string; en: string }> = {
+  children: { ar: 'الأطفال', en: 'Children' },
+  adults: { ar: 'الكبار', en: 'Adults' },
+  both: { ar: 'الأطفال والكبار', en: 'Children and adults' },
+};
+/** A student of this age or older counts as an adult for `audience`. */
+export const ADULT_AGE = 16;
 export type StudentLanguage = (typeof STUDENT_LANGUAGES)[number];
 export const studentLanguageSchema = z.enum(STUDENT_LANGUAGES);
 export const STUDENT_LANGUAGE_LABELS: Labels<StudentLanguage> = {
@@ -399,6 +418,11 @@ export const teacherSchema = z.object({
   hourlyRate: z.string().nullable(),
   hourlyRateCurrency: z.string(),
   courses: z.array(courseRefSchema),
+  /** T2 trial settings (defaults keep older clients and mocks valid). */
+  acceptsTrials: z.boolean().default(true),
+  maxTrialsPerWeek: z.number().int().nullable().default(null),
+  audience: z.enum(TEACHER_AUDIENCES).default('both'),
+  languages: z.array(z.enum(TEACHER_LANGUAGES)).default([]),
   qualification: z.string().nullable(),
   experience: z.string().nullable(),
   address: z.string().nullable(),
@@ -440,6 +464,16 @@ const teacherFields = {
   address: optionalText(500),
   skypeId: optionalText(100),
   description: optionalText(2000),
+  /** «يقبل الحصص التجريبية» (T2). */
+  acceptsTrials: z.boolean().optional(),
+  /** Max trial classes per week (teacher's week); null = no cap. */
+  maxTrialsPerWeek: clearable(z.number().int().min(1).max(50)),
+  audience: z.enum(TEACHER_AUDIENCES).optional(),
+  languages: z
+    .array(z.enum(TEACHER_LANGUAGES))
+    .max(TEACHER_LANGUAGES.length)
+    .transform((a) => [...new Set(a)])
+    .optional(),
 };
 
 /** `POST /teachers`: creates the teacher login (random password, D126). A `password` field is ignored. */
