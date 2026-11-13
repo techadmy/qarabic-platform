@@ -197,18 +197,17 @@ describe('T2 trial teachers: eligibility and ranking', () => {
     });
     expect(booked.status).toBe(201);
     const res = await query();
-    const byId = (id: number) =>
-      [...res.body.data.eligible, ...res.body.data.ineligible].find(
-        (o: { teacher: { id: number } }) => o.teacher.id === id,
-      );
+    type Option = {
+      teacher: { id: number };
+      reasons: string[];
+      check: { conflicts: Array<{ code: string }>; warnings: Array<{ code: string }> };
+    };
+    const options = [...res.body.data.eligible, ...res.body.data.ineligible] as Option[];
+    const byId = (id: number) => options.find((o) => o.teacher.id === id)!;
     expect(byId(free.id).check.conflicts).toEqual([]);
-    expect(byId(free.id).check.warnings.map((w: { code: string }) => w.code)).toContain(
-      'outside_work_hours',
-    );
+    expect(byId(free.id).check.warnings.map((w) => w.code)).toContain('outside_work_hours');
     expect(byId(taken.id).reasons).toEqual(['busy']);
-    expect(byId(taken.id).check.conflicts.map((c: { code: string }) => c.code)).toContain(
-      'teacher_overlap',
-    );
+    expect(byId(taken.id).check.conflicts.map((c) => c.code)).toContain('teacher_overlap');
   });
 
   it('counts the conversion rate and the recent trials of each teacher', async () => {
