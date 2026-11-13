@@ -1,6 +1,6 @@
 import {
   isTypedRequest,
-  type RequestState,
+  type SupportRequestAction,
   isClosedStatus,
   TICKET_TRANSITIONS,
   type TicketAttachmentDto,
@@ -10,18 +10,30 @@ import {
 } from '@qarabic/shared';
 import type { Prisma } from '../generated/prisma/client.js';
 import { isoZ } from '../schedule/time.js';
-import { SupportPolicy, type SupportViewer } from './policy.js';
+import { has, SupportPolicy, type SupportViewer } from './policy.js';
+import { STAFF_STEPS, stepAfter } from './request-rules.js';
 import { SlaClock } from './sla.js';
 
-/** S3: the typed request on a ticket, or null for a plain one. */
-function requestDto(t: {
-  subcategory: string | null;
-  request: Prisma.JsonValue;
-  requestState: RequestState | null;
-  proposal: Prisma.JsonValue;
-}): TicketDto['request'] {
+/** S3: the typed request on a ticket, or null for a plain one; `allowedActions` for `v`. */
+function requestDto(t: TicketRow, v: SupportViewer): TicketDto['request'] {
   if (!t.requestState || !isTypedRequest(t.subcategory)) return null;
   const p = t.proposal as { teacherId?: number; teacherName?: string; fromDate?: string } | null;
+  const allowed: SupportRequestAction[] = [];
+  if (
+    has(v.user, 'support.handle', 'support.manage', 'feedback.manage') &&
+    SupportPolicy.canManage(v, t)
+  ) {
+    for (const step of STAFF_STEPS) {
+      if (stepAfter(t.subcategory, t.requestState, step)) allowed.push(step);
+    }
+  }
+  if (
+    t.requestState === 'proposed' &&
+    SupportPolicy.owns(v.user, t) &&
+    has(v.user, 'feedback.request', 'session_requests.request')
+  ) {
+    allowed.push('accept', 'decline');
+  }
   return {
     kind: t.subcategory,
     state: t.requestState,
@@ -30,6 +42,10 @@ function requestDto(t: {
       p?.teacherId && p.fromDate
         ? { teacher: { id: p.teacherId, name: p.teacherName ?? '' }, fromDate: p.fromDate }
         : null,
+    allowedActions: allowed,
+    decidedBy: t.requestDecidedBy,
+    decidedAt: isoZ(t.requestDecidedAt),
+    note: t.requestNote,
   };
 }
 
@@ -39,6 +55,7 @@ export const ticketInclude = {
   family: { select: { id: true, user: { select: { name: true } } } },
   teacher: { select: { id: true, firstName: true, lastName: true } },
   _count: { select: { attachments: true } },
+  requestDecidedBy: { select: { id: true, name: true } },
 } satisfies Prisma.TicketInclude;
 
 export const ticketDetailInclude = {
@@ -140,7 +157,7 @@ export const TicketPresenter = {
       slaState: SlaClock.state(t.slaDueAt, t.firstResponseAt, open, nowMs),
       firstResponseAt: isoZ(t.firstResponseAt),
       handledBy: t.assignee ? (t.assignee.name.trim().split(/\s+/)[0] ?? null) : null,
-      request: requestDto(t),
+      request: requestDto(t, v),
     };
     if (staff) {
       Object.assign(data, {

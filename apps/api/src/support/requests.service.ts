@@ -12,9 +12,8 @@ import { Clock } from '../common/clock.js';
 import { ApiException, validationError } from '../common/errors.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { SupportViewer } from './policy.js';
+import { stepAfter } from './request-rules.js';
 import { TicketsService, userActor } from './tickets.service.js';
-
-type Action = z.output<typeof requestActionSchema>['action'];
 
 const conflict = (state: RequestState | null, action: string) =>
   new ApiException(HttpStatus.CONFLICT, {
@@ -22,23 +21,6 @@ const conflict = (state: RequestState | null, action: string) =>
     code: 'request_transition',
     data: { state, action },
   });
-
-/** From → to per staff action; teacher change and the others differ (docs/32 §3). */
-function next(kind: string, state: RequestState, action: Action): RequestState | null {
-  const teacher = kind === 'teacher_change';
-  switch (action) {
-    case 'propose':
-      return teacher && ['submitted', 'proposed', 'declined'].includes(state) ? 'proposed' : null;
-    case 'approve':
-      return !teacher && state === 'submitted' ? 'approved' : null;
-    case 'complete':
-      return (teacher ? state === 'accepted' : state === 'approved') ? 'done' : null;
-    case 'reject':
-      return ['submitted', 'proposed', 'declined', 'approved', 'accepted'].includes(state)
-        ? 'rejected'
-        : null;
-  }
-}
 
 /** The ticket status that follows a request step (so «طلباتي» and the inbox agree). */
 function ticketStatusFor(to: RequestState, current: TicketStatus): TicketStatus | null {
@@ -86,7 +68,7 @@ export class SupportRequestsService {
       await tx.$queryRaw`SELECT id FROM tickets WHERE id = ${id} FOR UPDATE`;
       const t = await tx.ticket.findUniqueOrThrow({ where: { id } });
       if (!t.requestState || !t.subcategory) throw conflict(null, input.action);
-      const to = next(t.subcategory, t.requestState, input.action);
+      const to = stepAfter(t.subcategory, t.requestState, input.action);
       if (!to) throw conflict(t.requestState, input.action);
       const now = this.clock.now();
       const actor = userActor(v.user);
@@ -103,6 +85,9 @@ export class SupportRequestsService {
         where: { id },
         data: {
           requestState: to,
+          requestDecidedById: v.user.id,
+          requestDecidedAt: now,
+          requestNote: input.note ?? null,
           ...(proposal ? { proposal: proposal } : {}),
           ...(status && status !== t.status ? this.tickets.statusData(t, status, now) : {}),
           ...(to === 'rejected' && input.note ? { resolution: input.note } : {}),
@@ -144,7 +129,14 @@ export class SupportRequestsService {
       });
       await tx.ticket.update({
         where: { id },
-        data: { requestState: to, reporterSeenAt: now, updatedAt: now },
+        data: {
+          requestState: to,
+          requestDecidedById: user.id,
+          requestDecidedAt: now,
+          requestNote: input.note ?? null,
+          reporterSeenAt: now,
+          updatedAt: now,
+        },
       });
       await this.audit.record(
         {

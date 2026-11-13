@@ -189,6 +189,8 @@ model User {
   trialOffersCreated TrialOffer[] @relation("TrialOfferCreatedBy")
   trialOffersClosed  TrialOffer[] @relation("TrialOfferClosedBy")
 
+  ticketRequestsDecided Ticket[] @relation("TicketRequestDecidedBy")
+
   @@index([roleId])
   @@index([archivedAt])
   @@map("users")
@@ -285,6 +287,8 @@ model Course {
   tests              StudentTest[]
 
   trialOffers TrialOffer[]
+
+  trialReports TrialReport[]
 
   @@map("courses")
 }
@@ -804,6 +808,8 @@ model ClassSession {
 
   trialOffers TrialOffer[]
 
+  trialReport TrialReport?
+
   @@unique([scheduleSlotId, occurrenceDate], map: "class_sessions_slot_occurrence_key")
   @@index([startsAt])
   @@index([teacherId, startsAt])
@@ -1178,18 +1184,23 @@ model Ticket {
   requestState        TicketRequestState? @map("request_state")
   /// Teacher change: `{ teacherId, fromDate }` proposed by staff.
   proposal            Json?
+  /// Who took the request's latest step, when, and their note (shown to the family).
+  requestDecidedById  Int?                @map("request_decided_by")
+  requestDecidedAt    DateTime?           @map("request_decided_at") @db.Timestamptz(6)
+  requestNote         String?             @map("request_note") @db.VarChar(2000)
   createdAt           DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
   /// Written from the app clock on every change.
   updatedAt           DateTime            @default(now()) @map("updated_at") @db.Timestamptz(6)
 
-  reporter    User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
-  assignee    User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
-  family      Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
-  teacher     Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
-  duplicateOf Ticket?            @relation("TicketDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
-  duplicates  Ticket[]           @relation("TicketDuplicate")
-  comments    TicketComment[]
-  attachments TicketAttachment[]
+  reporter         User?              @relation("TicketReporter", fields: [reporterId], references: [id], onDelete: SetNull)
+  assignee         User?              @relation("TicketAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  family           Family?            @relation(fields: [familyId], references: [id], onDelete: SetNull)
+  teacher          Teacher?           @relation(fields: [teacherId], references: [id], onDelete: SetNull)
+  duplicateOf      Ticket?            @relation("TicketDuplicate", fields: [duplicateOfId], references: [id], onDelete: SetNull)
+  duplicates       Ticket[]           @relation("TicketDuplicate")
+  requestDecidedBy User?              @relation("TicketRequestDecidedBy", fields: [requestDecidedById], references: [id], onDelete: SetNull)
+  comments         TicketComment[]
+  attachments      TicketAttachment[]
 
   @@index([status, priority])
   @@index([queue, status])
@@ -1328,60 +1339,64 @@ enum LeadActivityType {
 /// A prospective family (docs/26 §3.1). Contact data is kept as submitted; `phone_digits`
 /// (digits, leading zeros dropped, last 15) is what duplicates match on.
 model Lead {
-  id                  Int           @id @default(autoincrement())
-  status              LeadStatus    @default(new)
-  source              LeadSource    @default(web_form)
+  id                   Int           @id @default(autoincrement())
+  status               LeadStatus    @default(new)
+  source               LeadSource    @default(web_form)
   /// `app_trial` (the app's form), `wpforms:4823` (the website), or an old form's value.
-  site                String?       @db.VarChar(40)
-  parentName          String        @map("parent_name") @db.VarChar(120)
-  email               String?       @db.VarChar(190)
-  phone               String?       @db.VarChar(40)
-  phoneDigits         String?       @map("phone_digits") @db.VarChar(15)
-  countryCode         String?       @map("country_code") @db.Char(2)
-  city                String?       @db.VarChar(80)
+  site                 String?       @db.VarChar(40)
+  parentName           String        @map("parent_name") @db.VarChar(120)
+  email                String?       @db.VarChar(190)
+  phone                String?       @db.VarChar(40)
+  phoneDigits          String?       @map("phone_digits") @db.VarChar(15)
+  countryCode          String?       @map("country_code") @db.Char(2)
+  city                 String?       @db.VarChar(80)
   /// IANA zone of the family (the country's main zone until staff change it).
-  timezone            String        @db.VarChar(64)
-  preferredLanguage   String?       @map("preferred_language") @db.VarChar(8)
+  timezone             String        @db.VarChar(64)
+  preferredLanguage    String?       @map("preferred_language") @db.VarChar(8)
   /// `[{ name?, age?, gender?, courseId? }]`
-  children            Json          @default("[]")
-  courseInterest      String?       @map("course_interest") @db.VarChar(120)
-  preferredTimes      String?       @map("preferred_times") @db.VarChar(500)
+  children             Json          @default("[]")
+  courseInterest       String?       @map("course_interest") @db.VarChar(120)
+  preferredTimes       String?       @map("preferred_times") @db.VarChar(500)
   /// `{ days: [1..7], periods: [...], note? }` from the app's trial form.
-  preferredSchedule   Json?         @map("preferred_schedule")
-  teacherGenderPref   String?       @map("teacher_gender_pref") @db.VarChar(8)
-  heardFrom           String?       @map("heard_from") @db.VarChar(16)
-  message             String?
-  utm                 Json?
+  preferredSchedule    Json?         @map("preferred_schedule")
+  teacherGenderPref    String?       @map("teacher_gender_pref") @db.VarChar(8)
+  heardFrom            String?       @map("heard_from") @db.VarChar(16)
+  message              String?
+  utm                  Json?
   /// Idempotency key of an external intake (`wpforms:<form>:<entry>`).
-  externalRef         String?       @unique @map("external_ref") @db.VarChar(100)
-  referralFamilyId    Int?          @map("referral_family_id")
-  familyId            Int?          @map("family_id")
-  assignedToId        Int?          @map("assigned_to")
-  assignedAt          DateTime?     @map("assigned_at") @db.Timestamptz(6)
+  externalRef          String?       @unique @map("external_ref") @db.VarChar(100)
+  referralFamilyId     Int?          @map("referral_family_id")
+  familyId             Int?          @map("family_id")
+  assignedToId         Int?          @map("assigned_to")
+  assignedAt           DateTime?     @map("assigned_at") @db.Timestamptz(6)
   /// Set when the round-robin (or the lead-admin fallback) gave the lead its owner.
-  autoAssignedAt      DateTime?     @map("auto_assigned_at") @db.Timestamptz(6)
-  createdById         Int?          @map("created_by")
-  nextFollowUpAt      DateTime?     @map("next_follow_up_at") @db.Timestamptz(6)
+  autoAssignedAt       DateTime?     @map("auto_assigned_at") @db.Timestamptz(6)
+  createdById          Int?          @map("created_by")
+  nextFollowUpAt       DateTime?     @map("next_follow_up_at") @db.Timestamptz(6)
   /// The follow-up time already reminded (a new `next_follow_up_at` arms the reminder again).
-  followUpNotifiedFor DateTime?     @map("follow_up_notified_for") @db.Timestamptz(6)
-  lastContactedAt     DateTime?     @map("last_contacted_at") @db.Timestamptz(6)
-  firstResponseAt     DateTime?     @map("first_response_at") @db.Timestamptz(6)
-  slaNotifiedAt       DateTime?     @map("sla_notified_at") @db.Timestamptz(6)
-  contactAttempts     Int           @default(0) @map("contact_attempts")
-  trialOutcome        TrialOutcome? @map("trial_outcome")
-  lostReason          LostReason?   @map("lost_reason")
-  statusNote          String?       @map("status_note") @db.VarChar(1000)
-  statusChangedAt     DateTime      @map("status_changed_at") @db.Timestamptz(6)
-  convertedAt         DateTime?     @map("converted_at") @db.Timestamptz(6)
-  convertedById       Int?          @map("converted_by")
-  spamScore           Int           @default(0) @map("spam_score") @db.SmallInt
-  spamFlags           Json?         @map("spam_flags")
+  followUpNotifiedFor  DateTime?     @map("follow_up_notified_for") @db.Timestamptz(6)
+  lastContactedAt      DateTime?     @map("last_contacted_at") @db.Timestamptz(6)
+  firstResponseAt      DateTime?     @map("first_response_at") @db.Timestamptz(6)
+  slaNotifiedAt        DateTime?     @map("sla_notified_at") @db.Timestamptz(6)
+  contactAttempts      Int           @default(0) @map("contact_attempts")
+  trialOutcome         TrialOutcome? @map("trial_outcome")
+  lostReason           LostReason?   @map("lost_reason")
+  statusNote           String?       @map("status_note") @db.VarChar(1000)
+  statusChangedAt      DateTime      @map("status_changed_at") @db.Timestamptz(6)
+  convertedAt          DateTime?     @map("converted_at") @db.Timestamptz(6)
+  convertedById        Int?          @map("converted_by")
+  spamScore            Int           @default(0) @map("spam_score") @db.SmallInt
+  spamFlags            Json?         @map("spam_flags")
   /// sha256 of the sender's IP + app secret (burst detection), never the IP itself.
-  ipHash              String?       @map("ip_hash") @db.Char(64)
+  ipHash               String?       @map("ip_hash") @db.Char(64)
   /// Submissions merged into this lead (1 = only the first).
-  submissions         Int           @default(1)
-  createdAt           DateTime      @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime      @map("updated_at") @db.Timestamptz(6)
+  submissions          Int           @default(1)
+  /// T4 stale rule: the owner was reminded (trial done, not converted after N days).
+  staleRemindedAt      DateTime?     @map("stale_reminded_at") @db.Timestamptz(6)
+  /// T4 stale rule: «مفقود» was suggested (after M days).
+  staleLostSuggestedAt DateTime?     @map("stale_lost_suggested_at") @db.Timestamptz(6)
+  createdAt            DateTime      @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @map("updated_at") @db.Timestamptz(6)
 
   family         Family?        @relation("LeadFamily", fields: [familyId], references: [id], onDelete: SetNull)
   referralFamily Family?        @relation("LeadReferralFamily", fields: [referralFamilyId], references: [id], onDelete: SetNull)
@@ -2578,4 +2593,67 @@ model TrialOfferTeacher {
   @@id([offerId, teacherId])
   @@index([teacherId])
   @@map("trial_offer_teachers")
+}
+
+// ====================================================================== T4 trial follow-up
+// Reminders before the trial, the monitor's late alert, the teacher's trial report (docs/33 §3.5–3.7).
+
+enum TrialReminderKind {
+  before_24h
+  before_1h
+  late_alert
+}
+
+/// One reminder per class, person and kind (the claim that keeps re-runs from sending twice).
+model TrialReminder {
+  sessionId Int               @map("session_id")
+  userId    Int               @map("user_id")
+  kind      TrialReminderKind
+  sentAt    DateTime          @map("sent_at") @db.Timestamptz(6)
+
+  @@id([sessionId, userId, kind])
+  @@map("trial_reminders")
+}
+
+enum TrialLevel {
+  beginner
+  intermediate
+  advanced
+}
+
+enum TrialEngagement {
+  low
+  medium
+  high
+}
+
+enum TrialAttendance {
+  on_time
+  late
+  left_early
+}
+
+/// The teacher's report after a trial class (B85: required to close it).
+model TrialReport {
+  id                  Int             @id @default(autoincrement())
+  sessionId           Int             @unique @map("session_id")
+  /// The lead of the family when the report was written (no FK: leads can be merged away).
+  leadId              Int?            @map("lead_id")
+  attendance          TrialAttendance
+  level               TrialLevel
+  recommendedCourseId Int?            @map("recommended_course_id")
+  classesPerWeek      Int             @map("classes_per_week") @db.SmallInt
+  minutesPerClass     Int             @map("minutes_per_class") @db.SmallInt
+  engagement          TrialEngagement
+  /// For the CSR (never shown to the family).
+  notes               String?         @db.VarChar(2000)
+  submittedById       Int?            @map("submitted_by")
+  submittedAt         DateTime        @map("submitted_at") @db.Timestamptz(6)
+  updatedAt           DateTime        @map("updated_at") @db.Timestamptz(6)
+
+  session           ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  recommendedCourse Course?      @relation(fields: [recommendedCourseId], references: [id], onDelete: SetNull)
+
+  @@index([leadId])
+  @@map("trial_reports")
 }
