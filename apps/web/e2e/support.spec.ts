@@ -165,3 +165,18 @@ test('staff at 375 px: the inbox and a ticket fit; settings and triage pass axe'
   await expect(page.getByRole('table', { name: 'فرز البلاغات' })).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
+
+test('a WhatsApp deep link (S5): sign in, then «تواصل معنا» opens on that choice, pre-filled', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/contact?card=billing&choice=invoice_question&invoice=3');
+  // Not signed in: the login keeps the link and returns to it.
+  await expect(page).toHaveURL(/\/login\?next=/);
+  await login(page, 'parent@qarabic.test');
+  const form = page.getByRole('dialog', { name: 'استفسار عن فاتورة أو دفعة' });
+  await expect(form).toBeVisible();
+  await expect(form).toContainText('الفاتورة #3');
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+});

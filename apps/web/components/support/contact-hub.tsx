@@ -378,6 +378,51 @@ function StudentSearch({ onPick }: { onPick: (b: Behalf) => void }) {
   );
 }
 
+/** What a `/contact` deep link asks for (S5 `contactPath`): a card, a choice, and its subject. */
+export interface ContactDeepLink {
+  card?: string;
+  choice?: string;
+  sessionId?: number;
+  invoiceId?: number;
+  studentId?: number;
+}
+
+/**
+ * Where a deep link starts: its card, or its choice's pre-filled form with the invoice or child.
+ * A class choice starts on the card (the class is picked there); technical and suggestion go
+ * through the screenshot report, so they start on the card too.
+ */
+function deepLinkStart(
+  link: ContactDeepLink | undefined,
+  cards: ContactUsCard[],
+  labels: { invoice: (id: number) => string; student: string },
+): { view: View; child: Child | null } {
+  const card = link && cards.find((c) => c.key === link.card);
+  if (!link || !card) return { view: { at: 'home' }, child: null };
+  const choice = card.choices.find((c) => c.key === link.choice);
+  if (
+    !choice ||
+    choice.subject === 'session' ||
+    choice.category === 'technical' ||
+    choice.category === 'suggestion'
+  ) {
+    return { view: { at: 'card', card }, child: null };
+  }
+  const subject =
+    link.invoiceId && choice.subject === 'invoice'
+      ? { type: 'invoice' as const, id: link.invoiceId, label: labels.invoice(link.invoiceId) }
+      : link.studentId && choice.subject === 'student'
+        ? { type: 'student' as const, id: link.studentId, label: labels.student }
+        : undefined;
+  return {
+    view: { at: 'card', card },
+    child: {
+      kind: 'ticket',
+      intent: { ...intentOf(choice), ...(subject ? { subject, picker: undefined } : {}) },
+    },
+  };
+}
+
 type View =
   | { at: 'home' }
   | { at: 'card'; card: ContactUsCard }
@@ -408,25 +453,35 @@ export function ContactHub({
   open,
   onOpenChange,
   onReport,
+  initial,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** «مشكلة تقنية» / «اقتراح»: the screenshot report owned by the button. */
   onReport: (type: TicketType) => void;
+  /** A deep link (`/contact?card=…&choice=…`, S5): where the hub opens instead of its home. */
+  initial?: ContactDeepLink;
 }) {
   const t = useTranslations('support.contact');
   const locale = useUiLocale();
   const tz = useViewerTz();
   const me = useCurrentUser();
   const audience = audienceOf(me);
-  const [view, setView] = useState<View>({ at: 'home' });
-  const [child, setChild] = useState<Child | null>(null);
   const cards =
     audience === 'parent'
       ? PARENT_CONTACT_CARDS
       : audience === 'teacher'
         ? TEACHER_CONTACT_CARDS
         : [];
+  // A deep link starts on its card, or on its choice's pre-filled form (S5).
+  const [start] = useState(() =>
+    deepLinkStart(initial, cards, {
+      invoice: (n) => t('deepLink.invoice', { id: n }),
+      student: t('deepLink.student'),
+    }),
+  );
+  const [view, setView] = useState<View>(start.view);
+  const [child, setChild] = useState<Child | null>(start.child);
   const staffCards: StaffCard[] = [
     'technical',
     'suggestion',
