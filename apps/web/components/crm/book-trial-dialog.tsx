@@ -66,7 +66,15 @@ import { conflictsOf } from '@/lib/sessions/errors';
 import { clock, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { cityOf, isValidTimeZone } from '@/lib/time';
 import { useCrmError } from './crm-bits';
-import { EMPTY_OFFER, offerProblem, TrialOfferFields, type OfferDraft } from './trial-offer-fields';
+import {
+  EMPTY_OFFER,
+  OFFER_AUDIENCE_ID,
+  OFFER_SHORTLIST_ID,
+  offerProblem,
+  shortlistOf,
+  TrialOfferFields,
+  type OfferDraft,
+} from './trial-offer-fields';
 import {
   TRIAL_OVERRIDE_REASON_ID,
   TRIAL_TEACHERS_ID,
@@ -494,7 +502,14 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
         durationMinutes: Number(duration),
         policy: offer.policy,
         audience: offer.audience,
-        ...(offer.audience === 'shortlist' ? { teacherIds: offer.teacherIds } : {}),
+        ...(offer.audience === 'shortlist'
+          ? {
+              teacherIds: shortlistOf(
+                offer,
+                (offerList.data?.data.eligible ?? []).map((o) => o.teacher.id),
+              ),
+            }
+          : {}),
         meetingUrl: meetingUrl.trim() || null,
         note: offer.note.trim() || null,
       }),
@@ -508,8 +523,19 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     setTouched(true);
     const fieldErrors = [errors.student, errors.course, errors.date, errors.time, errors.url];
     if (fieldErrors.some(Boolean)) return;
-    const count = offerList.data ? offerList.data.data.eligible.length : null;
-    if (offerProblem(offer, count)) return;
+    const ids = offerList.data ? offerList.data.data.eligible.map((o) => o.teacher.id) : null;
+    const problem = offerProblem(offer, ids);
+    if (problem) {
+      // Take the focus to it: the shortlist's first box, else the audience choice.
+      document
+        .querySelector<HTMLElement>(
+          problem === 'shortlistEmpty'
+            ? `#${OFFER_SHORTLIST_ID} button[role="checkbox"]`
+            : `#${OFFER_AUDIENCE_ID} [role="radio"]`,
+        )
+        ?.focus();
+      return;
+    }
     send.mutate();
   };
   const submit = () => {
@@ -646,7 +672,7 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
             className="flex flex-col gap-0.5 rounded-lg border bg-subtle p-3 text-sm"
             aria-live="polite"
           >
-            {teacherTz && isValidTimeZone(teacherTz) && (
+            {mode === 'direct' && teacherTz && isValidTimeZone(teacherTz) && (
               <span>
                 {t('teacherTime', {
                   time: clock(at, teacherTz, locale),

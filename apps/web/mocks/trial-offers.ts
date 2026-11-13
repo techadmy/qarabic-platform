@@ -12,7 +12,7 @@ import { http, HttpResponse, type HttpHandler } from 'msw';
 import { crmdb, iso, trialOf } from './crm-db';
 import { zonedUtc } from './crm-handlers';
 import { COURSES, db as people } from './people-db';
-import { ownTeacherId } from './schedule-handlers';
+import { checkSlot, ownTeacherId } from './schedule-handlers';
 import { apiError, guard, guardAny, notFound, validationFailed } from './session';
 import { trialTeachers } from './trial-teachers';
 
@@ -262,6 +262,31 @@ export const trialOfferHandlers: HttpHandler[] = [
         teacherId: ['Choose one of the offer’s teachers.'],
       });
     }
+    // The booking's own check for this teacher at this date: a clash refuses, warnings need a tick.
+    const lead = crmdb.leads.find((l) => l.id === o.leadId)!;
+    const weekday = ((new Date(`${o.familyLocal.date}T00:00:00Z`).getUTCDay() + 6) % 7) + 1;
+    const check = checkSlot({
+      studentId: o.studentId,
+      teacherId: parsed.data.teacherId,
+      weekday,
+      localStartTime: o.familyLocal.time,
+      durationMinutes: o.durationMinutes,
+      timezone: o.familyZone ?? lead.timezone,
+      validFrom: o.familyLocal.date,
+    });
+    if (check.conflicts.length) {
+      return apiError(409, 'schedule_conflict', 'The class clashes.', undefined, check);
+    }
+    const ack = parsed.data.acknowledgeWarnings ?? [];
+    if (check.warnings.some((w) => !ack.includes(w.code))) {
+      return apiError(
+        422,
+        'warnings_not_acknowledged',
+        'Acknowledge the warnings.',
+        undefined,
+        check,
+      );
+    }
     book(o, parsed.data.teacherId);
     return HttpResponse.json({ data: present(o) });
   }),
@@ -342,3 +367,6 @@ export const trialOfferHandlers: HttpHandler[] = [
 
 // Seeded at load too (the browser mocks are not reset before first use), like crm-db.
 resetTrialOffers();
+
+/** For tests: the offers as stored (to set up a taken or volunteered offer). */
+export const offersForTests = () => offers;

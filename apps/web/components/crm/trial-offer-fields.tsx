@@ -6,6 +6,8 @@ import {
   type TrialOfferPolicy,
   type TrialTeachersQuery,
 } from '@qarabic/shared';
+import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
+import { Button } from '@qarabic/ui/components/button';
 import { Checkbox } from '@qarabic/ui/components/checkbox';
 import {
   Field,
@@ -40,12 +42,24 @@ export const EMPTY_OFFER: OfferDraft = {
   note: '',
 };
 
+/**
+ * The shortlist as it counts now: only teachers still eligible at the chosen time (a change of
+ * time drops the others without asking).
+ */
+export const shortlistOf = (draft: OfferDraft, eligibleIds: number[]) =>
+  draft.teacherIds.filter((id) => eligibleIds.includes(id));
+
 /** What the CSR's offer needs before it can be sent (the error key, or null). */
-export function offerProblem(draft: OfferDraft, eligibleCount: number | null): string | null {
-  if (eligibleCount === 0) return 'noneEligible';
-  if (draft.audience === 'shortlist' && draft.teacherIds.length === 0) return 'shortlistEmpty';
+export function offerProblem(draft: OfferDraft, eligibleIds: number[] | null): string | null {
+  if (eligibleIds && eligibleIds.length === 0) return 'noneEligible';
+  if (draft.audience === 'shortlist' && shortlistOf(draft, eligibleIds ?? []).length === 0)
+    return 'shortlistEmpty';
   return null;
 }
+
+/** Stable ids, so the dialog can take the focus to the problem on send. */
+export const OFFER_AUDIENCE_ID = 'trial-offer-audience';
+export const OFFER_SHORTLIST_ID = 'trial-offer-shortlist';
 
 /**
  * «اعرضها على المعلمين» (T3, docs/33 §4.3, mode B): who gets the offer (every eligible teacher, or
@@ -76,7 +90,9 @@ export function TrialOfferFields({
     placeholderData: keepPreviousData,
   });
   const eligible = list.data?.data.eligible ?? [];
-  const problem = offerProblem(value, list.data ? eligible.length : null);
+  const eligibleIds = eligible.map((o) => o.teacher.id);
+  const problem = offerProblem(value, list.data ? eligibleIds : null);
+  const picked = shortlistOf(value, eligibleIds);
   const set = (patch: Partial<OfferDraft>) => onChange({ ...value, ...patch });
 
   if (!query) return <FieldDescription>{t('chooseTimeFirst')}</FieldDescription>;
@@ -96,9 +112,16 @@ export function TrialOfferFields({
               <Field orientation="horizontal">
                 <FieldContent>
                   <FieldTitle>{TRIAL_OFFER_POLICY_LABELS[p][locale]}</FieldTitle>
-                  <FieldDescription>{t(`policyHelp.${p}`)}</FieldDescription>
+                  <FieldDescription id={`${ids.policy}-${p}-desc`}>
+                    {t(`policyHelp.${p}`)}
+                  </FieldDescription>
                 </FieldContent>
-                <RadioGroupItem id={`${ids.policy}-${p}`} value={p} />
+                <RadioGroupItem
+                  id={`${ids.policy}-${p}`}
+                  value={p}
+                  aria-label={TRIAL_OFFER_POLICY_LABELS[p][locale]}
+                  aria-describedby={`${ids.policy}-${p}-desc`}
+                />
               </Field>
             </FieldLabel>
           ))}
@@ -108,11 +131,21 @@ export function TrialOfferFields({
         <FieldLegend id={ids.audience} variant="label">
           {t('audience')}
         </FieldLegend>
-        {!list.data ? (
+        {list.isError ? (
+          <Alert variant="destructive" role="alert">
+            <AlertDescription className="flex flex-wrap items-center justify-between gap-2">
+              {t('loadError')}
+              <Button type="button" variant="outline" onClick={() => void list.refetch()}>
+                {t('retry')}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : !list.data ? (
           <Skeleton className="h-16 w-full" />
         ) : (
           <>
             <RadioGroup
+              id={OFFER_AUDIENCE_ID}
               aria-labelledby={ids.audience}
               aria-describedby={showErrors && problem ? ids.error : undefined}
               value={value.audience}
@@ -131,30 +164,35 @@ export function TrialOfferFields({
               ))}
             </RadioGroup>
             {value.audience === 'shortlist' && (
-              <div className="flex flex-col gap-2 rounded-lg border p-3">
-                {eligible.map((o) => {
-                  const id = `${ids.audience}-t-${o.teacher.id}`;
-                  return (
-                    <Field key={o.teacher.id} orientation="horizontal">
-                      <Checkbox
-                        id={id}
-                        checked={value.teacherIds.includes(o.teacher.id)}
-                        onCheckedChange={(on) =>
-                          set({
-                            teacherIds: on
-                              ? [...value.teacherIds, o.teacher.id]
-                              : value.teacherIds.filter((x) => x !== o.teacher.id),
-                          })
-                        }
-                      />
-                      <FieldLabel htmlFor={id} className="font-normal">
-                        <span className="tabular-nums text-muted-foreground">#{o.rank}</span>{' '}
-                        <bdi>{o.teacher.name}</bdi>
-                      </FieldLabel>
-                    </Field>
-                  );
-                })}
-              </div>
+              <FieldSet id={OFFER_SHORTLIST_ID}>
+                <FieldLegend variant="label">
+                  {t('shortlistLegend', { count: picked.length })}
+                </FieldLegend>
+                <div className="flex flex-col gap-2 rounded-lg border p-3">
+                  {eligible.map((o) => {
+                    const id = `${ids.audience}-t-${o.teacher.id}`;
+                    return (
+                      <Field key={o.teacher.id} orientation="horizontal">
+                        <Checkbox
+                          id={id}
+                          checked={picked.includes(o.teacher.id)}
+                          onCheckedChange={(on) =>
+                            set({
+                              teacherIds: on
+                                ? [...picked, o.teacher.id]
+                                : picked.filter((x) => x !== o.teacher.id),
+                            })
+                          }
+                        />
+                        <FieldLabel htmlFor={id} className="font-normal">
+                          <span className="tabular-nums text-muted-foreground">#{o.rank}</span>{' '}
+                          <bdi>{o.teacher.name}</bdi>
+                        </FieldLabel>
+                      </Field>
+                    );
+                  })}
+                </div>
+              </FieldSet>
             )}
           </>
         )}

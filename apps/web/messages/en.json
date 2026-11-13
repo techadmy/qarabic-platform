@@ -1604,7 +1604,7 @@
       "title": "Trial class offers",
       "minutes": "{count} min",
       "age": "{age} years old",
-      "answerBy": "Answer by {when}",
+      "answerBy": "Answer by <bdi>{at}</bdi> ({rel})",
       "accept": "Accept the class",
       "volunteer": "I’d like this class",
       "decline": "Decline",
@@ -1615,7 +1615,17 @@
       "youDeclined": "You declined",
       "booked": "The trial class is booked for you.",
       "volunteered": "Noted; customer service will pick the teacher.",
-      "declined": "Your decline is noted."
+      "declined": "Your decline is noted.",
+      "loadError": "Couldn’t load the offers.",
+      "retry": "Try again",
+      "back": "Back",
+      "confirmWhat": "{course}, {when}.",
+      "acceptTitle": "Accept the trial class?",
+      "acceptHint": "The class is booked for you at once and shows in your classes.",
+      "volunteerTitle": "Volunteer for this class?",
+      "volunteerHint": "Customer service picks the teacher among the volunteers.",
+      "declineTitle": "Decline the offer?",
+      "declineHint": "This offer won’t come back to you."
     }
   },
   "support": {
@@ -2409,7 +2419,10 @@
         "noteHelp": "Shown with the offer. Don’t write the family’s name or contacts.",
         "expiryHelp": "The offer closes after 2 hours, or 6 hours before the class if sooner; then you’re told to choose the teacher directly.",
         "send": "Send the offer",
-        "sent": "{count, plural, one {Offer sent to # teacher.} other {Offer sent to # teachers.}}"
+        "sent": "{count, plural, one {Offer sent to # teacher.} other {Offer sent to # teachers.}}",
+        "shortlistLegend": "{count, plural, =0 {Choose the teachers (none chosen)} one {Choose the teachers (# chosen)} other {Choose the teachers (# chosen)}}",
+        "loadError": "Couldn’t load the eligible teachers.",
+        "retry": "Try again"
       }
     },
     "outcome": {
@@ -2498,8 +2511,6 @@
     "offers": {
       "heading": "Trial offers to teachers",
       "title": "Trial offer: {course}",
-      "closesAt": "Closes {when}",
-      "closedAt": "Closed {when}",
       "claimedBy": "Assigned to {name}",
       "teachers": "Teachers who got the offer",
       "noAnswer": "No answer yet",
@@ -2510,7 +2521,19 @@
         "assign": "The trial is booked with the chosen teacher.",
         "resend": "Offer sent again.",
         "cancel": "Offer cancelled."
-      }
+      },
+      "when": "<bdi>{at}</bdi> ({rel})",
+      "closes": "Closes",
+      "closed": "Closed",
+      "loadError": "Couldn’t load the offers.",
+      "retry": "Try again",
+      "cancelTitle": "Cancel the offer?",
+      "cancelHint": "The offer closes for every teacher who got it; you can send it again later.",
+      "cancelReason": "Reason for cancelling",
+      "pickTitle": "Book the class with {name}",
+      "pickHint": "The time check for this teacher: confirm the warnings to go on; a clash blocks the booking.",
+      "pickConfirm": "Book with this teacher",
+      "back": "Back"
     }
   },
   "trialForm": {

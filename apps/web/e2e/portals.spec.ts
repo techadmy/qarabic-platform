@@ -94,6 +94,10 @@ test('teacher (phone): a trial offer can be accepted from the home (T3)', async 
   const accept = offers.getByRole('button', { name: 'أقبل الحصة' });
   expect((await accept.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await accept.click();
+  // It asks first: accepting books the class at once.
+  const confirm = page.getByRole('alertdialog', { name: 'قبول الحصة التجريبية؟' });
+  await expectNoSeriousA11yViolations(page);
+  await confirm.getByRole('button', { name: 'أقبل الحصة' }).click();
   await expect(page.getByText('حُجزت الحصة التجريبية لك.')).toBeVisible();
   await expect(offers.getByText('حُجزت لك')).toBeVisible();
   await expectNoHorizontalScroll(page);
