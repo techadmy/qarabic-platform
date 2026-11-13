@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import {
   type HifzEntryDto,
   hifzAyahs,
@@ -14,6 +14,7 @@ import type { z } from 'zod';
 import { AuditService, diff } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
+import { ApiException } from '../common/errors.js';
 import { pageArgs, pageMeta } from '../common/pagination.js';
 import type { HifzEntry, LessonReport, Prisma } from '../generated/prisma/client.js';
 import { isParentViewer, type Tx } from '../people/people.common.js';
@@ -127,7 +128,12 @@ export class LessonReportsService {
   ) {}
 
   /** The caller has already applied the row scope (404). */
-  async submit(sessionId: number, input: ReportInput, viewer: AuthUser): Promise<void> {
+  async submit(
+    sessionId: number,
+    input: ReportInput,
+    viewer: AuthUser,
+    opts: { trialReport?: boolean } = {},
+  ): Promise<void> {
     const actor = await Actor.of(this.prisma, viewer);
     const st = await this.settings.all();
     await this.prisma.$transaction(async (tx) => {
@@ -139,6 +145,13 @@ export class LessonReportsService {
       const now = this.clock.nowMs();
 
       if (s.stage === 'ended') {
+        // B85: a trial class closes with the teacher's trial report (T4), not a plain report.
+        if (s.kind === 'trial' && !opts.trialReport && st['crm.trial_report_required']) {
+          throw new ApiException(HttpStatus.UNPROCESSABLE_ENTITY, {
+            message: 'A trial class closes with the trial report.',
+            code: 'trial_report_required',
+          });
+        }
         const { from, to } = await this.machine.apply(
           sessionId,
           'submit_report',
