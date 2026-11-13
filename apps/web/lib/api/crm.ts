@@ -40,6 +40,12 @@ import {
   type TrialReportDto,
   type TrialChecklistItemDto,
   trialTeachersResponseSchema,
+  trialOfferSchema,
+  myTrialOfferSchema,
+  type CreateTrialOfferInput,
+  type AssignTrialOfferInput,
+  type TrialOfferDto,
+  type MyTrialOfferDto,
   type TrialTeachersQuery,
   type TrialTeachersResponse,
 } from '@qarabic/shared';
@@ -188,6 +194,65 @@ export async function fetchTrialTeachers(
   });
 }
 
+// ------------------------------------------------------------------ T3 open offers
+
+const offerOne = one(trialOfferSchema);
+
+/** T3: offer the trial to the eligible teachers (or a shortlist). */
+export async function createTrialOffer(
+  leadId: number,
+  body: CreateTrialOfferInput,
+): Promise<TrialOfferDto> {
+  return (
+    await apiFetch(`/leads/${leadId}/trial-offers`, { method: 'POST', body, schema: offerOne })
+  ).data;
+}
+
+export async function fetchLeadTrialOffers(
+  leadId: number,
+  signal?: AbortSignal,
+): Promise<TrialOfferDto[]> {
+  return (
+    await apiFetch(`/leads/${leadId}/trial-offers`, {
+      schema: z.object({ data: z.array(trialOfferSchema) }),
+      signal,
+    })
+  ).data;
+}
+
+export async function trialOfferAction(
+  id: number,
+  action: 'assign' | 'resend' | 'cancel',
+  body: AssignTrialOfferInput | { expiresInMinutes?: number } | { reason?: string | null } = {},
+): Promise<TrialOfferDto> {
+  return (
+    await apiFetch(`/trial-offers/${id}/${action}`, { method: 'POST', body, schema: offerOne })
+  ).data;
+}
+
+/** The teacher's offers («عروض الحصص التجريبية»): no family data. */
+export async function fetchMyTrialOffers(signal?: AbortSignal): Promise<MyTrialOfferDto[]> {
+  return (
+    await apiFetch('/me/trial-offers', {
+      schema: z.object({ data: z.array(myTrialOfferSchema) }),
+      signal,
+    })
+  ).data;
+}
+
+export async function answerMyTrialOffer(
+  id: number,
+  answer: 'accept' | 'decline',
+): Promise<MyTrialOfferDto> {
+  return (
+    await apiFetch(`/me/trial-offers/${id}/${answer}`, {
+      method: 'POST',
+      body: {},
+      schema: one(myTrialOfferSchema),
+    })
+  ).data;
+}
+
 export async function recordTrialOutcome(
   id: number,
   body: TrialOutcomeInput,
@@ -235,6 +300,8 @@ export const crmKeys = {
   assignees: ['crm', 'assignees'] as const,
   lead: (id: number) => ['crm', 'lead', id] as const,
   trialTeachers: (id: number, query: unknown) => ['crm', 'trial-teachers', id, query] as const,
+  trialOffers: (leadId: number) => ['crm', 'trial-offers', leadId] as const,
+  myTrialOffers: ['crm', 'my-trial-offers'] as const,
   settings: ['crm', 'settings'] as const,
   trialsToday: (query: unknown) => ['crm', 'trials-today', query] as const,
   trialReports: (leadId: number) => ['crm', 'trial-reports', leadId] as const,

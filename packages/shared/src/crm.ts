@@ -91,6 +91,7 @@ export const LOST_REASONS = [
   'schedule',
   'duplicate',
   'other',
+  'teacher',
 ] as const;
 export type LostReason = (typeof LOST_REASONS)[number];
 export const LOST_REASON_LABELS: Labels<LostReason> = {
@@ -100,6 +101,7 @@ export const LOST_REASON_LABELS: Labels<LostReason> = {
   schedule: { ar: 'المواعيد غير مناسبة', en: 'Schedule' },
   duplicate: { ar: 'طلب مكرر', en: 'Duplicate' },
   other: { ar: 'سبب آخر', en: 'Other' },
+  teacher: { ar: 'المعلم', en: 'Teacher' },
 };
 
 export const TRIAL_OUTCOMES = ['interested', 'not_interested', 'no_show'] as const;

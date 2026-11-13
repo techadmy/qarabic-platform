@@ -84,3 +84,21 @@ test('parent (phone): «المستحق عليكم» leads to paying that invoice
   await expect(page).toHaveURL(/\/invoices\/\d+\?pay=1$/);
   await expect(page.locator('main h1').first()).toBeVisible();
 });
+
+test('teacher (phone): a trial offer can be accepted from the home (T3)', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'teacher@qarabic.test');
+  const offers = page.getByRole('region', { name: 'عروض الحصص التجريبية' });
+  await expect(offers).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  const accept = offers.getByRole('button', { name: 'أقبل الحصة' });
+  expect((await accept.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  await accept.click();
+  // It asks first: accepting books the class at once.
+  const confirm = page.getByRole('alertdialog', { name: 'قبول الحصة التجريبية؟' });
+  await expectNoSeriousA11yViolations(page);
+  await confirm.getByRole('button', { name: 'أقبل الحصة' }).click();
+  await expect(page.getByText('حُجزت الحصة التجريبية لك.')).toBeVisible();
+  await expect(offers.getByText('حُجزت لك')).toBeVisible();
+  await expectNoHorizontalScroll(page);
+});
