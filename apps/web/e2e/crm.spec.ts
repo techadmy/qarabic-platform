@@ -53,9 +53,11 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await page.getByRole('option', { name: 'Ahmed Fathy' }).click();
   await pickTomorrow(page, book, 'Europe/London');
   await book.getByRole('combobox', { name: 'الوقت' }).click();
-  await page.getByRole('option', { name: '6:00 م' }).click();
+  await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
-  // 6 pm London = 8 pm Cairo, outside the demo teacher's hours: booking needs the acknowledgement.
+  // 4 am London = 6 am Cairo, before the demo teacher's hours (08:00–23:30, Sat–Thu) on any day:
+  // booking needs the acknowledgement. (6 pm London was outside them only when tomorrow was a
+  // Friday, the teacher's day off.)
   await book.getByRole('button', { name: 'احجز الحصة' }).click();
   await expect(book.getByText('عالج التعارضات أو أكّد التنبيهات قبل الحجز.')).toBeVisible();
   await book.getByRole('checkbox', { name: 'خارج ساعات عمل المعلم' }).check();
