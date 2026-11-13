@@ -131,7 +131,8 @@
     "vouchers": "Receipts and payments",
     "chartOfAccounts": "Chart of accounts",
     "financialReports": "Financial reports",
-    "periods": "Accounting periods"
+    "periods": "Accounting periods",
+    "trialsToday": "Today’s trial classes"
   },
   "home": {
     "title": "Home",
@@ -2371,7 +2372,8 @@
       "done": "The family is now regular.",
       "slotRequired": "Complete each student: course, teacher and at least one weekly time.",
       "chooseOne": "Choose at least one student.",
-      "needAccount": "Create the family account first from “Book a trial class”."
+      "needAccount": "Create the family account first from “Book a trial class”.",
+      "fromReport": "From the teacher’s trial report: level {level}; recommended {perWeek}, {minutes}."
     },
     "settings": {
       "title": "Lead settings",
@@ -2411,7 +2413,30 @@
       "saved": "Settings saved.",
       "nothingChanged": "Nothing changed.",
       "invalid": "Invalid value.",
-      "readOnly": "You can view these settings only."
+      "readOnly": "You can view these settings only.",
+      "trials": {
+        "title": "Trial classes",
+        "hint": "Offers to teachers, reminders, the teacher’s report, and following up with the family after the class.",
+        "reportRequired": "A trial class closes only with the teacher’s report",
+        "reportRequiredHint": "The teacher writes a short report on the level and the recommended plan.",
+        "reminders": "Remind the teacher before the class",
+        "remindersHint": "A day and an hour before, in the app.",
+        "familyReminders": "Remind the family before the class",
+        "familyRemindersHint": "Nothing is sent to families until approved (D140).",
+        "offer_expiry_minutes": "Time to answer an offer (minutes)",
+        "offer_expiry_minutesHint": "Then it closes and you’re told to choose the teacher.",
+        "offer_min_hours_before": "An offer closes before the class by (hours)",
+        "offer_min_hours_beforeHint": "So no offer is taken at the last minute.",
+        "offer_max_open_claims": "Most trials a teacher may hold from offers",
+        "offer_max_open_claimsHint": "Upcoming at once; spreads trials fairly.",
+        "late_alert_minutes": "Alert monitors if the teacher hasn’t started (minutes)",
+        "late_alert_minutesHint": "After the class start.",
+        "stale_remind_days": "Remind about a family that hasn’t enrolled (days)",
+        "stale_remind_daysHint": "The lead’s owner is told to follow up.",
+        "stale_lost_days": "Suggest «lost» after (days)",
+        "stale_lost_daysHint": "After the trial, without enrolling.",
+        "range": "Enter a number between {min} and {max}."
+      }
     },
     "refer": {
       "title": "Recommend a friend",
@@ -2427,6 +2452,36 @@
       "send": "Send the recommendation",
       "sent": "Thank you, your recommendation was sent.",
       "cancel": "Cancel"
+    },
+    "trialsToday": {
+      "title": "Today’s trial classes",
+      "description": "Did the teacher start on time, did the student join, is the teacher’s report in.",
+      "count": "{count, plural, one {# trial class} other {# trial classes}}",
+      "prevDay": "Previous day",
+      "nextDay": "Next day",
+      "pickDate": "Date",
+      "today": "Today",
+      "viewLabel": "View",
+      "attention": "Need attention",
+      "all": "All",
+      "time": "Time",
+      "student": "Student",
+      "teacher": "Teacher",
+      "started": "Teacher started",
+      "joined": "Student joined",
+      "report": "Report",
+      "alerts": "Alerts",
+      "startedOnTime": "On time",
+      "startedLate": "{minutes} min late",
+      "notStartedFor": "Not started for {minutes} min",
+      "notYet": "Not yet due",
+      "unknown": "Unknown",
+      "yes": "Yes",
+      "no": "No",
+      "reportIn": "In",
+      "reportMissing": "Not in",
+      "none": "No trial classes on this day.",
+      "noneNeedAttention": "No trial class needs attention right now."
     }
   },
   "trialForm": {

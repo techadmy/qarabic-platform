@@ -123,6 +123,56 @@ function SwitchRow({
   );
 }
 
+/** A whole-number setting with its range (shown as the error when out of it). */
+function NumberRow({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  error,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  error?: string;
+  onChange: (raw: string) => void;
+}) {
+  const id = useId();
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        dir="ltr"
+        min={min}
+        max={max}
+        className="h-10 text-start"
+        value={Number.isNaN(value) ? '' : value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={!!error}
+      />
+      {hint && <FieldDescription>{hint}</FieldDescription>}
+      {error && <FieldError>{error}</FieldError>}
+    </Field>
+  );
+}
+
+/** The trial settings' number rows: key, range. */
+const TRIAL_NUMBERS = [
+  ['crm.trial_offer_expiry_minutes', 15, 1440],
+  ['crm.trial_offer_min_hours_before', 0, 72],
+  ['crm.trial_offer_max_open_claims', 1, 20],
+  ['crm.trial_late_alert_minutes', 1, 60],
+  ['crm.trial_stale_remind_days', 1, 60],
+  ['crm.trial_stale_lost_days', 2, 180],
+] as const;
+
 function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
   const t = useTranslations('crm.settings');
   const locale = useUiLocale();
@@ -191,7 +241,10 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
     save.mutate(parsed.data);
   };
   const num = (
-    k: 'crm.first_response_minutes' | 'crm.unanswered_attempts_suggest_lost',
+    k:
+      | 'crm.first_response_minutes'
+      | 'crm.unanswered_attempts_suggest_lost'
+      | (typeof TRIAL_NUMBERS)[number][0],
     raw: string,
   ) => set(k, raw === '' ? (Number.NaN as never) : Number(raw));
 
@@ -415,6 +468,55 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
                 disabled={readOnly}
                 onChange={(x) => set('crm.web_lead_confirmation', x)}
               />
+            </FieldGroup>
+          </CardContent>
+        </Card>
+
+        {/* T3 offers + T4 follow-up (docs/33 §3.5–3.7, §4.3). */}
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <CardTitle className="text-base font-bold">
+              <h2>{t('trials.title')}</h2>
+            </CardTitle>
+            <CardDescription>{t('trials.hint')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <SwitchRow
+                label={t('trials.reportRequired')}
+                hint={t('trials.reportRequiredHint')}
+                checked={v['crm.trial_report_required']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_report_required', x)}
+              />
+              <SwitchRow
+                label={t('trials.reminders')}
+                hint={t('trials.remindersHint')}
+                checked={v['crm.trial_reminders_enabled']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_reminders_enabled', x)}
+              />
+              <SwitchRow
+                label={t('trials.familyReminders')}
+                hint={t('trials.familyRemindersHint')}
+                checked={v['crm.trial_family_reminders']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_family_reminders', x)}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                {TRIAL_NUMBERS.map(([k, min, max]) => (
+                  <NumberRow
+                    key={k}
+                    label={t(`trials.${k.slice(10)}`)}
+                    hint={t(`trials.${k.slice(10)}Hint`)}
+                    value={v[k]}
+                    min={min}
+                    max={max}
+                    error={errors[k] ? t('trials.range', { min, max }) : undefined}
+                    onChange={(raw) => num(k, raw)}
+                  />
+                ))}
+              </div>
             </FieldGroup>
           </CardContent>
         </Card>

@@ -35,6 +35,10 @@ import {
   type TrialOutcomeInput,
   type UpdateCrmSettingsInput,
   type UpdateLeadInput,
+  trialChecklistItemSchema,
+  trialReportSchema,
+  type TrialReportDto,
+  type TrialChecklistItemDto,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
@@ -143,6 +147,32 @@ export async function bookTrial(
   return { lead: res.data, trial: res.meta.trial };
 }
 
+/** T4: the lead's trial reports (the convert form starts from them). */
+export async function fetchLeadTrialReports(
+  leadId: number,
+  signal?: AbortSignal,
+): Promise<TrialReportDto[]> {
+  return (
+    await apiFetch(`/leads/${leadId}/trial-reports`, {
+      schema: z.object({ data: z.array(trialReportSchema) }),
+      signal,
+    })
+  ).data;
+}
+
+/** T4: today's trial classes for monitors and customer service (docs/33 §3.5). */
+export async function fetchTrialsToday(
+  query: { date?: string; tz?: string },
+  signal?: AbortSignal,
+): Promise<TrialChecklistItemDto[]> {
+  return (
+    await apiFetch(`/trials/today${qs(query)}`, {
+      schema: z.object({ data: z.array(trialChecklistItemSchema) }),
+      signal,
+    })
+  ).data;
+}
+
 export async function recordTrialOutcome(
   id: number,
   body: TrialOutcomeInput,
@@ -190,5 +220,7 @@ export const crmKeys = {
   assignees: ['crm', 'assignees'] as const,
   lead: (id: number) => ['crm', 'lead', id] as const,
   settings: ['crm', 'settings'] as const,
+  trialsToday: (query: unknown) => ['crm', 'trials-today', query] as const,
+  trialReports: (leadId: number) => ['crm', 'trial-reports', leadId] as const,
   publicCourses: ['public', 'courses'] as const,
 };
