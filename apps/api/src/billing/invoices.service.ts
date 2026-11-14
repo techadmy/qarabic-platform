@@ -1,4 +1,4 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   BILLING_ERROR_MESSAGES,
   isEditableInvoice,
@@ -59,6 +59,8 @@ export const balanceMinor = (i: Pick<Invoice, 'total' | 'paid'>) =>
  */
 @Injectable()
 export class InvoiceService {
+  private readonly logger = new Logger(InvoiceService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly fees: FamilyFeeCalculator,
@@ -156,8 +158,16 @@ export class InvoiceService {
         });
         result.issued.push(id);
       } catch (error) {
-        if (!isUniqueViolation(error)) throw error;
-        result.skipped.push({ familyId: row.familyId, reason: 'exists' });
+        // BIL-7 (docs/39 P2-2): one family's failure never loses the run's audit and emails for
+        // the invoices already issued; it is reported as skipped.
+        if (isUniqueViolation(error)) {
+          result.skipped.push({ familyId: row.familyId, reason: 'exists' });
+        } else {
+          this.logger.error(
+            `Invoice run: family ${row.familyId} failed: ${(error as Error).message}`,
+          );
+          result.skipped.push({ familyId: row.familyId, reason: 'error' });
+        }
       }
     }
     if (result.issued.length) {

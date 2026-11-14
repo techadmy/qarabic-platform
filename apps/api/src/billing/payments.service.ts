@@ -96,7 +96,14 @@ export class PaymentService {
         },
       });
       await this.invoices.recalculate(tx, invoice);
-      await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, payment, amount, now);
+      // BIL-8 (docs/39 P2-2): the ledger dates a manual payment on the day the money came in.
+      await paymentEvent(
+        tx,
+        BILLING_EVENT.paymentSucceeded,
+        payment,
+        amount,
+        payment.receivedAt ?? now,
+      );
       await this.audit.record(
         {
           actorId: actor.id,
