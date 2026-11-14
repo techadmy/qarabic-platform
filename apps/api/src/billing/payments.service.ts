@@ -22,11 +22,16 @@ import { SettingsService } from '../settings/settings.service.js';
 import { billingError } from './errors.js';
 import { BILLING_EVENT, paymentEvent } from './events.js';
 import { GatewayError, type PaymentGateway, PayPalGateway, StripeGateway } from './gateways.js';
-import { balanceMinor, InvoiceService } from './invoices.service.js';
+import { balanceMinor, InvoiceService, type OpenCheckout } from './invoices.service.js';
 import { dec, minor } from './money.js';
 
-/** A pending attempt younger than this is reused instead of creating another one. */
-export const REUSE_MINUTES = 30;
+/**
+ * A pending attempt younger than this is reused instead of creating another one. It equals the
+ * Stripe session's lifetime (`expires_at` = 60 min), so a live session is never doubled (BIL-1).
+ */
+export const REUSE_MINUTES = 60;
+/** How long a second "Pay" waits for the first request's checkout link (BIL-2). */
+const LINK_WAIT_MS = 10_000;
 
 export interface ManualPaymentInput {
   method: ManualPaymentMethod;
@@ -74,7 +79,8 @@ export class PaymentService {
     if (input.receivedOn > localDate(this.clock.nowMs(), zone)) {
       throw validationError({ receivedOn: ['The date received cannot be in the future.'] });
     }
-    return this.prisma.$transaction(async (tx) => {
+    let closed: OpenCheckout[] = [];
+    const id = await this.prisma.$transaction(async (tx) => {
       const invoice = await this.invoices.lock(tx, invoiceId);
       if (!isOpenInvoice(invoice.status)) throw billingError('not_open', 'invoice');
       const amount = toMinor(input.amount);
@@ -96,6 +102,8 @@ export class PaymentService {
         },
       });
       await this.invoices.recalculate(tx, invoice);
+      // BIL-1: the open checkouts were for the old balance: nobody should pay them any more.
+      closed = await this.invoices.cancelPendingPayments(tx, invoice.id, 'superseded_by_manual');
       await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, payment, amount, now);
       await this.audit.record(
         {
@@ -114,6 +122,8 @@ export class PaymentService {
       );
       return payment.id;
     });
+    await this.invoices.expireAtProviders(closed);
+    return id;
   }
 
   /** Reverses a wrongly recorded manual payment (reason required). Online ones are refunded at the provider. */
@@ -125,6 +135,7 @@ export class PaymentService {
       const payment = await this.lockPayment(tx, paymentId);
       if (
         ONLINE_PAYMENT_METHODS.includes(payment.method as OnlinePaymentMethod) ||
+        payment.method === 'credit' ||
         payment.status !== 'succeeded'
       ) {
         throw billingError('payment_not_voidable', 'payment');
@@ -167,22 +178,29 @@ export class PaymentService {
     if (!gateway.enabled()) throw billingError('provider_unavailable', 'provider');
     const now = this.clock.now();
 
-    const payment = await this.prisma.$transaction(async (tx) => {
+    let closed: OpenCheckout[] = [];
+    let mine = false;
+    let payment = await this.prisma.$transaction(async (tx) => {
       const invoice = await this.invoices.lock(tx, invoiceId);
       const balance = balanceMinor(invoice);
       if (!isOpenInvoice(invoice.status) || balance <= 0) throw billingError('not_open', 'invoice');
-      const reuse = await tx.payment.findFirst({
-        where: {
-          invoiceId,
-          method,
-          status: 'pending',
-          amount: dec(balance),
-          checkoutUrl: { not: null },
-          createdAt: { gte: new Date(now.getTime() - REUSE_MINUTES * MINUTE) },
-        },
+      // BIL-1/BIL-2: one open online attempt per invoice. The same method and amount inside the
+      // session's lifetime is reused (even before its link exists: a second click waits for it);
+      // anything else is cancelled and closed at its provider first.
+      const open = await tx.payment.findFirst({
+        where: { invoiceId, status: 'pending', method: { in: ['stripe', 'paypal'] } },
         orderBy: { id: 'desc' },
       });
-      if (reuse) return reuse;
+      if (
+        open &&
+        open.method === method &&
+        minor(open.amount) === balance &&
+        open.createdAt.getTime() >= now.getTime() - REUSE_MINUTES * MINUTE
+      ) {
+        return open;
+      }
+      closed = await this.invoices.cancelPendingPayments(tx, invoiceId, 'superseded');
+      mine = true;
       return tx.payment.create({
         data: {
           invoiceId,
@@ -197,7 +215,18 @@ export class PaymentService {
         },
       });
     });
+    await this.invoices.expireAtProviders(closed);
     if (payment.checkoutUrl) return payment;
+    if (!mine) {
+      // Another request is creating this checkout right now: wait for its link.
+      for (let waited = 0; waited < LINK_WAIT_MS && !payment.checkoutUrl; waited += 250) {
+        await new Promise((resolve) => setTimeout(resolve, 250));
+        payment = await this.prisma.payment.findUniqueOrThrow({ where: { id: payment.id } });
+        if (payment.status !== 'pending') throw billingError('provider_error', 'provider');
+      }
+      if (payment.checkoutUrl) return payment;
+      throw billingError('provider_error', 'provider');
+    }
 
     const invoice = await this.prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
     const base = `${this.env.APP_URL.replace(/\/+$/, '')}${invoicePath(invoiceId)}`;
@@ -235,35 +264,99 @@ export class PaymentService {
     amountMinor: number,
     currency: string,
   ): Promise<Payment> {
-    return this.prisma.$transaction(async (tx) => {
-      const found = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
-      const invoice = await this.invoices.lock(tx, found.invoiceId);
-      const payment = await this.lockPayment(tx, paymentId);
-      if (payment.status === 'succeeded' || payment.status === 'refunded') return payment;
-      if (amountMinor !== minor(payment.amount) || currency.toUpperCase() !== payment.currency) {
-        this.logger.error(
-          `Payment ${payment.id} amount mismatch: expected ${dec(minor(payment.amount))} ${payment.currency}`,
-        );
-        return tx.payment.update({
+    return this.prisma
+      .$transaction(async (tx) => {
+        const found = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+        const invoice = await this.invoices.lock(tx, found.invoiceId);
+        const payment = await this.lockPayment(tx, paymentId);
+        if (payment.status === 'succeeded' || payment.status === 'refunded') return payment;
+        if (amountMinor !== minor(payment.amount) || currency.toUpperCase() !== payment.currency) {
+          this.logger.error(
+            `Payment ${payment.id} amount mismatch: expected ${dec(minor(payment.amount))} ${payment.currency}`,
+          );
+          return tx.payment.update({
+            where: { id: paymentId },
+            data: { status: 'failed', failureReason: 'amount_mismatch', providerPaymentId },
+          });
+        }
+        const now = this.clock.now();
+        // P1-1 (BIL-1, B115): the money is kept. What the invoice still owed is applied; the rest
+        // (a second payment, a voided or split invoice) becomes the family's credit, on the review
+        // list and on the customer-credits liability, used on their next invoice.
+        const open = isOpenInvoice(invoice.status);
+        const applied = open ? Math.min(amountMinor, balanceMinor(invoice)) : 0;
+        const unapplied = amountMinor - applied;
+        const done = await tx.payment.update({
           where: { id: paymentId },
-          data: { status: 'failed', failureReason: 'amount_mismatch', providerPaymentId },
+          data: {
+            status: 'succeeded',
+            providerPaymentId,
+            receivedAt: now,
+            failureReason: null,
+            unapplied: dec(unapplied),
+            needsReview: unapplied > 0,
+            reviewReason:
+              unapplied > 0
+                ? open || invoice.status === 'paid'
+                  ? 'overpaid'
+                  : 'invoice_closed'
+                : null,
+          },
         });
-      }
-      const now = this.clock.now();
-      const done = await tx.payment.update({
-        where: { id: paymentId },
-        data: { status: 'succeeded', providerPaymentId, receivedAt: now, failureReason: null },
+        const after = await this.invoices.recalculate(tx, invoice);
+        let closed: OpenCheckout[] = [];
+        if (after.status === 'paid') {
+          closed = await this.invoices.cancelPendingPayments(
+            tx,
+            invoice.id,
+            'invoice_paid',
+            paymentId,
+          );
+        }
+        if (unapplied > 0) {
+          const credit = await tx.familyCredit.create({
+            data: {
+              familyId: done.familyId,
+              currency: done.currency,
+              amount: dec(unapplied),
+              remaining: dec(unapplied),
+              sourcePaymentId: done.id,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+          await this.audit.record(
+            {
+              actorId: null,
+              action: 'credit_created',
+              subjectType: 'payment',
+              subjectId: done.id,
+              after: {
+                creditId: credit.id,
+                invoiceId: invoice.id,
+                amount: dec(unapplied),
+                currency: done.currency,
+                reason: done.reviewReason,
+              },
+            },
+            tx,
+          );
+          this.logger.warn(
+            `Payment ${paymentId}: ${dec(unapplied)} ${done.currency} kept as family credit #${credit.id}.`,
+          );
+        }
+        await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, done, amountMinor, now, {
+          unapplied,
+        });
+        return { done, closed };
+      })
+      .then(async (r) => {
+        if ('done' in r) {
+          await this.invoices.expireAtProviders(r.closed);
+          return r.done;
+        }
+        return r;
       });
-      const after = await this.invoices.recalculate(tx, invoice);
-      if (after.status !== 'paid' && after.status !== 'partially_paid') {
-        // Money arrived for a void / split invoice (rare race): keep it; staff refund or move it.
-        this.logger.warn(
-          `Payment ${paymentId} for a closed invoice ${invoice.id} (${after.status}).`,
-        );
-      }
-      await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, done, minor(done.amount), now);
-      return done;
-    });
   }
 
   async markFailed(paymentId: number, status: PaymentStatus, reason: string): Promise<Payment> {

@@ -78,6 +78,9 @@ export function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: iso(p.refundedAt),
     createdAt: p.createdAt.toISOString(),
     receiptNumber: p.status === 'succeeded' ? `RC-${String(p.id).padStart(6, '0')}` : null,
+    unapplied: amountOf(p.unapplied),
+    needsReview: p.needsReview,
+    reviewReason: p.reviewReason,
     ...(staff
       ? {
           note: p.note,
