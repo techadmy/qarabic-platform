@@ -62,12 +62,16 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
-      - run: pnpm --filter @qarabic/api test:e2e
-      # Schema drift: the migrations applied above must produce exactly prisma/schema.prisma
-      # (a model change without its migration fails here; exit 2 = differences).
+      # Schema drift, before the tests (a red e2e must not hide it): the committed migrations,
+      # applied to the empty database, must produce exactly prisma/schema.prisma. A model change
+      # without its migration fails here (`--exit-code`: 0 = same, 2 = differences, 1 = error).
+      - name: Apply the migrations
+        working-directory: apps/api
+        run: pnpm exec prisma migrate deploy
       - name: Migrations match the Prisma schema
         working-directory: apps/api
         run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+      - run: pnpm --filter @qarabic/api test:e2e
 
   web-e2e-real:
     # The web app against the real API and a freshly seeded database (fake demo data only), so the
@@ -117,7 +121,7 @@ jobs:
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e:real
       - name: Report flaky tests
-        if: always()
+        if: ${{ !cancelled() }}
         working-directory: apps/web
         run: node e2e/report-flaky.mjs e2e-results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -147,7 +151,7 @@ jobs:
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e --shard=${{ matrix.shard }}/2
       - name: Report flaky tests
-        if: always()
+        if: ${{ !cancelled() }}
         working-directory: apps/web
         run: node e2e/report-flaky.mjs e2e-results.json
       # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets
@@ -157,6 +161,10 @@ jobs:
         env:
           E2E_BASE_PATH: /app
           E2E_PORT: '3250'
+      - name: Report flaky tests (/app run)
+        if: ${{ !cancelled() && matrix.shard == 1 }}
+        working-directory: apps/web
+        run: node e2e/report-flaky.mjs e2e-results.json
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:

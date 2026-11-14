@@ -5,7 +5,14 @@ import { appendFileSync, existsSync, readFileSync } from 'node:fs';
 
 const file = process.argv[2] ?? 'e2e-results.json';
 if (!existsSync(file)) process.exit(0);
-const report = JSON.parse(readFileSync(file, 'utf8'));
+let report;
+try {
+  report = JSON.parse(readFileSync(file, 'utf8'));
+} catch (error) {
+  // A run stopped half-way leaves a partial file: say so, without failing this step.
+  console.log(`::warning title=Flaky report::could not read ${file}: ${error.message}`);
+  process.exit(0);
+}
 const flaky = [];
 const walk = (suite, titles) => {
   for (const child of suite.suites ?? []) walk(child, [...titles, child.title].filter(Boolean));
