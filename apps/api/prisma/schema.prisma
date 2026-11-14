@@ -2678,3 +2678,14 @@ model SupportSavedReply {
 
   @@map("support_saved_replies")
 }
+
+// ====================================================================== P2-3 rate limits
+/// Fixed-window counters shared by every API process (docs/39 RBAC-4).
+model RateLimitBucket {
+  key     String   @id @db.VarChar(255)
+  count   Int
+  resetAt DateTime @map("reset_at") @db.Timestamptz(6)
+
+  @@index([resetAt])
+  @@map("rate_limit_buckets")
+}
