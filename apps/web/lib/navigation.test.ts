@@ -52,6 +52,7 @@ describe('navFor', () => {
       'staff',
       'invoices',
       'packages',
+      'familyCredits',
       'attendance',
       'fines',
       'payrollRuns',

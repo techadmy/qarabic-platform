@@ -5,6 +5,7 @@ import {
   CURRENCY_LABELS,
   type Currency,
   type FamilyBillingDto,
+  type FamilyCreditDto,
   type FeePackageDto,
   type InvoiceDto,
 } from '@qarabic/shared';
@@ -24,18 +25,26 @@ import { Spinner } from '@qarabic/ui/components/spinner';
 import { Switch } from '@qarabic/ui/components/switch';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircleIcon, FilePlusIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  AlertCircleIcon,
+  FilePlusIcon,
+  FlagIcon,
+  PiggyBankIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useId, useMemo, useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { DataTable, type ColumnMeta } from '@/components/data-table';
+import { ToneBadge } from '@/components/sessions/badges';
 import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { ErrorState } from '@/components/states';
 import {
   billingKeys,
   fetchFamilyBilling,
+  fetchFamilyCredits,
   fetchFeePackages,
   fetchInvoice,
   fetchInvoices,
@@ -44,7 +53,7 @@ import {
 import { can } from '@/lib/auth/use-me';
 import { validateFamilyBilling, type FamilyBillingForm } from '@/lib/billing/forms';
 import { lineLabel, warningLabel, warningStudent } from '@/lib/billing/labels';
-import { amountInput } from '@/lib/billing/money';
+import { amountInput, minorOf } from '@/lib/billing/money';
 import { formatDate } from '@/lib/time';
 import { ManualInvoiceDialog } from './action-dialogs';
 import { FormRow, InvoiceStatusBadge, Money, NUMBER_INPUT, useBillingError } from './billing-bits';
@@ -67,6 +76,13 @@ export function FamilyBillingSection({ familyId }: { familyId: number }) {
   const manage = can(me, 'invoices.manage');
   const canDraft = manage || can(me, 'invoices.request');
   const [manual, setManual] = useState(false);
+  // P1-1: what the family paid beyond its invoices, kept as credit (staff who handle billing).
+  const seesCredits = manage || can(me, 'reports.financial');
+  const credits = useQuery({
+    queryKey: billingKeys.credits({ familyId, status: 'open' }),
+    queryFn: ({ signal }) => fetchFamilyCredits({ familyId, status: 'open' }, signal),
+    enabled: seesCredits,
+  });
   const profile = useQuery({
     queryKey: billingKeys.family(familyId),
     queryFn: ({ signal }) => fetchFamilyBilling(familyId, signal),
@@ -138,6 +154,12 @@ export function FamilyBillingSection({ familyId }: { familyId: number }) {
     <>
       <Section title={t('title')} className="lg:col-span-2">
         <div className="flex flex-col gap-4">
+          {(credits.data ?? []).length > 0 && (
+            <CreditNote
+              credits={credits.data!}
+              needsReview={credits.data!.some((c) => !c.reviewedAt)}
+            />
+          )}
           {b.balance.length > 0 && (
             <dl className="flex flex-wrap gap-x-6 gap-y-2">
               {b.balance.map((x) => (
@@ -491,5 +513,38 @@ function ProfileForm({ billing: b }: { billing: FamilyBillingDto }) {
         {t('save')}
       </Button>
     </form>
+  );
+}
+
+/** The family's open credit by currency, with the review flag and a way to the list (P1-1). */
+function CreditNote({
+  credits,
+  needsReview,
+}: {
+  credits: FamilyCreditDto[];
+  needsReview: boolean;
+}) {
+  const t = useTranslations('billing.family');
+  const byCurrency = new Map<string, number>();
+  for (const c of credits) {
+    byCurrency.set(c.currency, (byCurrency.get(c.currency) ?? 0) + minorOf(c.remaining));
+  }
+  return (
+    <Alert>
+      <PiggyBankIcon />
+      <AlertTitle className="flex flex-wrap items-center gap-2">
+        {t('credit')}
+        {[...byCurrency].map(([currency, minor]) => (
+          <Money key={currency} amount={(minor / 100).toFixed(2)} currency={currency} strong />
+        ))}
+        {needsReview && <ToneBadge tone="orange" icon={FlagIcon} label={t('creditNeedsReview')} />}
+      </AlertTitle>
+      <AlertDescription>
+        {t('creditHint')}{' '}
+        <Link href="/billing/credits" className="text-primary underline-offset-4 hover:underline">
+          {t('creditList')}
+        </Link>
+      </AlertDescription>
+    </Alert>
   );
 }
