@@ -100,7 +100,7 @@ function VoucherLine({
             maxLength={500}
             value={line.description}
             onChange={(e) => onChange({ description: e.target.value })}
-            className="h-10 md:text-[0.9375rem]"
+            className="h-10 md:text-body"
           />
         </FormRow>
         <Button
@@ -268,7 +268,7 @@ export function VoucherDialog({
           onChange={(e) => set({ party: e.target.value })}
           aria-invalid={!!err('party')}
           aria-describedby={err('party') ? `${ids.party}-error` : undefined}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <FormRow
@@ -285,7 +285,7 @@ export function VoucherDialog({
           onChange={(e) => set({ description: e.target.value })}
           aria-invalid={!!err('description')}
           aria-describedby={err('description') ? `${ids.description}-error` : undefined}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <div className="grid gap-4 sm:grid-cols-2">
@@ -296,7 +296,7 @@ export function VoucherDialog({
             maxLength={80}
             value={form.reference}
             onChange={(e) => set({ reference: e.target.value })}
-            className="h-10 md:text-[0.9375rem]"
+            className="h-10 md:text-body"
           />
         </FormRow>
         <FormRow id={ids.cheque} label={t('voucher.cheque')}>
