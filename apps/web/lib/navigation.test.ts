@@ -117,6 +117,7 @@ describe('navFor', () => {
       'tasks',
       'announcements',
       'invoices',
+      'familyCredits',
       'attendance',
       'fines',
       'payrollRuns',
