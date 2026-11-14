@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable } from '@nestjs/common';
 import type {
   createPayRuleSetSchema,
   Paginated,
@@ -13,6 +13,7 @@ import { AuditService, diff } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { notFound, validationError } from '../common/errors.js';
+import { payrollError } from './errors.js';
 import { pageMeta } from '../common/pagination.js';
 import { contains } from '../common/search.js';
 import type { Prisma } from '../generated/prisma/client.js';
@@ -108,6 +109,8 @@ export class PayProfilesService {
       select: { id: true, role: { select: { kind: true } }, teacher: { select: { id: true } } },
     });
     if (!user) throw notFound();
+    // P0-3 (B116): nobody sets their own pay.
+    if (userId === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
     if (user.role?.kind === 'parent') {
       throw validationError({ userId: ['A parent account has no salary.'] });
     }
