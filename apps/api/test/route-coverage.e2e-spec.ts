@@ -322,6 +322,8 @@ describe('route permission coverage', () => {
       'GET billing/providers': 'all:invoices.view',
       'GET billing/credits': 'any:invoices.manage|reports.financial',
       'POST billing/credits/:id/review': 'all:invoices.manage',
+      'GET billing/payments/review': 'any:invoices.manage|reports.financial',
+      'POST billing/payments/:id/reviewed': 'all:invoices.manage',
       'GET billing/summary': 'any:invoices.manage|reports.financial',
       'GET fee-packages': 'all:packages.view',
       'POST fee-packages': 'all:packages.manage',

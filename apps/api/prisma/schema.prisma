@@ -1512,6 +1512,8 @@ enum PaymentStatus {
   failed
   cancelled
   refunded
+  /// P1-3: money captured, but not what the attempt asked for (amount or currency): held for staff.
+  needs_review
 }
 
 enum WebhookEventStatus {
@@ -1702,6 +1704,9 @@ model Payment {
   /// Staff should look at it: `overpaid` (more than the balance) or `invoice_closed`.
   needsReview       Boolean       @default(false) @map("needs_review")
   reviewReason      String?       @map("review_reason") @db.VarChar(32)
+  /// P1-3: what the provider captured when it did not match the attempt.
+  capturedAmount    Decimal?      @map("captured_amount") @db.Decimal(12, 2)
+  capturedCurrency  String?       @map("captured_currency") @db.Char(3)
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
