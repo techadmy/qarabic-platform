@@ -15,6 +15,17 @@ describe('cn with the type-scale tokens', () => {
     expect(cn('md:text-sm', 'md:text-body')).toBe('md:text-body');
   });
 
+  it('knows the one-off size tokens too (micro, small, lead, display)', () => {
+    expect(cn('text-micro text-destructive-foreground')).toBe(
+      'text-micro text-destructive-foreground',
+    );
+    expect(cn('text-sm', 'text-small')).toBe('text-small');
+    expect(cn('text-lead font-semibold text-foreground')).toBe(
+      'text-lead font-semibold text-foreground',
+    );
+    expect(cn('text-display', 'text-xl')).toBe('text-xl');
+  });
+
   it('still merges colours with each other', () => {
     expect(cn('text-caption text-foreground', 'text-muted-foreground')).toBe(
       'text-caption text-muted-foreground',
