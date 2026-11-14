@@ -290,7 +290,11 @@
       "hide": "إخفاء التفاصيل"
     },
     "activeFilters": "عوامل التصفية:",
-    "moreFilters": "{count, plural, one {تصفية أخرى} two {تصفيتان أخريان} few {# تصفيات أخرى} many {# تصفية أخرى} other {# تصفية أخرى}}"
+    "moreFilters": "{count, plural, one {تصفية أخرى} two {تصفيتان أخريان} few {# تصفيات أخرى} many {# تصفية أخرى} other {# تصفية أخرى}}",
+    "refresh": {
+      "stale": "تعذّر تحديث البيانات؛ المعروض هو آخر ما حُمِّل.",
+      "retry": "أعد المحاولة"
+    }
   },
   "time": {
     "dayAhead": "اليوم التالي",
@@ -1983,7 +1987,14 @@
       "filterFamily": "عرض طلبات هذه الأسرة",
       "openFamily": "فتح ملف الأسرة",
       "noPanel": "لا توجد أسرة أو معلم مرتبطان بهذا الطلب.",
-      "detail": "تفاصيل الطلب"
+      "detail": "تفاصيل الطلب",
+      "tilesLabel": "الآن",
+      "tiles": {
+        "open": "مفتوحة",
+        "breached": "تجاوزت الموعد",
+        "unassigned": "دون مسؤول"
+      },
+      "reportsLink": "تقرير تواصل معنا"
     },
     "feedback": {
       "title": "فرز البلاغات",
@@ -2174,6 +2185,37 @@
       "timesZone": "المواعيد بتوقيتك ({city}).",
       "lastStep": "آخر إجراء",
       "note": "الملاحظة"
+    },
+    "reports": {
+      "title": "تقرير تواصل معنا",
+      "description": "للطلبات الواردة في الفترة ضمن أقسامك: العدد، وأول رد، والرد في الموعد، ومدة الإغلاق.",
+      "back": "تواصل معنا",
+      "summary": "ملخص الفترة",
+      "total": "الإجمالي",
+      "ofTotal": "{n} من {total}",
+      "minutes": "{count, plural, zero {# دقيقة} one {دقيقة واحدة} two {دقيقتان} few {# دقائق} many {# دقيقة} other {# دقيقة}}",
+      "hours": "{count, plural, zero {# ساعة} one {ساعة واحدة} two {ساعتان} few {# ساعات} many {# ساعة} other {# ساعة}}",
+      "days": "{count, plural, zero {# يوم} one {يوم واحد} two {يومان} few {# أيام} many {# يومًا} other {# يوم}}",
+      "rangeTooLong": "اختر فترة لا تزيد على سنة واحدة.",
+      "emptyTitle": "لا طلبات في هذه الفترة",
+      "empty": "اختر فترة أخرى.",
+      "byQueue": "حسب القسم",
+      "byCategory": "حسب التصنيف",
+      "byChannel": "حسب القناة",
+      "byWeek": "أسبوعًا بأسبوع",
+      "weekOf": "أسبوع {date}",
+      "cols": {
+        "created": "الواردة",
+        "open": "المفتوحة",
+        "closed": "المغلقة",
+        "firstResponse": "أول رد (الوسيط)",
+        "slaMet": "الرد في الموعد",
+        "resolve": "مدة الإغلاق (الوسيط)",
+        "queue": "القسم",
+        "category": "التصنيف",
+        "channel": "القناة",
+        "week": "الأسبوع"
+      }
     }
   },
   "bell": {
@@ -2200,7 +2242,8 @@
       "trial_cancelled": "أُلغيت الحصة التجريبية: <bdi>{course}</bdi> في {when}",
       "trial_offer": "عرض حصة تجريبية: <bdi>{course}</bdi> في {when}",
       "trial_offer_taken": "أُسندت الحصة التجريبية إلى معلم آخر: <bdi>{course}</bdi>"
-    }
+    },
+    "supportSlaBreach": "تجاوز الطلب <bdi>{number}</bdi> ({queue}) موعد أول رد"
   },
   "crm": {
     "title": "العملاء المحتملون",

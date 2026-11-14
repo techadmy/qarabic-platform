@@ -47,7 +47,7 @@ export function NotificationBell() {
   // Names and titles sit in <bdi> so a Latin name keeps its place in an Arabic sentence.
   const bdi = (chunks: ReactNode) => <bdi>{chunks}</bdi>;
   const text = (n: NotificationDto): ReactNode => {
-    const x = bellText(n);
+    const x = bellText(n, locale);
     if (x.kind === 'lead')
       return (
         <>

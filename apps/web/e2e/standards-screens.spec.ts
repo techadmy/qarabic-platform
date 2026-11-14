@@ -28,6 +28,7 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
       '/leads/kpis',
       '/tests',
       '/support',
+      '/support/reports',
       '/feedback',
       '/fines',
       '/packages',
