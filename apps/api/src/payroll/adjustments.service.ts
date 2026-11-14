@@ -48,6 +48,12 @@ export class AdjustmentsService {
   async find(id: number, viewer: AuthUser, ability: Ability = 'view'): Promise<PayAdjustment> {
     const a = await this.prisma.payAdjustment.findUnique({ where: { id } });
     if (!a || !adjustmentCan.view(viewer, a)) throw notFound();
+    if ((ability === 'decide' || ability === 'cancel') && a.userId === viewer.id) {
+      // P0-3: withdrawing one's own proposal is the only step on one's own item.
+      if (!(ability === 'cancel' && adjustmentCan.cancel(viewer, a))) {
+        throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
+      }
+    }
     if (ability === 'decide' && !adjustmentCan.decide(viewer, a)) throw forbidden();
     if (ability === 'cancel' && !adjustmentCan.cancel(viewer, a)) throw forbidden();
     return a;
@@ -118,7 +124,7 @@ export class AdjustmentsService {
   }
 
   async create(input: z.output<typeof createAdjustmentSchema>, by: AuthUser): Promise<number> {
-    const status = adjustmentStatusFor(by, input.type);
+    const status = adjustmentStatusFor(by, input.type, input.userId);
     if (!status) throw payrollError(HttpStatus.FORBIDDEN, 'forbidden_type');
     const target = await this.prisma.user.findUnique({ where: { id: input.userId } });
     if (!target) throw validationError({ userId: ['The selected user is invalid.'] });

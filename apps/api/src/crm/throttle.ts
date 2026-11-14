@@ -31,7 +31,7 @@ export class CrmThrottleGuard implements CanActivate {
     private readonly config: CrmConfig,
   ) {}
 
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const policy = this.reflector.get<Policy | undefined>(CRM_THROTTLE_KEY, ctx.getHandler());
     if (!policy) return true;
     const req = ctx.switchToHttp().getRequest<Request>();
@@ -48,7 +48,7 @@ export class CrmThrottleGuard implements CanActivate {
           return [`crm-courses:${req.ip}`, PUBLIC_COURSES_PER_MINUTE, MINUTE];
       }
     })();
-    const wait = this.limiter.hit(key, max, window);
+    const wait = await this.limiter.hit(key, max, window);
     if (wait > 0) {
       ctx.switchToHttp().getResponse<Response>().setHeader('Retry-After', String(wait));
       throw crmError(HttpStatus.TOO_MANY_REQUESTS, 'too_many_requests');
