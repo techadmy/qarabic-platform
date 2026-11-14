@@ -126,6 +126,13 @@ switch_nginx() {
     die "https://$PUBLIC_HOST/up is not 200 after the switch: consider rollback.sh"
   wait_http "https://$PUBLIC_HOST/app/login" --resolve "$PUBLIC_HOST:443:127.0.0.1" \
     "https://$PUBLIC_HOST/app/login" || die "/app/login is not 200 after the switch: consider rollback.sh"
+  # Security headers (docs/39 P0-2): the include sets them; a miss means a wrong file or upstream.
+  if ((DRY_RUN)); then
+    printf '  + check-headers.sh https://%s (security headers)\n' "$PUBLIC_HOST" >&2
+  else
+    "$DEPLOY_DIR/check-headers.sh" "https://$PUBLIC_HOST" --resolve "$PUBLIC_HOST:443:127.0.0.1" >&2 ||
+      die "security headers missing after the switch (see above): fix the include or rollback.sh"
+  fi
   log "nginx switched. Next: smoke (docs/36 §6.7), then 'switch.sh jobs-on'"
 }
 
