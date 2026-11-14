@@ -408,6 +408,8 @@ export class StudentsService {
 
   private toDto(row: Row, viewer: AuthUser): StudentDto {
     const teacherView = isTeacherViewer(viewer);
+    const parentView = isParentViewer(viewer);
+    const portal = teacherView || parentView;
     const dto: StudentDto = {
       id: row.id,
       familyId: row.familyId,
@@ -429,9 +431,10 @@ export class StudentsService {
       teacher: row.teacher ? { id: row.teacher.id, name: teacherName(row.teacher) } : null,
       startDate: dateOnly(row.startDate),
       zoomId: row.zoomId,
-      remarkParent: row.remarkParent,
-      remarkTeacher: row.remarkTeacher,
-      status: statusInfo(row),
+      // ISO-3: each remark only to staff and its own audience; staff reasons stay with staff.
+      remarkParent: teacherView ? null : row.remarkParent,
+      remarkTeacher: parentView ? null : row.remarkTeacher,
+      status: portal ? { ...statusInfo(row), reason: null, changedBy: null } : statusInfo(row),
       archive: archiveInfo(row),
       createdAt: iso(row.createdAt)!,
     };
