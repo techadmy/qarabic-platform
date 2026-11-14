@@ -16,6 +16,8 @@ const TEACHER = 'teacher@qarabic.test';
 const ownClasses = (stage: string) =>
   sdb.sessions
     .filter((s) => s.teacherId === 1 && s.stage === stage && !s.deleted)
+    // Lesson reports are for lessons: a trial class closes through the trial report (T4).
+    .map((s) => Object.assign(s, { kind: s.kind === 'trial' ? 'regular' : s.kind }))
     .sort((a, b) => b.startsAt.localeCompare(a.startsAt));
 
 async function reportSheet(path: string) {

@@ -34,8 +34,8 @@ import { resetScheduleDb } from './schedule-db';
 import { resetSupportDb } from './support-db';
 import { supportHandlers } from './support-handlers';
 import { resetTeachingDb } from './teaching-db';
+import { resetTrialReports, teachingHandlers } from './teaching-handlers';
 import { resetTrialOffers, trialOfferHandlers } from './trial-offers';
-import { teachingHandlers } from './teaching-handlers';
 import {
   apiError,
   CSRF_TOKEN,
@@ -69,6 +69,7 @@ export function resetMockState() {
   resetPeopleDb();
   resetScheduleDb();
   resetTeachingDb();
+  resetTrialReports();
   resetSupportDb();
   resetCrmDb();
   resetTrialOffers();
