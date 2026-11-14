@@ -13,6 +13,7 @@ import {
   InboxIcon,
   LayoutDashboardIcon,
   ListChecksIcon,
+  UserCheckIcon,
   MessagesSquareIcon,
   SlidersHorizontalIcon,
   UsersRoundIcon,
@@ -66,6 +67,7 @@ export type NavKey =
   | 'feedbackTriage'
   | 'supportSettings'
   | 'leads'
+  | 'trialsToday'
   | 'crmSettings'
   | 'invoices'
   | 'packages'
@@ -168,6 +170,13 @@ export const STAFF_NAV: NavEntry[] = [
     permission: 'leads.view',
     create: 'leads.manage',
     badge: 'leads',
+  },
+  {
+    // T4 (docs/33 §3.5): today's trial classes for monitors and customer service.
+    key: 'trialsToday',
+    href: '/trials',
+    icon: UserCheckIcon,
+    anyPermission: ['sessions.manage', 'leads.manage'],
   },
   {
     key: 'lessonReports',

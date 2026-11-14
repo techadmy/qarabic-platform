@@ -123,6 +123,62 @@ function SwitchRow({
   );
 }
 
+/** A whole-number setting with its range (shown as the error when out of it). */
+function NumberRow({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  error,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  error?: string;
+  onChange: (raw: string) => void;
+}) {
+  const id = useId();
+  return (
+    <Field data-invalid={!!error}>
+      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <Input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        dir="ltr"
+        min={min}
+        max={max}
+        className="h-10 text-start"
+        value={Number.isNaN(value) ? '' : value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={!!error}
+      />
+      {hint && <FieldDescription>{hint}</FieldDescription>}
+      {error && <FieldError>{error}</FieldError>}
+    </Field>
+  );
+}
+
+/** The trial settings' number rows: key, range. */
+const TRIAL_NUMBERS = [
+  ['crm.trial_offer_expiry_minutes', 15, 1440],
+  ['crm.trial_offer_min_hours_before', 0, 72],
+  ['crm.trial_offer_max_open_claims', 1, 20],
+  ['crm.trial_late_alert_minutes', 1, 60],
+  ['crm.trial_stale_remind_days', 1, 60],
+  ['crm.trial_stale_lost_days', 2, 180],
+] as const;
+
+/** After a failed save: the first field marked invalid gets the focus (§5.6). */
+const focusFirstError = () =>
+  requestAnimationFrame(() =>
+    document.querySelector<HTMLElement>('#crm-settings [aria-invalid="true"]')?.focus(),
+  );
+
 function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
   const t = useTranslations('crm.settings');
   const locale = useUiLocale();
@@ -164,7 +220,16 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
       queryClient.setQueryData(crmKeys.settings, data);
       toast.success(t('saved'));
     },
-    onError: (e) => toast.error(message(e)),
+    onError: (e) => {
+      // A 422 points at fields: mark them and take the focus there, like the client check.
+      const fields = isApiError(e, 422) ? Object.keys(e.error?.errors ?? {}) : [];
+      if (fields.length) {
+        setErrors(Object.fromEntries(fields.map((k) => [k, t('invalid')])));
+        focusFirstError();
+        return;
+      }
+      toast.error(message(e));
+    },
   });
   const staffRoles = ROLES.filter((r) => SYSTEM_ROLES[r].kind === 'staff');
   const roleNames = v['crm.auto_assign_roles'].map(
@@ -181,6 +246,7 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
       setErrors(
         Object.fromEntries(parsed.error.issues.map((i) => [String(i.path[0]), t('invalid')])),
       );
+      focusFirstError();
       return;
     }
     setErrors({});
@@ -191,12 +257,16 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
     save.mutate(parsed.data);
   };
   const num = (
-    k: 'crm.first_response_minutes' | 'crm.unanswered_attempts_suggest_lost',
+    k:
+      | 'crm.first_response_minutes'
+      | 'crm.unanswered_attempts_suggest_lost'
+      | (typeof TRIAL_NUMBERS)[number][0],
     raw: string,
   ) => set(k, raw === '' ? (Number.NaN as never) : Number(raw));
 
   return (
     <form
+      id="crm-settings"
       noValidate
       className="flex flex-col gap-4"
       onSubmit={(e) => {
@@ -415,6 +485,55 @@ function SettingsForm({ initial }: { initial: CrmSettingsDto }) {
                 disabled={readOnly}
                 onChange={(x) => set('crm.web_lead_confirmation', x)}
               />
+            </FieldGroup>
+          </CardContent>
+        </Card>
+
+        {/* T3 offers + T4 follow-up (docs/33 §3.5–3.7, §4.3). */}
+        <Card className="shadow-none">
+          <CardHeader className="border-b">
+            <CardTitle className="text-base font-bold">
+              <h2>{t('trials.title')}</h2>
+            </CardTitle>
+            <CardDescription>{t('trials.hint')}</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <FieldGroup>
+              <SwitchRow
+                label={t('trials.reportRequired')}
+                hint={t('trials.reportRequiredHint')}
+                checked={v['crm.trial_report_required']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_report_required', x)}
+              />
+              <SwitchRow
+                label={t('trials.reminders')}
+                hint={t('trials.remindersHint')}
+                checked={v['crm.trial_reminders_enabled']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_reminders_enabled', x)}
+              />
+              <SwitchRow
+                label={t('trials.familyReminders')}
+                hint={t('trials.familyRemindersHint')}
+                checked={v['crm.trial_family_reminders']}
+                disabled={readOnly}
+                onChange={(x) => set('crm.trial_family_reminders', x)}
+              />
+              <div className="grid gap-4 md:grid-cols-2">
+                {TRIAL_NUMBERS.map(([k, min, max]) => (
+                  <NumberRow
+                    key={k}
+                    label={t(`trials.${k.slice(10)}`)}
+                    hint={t(`trials.${k.slice(10)}Hint`)}
+                    value={v[k]}
+                    min={min}
+                    max={max}
+                    error={errors[k] ? t('trials.range', { min, max }) : undefined}
+                    onChange={(raw) => num(k, raw)}
+                  />
+                ))}
+              </div>
             </FieldGroup>
           </CardContent>
         </Card>

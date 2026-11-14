@@ -36,6 +36,7 @@ import {
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import { addDays, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import type { MockUser } from './data';
+import { crmdb } from './crm-db';
 import { COURSES, db as people } from './people-db';
 import { addEvent, sdb, type SessionRow } from './schedule-db';
 import {
@@ -351,10 +352,81 @@ function lastPositionsOf(studentId: number): LastPositionDto[] {
 // ------------------------------------------------------------------ handlers
 
 /** T4 trial reports (`PUT /sessions/:id/trial-report`), by session id. */
-const trialReports = new Map<number, TrialReportDto>();
+export const trialReports = new Map<number, TrialReportDto>();
 export const resetTrialReports = () => trialReports.clear();
 
 export const teachingHandlers: HttpHandler[] = [
+  // T4: a lead's trial reports (the convert form's prefill).
+  http.get(`${API}/leads/:id/trial-reports`, ({ request, params }) => {
+    const g = guard(request, 'leads.view');
+    if ('error' in g) return g.error;
+    const lead = crmdb.leads.find((l) => l.id === Number(params.id));
+    if (!lead) return notFound();
+    const ids = new Set(lead.trials.map((x) => x.sessionId));
+    return HttpResponse.json({
+      data: [...trialReports.values()].filter((r) => ids.has(r.sessionId)),
+    });
+  }),
+
+  // T4: the monitors' checklist of a day's trial classes (docs/33 §3.5).
+  http.get(`${API}/trials/today`, ({ request }) => {
+    const g = guardAny(request, 'sessions.manage', 'leads.manage');
+    if ('error' in g) return g.error;
+    const url = new URL(request.url);
+    const tz = url.searchParams.get('tz') || 'Africa/Cairo';
+    const date = url.searchParams.get('date') || dateKeyIn(tz, new Date());
+    const now = Date.now();
+    const lateAfter = 10;
+    const rows = sdb.sessions
+      .filter((x) => x.kind === 'trial' && !x.deleted && x.stage !== 'moved_out')
+      .filter((x) => dateKeyIn(tz, new Date(x.startsAt)) === date)
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+      .map((x) => {
+        const start = Date.parse(x.startsAt);
+        const started = !!x.startedAt;
+        const lateBy = Math.round(((started ? Date.parse(x.startedAt!) : now) - start) / 60_000);
+        const ended = start + x.durationMinutes * 60_000 < now;
+        const reported = trialReports.has(x.id) || x.stage === 'taken';
+        const alerts: ('not_started' | 'started_late' | 'no_report')[] = [];
+        if (!started && now - start > lateAfter * 60_000 && !ended) alerts.push('not_started');
+        if (started && lateBy > lateAfter) alerts.push('started_late');
+        if (ended && !reported && x.stage !== 'cancelled') alerts.push('no_report');
+        const student = people.students.find((p) => p.id === x.studentId)!;
+        const teacher = people.teachers.find((t) => t.id === x.teacherId)!;
+        const course = COURSES.find((c) => c.id === x.courseId);
+        const local = new Intl.DateTimeFormat('en-CA', {
+          timeZone: tz,
+          hourCycle: 'h23',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+          hour: '2-digit',
+          minute: '2-digit',
+        }).formatToParts(new Date(start));
+        const part = (k: string) => local.find((p) => p.type === k)?.value ?? '';
+        return {
+          sessionId: x.id,
+          leadId: null,
+          startsAt: x.startsAt,
+          durationMinutes: x.durationMinutes,
+          stage: x.stage,
+          local: {
+            date: `${part('year')}-${part('month')}-${part('day')}`,
+            time: `${part('hour')}:${part('minute')}`,
+          },
+          student: { id: student.id, name: student.name },
+          teacher: { id: teacher.id, name: teacher.name },
+          course: course ? { id: course.id, nameAr: course.nameAr, nameEn: course.nameEn } : null,
+          teacherStarted: started,
+          lateMinutes: started ? (lateBy > 0 ? lateBy : null) : start < now ? lateBy : null,
+          studentJoined: x.studentJoinedAt ? true : x.zoomStatus === 'none' ? null : false,
+          reportSubmitted: reported,
+          alerts,
+        };
+      });
+    return HttpResponse.json({ data: rows });
+  }),
+
   http.get(`${API}/sessions/:id/trial-report`, ({ request, params }) => {
     const g = guardAny(request, 'sessions.conduct', 'sessions.manage');
     if ('error' in g) return g.error;
