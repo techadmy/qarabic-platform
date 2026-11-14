@@ -16,10 +16,25 @@ export function makeQueryClient() {
   });
 }
 
-export function Providers({ dir, children }: { dir: 'rtl' | 'ltr'; children: ReactNode }) {
+export function Providers({
+  dir,
+  nonce,
+  children,
+}: {
+  dir: 'rtl' | 'ltr';
+  /** This request's CSP nonce, for next-themes' inline theme script (docs/39 P0-2). */
+  nonce?: string;
+  children: ReactNode;
+}) {
   const [queryClient] = useState(makeQueryClient);
   return (
-    <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+    <ThemeProvider
+      attribute="class"
+      defaultTheme="system"
+      enableSystem
+      disableTransitionOnChange
+      nonce={nonce}
+    >
       <DirectionProvider dir={dir}>
         <TooltipProvider>
           <MockGate>
