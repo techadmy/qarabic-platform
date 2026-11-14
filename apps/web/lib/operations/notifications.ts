@@ -81,6 +81,8 @@ export function bellHref(n: NotificationDto, roleKind: string | null | undefined
     return id ? `/announcements#ann-${id}` : '/announcements';
   }
   if (n.kind === 'support' && num(n.data.ticketId)) return `/tickets/${num(n.data.ticketId)}`;
+  // An offer leads to the teacher home's «عروض الحصص التجريبية».
+  if (n.kind === 'trial' && num(n.data.offerId) && !num(n.data.sessionId)) return '/#trial-offers';
   if ((n.kind === 'class_reminder' || n.kind === 'trial') && num(n.data.sessionId)) {
     return `${portal ? '/my-classes' : '/today'}?session=${num(n.data.sessionId)}`;
   }

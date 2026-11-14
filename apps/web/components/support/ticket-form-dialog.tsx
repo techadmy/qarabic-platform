@@ -6,6 +6,7 @@ import {
   type TicketCategory,
   type TicketSubcategory,
   type TicketSubjectType,
+  isTypedRequest,
 } from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
@@ -44,6 +45,8 @@ import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { fetchPeopleList } from '@/lib/api/people';
 import { createTicket, supportKeys } from '@/lib/api/support';
+import { dateKeyIn } from '@/lib/schedule-time';
+import { emptyRequest, RequestFields, requestPayload, type RequestDraft } from './request-fields';
 import { collectContext } from '@/lib/support/context';
 import { useSupportError } from '@/lib/support/errors';
 
@@ -67,13 +70,24 @@ export interface TicketIntent {
   subject?: { type: TicketSubjectType; id: number; label: string };
   /** Let the parent pick a child (the first is pre-selected; «جميع الأبناء» sends none). */
   picker?: 'student';
+  /** The child a class-based request is about (S3: schedule change from a class card). */
+  studentId?: number;
   behalf?: Behalf;
 }
 
 const ALL = 'all';
 const MIN = 10;
 
-function ChildPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+function ChildPicker({
+  value,
+  onChange,
+  error,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  /** Said under the field (a typed request is about one child). */
+  error?: string;
+}) {
   const t = useTranslations('support.form');
   const id = useId();
   const kids = useQuery({
@@ -89,10 +103,10 @@ function ChildPicker({ value, onChange }: { value: string; onChange: (v: string)
   if (rows.length === 0) return null;
   const current = value || String(first);
   return (
-    <Field>
+    <Field data-invalid={!!error || undefined}>
       <FieldLabel htmlFor={id}>{t('child')}</FieldLabel>
       <Select value={current} onValueChange={onChange}>
-        <SelectTrigger id={id} className="h-10! w-full">
+        <SelectTrigger id={id} className="h-10! w-full" aria-invalid={!!error || undefined}>
           <SelectValue />
         </SelectTrigger>
         <SelectContent position="popper">
@@ -104,6 +118,7 @@ function ChildPicker({ value, onChange }: { value: string; onChange: (v: string)
           {rows.length > 1 && <SelectItem value={ALL}>{t('allChildren')}</SelectItem>}
         </SelectContent>
       </Select>
+      {error && <FieldError>{error}</FieldError>}
     </Field>
   );
 }
@@ -127,6 +142,7 @@ export function TicketFormDialog({
 }) {
   const t = useTranslations('support.form');
   const tb = useTranslations('support.contact.behalf');
+  const tr = useTranslations('support.request');
   const locale = useLocale();
   const ui = useUiLocale();
   const tz = useViewerTz();
@@ -145,6 +161,18 @@ export function TicketFormDialog({
   const trimmed = text.trim();
   const error = !trimmed ? t('required') : trimmed.length < MIN ? t('short') : null;
   const behalf = intent.behalf;
+  // S3: a typed request (schedule / teacher / subscription change, invoice question).
+  const kind = isTypedRequest(intent.subcategory) ? intent.subcategory : null;
+  const [draft, setDraft] = useState<RequestDraft>(() => emptyRequest(dateKeyIn(tz)));
+  const pickedChild = child && child !== ALL ? Number(child) : null;
+  const studentId =
+    intent.studentId ??
+    (intent.subject?.type === 'student' ? intent.subject.id : null) ??
+    pickedChild ??
+    behalf?.studentId ??
+    null;
+  const typed = kind ? requestPayload(kind, draft, studentId, tz) : null;
+  const typedProblem = !!typed && !typed.payload;
 
   const create = useMutation({
     mutationFn: () => {
@@ -161,6 +189,7 @@ export function TicketFormDialog({
         ...(intent.subcategory ? { subcategory: intent.subcategory } : {}),
         ...subject,
         ...(behalf ? { familyId: behalf.familyId, channel } : {}),
+        ...(typed?.payload ? { request: typed.payload } : {}),
         description: trimmed,
         context: collectContext({
           pathname,
@@ -184,6 +213,13 @@ export function TicketFormDialog({
   function submit(event: FormEvent) {
     event.preventDefault();
     setTouched(true);
+    if (typedProblem) {
+      // The first structured field with a problem.
+      requestAnimationFrame(() =>
+        document.querySelector<HTMLElement>('[data-ticket-form] [aria-invalid="true"]')?.focus(),
+      );
+      return;
+    }
     if (error) {
       textRef.current?.focus();
       return;
@@ -196,7 +232,7 @@ export function TicketFormDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => !create.isPending && onOpenChange(next)}>
       <DialogContent className="sm:max-w-lg" data-feedback-ignore>
-        <form onSubmit={submit} noValidate className="flex flex-col gap-4">
+        <form onSubmit={submit} noValidate data-ticket-form className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>{t(`choice.${intent.key}`)}</DialogTitle>
             {intent.subject ? (
@@ -231,7 +267,26 @@ export function TicketFormDialog({
               </>
             )}
             {!intent.subject && !behalf && intent.picker === 'student' && (
-              <ChildPicker value={child} onChange={setChild} />
+              <ChildPicker
+                value={child}
+                onChange={setChild}
+                error={touched && typed?.errors.studentId ? tr('studentRequired') : undefined}
+              />
+            )}
+            {kind && (
+              <div data-typed-request className="flex flex-col gap-4">
+                {touched && typed?.errors.studentId && intent.picker !== 'student' && (
+                  <p className="text-sm font-medium text-destructive">{tr('studentRequired')}</p>
+                )}
+                <RequestFields
+                  kind={kind}
+                  value={draft}
+                  onChange={setDraft}
+                  errors={typed?.errors ?? {}}
+                  showErrors={touched}
+                  timezone={tz}
+                />
+              </div>
             )}
             <Field data-invalid={touched && !!error}>
               <FieldLabel htmlFor={textId}>

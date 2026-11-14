@@ -9,6 +9,10 @@ import {
   supportSummarySchema,
   ticketCommentSchema,
   ticketDetailSchema,
+  ticketSchema,
+  type RequestActionInput,
+  type RequestAnswerInput,
+  type TicketDto,
   ticketListResponseSchema,
   type ConfirmTicketInput,
   type CreateTicketInput,
@@ -82,6 +86,28 @@ export async function createTicket(
   }
   return (
     await apiFetch('/feedback/tickets', { method: 'POST', body, schema: one(ticketDetailSchema) })
+  ).data;
+}
+
+/** S3: the staff's step on a typed request (propose / approve / reject / complete). */
+export async function requestAction(id: number, body: RequestActionInput): Promise<TicketDto> {
+  return (
+    await apiFetch(`/support/tickets/${id}/request`, {
+      method: 'POST',
+      body,
+      schema: one(ticketSchema),
+    })
+  ).data;
+}
+
+/** S3: the requester's answer to a proposed teacher. */
+export async function answerRequest(id: number, body: RequestAnswerInput): Promise<TicketDto> {
+  return (
+    await apiFetch(`/support/tickets/${id}/request/answer`, {
+      method: 'POST',
+      body,
+      schema: one(ticketSchema),
+    })
   ).data;
 }
 
