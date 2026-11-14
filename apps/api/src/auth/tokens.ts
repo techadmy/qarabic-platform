@@ -15,13 +15,24 @@ export function safeEqual(a: string, b: string): boolean {
   return ab.length === bb.length && timingSafeEqual(ab, bb);
 }
 
-/** CSRF token = `nonce.hmac(secret, nonce)`: a cookie planted by a sibling subdomain fails the signature. */
-export function signCsrf(secret: string, nonce = randomToken()): string {
-  return `${nonce}.${createHmac('sha256', secret).update(nonce).digest('base64url')}`;
+/**
+ * The session a CSRF token belongs to (RBAC-3, docs/39 P2-3): a hash of the session cookie, or
+ * `anon` before sign-in. A token minted for one session is refused in another.
+ */
+export function csrfBinding(sessionCookie: string | undefined | null): string {
+  return sessionCookie ? sha256(`session:${sessionCookie}`) : 'anon';
 }
 
-export function verifyCsrf(secret: string, token: string): boolean {
+/**
+ * CSRF token = `nonce.hmac(secret, binding|nonce)`: a cookie planted by a sibling subdomain fails
+ * the signature, and a token from another session fails the binding.
+ */
+export function signCsrf(secret: string, binding: string, nonce = randomToken()): string {
+  return `${nonce}.${createHmac('sha256', secret).update(`${binding}|${nonce}`).digest('base64url')}`;
+}
+
+export function verifyCsrf(secret: string, binding: string, token: string): boolean {
   const [nonce, sig, ...rest] = token.split('.');
   if (!nonce || !sig || rest.length) return false;
-  return safeEqual(signCsrf(secret, nonce), token);
+  return safeEqual(signCsrf(secret, binding, nonce), token);
 }

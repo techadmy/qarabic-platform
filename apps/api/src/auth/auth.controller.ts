@@ -12,7 +12,7 @@ import { clearSessionCookie, SESSION_COOKIE, setCsrfCookie, setSessionCookie } f
 import { Authenticated, CurrentUser, Public } from './decorators.js';
 import { RateLimit } from './rate-limit.guard.js';
 import { SessionsService } from './sessions.service.js';
-import { signCsrf } from './tokens.js';
+import { csrfBinding, signCsrf } from './tokens.js';
 
 const GENERIC_FORGOT =
   'If an active account uses this email, a password reset link has been sent to it.';
@@ -29,8 +29,9 @@ export class AuthController {
   @Public()
   @Get('csrf')
   @ApiOperation({ summary: 'Issue the XSRF-TOKEN cookie (call before the first unsafe request)' })
-  csrf(@Res({ passthrough: true }) res: Response): { csrfToken: string } {
-    const csrfToken = signCsrf(this.env.SESSION_SECRET);
+  csrf(@Req() req: Request, @Res({ passthrough: true }) res: Response): { csrfToken: string } {
+    const session = (req.cookies as Record<string, string | undefined>)[SESSION_COOKIE];
+    const csrfToken = signCsrf(this.env.SESSION_SECRET, csrfBinding(session));
     setCsrfCookie(res, this.env, csrfToken);
     return { csrfToken };
   }
@@ -53,8 +54,8 @@ export class AuthController {
     const previous = (req.cookies as Record<string, string | undefined>)[SESSION_COOKIE];
     if (previous) await this.sessions.destroyToken(previous);
     setSessionCookie(res, this.env, token, remember ? ttlMs : undefined);
-    // New session, new CSRF token.
-    setCsrfCookie(res, this.env, signCsrf(this.env.SESSION_SECRET));
+    // New session, new CSRF token, bound to it.
+    setCsrfCookie(res, this.env, signCsrf(this.env.SESSION_SECRET, csrfBinding(token)));
     const auth = await this.sessions.resolve(token);
     return toMe(auth!.user);
   }
@@ -68,7 +69,7 @@ export class AuthController {
   ): Promise<void> {
     await this.sessions.destroy(req.auth!.sessionId);
     clearSessionCookie(res, this.env);
-    setCsrfCookie(res, this.env, signCsrf(this.env.SESSION_SECRET));
+    setCsrfCookie(res, this.env, signCsrf(this.env.SESSION_SECRET, csrfBinding(null)));
   }
 
   @Authenticated()
