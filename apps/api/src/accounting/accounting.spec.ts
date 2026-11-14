@@ -52,7 +52,20 @@ describe('chart of accounts', () => {
       ),
       'utf8',
     );
-    for (const stmt of chartStatements()) expect(sql).toContain(stmt);
+    // The M7 seed is the chart without the accounts added later by their own migrations.
+    const later = ['2140'];
+    for (const stmt of chartStatements(CHART.filter((r) => !later.includes(r.code)))) {
+      expect(sql).toContain(stmt);
+    }
+    const p11 = readFileSync(
+      new URL(
+        '../../prisma/migrations/20261128000000_p1_1_family_credit/migration.sql',
+        import.meta.url,
+      ),
+      'utf8',
+    );
+    expect(p11).toContain("'2140'");
+    expect(p11).toContain("'customer_credits'");
   });
 });
 
