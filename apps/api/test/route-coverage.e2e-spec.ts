@@ -251,7 +251,7 @@ describe('route permission coverage', () => {
       'GET feedback/attachments/:id': any,
       'GET support/inbox': 'all:support.view',
       'GET support/reports': 'all:support.view',
-      'GET support/links': 'all:support.view',
+      'GET support/links': 'all:support.view|families.view',
       'GET support/channels': 'all:support.view',
       'GET support/saved-replies': 'all:support.view',
       'POST support/saved-replies': 'all:support.manage',
