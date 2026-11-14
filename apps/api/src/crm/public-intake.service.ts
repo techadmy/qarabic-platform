@@ -33,6 +33,30 @@ export class PublicIntake {
     private readonly config: CrmConfig,
   ) {}
 
+  /**
+   * ISO-6 (docs/39 P2-1): at most one confirmation per email address per day, so the form cannot
+   * be used to mail-bomb someone from the academy's domain.
+   */
+  private async firstToday(email: string, leadId: number): Promise<boolean> {
+    const lead = await this.prisma.lead.findUnique({
+      where: { id: leadId },
+      select: { createdAt: true, updatedAt: true, submissions: true },
+    });
+    if (!lead) return false;
+    // A repeat of the same request (merged into this lead) within a day was confirmed already.
+    if (lead.submissions > 1 && lead.updatedAt.getTime() - lead.createdAt.getTime() < 86_400_000) {
+      return false;
+    }
+    const earlier = await this.prisma.lead.count({
+      where: {
+        id: { not: leadId },
+        email: { equals: email.trim(), mode: 'insensitive' },
+        createdAt: { gte: new Date(lead.createdAt.getTime() - 86_400_000), lte: lead.createdAt },
+      },
+    });
+    return earlier === 0;
+  }
+
   /** The app's free-trial form (`/trial`, docs/33 §3.1). */
   async trialRequest(data: z.output<typeof publicTrialRequestSchema>, ip: string): Promise<void> {
     const courseIds = [...new Set(data.children.map((c) => c.courseId))];
@@ -85,7 +109,12 @@ export class PublicIntake {
       ip,
     );
     const s = await this.settings.all();
-    if (lead && lead.status !== 'spam' && s['crm.trial_form_confirmation']) {
+    if (
+      lead &&
+      lead.status !== 'spam' &&
+      s['crm.trial_form_confirmation'] &&
+      (await this.firstToday(data.email, lead.id))
+    ) {
       await this.notifier.confirmTrialRequest(data.email, data.parentName, data.locale ?? 'ar');
     }
   }
@@ -102,7 +131,13 @@ export class PublicIntake {
     if (result.duplicate) return { duplicate: true };
     const s = await this.settings.all();
     const lead = result.lead;
-    if (lead && lead.status !== 'spam' && lead.email && s['crm.web_lead_confirmation']) {
+    if (
+      lead &&
+      lead.status !== 'spam' &&
+      lead.email &&
+      s['crm.web_lead_confirmation'] &&
+      (await this.firstToday(lead.email, lead.id))
+    ) {
       await this.notifier.confirmTrialRequest(lead.email, lead.parentName, 'en');
     }
     return { duplicate: false };
@@ -157,12 +192,9 @@ export class PublicIntake {
         campaign: str('utm_campaign'),
       }).filter(([, v]) => v),
     ) as Record<string, string>;
-    const ref = input.referral_id;
-    const referral =
-      (typeof ref === 'number' || (typeof ref === 'string' && /^\d{1,9}$/.test(ref))) &&
-      (await this.prisma.family.findUnique({ where: { id: Number(ref) }, select: { id: true } }))
-        ? Number(ref)
-        : null;
+    // ISO-6 (docs/39 P2-1): a raw family id from a public form is not a referral (anyone could
+    // credit any family). Referrals come from the signed-in parent (`POST /me/referrals`).
+    const referral = null;
     await this.leads.intake(
       {
         parentName: cut(name, 120),

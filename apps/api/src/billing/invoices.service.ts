@@ -1,8 +1,9 @@
-import { HttpStatus, Injectable } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger } from '@nestjs/common';
 import {
   BILLING_ERROR_MESSAGES,
   isEditableInvoice,
   isOpenInvoice,
+  type OnlinePaymentMethod,
   percentOf,
   toMinor,
 } from '@qarabic/shared';
@@ -19,7 +20,8 @@ import { addDays, fromDbDate, localDate, toDbDate } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { BillingConfig } from './billing.config.js';
 import { billingError } from './errors.js';
-import { BILLING_EVENT, invoiceEvent } from './events.js';
+import { BILLING_EVENT, invoiceEvent, paymentEvent } from './events.js';
+import { PayPalGateway, StripeGateway } from './gateways.js';
 import { type FamilyFee, FamilyFeeCalculator, feeFamilyInclude, type FeeLine } from './fees.js';
 import { dec, minor } from './money.js';
 import { BillingNotifier } from './notifier.js';
@@ -57,6 +59,12 @@ export const balanceMinor = (i: Pick<Invoice, 'total' | 'paid'>) =>
  * transaction holding the invoice row lock; totals and status come only from `recalculate()`.
  * Emails go out after the commit (and only while `billing.notify_parents` is on).
  */
+/** An online attempt cancelled in a transaction, to close at the provider after commit. */
+export interface OpenCheckout {
+  method: OnlinePaymentMethod;
+  ref: string;
+}
+
 @Injectable()
 export class InvoiceService {
   constructor(
@@ -67,7 +75,11 @@ export class InvoiceService {
     private readonly audit: AuditService,
     private readonly config: BillingConfig,
     private readonly notifier: BillingNotifier,
+    private readonly stripe: StripeGateway,
+    private readonly paypal: PayPalGateway,
   ) {}
+
+  private readonly logger = new Logger(InvoiceService.name);
 
   /** Today in the academy's zone (`YYYY-MM-DD`). */
   async today(): Promise<string> {
@@ -300,6 +312,7 @@ export class InvoiceService {
     });
     invoice = await this.recalculate(tx, invoice);
     await invoiceEvent(tx, BILLING_EVENT.invoiceIssued, invoice, minor(invoice.total), now);
+    invoice = await this.applyCredits(tx, invoice, now);
     await this.audit.record(
       {
         actorId: actor?.id ?? null,
@@ -379,6 +392,7 @@ export class InvoiceService {
   }
 
   async void(id: number, reason: string, actor: AuthUser): Promise<void> {
+    let closed: OpenCheckout[] = [];
     await this.prisma.$transaction(async (tx) => {
       const invoice = await this.lock(tx, id);
       if (!isEditableInvoice(invoice.status)) throw billingError('not_editable', 'status');
@@ -398,7 +412,7 @@ export class InvoiceService {
           lockVersion: { increment: 1 },
         },
       });
-      await this.cancelPendingPayments(tx, id);
+      closed = await this.cancelPendingPayments(tx, id);
       if (wasIssued) {
         await invoiceEvent(tx, BILLING_EVENT.invoiceVoided, voided, -minor(voided.total), now, {
           reason,
@@ -417,6 +431,7 @@ export class InvoiceService {
         tx,
       );
     });
+    await this.expireAtProviders(closed);
   }
 
   /** Splits an open, unpaid invoice into 2–6 issued parts that sum to its total (docs/20 §4.5). */
@@ -426,6 +441,7 @@ export class InvoiceService {
     reason: string,
     actor: AuthUser,
   ): Promise<number[]> {
+    let checkouts: OpenCheckout[] = [];
     const created = await this.prisma.$transaction(async (tx) => {
       const invoice = await this.lock(tx, id);
       if (
@@ -451,7 +467,7 @@ export class InvoiceService {
           lockVersion: { increment: 1 },
         },
       });
-      await this.cancelPendingPayments(tx, id);
+      checkouts = await this.cancelPendingPayments(tx, id);
       await invoiceEvent(tx, BILLING_EVENT.invoiceVoided, closed, -total, now, {
         reason: 'split',
         note: reason,
@@ -499,6 +515,7 @@ export class InvoiceService {
       return ids;
     });
     await this.notifier.issued(created);
+    await this.expireAtProviders(checkouts);
     return created;
   }
 
@@ -512,13 +529,14 @@ export class InvoiceService {
     const of = (type: InvoiceLineType) => minor(sums.find((s) => s.type === type)?._sum.amount);
     const paidAgg = await tx.payment.aggregate({
       where: { invoiceId: invoice.id, status: 'succeeded' },
-      _sum: { amount: true },
+      _sum: { amount: true, unapplied: true },
     });
     const subtotal = of('package') + of('manual') + of('split');
     const adjustments = of('adjustment');
     const discounts = of('discount');
     const total = subtotal + adjustments + discounts;
-    const paid = minor(paidAgg._sum.amount);
+    // P1-1: only the applied part counts; an overpayment's surplus is the family's credit.
+    const paid = minor(paidAgg._sum.amount) - minor(paidAgg._sum.unapplied);
 
     const next: Partial<Record<'status', Invoice['status']>> & { paidAt?: Date | null } = {};
     if (isOpenInvoice(invoice.status) || invoice.status === 'paid') {
@@ -562,11 +580,104 @@ export class InvoiceService {
     return (await tx.payment.count({ where: { invoiceId, status: 'succeeded' } })) > 0;
   }
 
-  private async cancelPendingPayments(tx: Tx, invoiceId: number): Promise<void> {
-    await tx.payment.updateMany({
-      where: { invoiceId, status: 'pending' },
-      data: { status: 'cancelled', failureReason: 'invoice_closed' },
+  /**
+   * Cancels the invoice's open attempts; returns the online ones so the caller expires them at the
+   * provider after commit (`expireAtProviders`).
+   */
+  async cancelPendingPayments(
+    tx: Tx,
+    invoiceId: number,
+    reason = 'invoice_closed',
+    exceptId?: number,
+  ): Promise<OpenCheckout[]> {
+    const open = await tx.payment.findMany({
+      where: { invoiceId, status: 'pending', ...(exceptId ? { id: { not: exceptId } } : {}) },
+      select: { id: true, method: true, providerRef: true },
     });
+    if (!open.length) return [];
+    await tx.payment.updateMany({
+      where: { id: { in: open.map((p) => p.id) } },
+      data: { status: 'cancelled', failureReason: reason },
+    });
+    return open
+      .filter((p) => (p.method === 'stripe' || p.method === 'paypal') && p.providerRef)
+      .map((p) => ({ method: p.method as OnlinePaymentMethod, ref: p.providerRef! }));
+  }
+
+  /** Best effort: closes cancelled checkouts at Stripe / PayPal (never throws). */
+  async expireAtProviders(list: OpenCheckout[]): Promise<void> {
+    for (const c of list) {
+      try {
+        await (c.method === 'stripe' ? this.stripe : this.paypal).expire(c.ref);
+      } catch (error) {
+        this.logger.warn(
+          `Could not expire ${c.method} checkout ${c.ref}: ${(error as Error).message}`,
+        );
+      }
+    }
+  }
+
+  /**
+   * P1-1 (B115): the family's open credits in this currency pay the new invoice first, oldest
+   * first, as `credit` payments (ledger: customer credits → receivable).
+   */
+  private async applyCredits(tx: Tx, invoice: Invoice, now: Date): Promise<Invoice> {
+    let balance = balanceMinor(invoice);
+    if (balance <= 0) return invoice;
+    const credits = await tx.familyCredit.findMany({
+      where: { familyId: invoice.familyId, currency: invoice.currency, status: 'open' },
+      orderBy: { id: 'asc' },
+    });
+    for (const credit of credits) {
+      if (balance <= 0) break;
+      await tx.$queryRaw`SELECT id FROM "family_credits" WHERE id = ${credit.id} FOR UPDATE`;
+      const fresh = await tx.familyCredit.findUniqueOrThrow({ where: { id: credit.id } });
+      const remaining = minor(fresh.remaining);
+      if (fresh.status !== 'open' || remaining <= 0) continue;
+      const use = Math.min(remaining, balance);
+      const payment = await tx.payment.create({
+        data: {
+          invoiceId: invoice.id,
+          familyId: invoice.familyId,
+          method: 'credit',
+          status: 'succeeded',
+          amount: dec(use),
+          currency: invoice.currency,
+          reference: `CR-${fresh.id}`,
+          note: 'Family credit (overpayment) used on this invoice.',
+          receivedAt: now,
+          createdAt: now,
+        },
+      });
+      await tx.familyCredit.update({
+        where: { id: fresh.id },
+        data: {
+          remaining: dec(remaining - use),
+          status: remaining - use === 0 ? 'used' : 'open',
+          updatedAt: now,
+        },
+      });
+      await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, payment, use, now, {
+        creditId: fresh.id,
+      });
+      await this.audit.record(
+        {
+          actorId: null,
+          action: 'credit_applied',
+          subjectType: 'invoice',
+          subjectId: invoice.id,
+          after: {
+            creditId: fresh.id,
+            paymentId: payment.id,
+            amount: dec(use),
+            currency: invoice.currency,
+          },
+        },
+        tx,
+      );
+      balance -= use;
+    }
+    return this.recalculate(tx, invoice);
   }
 
   /** Gap-free yearly counter under a row lock: `INV-2026-000123`. */
