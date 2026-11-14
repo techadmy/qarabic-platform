@@ -51,6 +51,9 @@ export function paymentAccount(method: string): SystemAccountKey {
     case 'bank_transfer':
     case 'cheque':
       return 'bank';
+    // A family credit used on an invoice: the liability goes down, no money moves (B115).
+    case 'credit':
+      return 'customer_credits';
     default:
       return 'cash';
   }
@@ -83,6 +86,28 @@ export interface BillingEventInput {
 }
 
 /** `billing_events` → entry (D86). */
+/** P1-1: the part of a payment that became the family's credit (minor units, 0…amount). */
+function unappliedOf(payload: Record<string, unknown>, amount: number): number {
+  const raw = payload.unapplied;
+  const n = typeof raw === 'number' ? raw : typeof raw === 'string' ? cents(raw) : 0;
+  return Math.min(Math.max(0, n), amount);
+}
+
+/** The receivable side of a payment, with its unapplied part on customer credits (B115). */
+function withCredit(
+  lines: DraftLine[],
+  side: 'dr' | 'cr',
+  amount: number,
+  unapplied: number,
+  party: Partial<DraftLine>,
+): DraftLine[] {
+  const post = side === 'cr' ? cr : dr;
+  const applied = amount - unapplied;
+  if (applied > 0) lines.push(post('receivable', applied, party));
+  if (unapplied > 0) lines.push(post('customer_credits', unapplied, party));
+  return lines;
+}
+
 export function billingEntry(e: BillingEventInput): DraftEntry | null {
   const amount = Math.abs(e.amount);
   if (amount === 0) return null;
@@ -125,7 +150,13 @@ export function billingEntry(e: BillingEventInput): DraftEntry | null {
       return {
         ...base,
         memo: `Payment #${e.subjectId} received (${method})`,
-        lines: [dr(paymentAccount(method), amount), cr('receivable', amount, party)],
+        lines: withCredit(
+          [dr(paymentAccount(method), amount)],
+          'cr',
+          amount,
+          unappliedOf(e.payload, amount),
+          party,
+        ),
       };
     }
     case 'payment.refunded': {
@@ -133,7 +164,10 @@ export function billingEntry(e: BillingEventInput): DraftEntry | null {
       return {
         ...base,
         memo: `Payment #${e.subjectId} refunded (${method})`,
-        lines: [dr('receivable', amount, party), cr(paymentAccount(method), amount)],
+        lines: [
+          ...withCredit([], 'dr', amount, unappliedOf(e.payload, amount), party),
+          cr(paymentAccount(method), amount),
+        ],
       };
     }
     default:

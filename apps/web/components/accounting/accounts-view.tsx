@@ -214,7 +214,7 @@ function AccountDialog({
               setParentId(null);
             }}
           >
-            <SelectTrigger id={ids.type} className="h-10! w-full md:text-[0.9375rem]">
+            <SelectTrigger id={ids.type} className="h-10! w-full md:text-body">
               <SelectValue />
             </SelectTrigger>
             <SelectContent position="popper">
@@ -232,7 +232,7 @@ function AccountDialog({
           value={parentId ? String(parentId) : NONE}
           onValueChange={(v) => setParentId(v === NONE ? null : Number(v))}
         >
-          <SelectTrigger id={ids.parent} className="h-10! w-full md:text-[0.9375rem]">
+          <SelectTrigger id={ids.parent} className="h-10! w-full md:text-body">
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper">
@@ -253,7 +253,7 @@ function AccountDialog({
           value={nameAr}
           onChange={(e) => setNameAr(e.target.value)}
           aria-invalid={!!err('nameAr')}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <FormRow id={ids.nameEn} label={t('fields.nameEn')} required error={err('nameEn')}>
@@ -264,7 +264,7 @@ function AccountDialog({
           value={nameEn}
           onChange={(e) => setNameEn(e.target.value)}
           aria-invalid={!!err('nameEn')}
-          className="h-10 text-start md:text-[0.9375rem]"
+          className="h-10 text-start md:text-body"
         />
       </FormRow>
       {!current && (
@@ -280,7 +280,7 @@ function AccountDialog({
           maxLength={500}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          className="md:text-[0.9375rem]"
+          className="md:text-body"
         />
       </FormRow>
       <div className="flex flex-col gap-3">
