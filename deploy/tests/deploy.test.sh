@@ -11,6 +11,7 @@ DEPLOY="$(cd "$HERE/.." && pwd)"
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 REAL_NGINX="$(command -v nginx || true)"
+ORIG_PATH="$PATH"
 
 FAILS=0
 PASSES=0
@@ -53,7 +54,17 @@ fake pm2
 fake apt-get
 fake psql
 fake git
-fake curl 'printf "%s" "${FAKE_CURL_CODE:-200}"'
+fake curl '
+if [[ " $* " == *" -D - "* ]]; then
+  # check-headers.sh: a response head like the N8 include sends (FAKE_HEADERS_BAD drops one).
+  printf "HTTP/1.1 200 OK\r\n"
+  printf "Strict-Transport-Security: max-age=31536000; includeSubDomains\r\n"
+  [[ -n ${FAKE_HEADERS_BAD:-} ]] || printf "X-Content-Type-Options: nosniff\r\n"
+  printf "X-Frame-Options: DENY\r\nReferrer-Policy: strict-origin-when-cross-origin\r\n"
+  printf "Permissions-Policy: camera=()\r\nContent-Security-Policy: frame-ancestors '"'"'none'"'"'\r\n\r\n"
+  exit 0
+fi
+printf "%s" "${FAKE_CURL_CODE:-200}"'
 fake mysql 'exit 0'
 fake mysqldump 'head -c "${FAKE_DUMP_BYTES:-200000}" /dev/urandom | base64; echo; [[ -n ${FAKE_DUMP_NO_TRAILER:-} ]] || echo "-- Dump completed on 2026-11-12"'
 fake crontab '
@@ -207,8 +218,14 @@ check "nginx -t failure aborts" test "$RC" -eq 1
 check "… puts the Laravel include back" cmp -s "$DEPLOY/nginx/qarabic-app.laravel.conf" "$QARABIC_NGINX_INCLUDE_DIR/qarabic-app.conf"
 check "… and never reloads" hasnt 'systemctl reload' "$FAKE_LOG"
 
+FAKE_HEADERS_BAD=1 run "$TMP/s.out" "$DEPLOY/switch.sh" nginx --yes
+check "switch fails when a security header is missing" test "$RC" -eq 1
+check "… and names it" has 'X-Content-Type-Options' "$TMP/s.out"
+cp "$DEPLOY/nginx/qarabic-app.laravel.conf" "$QARABIC_NGINX_INCLUDE_DIR/qarabic-app.conf"
+
 run "$TMP/s.out" "$DEPLOY/switch.sh" nginx --yes
 check "nginx switch exits 0" test "$RC" -eq 0
+check "nginx switch checks the security headers" has 'security headers: ok' "$TMP/s.out"
 check "nginx include is the N8 file" cmp -s "$DEPLOY/nginx/qarabic-n8.conf" "$QARABIC_NGINX_INCLUDE_DIR/qarabic-app.conf"
 check "Laravel include saved for rollback" cmp -s "$DEPLOY/nginx/qarabic-app.laravel.conf" "$QARABIC_ETC/state/qarabic-app.conf.laravel"
 check "nginx -t before reload" before '^nginx -t' '^systemctl reload nginx' "$FAKE_LOG"
@@ -301,6 +318,14 @@ check "/api/ goes to Nest on 4100" has 'proxy_pass http://127.0.0.1:4100;' "$N8"
 check "/api/ wins over the PHP regex (^~)" has 'location \^~ /api/' "$N8"
 check "/up goes to the health endpoint" has 'location = /up' "$N8"
 check "no body rewriting directives" hasnt 'sub_filter|proxy_set_body|gunzip on' "$N8"
+for h in 'Strict-Transport-Security "max-age=31536000' 'X-Content-Type-Options "nosniff"' \
+  'X-Frame-Options "DENY"' 'Referrer-Policy "strict-origin-when-cross-origin"' "frame-ancestors 'none'"; do
+  n="$(grep -c "add_header $h" "$N8" || true)"
+  [[ $h == frame-ancestors* ]] && n="$(grep -c "add_header Content-Security-Policy .*$h" "$N8" || true)"
+  check "header on /app/, /api/, /up: $h" test "$n" -ge 3
+done
+check "upstream copies of single-value headers are hidden" test "$(grep -c 'proxy_hide_header X-Frame-Options' "$N8")" -ge 3
+check "every add_header is 'always' (also on 4xx/5xx)" bash -c "! grep -E '^\s*add_header' '$N8' | grep -vq ' always;'"
 check "Laravel include serves the React dist" has 'alias /home/forge/qarabic-app/dist/' "$DEPLOY/nginx/qarabic-app.laravel.conf"
 if command -v node >/dev/null; then
   check "pm2 ecosystem: four apps, Node 24, right ports" node -e '
@@ -343,6 +368,38 @@ http {
 EOF
     check "real nginx -t accepts $f" "$REAL_NGINX" -t -q -e "$TMP/ngx/logs/err.log" -p "$TMP/ngx" -c "$TMP/ngx/$f.nginx.conf"
   done
+  # Real nginx + stub upstreams that send their own (weaker) headers: what a browser gets.
+  if command -v python3 >/dev/null; then
+    cat >"$TMP/ngx/stub.py" <<'PY'
+import http.server, sys
+class H(http.server.BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("X-Frame-Options", "SAMEORIGIN")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("Content-Security-Policy", "default-src 'self'")
+        self.end_headers()
+        self.wfile.write(b"ok")
+    def log_message(self, *a): pass
+http.server.HTTPServer(("127.0.0.1", int(sys.argv[1])), H).serve_forever()
+PY
+    python3 "$TMP/ngx/stub.py" 4000 &
+    STUB1=$!
+    python3 "$TMP/ngx/stub.py" 4100 &
+    STUB2=$!
+    "$REAL_NGINX" -e "$TMP/ngx/logs/err.log" -p "$TMP/ngx" -c "$TMP/ngx/qarabic-n8.conf.nginx.conf"
+    sleep 1
+    PATH="$ORIG_PATH" "$DEPLOY/check-headers.sh" http://127.0.0.1:18080 >"$TMP/ngx/check.out" 2>&1
+    check "real nginx sends every security header once (check-headers.sh)" test $? -eq 0
+    PATH="$ORIG_PATH" curl -s -o /dev/null -D - http://127.0.0.1:18080/app/login | tr -d '\r' >"$TMP/ngx/app.head"
+    check "/app/: upstream X-Frame-Options SAMEORIGIN replaced by DENY" \
+      bash -c "grep -qx 'X-Frame-Options: DENY' '$TMP/ngx/app.head' && ! grep -q SAMEORIGIN '$TMP/ngx/app.head'"
+    check "/app/: the app's own CSP passes through next to nginx's" \
+      test "$(grep -ci '^Content-Security-Policy:' "$TMP/ngx/app.head")" -eq 2
+    [[ -n ${DEBUG:-} ]] && cat "$TMP/ngx/check.out" "$TMP/ngx/app.head"
+    "$REAL_NGINX" -e "$TMP/ngx/logs/err.log" -p "$TMP/ngx" -c "$TMP/ngx/qarabic-n8.conf.nginx.conf" -s stop
+    kill "$STUB1" "$STUB2" 2>/dev/null
+  fi
 else
   echo "  (skip) nginx not installed: syntax check runs in CI"
 fi
