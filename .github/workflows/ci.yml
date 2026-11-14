@@ -83,6 +83,8 @@ jobs:
       LOG_LEVEL: warn
       SEED_ADMIN_EMAIL: admin@example.test
       E2E_ADMIN_EMAIL: admin@example.test
+      SEED_REVIEWER_EMAIL: reviewer@example.test
+      E2E_REVIEWER_EMAIL: reviewer@example.test
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -99,6 +101,8 @@ jobs:
             echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
             echo "SEED_ADMIN_PASSWORD=$password"
             echo "E2E_ADMIN_PASSWORD=$password"
+            echo "SEED_REVIEWER_PASSWORD=$password"
+            echo "E2E_REVIEWER_PASSWORD=$password"
           } >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build

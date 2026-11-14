@@ -12,7 +12,19 @@ export const REAL_API = process.env.E2E_REAL_API === '1';
 
 /** E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD, or SEED_ADMIN_* in apps/api/.env (never committed, never printed). */
 export function seedAdmin(): { email: string; password: string } {
-  const fromEnv = { email: process.env.E2E_ADMIN_EMAIL, password: process.env.E2E_ADMIN_PASSWORD };
+  return seedLogin('ADMIN');
+}
+
+/** P0-3: the second dev login that reviews payroll runs (the admin approves them). */
+export function seedReviewer(): { email: string; password: string } {
+  return seedLogin('REVIEWER');
+}
+
+function seedLogin(who: 'ADMIN' | 'REVIEWER'): { email: string; password: string } {
+  const fromEnv = {
+    email: process.env[`E2E_${who}_EMAIL`],
+    password: process.env[`E2E_${who}_PASSWORD`],
+  };
   if (fromEnv.email && fromEnv.password) return fromEnv as { email: string; password: string };
   const file = fileURLToPath(new URL('../../api/.env', import.meta.url));
   const vars = Object.fromEntries(
@@ -22,7 +34,10 @@ export function seedAdmin(): { email: string; password: string } {
       .filter((m): m is RegExpMatchArray => !!m)
       .map((m) => [m[1], m[2]!.replace(/^(['"])(.*)\1$/, '$2')]),
   );
-  return { email: vars.SEED_ADMIN_EMAIL, password: vars.SEED_ADMIN_PASSWORD };
+  return {
+    email: vars[`SEED_${who}_EMAIL`] as string,
+    password: vars[`SEED_${who}_PASSWORD`] as string,
+  };
 }
 
 export const SESSION_FILE = join(tmpdir(), 'qarabic-e2e-real-session.json');
