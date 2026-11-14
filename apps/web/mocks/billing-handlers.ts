@@ -143,6 +143,8 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
   return staff
     ? {
         ...base,
+        capturedAmount: null,
+        capturedCurrency: null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
