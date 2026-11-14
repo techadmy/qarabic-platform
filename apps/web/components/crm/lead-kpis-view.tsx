@@ -13,16 +13,15 @@ import {
   TableBody,
   TableCell,
   TableFooter,
-  TableHead,
   TableHeader,
   TableRow,
 } from '@qarabic/ui/components/table';
 import { useQuery } from '@tanstack/react-query';
 import { ChartNoAxesColumnIcon } from 'lucide-react';
-import { cn } from '@qarabic/ui/lib/utils';
 import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import { DateRangeFilters } from '@/components/accounting/accounting-bits';
+import { Col, RowHead } from '@/components/list/report-table';
 import { PageHeader } from '@/components/page-header';
 import { KeyFacts } from '@/components/people/detail';
 import { useUiLocale } from '@/components/sessions/times';
@@ -38,25 +37,6 @@ import { intlLocale } from '@/lib/time';
 
 /** The longest period the report takes (the API says `range_too_long` past it). */
 const MAX_DAYS = 366;
-/** The first column stays put while the rest scrolls sideways on a phone. */
-const STICKY = 'sticky start-0 z-10 bg-card';
-
-function Col({ children, end }: { children: ReactNode; end?: boolean }) {
-  return (
-    <TableHead scope="col" className={cn(end && 'text-end', !end && STICKY)}>
-      {children}
-    </TableHead>
-  );
-}
-
-function RowHead({ children, className }: { children: ReactNode; className?: string }) {
-  return (
-    <TableHead scope="row" className={cn('font-medium', STICKY, className)}>
-      {children}
-    </TableHead>
-  );
-}
-
 /**
  * «مؤشرات العملاء المحتملين» (T5, docs/33 §6): for the leads that came in a period, how fast they
  * were answered, how many booked a trial, came to it and became regular, and how long that took —

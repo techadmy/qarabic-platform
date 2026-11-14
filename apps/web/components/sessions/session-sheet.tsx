@@ -22,6 +22,7 @@ import { cn } from '@qarabic/ui/lib/utils';
 import { useQuery } from '@tanstack/react-query';
 import { CalendarRangeIcon, FilePenLineIcon, LockIcon, PencilIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { actorLabel } from '@/lib/sessions/actor';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -388,7 +389,13 @@ function SessionInfo({
                   className="text-muted-foreground"
                   title={dayAndClock(e.occurredAt, tz, locale)}
                 >
-                  {e.actor?.name ?? t('detail.system')} · {relativeTime(e.occurredAt, now, locale)}
+                  <bdi>
+                    {actorLabel(e.actor, locale, {
+                      system: t('detail.system'),
+                      staff: t('detail.staff'),
+                    })}
+                  </bdi>{' '}
+                  · {relativeTime(e.occurredAt, now, locale)}
                 </span>
                 {typeof note === 'string' && note && (
                   <span>
