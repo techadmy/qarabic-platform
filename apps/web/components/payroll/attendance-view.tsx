@@ -147,7 +147,13 @@ export function TodayCard() {
             disabled={busy}
             onClick={() => (checkedIn ? outMut.mutate() : inMut.mutate())}
           >
-            {busy ? <Spinner /> : checkedIn ? <LogOutIcon /> : <LogInIcon />}
+            {busy ? (
+              <Spinner />
+            ) : checkedIn ? (
+              <LogOutIcon className="rtl:-scale-x-100" />
+            ) : (
+              <LogInIcon className="rtl:-scale-x-100" />
+            )}
             {checkedIn ? t('checkOut') : t('checkIn')}
           </Button>
         )}
@@ -209,7 +215,7 @@ function LeaveActions({
           className="h-8"
           onClick={() => onAction({ leave, action: 'cancel' })}
         >
-          <Undo2Icon />
+          <Undo2Icon className="rtl:-scale-x-100" />
           {t('cancel')}
         </Button>
       )}

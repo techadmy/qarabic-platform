@@ -194,7 +194,7 @@ export function PaymentsList({
                     className="text-destructive"
                     onClick={() => onVoid(p)}
                   >
-                    <Undo2Icon />
+                    <Undo2Icon className="rtl:-scale-x-100" />
                     {t('voidPayment')}
                     <span className="sr-only">: {method}</span>
                   </Button>
