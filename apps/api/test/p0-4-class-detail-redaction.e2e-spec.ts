@@ -83,7 +83,6 @@ beforeEach(async () => {
         type: 'zoom_start_url_issued',
         actorUserId: teacherUser.id,
         actorRole: 'teacher',
-        payload: null,
         occurredAt: new Date('2026-11-16T09:55:00Z'),
       },
     ],
