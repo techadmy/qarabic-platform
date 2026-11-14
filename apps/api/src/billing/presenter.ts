@@ -78,11 +78,12 @@ export function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: iso(p.refundedAt),
     createdAt: p.createdAt.toISOString(),
     receiptNumber: p.status === 'succeeded' ? `RC-${String(p.id).padStart(6, '0')}` : null,
-    unapplied: amountOf(p.unapplied),
-    needsReview: p.needsReview,
-    reviewReason: p.reviewReason,
+    // Staff only (docs/39 P1-1): the review flag, its reason and the unapplied part are internal.
     ...(staff
       ? {
+          unapplied: amountOf(p.unapplied),
+          needsReview: p.needsReview,
+          reviewReason: p.reviewReason,
           note: p.note,
           failureReason: p.failureReason,
           providerPaymentId: p.providerPaymentId,
