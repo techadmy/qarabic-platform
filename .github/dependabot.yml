@@ -1,0 +1,10 @@
+# Keeps the SHA-pinned actions current (docs/39 P1-8): Dependabot bumps the SHA and the tag comment.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ['*']
