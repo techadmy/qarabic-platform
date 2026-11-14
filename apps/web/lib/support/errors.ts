@@ -16,6 +16,10 @@ export function useSupportError() {
     if (error.status === 404) return t('notFound');
     if (error.status === 403) return t('forbidden');
     const errors = error.error?.errors ?? {};
+    // S3 typed requests: the request moved on, or the proposed teacher cannot take the child.
+    if (error.status === 409 && error.code === 'request_transition') return t('requestState');
+    if (error.status === 422 && (errors['proposal.teacherId'] || errors.proposal))
+      return t('proposalTeacher');
     if (error.status === 422) {
       if (errors.note) return t('note');
       if (errors.priority) return t('priority');

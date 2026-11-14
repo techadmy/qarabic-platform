@@ -11,6 +11,7 @@ import {
   type TicketSubjectType,
   type TicketType,
   type TicketVisibility,
+  type SupportRequestDto,
 } from '@qarabic/shared';
 import { db as people } from './people-db';
 import { sdb } from './schedule-db';
@@ -60,6 +61,8 @@ export interface TicketRow {
   createdAt: string;
   updatedAt: string;
   context: Record<string, unknown>;
+  /** S3 typed request (schedule / teacher / subscription change, invoice question). */
+  request?: SupportRequestDto | null;
 }
 
 export interface CommentRow {
