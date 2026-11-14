@@ -34,7 +34,8 @@ test.use({ viewport: { width: 1440, height: 900 } });
 
 for (const [name, email, path] of SCREENS) {
   test(`visual: ${name} (${path})`, async ({ page }) => {
-    await page.clock.install({ time: NOW });
+    // Fixed, not just started there: relative times («in 5 minutes») stay put between runs.
+    await page.clock.setFixedTime(NOW);
     await page.goto(`/login?next=${encodeURIComponent(path)}`);
     await login(page, email);
     await expect(page.locator('main h1').first()).toBeVisible();

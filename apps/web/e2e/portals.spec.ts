@@ -10,6 +10,8 @@ const WIDTHS = { mobile: 375, tablet: 768, desktop: 1440 } as const;
 async function signIn(page: Page, email: string) {
   await page.goto('/login');
   await login(page, email);
+  // Signed in once the URL leaves /login (the login page has a `main h1` too).
+  await expect(page).not.toHaveURL(/\/login/);
   await expect(page.locator('main h1').first()).toBeVisible();
   // A fresh load: after the post-login client navigation Next re-streams <title>, and axe read an
   // empty one now and then (document-title, flaky).

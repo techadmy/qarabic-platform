@@ -156,6 +156,8 @@ for (const [group, { email, pages }] of Object.entries(GROUPS)) {
         if (email) {
           await page.goto('/login');
           await login(page, email);
+          // Signed in once the URL leaves /login (the login page has a `main h1` too).
+          await expect(page).not.toHaveURL(/\/login/);
           await expect(page.locator('main h1').first()).toBeVisible();
         }
         // Signed in: the header switch (the account's language wins over the cookie). Signed out:

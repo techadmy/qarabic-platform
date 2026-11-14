@@ -45,6 +45,8 @@ for (const [name, width] of Object.entries(WIDTHS)) {
         test(`${path} fits the screen and passes axe`, async ({ page }) => {
           await page.goto('/login');
           await login(page);
+          // Signed in once the URL leaves /login (the login page has a `main h1` too).
+          await expect(page).not.toHaveURL(/\/login/);
           await expect(page.locator('main h1').first()).toBeVisible();
           if (lang === 'en') await switchToEnglish(page);
           // Then a fresh load of the page: a client-side navigation or the language switch re-streams

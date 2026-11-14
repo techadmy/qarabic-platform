@@ -41,15 +41,18 @@ export async function expectNoSeriousA11yViolations(page: Page) {
   });
   const { default: AxeBuilder } = await import('@axe-core/playwright');
   const results = await new AxeBuilder({ page })
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa', 'best-practice'])
     .analyze();
+  // Serious / critical: the WCAG 2.2 AA rules block, as always.
   const serious = results.violations.filter(
-    (v) => v.impact === 'serious' || v.impact === 'critical',
+    (v) =>
+      (v.impact === 'serious' || v.impact === 'critical') &&
+      v.tags.some((t) => t.startsWith('wcag')),
   );
   expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
 
-  // Moderate (docs/39 E2E-4): the known ones are in e2e/axe-moderate-baseline.json (page + rule);
-  // a new one fails. `AXE_BASELINE_UPDATE=1` records instead (then `node e2e/axe-baseline.mjs`).
+  // Moderate (docs/39 E2E-4), WCAG and axe best-practice rules (landmarks, heading order…): the
+  // known ones are in e2e/axe-moderate-baseline.json (page + rule); a new one fails. `AXE_BASELINE_UPDATE=1` records instead (then `node e2e/axe-baseline.mjs`).
   const moderate = results.violations.filter((v) => v.impact === 'moderate');
   const page_ = pageKey(page.url());
   const keys = moderate.map((v) => `${page_} ${v.id}`);
