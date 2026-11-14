@@ -137,7 +137,7 @@ export function CurrencySelect({
       <SelectTrigger
         id={id}
         aria-label={ariaLabel}
-        className={className ?? 'h-10! w-full bg-card md:text-[0.9375rem]'}
+        className={className ?? 'h-10! w-full bg-card md:text-body'}
       >
         <SelectValue />
       </SelectTrigger>

@@ -47,7 +47,7 @@ export function NotificationBell() {
   // Names and titles sit in <bdi> so a Latin name keeps its place in an Arabic sentence.
   const bdi = (chunks: ReactNode) => <bdi>{chunks}</bdi>;
   const text = (n: NotificationDto): ReactNode => {
-    const x = bellText(n);
+    const x = bellText(n, locale);
     if (x.kind === 'lead')
       return (
         <>
@@ -79,7 +79,7 @@ export function NotificationBell() {
           {unread > 0 && (
             <span
               aria-hidden
-              className="absolute -top-0.5 -end-0.5 flex min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-[0.6875rem] leading-4.5 font-bold text-white tabular-nums"
+              className="absolute -top-0.5 -end-0.5 flex min-w-4.5 items-center justify-center rounded-full bg-destructive px-1 text-micro leading-4.5 font-bold text-destructive-foreground tabular-nums"
             >
               {unread > 9 ? '9+' : unread}
             </span>

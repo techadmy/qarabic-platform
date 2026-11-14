@@ -42,7 +42,7 @@ import { contains, searchId } from '../common/search.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { isParentViewer, isTeacherViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { sessionScopeWhere, viewerScope } from '../schedule/scope.js';
+import { LIVE_ENROLLMENT, sessionScopeWhere, viewerScope } from '../schedule/scope.js';
 import { DAY } from '../schedule/time.js';
 import { cleanContext } from './context.js';
 import {
@@ -204,7 +204,12 @@ export class TicketsService {
     }
     const student = await this.prisma.student.findUnique({
       where: { id },
-      select: { id: true, teacherId: true, enrollments: { select: { teacherId: true } } },
+      // ISO-4: a teacher's own students are the live ones.
+      select: {
+        id: true,
+        teacherId: true,
+        enrollments: { where: LIVE_ENROLLMENT, select: { teacherId: true } },
+      },
     });
     if (!student) return false;
     if (scope.kind === 'family') return scope.studentIds.includes(id);
@@ -214,7 +219,8 @@ export class TicketsService {
         student.enrollments.some((e) => e.teacherId === scope.teacherId)
       );
     }
-    return true;
+    // ISO-7: staff link a child only with family access.
+    return has(user, 'families.view');
   }
 
   /** Who a ticket concerns (Laravel `TicketPeople`): from the subject first, then the reporter. */

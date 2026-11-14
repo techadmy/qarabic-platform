@@ -6,7 +6,7 @@ import { MyClassesView } from '@/app/(app)/my-classes/my-classes-view';
 import { TodayView } from '@/app/(app)/today/today-view';
 import { addDays, dateKeyIn } from '@/lib/schedule-time';
 import { db as people } from '@/mocks/people-db';
-import { sdb } from '@/mocks/schedule-db';
+import { addEvent, sdb } from '@/mocks/schedule-db';
 import { server } from '@/mocks/node';
 import { lastReplacedUrl, renderPage } from '@/test/people';
 
@@ -140,5 +140,34 @@ describe('Teacher «حصصي»', () => {
     for (const n of shown) expect(names.has(n)).toBe(true);
     // No teacher column on the teacher's own list.
     expect(screen.queryByRole('columnheader', { name: 'المعلم' })).not.toBeInTheDocument();
+  });
+});
+
+describe('P0-4: staff by role only in a teacher’s class sheet (B118)', () => {
+  it('a monitor’s action shows «مشرف متابعة», not their name or note', async () => {
+    const s = sdb.sessions.find((x) => x.teacherId === 1 && !x.deleted)!;
+    addEvent(
+      s.id,
+      'note_added',
+      null,
+      null,
+      { id: 4, name: 'Mona Monitor', role: 'monitor' },
+      { note: 'Internal: parent was rude' },
+    );
+    addEvent(s.id, 'marked', 'scheduled', 'absent', {
+      id: 4,
+      name: 'Mona Monitor',
+      role: 'monitor',
+    });
+    renderPage(<MyClassesView />, {
+      as: 'teacher@qarabic.test',
+      path: `/my-classes?session=${s.id}`,
+    });
+    const sheet = await screen.findByRole('dialog');
+    await waitFor(() =>
+      expect(within(sheet).getAllByText('مشرف متابعة').length).toBeGreaterThan(0),
+    );
+    expect(within(sheet).queryByText(/Mona Monitor/)).toBeNull();
+    expect(within(sheet).queryByText(/parent was rude/)).toBeNull();
   });
 });
