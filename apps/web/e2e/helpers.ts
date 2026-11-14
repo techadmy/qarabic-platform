@@ -20,6 +20,20 @@ export async function expectNoHorizontalScroll(page: Page) {
 export async function expectNoSeriousA11yViolations(page: Page) {
   // Next streams <title> with the page metadata; under load axe could run before it arrives.
   await expect(page).toHaveTitle(/\S/);
+  // Jump running transitions and animations to their end (a dialog fading in, a button turning
+  // from disabled to enabled): axe measured colours mid-fade and reported contrast that the
+  // settled screen does not have (support.spec «teacher change», 2026-11-14). finish() fires the
+  // usual end events; infinite ones (spinners) throw and are left alone.
+  await page.evaluate(async () => {
+    for (const animation of document.getAnimations()) {
+      try {
+        animation.finish();
+      } catch {
+        // infinite
+      }
+    }
+    await new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done)));
+  });
   const { default: AxeBuilder } = await import('@axe-core/playwright');
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])

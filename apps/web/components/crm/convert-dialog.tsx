@@ -1,6 +1,11 @@
 'use client';
 
-import type { ConflictResultDto, LeadDetailDto } from '@qarabic/shared';
+import {
+  TRIAL_LEVEL_LABELS,
+  type ConflictResultDto,
+  type LeadDetailDto,
+  type TrialReportDto,
+} from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@qarabic/ui/components/card';
@@ -23,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@qarabic/ui/components/select';
+import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { Spinner } from '@qarabic/ui/components/spinner';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { PlusIcon, Trash2Icon } from 'lucide-react';
@@ -34,7 +40,7 @@ import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { useLookups } from '@/components/people/person-sheet';
 import { canSave, ConflictList } from '@/components/sessions/conflict-list';
 import { useUiLocale } from '@/components/sessions/times';
-import { convertLead } from '@/lib/api/crm';
+import { convertLead, crmKeys, fetchLeadTrialReports } from '@/lib/api/crm';
 import { fetchPerson } from '@/lib/api/people';
 import { conflictsOf } from '@/lib/sessions/errors';
 import { dateKeyIn, otherSideOf, STAFF_WEEK, wallTime, weekdayName } from '@/lib/schedule-time';
@@ -57,14 +63,49 @@ type Plan = {
  * beside each; one transaction on the server — any clash keeps nothing. The welcome mail with the
  * set-password link is off unless ticked (D140).
  */
-export function ConvertDialog({
+/**
+ * Waits for the lead's trial reports (T4) before the form: each child's plan starts from the
+ * teacher's recommendation (course, length, how many weekly times). Without reports (or if they
+ * don't load) the form starts as before.
+ */
+export function ConvertDialog(props: {
+  lead: LeadDetailDto;
+  onClose: () => void;
+  onSaved: (l: LeadDetailDto) => void;
+}) {
+  const reports = useQuery({
+    queryKey: crmKeys.trialReports(props.lead.id),
+    queryFn: ({ signal }) => fetchLeadTrialReports(props.lead.id, signal),
+    retry: false,
+  });
+  if (reports.isPending) {
+    return (
+      <Dialog open onOpenChange={(o) => !o && props.onClose()}>
+        <DialogContent className="sm:max-w-2xl" aria-busy="true">
+          <DialogHeader>
+            <DialogTitle>
+              <Skeleton className="h-6 w-40" />
+            </DialogTitle>
+            <DialogDescription className="sr-only">…</DialogDescription>
+          </DialogHeader>
+          <Skeleton className="h-64" />
+        </DialogContent>
+      </Dialog>
+    );
+  }
+  return <ConvertForm {...props} reports={reports.data ?? []} />;
+}
+
+function ConvertForm({
   lead,
   onClose,
   onSaved,
+  reports,
 }: {
   lead: LeadDetailDto;
   onClose: () => void;
   onSaved: (l: LeadDetailDto) => void;
+  reports: TrialReportDto[];
 }) {
   const t = useTranslations('crm.convert');
   const tc = useTranslations('crm');
@@ -78,15 +119,26 @@ export function ConvertDialog({
         // A child without their own trial borrows a sibling's teacher and length, never its course.
         const own = lead.trials.find((x) => x.student.id === s.id);
         const trial = own ?? lead.trials[0];
+        // The teacher's recommendation from this child's trial report, when there is one.
+        const rec = reportFor(reports, lead, s.id);
         return [
           s.id,
           {
             include: true,
-            courseId: String(own?.course?.id ?? s.courseId ?? trial?.course?.id ?? ''),
+            courseId: String(
+              rec?.recommendedCourse?.id ??
+                own?.course?.id ??
+                s.courseId ??
+                trial?.course?.id ??
+                '',
+            ),
             teacherId: trial ? String(trial.teacher.id) : null,
             startsOn: today,
-            minutes: String(trial?.durationMinutes ?? 30),
-            slots: [{ weekday: '', time: '' }],
+            minutes: String(rec?.minutesPerClass ?? trial?.durationMinutes ?? 30),
+            slots: Array.from({ length: rec?.classesPerWeek ?? 1 }, () => ({
+              weekday: '',
+              time: '',
+            })),
           },
         ];
       }),
@@ -159,6 +211,7 @@ export function ConvertDialog({
               <StudentPlan
                 key={s.id}
                 name={s.name}
+                report={reportFor(reports, lead, s.id)}
                 plan={plans[s.id]!}
                 familyTz={familyTz}
                 today={today}
@@ -205,8 +258,17 @@ export function ConvertDialog({
   );
 }
 
+/** The child's latest trial report (by their trial classes). */
+function reportFor(reports: TrialReportDto[], lead: LeadDetailDto, studentId: number) {
+  const sessions = lead.trials.filter((x) => x.student.id === studentId).map((x) => x.sessionId);
+  return reports
+    .filter((r) => sessions.includes(r.sessionId))
+    .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))[0];
+}
+
 function StudentPlan({
   name,
+  report,
   plan,
   familyTz,
   today,
@@ -214,6 +276,7 @@ function StudentPlan({
   onChange,
 }: {
   name: string;
+  report?: TrialReportDto;
   plan: Plan;
   familyTz: string;
   today: string;
@@ -222,6 +285,7 @@ function StudentPlan({
 }) {
   const t = useTranslations('crm.convert');
   const tt = useTranslations('crm.trial');
+  const tr = useTranslations('reports.trial');
   const locale = useUiLocale();
   const lookups = useLookups();
   const ids = {
@@ -254,6 +318,15 @@ function StudentPlan({
       </CardHeader>
       {plan.include && (
         <CardContent>
+          {report && (
+            <p className="mb-4 rounded-lg border bg-subtle p-3 text-sm">
+              {t('fromReport', {
+                level: TRIAL_LEVEL_LABELS[report.level][locale],
+                perWeek: tr('perWeek', { count: report.classesPerWeek }),
+                minutes: tr('minutes', { count: report.minutesPerClass }),
+              })}
+            </p>
+          )}
           <FieldGroup>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field data-invalid={missing(plan.courseId)}>
@@ -306,11 +379,13 @@ function StudentPlan({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper">
-                    {[30, 45, 60, 90].map((m) => (
-                      <SelectItem key={m} value={String(m)}>
-                        {tt('minutes', { count: m })}
-                      </SelectItem>
-                    ))}
+                    {[...new Set([30, 45, 60, 90, Number(plan.minutes)])]
+                      .sort((a, b) => a - b)
+                      .map((m) => (
+                        <SelectItem key={m} value={String(m)}>
+                          {tt('minutes', { count: m })}
+                        </SelectItem>
+                      ))}
                   </SelectContent>
                 </Select>
               </Field>
