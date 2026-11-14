@@ -136,11 +136,11 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: p.refundedAt,
     createdAt: p.createdAt,
     receiptNumber: p.receiptNumber,
+    unapplied: '0.00',
   };
   return staff
     ? {
         ...base,
-        unapplied: '0.00',
         needsReview: false,
         reviewReason: null,
         note: p.note,

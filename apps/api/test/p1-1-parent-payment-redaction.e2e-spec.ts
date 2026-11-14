@@ -21,8 +21,8 @@ import {
 } from './n6-helpers.js';
 
 /*
-| P1-1 follow-up (docs/39 ISO, B118): the review flag, its reason and the unapplied part of a
-| payment are staff-only. A parent sees their payment and receipt, never the internal review data.
+| P1-1 follow-up (docs/39 ISO, B118): the review flag and its reason are staff-only. A parent sees
+| their payment, its receipt and the part that went to the family's credit (their own money).
 */
 
 let ctx: TestContext;
@@ -34,7 +34,7 @@ afterAll(async () => {
 });
 
 const NOW = '2026-12-02T09:00:00Z';
-const STAFF_ONLY = ['unapplied', 'needsReview', 'reviewReason', 'note', 'failureReason'];
+const STAFF_ONLY = ['needsReview', 'reviewReason', 'note', 'failureReason'];
 
 let invoiceId: number;
 let parent: Client;
@@ -101,6 +101,8 @@ describe('payment review data is staff only', () => {
       for (const key of STAFF_ONLY) expect(p).not.toHaveProperty(key);
     }
     expect(JSON.stringify(res.body)).not.toContain('overpaid');
+    // Where the extra money went is the family's to know.
+    expect(payments.find((p) => p.method === 'stripe')).toMatchObject({ unapplied: '60.00' });
   });
 
   it('billing staff still see them', async () => {
