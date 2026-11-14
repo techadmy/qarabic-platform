@@ -309,7 +309,7 @@ export function RequestCard({
               disabled={withdraw.isPending}
               onClick={() => withdraw.mutate()}
             >
-              <Undo2Icon />
+              <Undo2Icon className="rtl:-scale-x-100" />
               {t('actions.cancel')}
             </Button>
           )}
