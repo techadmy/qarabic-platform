@@ -108,11 +108,16 @@ jobs:
         run: |
           password="$(openssl rand -hex 16)"
           echo "::add-mask::$password"
+          demo="$(openssl rand -hex 16)"
+          echo "::add-mask::$demo"
           {
             echo "SESSION_SECRET=$(openssl rand -hex 32)"
             echo "APP_ENCRYPTION_KEY=$(openssl rand -base64 32)"
             echo "SEED_ADMIN_PASSWORD=$password"
             echo "E2E_ADMIN_PASSWORD=$password"
+            # The made-up demo logins (parents, teachers) for the portal specs.
+            echo "SEED_DEMO_PASSWORD=$demo"
+            echo "E2E_DEMO_PASSWORD=$demo"
           } >> "$GITHUB_ENV"
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build

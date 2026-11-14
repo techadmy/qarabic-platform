@@ -115,6 +115,17 @@ ${colorConfig
 
 const ChartTooltip = RechartsPrimitive.Tooltip
 
+/**
+ * Qarabic (audit 39 RTL-6): a tooltip number in the page's language (`<html lang>`) with Latin
+ * digits (D32), instead of the browser's default locale.
+ */
+export function formatChartNumber(value: number | string) {
+  if (typeof value !== "number") return value
+  const lang =
+    typeof document === "undefined" ? undefined : document.documentElement.lang || undefined
+  return new Intl.NumberFormat(lang, { numberingSystem: "latn" }).format(value)
+}
+
 function ChartTooltipContent({
   active,
   payload,
@@ -254,7 +265,7 @@ function ChartTooltipContent({
                       {item.value != null && (
                         <span className="font-mono font-medium text-foreground tabular-nums">
                           {typeof item.value === "number"
-                            ? item.value.toLocaleString()
+                            ? formatChartNumber(item.value)
                             : String(item.value)}
                         </span>
                       )}

@@ -99,7 +99,7 @@ export function StatementView({ id }: { id: number }) {
       <PageHeader title={title} description={t('statement.hint')} back={back} />
       <Card className="flex-row flex-wrap items-end gap-3 p-4 shadow-none">
         <div className="flex min-w-32 flex-col gap-2">
-          <Label htmlFor={currencyId} className="text-[0.8125rem] text-muted-foreground">
+          <Label htmlFor={currencyId} className="text-caption text-muted-foreground">
             {t('fields.currency')}
           </Label>
           <CurrencySelect

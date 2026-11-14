@@ -17,6 +17,7 @@ import { ProfileShell } from '@/components/people/profile-shell';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { fetchPerson } from '@/lib/api/people';
+import { formatMoney } from '@/lib/billing/money';
 import { can } from '@/lib/auth/use-me';
 import { peopleKeys } from '@/lib/people/use-person-actions';
 import { formatInstant, zoneLabel } from '@/lib/time';
@@ -37,13 +38,9 @@ export function TeacherProfile({ id }: { id: number }) {
   });
   const x = query.data;
   const editable = canManage && !x?.archive;
+  // The shared money helper (audit 39 RTL-6): same digits, symbol and isolation as billing.
   const money = (amount: string | null, currency: string) =>
-    amount === null
-      ? null
-      : new Intl.NumberFormat(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
-          style: 'currency',
-          currency,
-        }).format(Number(amount));
+    amount === null ? null : formatMoney(amount, currency, locale);
 
   return (
     <ProfileShell
