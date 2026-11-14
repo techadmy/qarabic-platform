@@ -172,6 +172,8 @@ for (const [group, { email, pages }] of Object.entries(GROUPS)) {
           await test.step(path, async () => {
             try {
               await page.goto(path);
+              // Signed in: not bounced to the login page (it has a `main h1` too).
+              if (email) await expect(page).not.toHaveURL(/\/login/);
               await expect(page.locator('html')).toHaveAttribute('dir', dir);
               await settle(page);
               const known = KNOWN_OVERFLOW[`${path}@${width}`];

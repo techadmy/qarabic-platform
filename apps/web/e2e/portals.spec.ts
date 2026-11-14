@@ -11,15 +11,27 @@ async function signIn(page: Page, email: string) {
   await page.goto('/login');
   await login(page, email);
   await expect(page.locator('main h1').first()).toBeVisible();
+  // A fresh load: after the post-login client navigation Next re-streams <title>, and axe read an
+  // empty one now and then (document-title, flaky).
+  await page.goto('/');
+  await expect(page.locator('main h1').first()).toBeVisible();
   await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
 }
 
 async function switchToEnglish(page: Page) {
   await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-  // Leave the switch button: axe must not read its hover / colour transition.
-  await page.mouse.move(0, 0);
-  await page.waitForTimeout(300);
+  // The switch re-renders in place and streams a new <title> (axe read an empty one in between):
+  // a fresh load of the page, now in English.
+  await page.goto(page.url());
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  await expect(page.locator('main h1').first()).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  // Leave the switch button: axe must not read its hover colour. Not (0, 0): in English the switch
+  // sits at the top-left, so the pointer stayed on it (contrast 3.71 on hover, flaky). The page
+  // heading is not interactive.
+  const heading = await page.locator('main h1').first().boundingBox();
+  await page.mouse.move(heading!.x + 2, heading!.y + 2);
 }
 
 for (const [name, width] of Object.entries(WIDTHS)) {
