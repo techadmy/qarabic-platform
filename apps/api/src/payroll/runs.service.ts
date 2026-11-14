@@ -582,9 +582,18 @@ export class PayrollRunsService {
     return db.payrollRun.findUnique({ where: { period: Period.ofDate(date).toString() } });
   }
 
-  /** Refuses changes to an approved or paid month (D92): 409 `period_locked`. */
+  /**
+   * Refuses changes to an approved or paid month (D92): 409 `period_locked`. Inside a transaction
+   * (P1-4, docs/39 BIL-4) the month's run row is locked first, so an approval running at the same
+   * time either waits for this change (and then sees the run back in draft) or has already locked
+   * the month (and this change is refused) — never an approved item left out of the payslip.
+   */
   async assertOpen(date: string, db: Db = this.prisma): Promise<void> {
-    const run = await this.runFor(date, db);
+    let run = await this.runFor(date, db);
+    if (run && db !== this.prisma) {
+      await lockPayrollRow(db, 'payroll_runs', run.id);
+      run = await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } });
+    }
     if (run && isLockedRun(run.status)) {
       throw payrollError(HttpStatus.CONFLICT, 'period_locked', { data: { period: run.period } });
     }
@@ -596,7 +605,10 @@ export class PayrollRunsService {
     if (!found || isLockedRun(found.status)) return;
     await lockPayrollRow(tx, 'payroll_runs', found.id);
     const run = await tx.payrollRun.findUniqueOrThrow({ where: { id: found.id } });
-    if (isLockedRun(run.status)) return;
+    // The month was approved while this change ran: refuse it rather than drop it silently.
+    if (isLockedRun(run.status)) {
+      throw payrollError(HttpStatus.CONFLICT, 'period_locked', { data: { period: run.period } });
+    }
     await this.backToDraft(tx, run);
     await this.compute(tx, run);
   }
