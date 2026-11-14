@@ -1,5 +1,6 @@
 import {
   Body,
+  Headers,
   Controller,
   Get,
   HttpCode,
@@ -329,7 +330,11 @@ export class InvoicesController {
     return { data: { result } };
   }
 
-  /** A manual payment (cash, bank transfer, cheque, other), partial allowed. */
+  /**
+   * A manual payment (cash, bank transfer, cheque, other), partial allowed. P1-5: an
+   * `Idempotency-Key` header (8–64 of `A–Z a–z 0–9 _ -`) makes a retried or double submit
+   * return the first payment instead of recording a second one.
+   */
   @Can('invoices.manage')
   @Post(':id/payments')
   @ApiBody({ schema: jsonSchema(manualPaymentSchema) })
@@ -337,9 +342,13 @@ export class InvoicesController {
     @Param('id', IdPipe) id: number,
     @ZodBody(manualPaymentSchema) body: Out<typeof manualPaymentSchema>,
     @CurrentUser() actor: AuthUser,
+    @Headers('idempotency-key') key?: string,
   ): Promise<{ data: PaymentDto }> {
+    if (key !== undefined && !/^[A-Za-z0-9_-]{8,64}$/.test(key)) {
+      throw validationError({ idempotencyKey: ['Use 8–64 letters, digits, _ or -.'] });
+    }
     await this.billing.assertStaffInvoice(id, actor);
-    const paymentId = await this.payments.recordManual(id, body, actor);
+    const paymentId = await this.payments.recordManual(id, body, actor, key);
     return { data: await paymentView(this.prisma, paymentId, true) };
   }
 

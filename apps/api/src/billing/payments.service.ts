@@ -13,7 +13,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { notFound, validationError } from '../common/errors.js';
 import { ENV, type Env } from '../config/env.js';
-import type { Payment } from '../generated/prisma/client.js';
+import { type Payment, Prisma } from '../generated/prisma/client.js';
 import type { PaymentStatus } from '../generated/prisma/enums.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
@@ -74,6 +74,35 @@ export class PaymentService {
     invoiceId: number,
     input: ManualPaymentInput,
     actor: AuthUser,
+    idempotencyKey?: string,
+  ): Promise<number> {
+    // P1-5 (docs/39 BIL-10): the same key on the same invoice is the same payment.
+    const scoped = idempotencyKey ? `manual:${invoiceId}:${idempotencyKey}` : null;
+    if (scoped) {
+      const seen = await this.prisma.payment.findUnique({ where: { idempotencyKey: scoped } });
+      if (seen) return seen.id;
+    }
+    try {
+      return await this.recordManualOnce(invoiceId, input, actor, scoped);
+    } catch (error) {
+      // A parallel request with the same key won the insert: answer with its payment.
+      if (
+        scoped &&
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        const seen = await this.prisma.payment.findUnique({ where: { idempotencyKey: scoped } });
+        if (seen) return seen.id;
+      }
+      throw error;
+    }
+  }
+
+  private async recordManualOnce(
+    invoiceId: number,
+    input: ManualPaymentInput,
+    actor: AuthUser,
+    idempotencyKey: string | null,
   ): Promise<number> {
     const zone = await this.settings.get('academy.timezone');
     if (input.receivedOn > localDate(this.clock.nowMs(), zone)) {
@@ -98,6 +127,7 @@ export class PaymentService {
           note: input.note ?? null,
           receivedAt: new Date(toUtc(input.receivedOn, '12:00', zone)),
           recordedById: actor.id,
+          idempotencyKey,
           createdAt: now,
         },
       });
@@ -403,6 +433,27 @@ export class PaymentService {
         await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, done, amountMinor, now, {
           unapplied,
         });
+        // P1-5 (docs/39 BIL-6): every provider-driven change has an audit row with its amounts.
+        await this.audit.record(
+          {
+            actorId: null,
+            action: 'payment_succeeded',
+            subjectType: 'payment',
+            subjectId: done.id,
+            before: { status: payment.status },
+            after: {
+              status: 'succeeded',
+              invoiceId: invoice.id,
+              method: done.method,
+              amount: dec(amountMinor),
+              applied: dec(applied),
+              unapplied: dec(unapplied),
+              currency: done.currency,
+              providerPaymentId,
+            },
+          },
+          tx,
+        );
         return { done, closed };
       })
       .then(async (r) => {
@@ -418,10 +469,29 @@ export class PaymentService {
     return this.prisma.$transaction(async (tx) => {
       const payment = await this.lockPayment(tx, paymentId);
       if (payment.status !== 'pending') return payment;
-      return tx.payment.update({
+      const updated = await tx.payment.update({
         where: { id: paymentId },
         data: { status, failureReason: reason },
       });
+      await this.audit.record(
+        {
+          actorId: null,
+          action: status === 'failed' ? 'payment_failed' : 'payment_closed',
+          subjectType: 'payment',
+          subjectId: paymentId,
+          before: { status: 'pending' },
+          after: {
+            status,
+            reason,
+            invoiceId: payment.invoiceId,
+            method: payment.method,
+            amount: dec(minor(payment.amount)),
+            currency: payment.currency,
+          },
+        },
+        tx,
+      );
+      return updated;
     });
   }
 
@@ -434,6 +504,20 @@ export class PaymentService {
       if (payment.status !== 'succeeded') return payment;
       if (refundedMinor < minor(payment.amount)) {
         this.logger.warn(`Partial refund of payment ${paymentId} needs review.`);
+        await this.audit.record(
+          {
+            actorId: null,
+            action: 'payment_partial_refund',
+            subjectType: 'payment',
+            subjectId: paymentId,
+            after: {
+              refunded: dec(refundedMinor),
+              amount: dec(minor(payment.amount)),
+              currency: payment.currency,
+            },
+          },
+          tx,
+        );
         return tx.payment.update({
           where: { id: paymentId },
           data: {
@@ -446,6 +530,23 @@ export class PaymentService {
         where: { id: paymentId },
         data: { status: 'refunded', refundedAt: now },
       });
+      await this.audit.record(
+        {
+          actorId: null,
+          action: 'payment_refunded',
+          subjectType: 'payment',
+          subjectId: paymentId,
+          before: { status: 'succeeded' },
+          after: {
+            status: 'refunded',
+            invoiceId: payment.invoiceId,
+            method: payment.method,
+            amount: dec(minor(payment.amount)),
+            currency: payment.currency,
+          },
+        },
+        tx,
+      );
       await this.invoices.recalculate(tx, invoice);
       await paymentEvent(
         tx,
