@@ -561,9 +561,9 @@ export const paymentSchema = z.object({
   /** Staff: look at it (`overpaid` / `invoice_closed`). */
   needsReview: z.boolean().default(false),
   reviewReason: z.string().nullable().default(null),
-  /** P1-3: what the provider captured when it did not match (`needs_review`). */
-  capturedAmount: z.string().nullable().default(null),
-  capturedCurrency: z.string().nullable().default(null),
+  /** Staff only. P1-3: what the provider captured when it did not match (`needs_review`). */
+  capturedAmount: z.string().nullable().optional(),
+  capturedCurrency: z.string().nullable().optional(),
 });
 export type PaymentDto = z.infer<typeof paymentSchema>;
 

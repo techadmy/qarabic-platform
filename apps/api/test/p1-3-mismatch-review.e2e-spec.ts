@@ -137,4 +137,25 @@ describe('P1-3 amount or currency mismatch', () => {
     expect((await billing.get('/billing/payments/review')).body.data).toEqual([]);
     expect((await parent.get('/billing/payments/review')).status).toBe(403);
   });
+
+  it('the parent never sees the held capture or its review data', async () => {
+    await parent.post(`/invoices/${invoiceId}/checkout`, { provider: 'stripe' });
+    const attempt = await ctx.prisma.payment.findFirstOrThrow();
+    await completed(attempt.id, 5000, 'usd');
+    const res = await parent.get(`/invoices/${invoiceId}`);
+    expect(res.status).toBe(200);
+    const payments = res.body.data.payments as Record<string, unknown>[];
+    expect(payments.map((p) => p.id)).not.toContain(attempt.id);
+    for (const p of payments) {
+      for (const key of ['capturedAmount', 'capturedCurrency']) {
+        expect(p).not.toHaveProperty(key);
+      }
+    }
+    expect(JSON.stringify(res.body)).not.toContain('amount_mismatch');
+    const { client: billing } = await signedIn(ctx, 'billing');
+    const staff = await billing.get(`/invoices/${invoiceId}`);
+    expect(
+      (staff.body.data.payments as Record<string, unknown>[]).find((p) => p.id === attempt.id),
+    ).toMatchObject({ status: 'needs_review', capturedAmount: '50.00', capturedCurrency: 'USD' });
+  });
 });

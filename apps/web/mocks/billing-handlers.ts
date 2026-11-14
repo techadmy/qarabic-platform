@@ -139,12 +139,12 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     unapplied: '0.00',
     needsReview: false,
     reviewReason: null,
-    capturedAmount: null,
-    capturedCurrency: null,
   };
   return staff
     ? {
         ...base,
+        capturedAmount: null,
+        capturedCurrency: null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
