@@ -5,6 +5,7 @@ import type { z } from 'zod';
 import { AuthModule } from '../auth/auth.module.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Authenticated, CurrentUser } from '../auth/decorators.js';
+import { ApiException } from '../common/errors.js';
 import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
@@ -67,6 +68,23 @@ export class DevicesController {
       lastSeenAt: now,
     };
     const row = await this.prisma.$transaction(async (tx) => {
+      // ISO-5 (docs/39 P2-1): a token registered to another active account is not moved; it is
+      // released when that account signs out on the phone (DELETE /me/devices/:id) or is closed.
+      const existing = await tx.deviceToken.findUnique({
+        where: { token: body.token },
+        include: { user: { select: { isActive: true, archivedAt: true } } },
+      });
+      if (
+        existing &&
+        existing.userId !== user.id &&
+        existing.user.isActive &&
+        existing.user.archivedAt === null
+      ) {
+        throw new ApiException(409, {
+          message: 'This device is registered to another account. Sign out there first.',
+          code: 'device_in_use',
+        });
+      }
       const saved = await tx.deviceToken.upsert({
         where: { token: body.token },
         create: { token: body.token, ...fields, createdAt: now },
