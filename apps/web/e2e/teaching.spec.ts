@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N3 teaching against the MSW mocks (production build, mocks on). The mock data is built from the
@@ -67,9 +72,9 @@ test('teacher: week → start → end → write the report → edit it inside th
   const form = sheet.getByRole('form', { name: 'تقرير الحصة' });
   await expect(form).toBeVisible();
   await form.getByLabel(/ملخص الحصة/).fill('Read the new ayahs with good tajweed.');
-  await form.getByRole('radio', { name: '5 من 5' }).click();
+  await form.getByRole('radio', { name: sentence('5 من 5') }).click();
   await form.getByRole('button', { name: 'حفظ التقرير' }).click();
-  await expect(page.getByText(`حُفظ تقرير حصة ${name}`)).toBeVisible();
+  await expect(page.getByText(sentence(`حُفظ تقرير حصة ${name}`))).toBeVisible();
 
   // The sheet shows the sent report; the teacher may still edit it.
   await expect(sheet.getByText('Read the new ayahs with good tajweed.')).toBeVisible();
@@ -201,7 +206,7 @@ test.describe('phone (375 px)', () => {
     await page.getByRole('button', { name: 'حسابي' }).click();
     await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click();
     await login(page, 'teacher@qarabic.test');
-    await expect(page.getByRole('heading', { name: 'مرحبًا، معلم تجريبي' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: sentence('مرحبًا، معلم تجريبي') })).toBeVisible();
     await page.goto('/my-classes');
     await expect(page.getByRole('heading', { level: 1, name: 'حصصي' })).toBeVisible();
     await expectNoHorizontalScroll(page);
@@ -223,7 +228,7 @@ test('accessibility: report form, tests, a test and progress', async ({ page }) 
   await page.getByRole('button', { name: 'حسابي' }).click();
   await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click();
   await login(page, 'teacher@qarabic.test');
-  await expect(page.getByRole('heading', { name: 'مرحبًا، معلم تجريبي' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence('مرحبًا، معلم تجريبي') })).toBeVisible();
   await page.goto('/my-students');
   await expect(page.getByRole('heading', { level: 1, name: 'طلابي' })).toBeVisible();
   await page.locator('a[href^="/students/"]').first().click();

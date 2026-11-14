@@ -216,7 +216,9 @@ test('real API: the N4 support centre — inbox, a ticket, triage, settings, «�
   await expect(page).toHaveURL(/[?&]id=\d+/);
   await page.getByRole('link', { name: 'فتح في صفحة كاملة' }).click();
   await expect(page).toHaveURL(/\/tickets\/\d+$/);
-  await expect(page.getByRole('heading', { level: 1, name: /#\d+/ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /#[\u2066-\u2069]*\d+[\u2066-\u2069]*/ }),
+  ).toBeVisible();
   await expect(page.getByText('معالجة الطلب')).toBeVisible();
 
   for (const [path, check] of [
@@ -239,7 +241,9 @@ test('real API: the N4 support centre — inbox, a ticket, triage, settings, «�
   await expect(report.getByText('جارٍ التقاط صورة الشاشة…')).toHaveCount(0, { timeout: 15_000 });
   await report.getByLabel(/ما اقتراحك؟/).fill(text);
   await report.getByRole('button', { name: 'أرسل' }).click();
-  await expect(page.getByText(/أُرسل طلبك رقم #\d+/).first()).toBeVisible();
+  await expect(
+    page.getByText(/أُرسل طلبك رقم #[\u2066-\u2069]*\d+[\u2066-\u2069]*/).first(),
+  ).toBeVisible();
   await page.goto('/my-requests');
   await expect(page.getByRole('list', { name: 'طلباتي' }).getByText(text)).toBeVisible();
 });

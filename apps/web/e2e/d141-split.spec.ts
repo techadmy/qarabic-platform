@@ -154,7 +154,7 @@ test('support split view: a class opened from the ticket is one sheet', async ({
   await page.goto('/support?id=1');
   const pane = page.locator('#main section[tabindex="-1"]');
   await pane
-    .getByRole('button', { name: /^الحصة #\d+$/ })
+    .getByRole('button', { name: /^الحصة #[\u2066-\u2069]*\d+[\u2066-\u2069]*$/ })
     .first()
     .click();
   await expect(page).toHaveURL(/session=\d+/);

@@ -40,10 +40,10 @@ for (const [size, viewport] of Object.entries(sizes)) {
     await shot(page, 's3-teacher-change-form', size);
     await form.getByRole('button', { name: 'أرسل' }).click();
     const sent = await page
-      .getByText(/أُرسل طلبك رقم #\d+/)
+      .getByText(/أُرسل طلبك رقم #[\u2066-\u2069]*\d+[\u2066-\u2069]*/)
       .first()
       .textContent();
-    const number = /#(\d+)/.exec(sent ?? '')![1]!;
+    const number = /#[\u2066-\u2069]*(\d+)/.exec(sent ?? '')![1]!;
     await page.getByRole('button', { name: 'حسابي' }).click();
     await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click();
     await login(page, 'admin@qarabic.test');

@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N6 billing on the mock API (no provider is ever called; the mock's "provider page" is the app's
@@ -80,7 +85,7 @@ test('void an invoice: the reason is required; the invoice stays, marked void', 
   await dialog.getByRole('button', { name: 'إلغاء الفاتورة' }).click();
   await expect(page.getByText('أُلغيت الفاتورة.')).toBeVisible();
   await expect(page.getByText('أُلغيت هذه الفاتورة')).toBeVisible();
-  await expect(page.getByText('السبب: أُصدرت بالخطأ لعائلة متوقفة')).toBeVisible();
+  await expect(page.getByText(sentence('السبب: أُصدرت بالخطأ لعائلة متوقفة'))).toBeVisible();
   await expect(page.locator('main h1')).toContainText('ملغاة');
   await expect(page.getByRole('button', { name: 'إجراءات أخرى' })).toHaveCount(0);
 });
