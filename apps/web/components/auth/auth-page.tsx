@@ -41,7 +41,7 @@ export function AuthCardHeader({ title, description }: { title: string; descript
         <BrandLogo className="w-50" priority />
       </Link>
       <p className="mt-2 text-sm text-muted-foreground">{t('tagline')}</p>
-      <CardTitle className="mt-6 text-[1.375rem] leading-snug font-bold">
+      <CardTitle className="mt-6 text-display leading-snug font-bold">
         <h1>{title}</h1>
       </CardTitle>
       {description && <CardDescription className="mt-2 text-body">{description}</CardDescription>}
