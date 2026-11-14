@@ -25,7 +25,16 @@ export default defineConfig({
   workers: REAL_API ? 1 : undefined,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 1 : 0,
-  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
+  // CI: GitHub annotations, and a JSON report that e2e/report-flaky.mjs turns into a list of the
+  // tests that passed only on retry (retries stay at 1, but a flaky test is never silent).
+  reporter: process.env.CI
+    ? [
+        ['list'],
+        ['html', { open: 'never' }],
+        ['github'],
+        ['json', { outputFile: 'e2e-results.json' }],
+      ]
+    : 'list',
   use: {
     baseURL: BASE_URL ?? `http://localhost:${PORT}`,
     trace: 'retain-on-failure',
