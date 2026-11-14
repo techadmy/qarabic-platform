@@ -83,6 +83,16 @@ async function main(): Promise<void> {
           ? 'Demo pay profiles, attendance, a leave request and a proposed fine added (fake data).'
           : 'Demo payroll data already there (or no demo teachers).',
       );
+      // Opt-in, for the real-API browser tests (CI makes a throwaway one per run): one password
+      // for every made-up demo login, so the portals can be signed in to. Never in production.
+      const demoPassword = process.env.SEED_DEMO_PASSWORD;
+      if (demoPassword) {
+        const { count } = await prisma.user.updateMany({
+          where: { email: { endsWith: '@demo.qarabic.test' } },
+          data: { passwordHash: await new PasswordsService().hash(demoPassword) },
+        });
+        console.log(`Demo logins: password set from SEED_DEMO_PASSWORD (${count} users).`);
+      }
     }
   } finally {
     await prisma.$disconnect();
