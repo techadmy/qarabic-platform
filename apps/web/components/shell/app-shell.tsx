@@ -114,7 +114,7 @@ export function AppShell({ defaultOpen, children }: { defaultOpen: boolean; chil
             <Breadcrumb className="min-w-0">
               <BreadcrumbList>
                 <BreadcrumbItem className="min-w-0">
-                  <BreadcrumbPage className="truncate text-[1.0625rem] font-semibold">
+                  <BreadcrumbPage className="truncate text-lead font-semibold">
                     {current ? t(`nav.${current.key}`) : t('app.name')}
                   </BreadcrumbPage>
                 </BreadcrumbItem>
