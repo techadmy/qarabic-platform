@@ -323,9 +323,16 @@ export const sessionEventSchema = z.object({
   type: z.string(),
   fromStage: z.string().nullable(),
   toStage: z.string().nullable(),
-  /** null = the system (generator, re-sync, request auto-approval). */
+  /**
+   * null = the system (generator, re-sync, request auto-approval). For a parent or teacher, staff
+   * appear by role only (`id` and `name` null, B118); their own actions keep their name.
+   */
   actor: z
-    .object({ id: z.number().int(), name: z.string(), role: z.string().nullable() })
+    .object({
+      id: z.number().int().nullable(),
+      name: z.string().nullable(),
+      role: z.string().nullable(),
+    })
     .nullable(),
   payload: z.record(z.string(), z.unknown()).nullable(),
   occurredAt: z.string(),
@@ -456,9 +463,11 @@ export const sessionRequestSummarySchema = z.object({
   id: z.number().int(),
   type: z.string(),
   status: z.string(),
+  /** '' for a parent or teacher when someone else made the request. */
   reason: z.string(),
+  /** By role only (`id`, `name` null) for a parent or teacher when someone else made it. */
   requestedBy: z.object({
-    id: z.number().int(),
+    id: z.number().int().nullable(),
     name: z.string().nullable(),
     role: z.string().nullable(),
   }),
