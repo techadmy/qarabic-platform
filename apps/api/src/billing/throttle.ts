@@ -28,7 +28,7 @@ export class BillingThrottleGuard implements CanActivate {
     private readonly limiter: RateLimiterService,
   ) {}
 
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const policy = this.reflector.get<Policy | undefined>(BILLING_THROTTLE_KEY, ctx.getHandler());
     if (!policy) return true;
     const req = ctx.switchToHttp().getRequest<Request>();
@@ -37,7 +37,7 @@ export class BillingThrottleGuard implements CanActivate {
       policy === 'checkout'
         ? [`checkout:${user ?? req.ip}`, 10]
         : [`payment-webhook:${req.ip}`, 300];
-    const wait = this.limiter.hit(key, max, MINUTE);
+    const wait = await this.limiter.hit(key, max, MINUTE);
     if (wait > 0) {
       ctx.switchToHttp().getResponse<Response>().setHeader('Retry-After', String(wait));
       throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, {
