@@ -251,7 +251,7 @@ describe('route permission coverage', () => {
       'GET feedback/attachments/:id': any,
       'GET support/inbox': 'all:support.view',
       'GET support/reports': 'all:support.view',
-      'GET support/links': 'all:support.view',
+      'GET support/links': 'all:support.view|families.view',
       'GET support/channels': 'all:support.view',
       'GET support/saved-replies': 'all:support.view',
       'POST support/saved-replies': 'all:support.manage',
@@ -320,6 +320,8 @@ describe('route permission coverage', () => {
     );
     expectDocumented(byRoute, {
       'GET billing/providers': 'all:invoices.view',
+      'GET billing/credits': 'any:invoices.manage|reports.financial',
+      'POST billing/credits/:id/review': 'all:invoices.manage',
       'GET billing/summary': 'any:invoices.manage|reports.financial',
       'GET fee-packages': 'all:packages.view',
       'POST fee-packages': 'all:packages.manage',

@@ -180,7 +180,12 @@ export type OnlinePaymentMethod = (typeof ONLINE_PAYMENT_METHODS)[number];
 /** Methods billing staff record by hand. */
 export const MANUAL_PAYMENT_METHODS = ['cash', 'bank_transfer', 'cheque', 'other'] as const;
 export type ManualPaymentMethod = (typeof MANUAL_PAYMENT_METHODS)[number];
-export const PAYMENT_METHODS = [...ONLINE_PAYMENT_METHODS, ...MANUAL_PAYMENT_METHODS] as const;
+/** P1-1 (B115): a family credit used on an invoice; created by the system only. */
+export const PAYMENT_METHODS = [
+  ...ONLINE_PAYMENT_METHODS,
+  ...MANUAL_PAYMENT_METHODS,
+  'credit',
+] as const;
 export type PaymentMethod = (typeof PAYMENT_METHODS)[number];
 export const isOnlineMethod = (m: PaymentMethod) => m === 'stripe' || m === 'paypal';
 export const PAYMENT_METHOD_LABELS: Labels<PaymentMethod> = {
@@ -190,6 +195,7 @@ export const PAYMENT_METHOD_LABELS: Labels<PaymentMethod> = {
   bank_transfer: { ar: 'تحويل بنكي', en: 'Bank transfer' },
   cheque: { ar: 'شيك', en: 'Cheque' },
   other: { ar: 'أخرى', en: 'Other' },
+  credit: { ar: 'من رصيد الأسرة الدائن', en: 'Family credit' },
 };
 
 export const PAYMENT_STATUSES = [
@@ -547,6 +553,11 @@ export const paymentSchema = z.object({
   failureReason: z.string().nullable().optional(),
   providerPaymentId: z.string().nullable().optional(),
   recordedBy: z.object({ id: z.number().int(), name: z.string() }).nullable().optional(),
+  /** P1-1: the part not applied to this invoice (kept as the family's credit), decimal string. */
+  unapplied: z.string().default('0.00'),
+  /** Staff: look at it (`overpaid` / `invoice_closed`). */
+  needsReview: z.boolean().default(false),
+  reviewReason: z.string().nullable().default(null),
 });
 export type PaymentDto = z.infer<typeof paymentSchema>;
 
@@ -805,3 +816,52 @@ export const billingSettingsSchema = z.object(BILLING_SETTING_RULES);
 export type BillingSettingsDto = z.infer<typeof billingSettingsSchema>;
 export const updateBillingSettingsSchema = z.strictObject(BILLING_SETTING_RULES).partial();
 export type UpdateBillingSettingsInput = z.input<typeof updateBillingSettingsSchema>;
+
+// ------------------------------------------------------------------ P1-1 family credits
+
+/** Money a family paid beyond an invoice (B115): kept, reviewed, used on the next invoice. */
+export const FAMILY_CREDIT_STATUSES = ['open', 'used', 'refunded'] as const;
+export type FamilyCreditStatus = (typeof FAMILY_CREDIT_STATUSES)[number];
+export const FAMILY_CREDIT_STATUS_LABELS: Labels<FamilyCreditStatus> = {
+  open: { ar: 'متاح', en: 'Open' },
+  used: { ar: 'استُخدم', en: 'Used' },
+  refunded: { ar: 'رُدّ', en: 'Refunded' },
+};
+
+/** `GET /billing/credits?status&needsReview&familyId` (`invoices.view`). */
+export const familyCreditQuerySchema = z.object({
+  status: z.enum(FAMILY_CREDIT_STATUSES).optional(),
+  /** `1`: only the ones nobody marked reviewed yet (the review list). */
+  needsReview: z
+    .enum(['1', '0', 'true', 'false'])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : v === '1' || v === 'true')),
+  familyId: z.coerce.number().int().positive().optional(),
+});
+
+export const familyCreditSchema = z.object({
+  id: z.number().int(),
+  family: z.object({ id: z.number().int(), name: z.string() }),
+  currency: z.string(),
+  amount: z.string(),
+  remaining: z.string(),
+  status: z.enum(FAMILY_CREDIT_STATUSES),
+  sourcePayment: z
+    .object({ id: z.number().int(), invoiceId: z.number().int(), method: z.string() })
+    .nullable(),
+  reviewedAt: z.string().nullable(),
+  reviewedBy: z.object({ id: z.number().int(), name: z.string() }).nullable(),
+  note: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type FamilyCreditDto = z.infer<typeof familyCreditSchema>;
+
+/** `POST /billing/credits/:id/review` (`invoices.manage`): seen, with an optional note. */
+export const reviewFamilyCreditSchema = z.object({
+  note: z
+    .preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+      z.string().trim().max(1000).nullable(),
+    )
+    .optional(),
+});

@@ -25,6 +25,7 @@
   --color-input: var(--input);
   --color-border: var(--border);
   --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -100,6 +101,13 @@
      and 13px captions / table headers. Size only: the line height is inherited, as before. */
   --text-body: 0.9375rem;
   --text-caption: 0.8125rem;
+  /* One-off sizes the app already used, as tokens (audit 39 P1-9; same pixels as before): the bell
+     count 11px, shadcn's compact controls and calendar labels 12.8px, the top-bar page name 17px,
+     the sign-in title 22px. */
+  --text-micro: 0.6875rem;
+  --text-small: 0.8rem;
+  --text-lead: 1.0625rem;
+  --text-display: 1.375rem;
 }
 
 /*
@@ -129,6 +137,7 @@
   --destructive: oklch(
     0.52 0.21 27.3
   ); /* darker than shadcn default: ≥ 4.5:1 on white and the canvas */
+  --destructive-foreground: #ffffff; /* text on a destructive fill (badges) */
   --border: #e4e1de; /* line */
   --input: #e4e1de;
   --ring: #2f6fde; /* focus */
@@ -221,6 +230,7 @@
   --accent: #3a2223;
   --accent-foreground: #f6e9e9;
   --destructive: oklch(0.704 0.191 22.216);
+  --destructive-foreground: #1f1c1b;
   --border: rgb(255 255 255 / 10%);
   --input: rgb(255 255 255 / 15%);
   --ring: #6b9cf0;
