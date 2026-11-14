@@ -92,6 +92,11 @@ export interface PaymentGateway {
   enabled(): boolean;
   /** The hosted checkout for the payment's amount: `{ ref, url }`. */
   createCheckout(target: CheckoutTarget): Promise<{ ref: string; url: string }>;
+  /**
+   * P1-1: closes a checkout nobody should pay any more (manual payment, split, void, a newer
+   * attempt). Best effort: a failure is logged, never thrown (the attempt is already cancelled).
+   */
+  expire(ref: string): Promise<void>;
 }
 
 /** Stripe's form encoding of nested params (`line_items[0][price_data][currency]=usd`). */
@@ -172,6 +177,22 @@ export class StripeGateway implements PaymentGateway {
     return { ref: id, url };
   }
 
+  async expire(ref: string): Promise<void> {
+    const res = await this.http.send({
+      method: 'POST',
+      url: `${StripeGateway.API}/checkout/sessions/${encodeURIComponent(ref)}/expire`,
+      headers: {
+        Authorization: `Bearer ${this.config.stripeSecret ?? ''}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: '',
+    });
+    // 400 = already completed or expired: nothing left to close.
+    if (res.status >= 300 && res.status !== 400) {
+      throw new GatewayError(`Stripe expire failed: HTTP ${res.status}`);
+    }
+  }
+
   /** `Stripe-Signature: t=…,v1=…` with v1 = HMAC-SHA256(secret, "{t}.{payload}"); any v1 may match. */
   static verifySignature(
     payload: Buffer,
@@ -241,6 +262,11 @@ export class PayPalGateway implements PaymentGateway {
 
   enabled(): boolean {
     return this.config.paypalEnabled();
+  }
+
+  /** An unapproved PayPal order simply lapses (about 3 hours); a late capture becomes a credit. */
+  expire(): Promise<void> {
+    return Promise.resolve();
   }
 
   async createCheckout(t: CheckoutTarget): Promise<{ ref: string; url: string }> {

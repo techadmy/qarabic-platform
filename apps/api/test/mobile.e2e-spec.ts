@@ -70,10 +70,18 @@ describe('devices (/me/devices)', () => {
       (await a.client.post('/me/devices', { token: TOKEN, platform: 'blackberry' })).status,
     ).toBe(422);
 
-    // The same phone signed in by someone else moves to them.
+    // ISO-5 (docs/39 P2-1): another account cannot take a token while its owner is active.
     const b = await staff('monitor');
-    await b.client.post('/me/devices', { token: TOKEN, platform: 'android' });
-    expect((await a.client.get('/me/devices')).body.data).toEqual([]);
+    const taken = await b.client.post('/me/devices', { token: TOKEN, platform: 'android' });
+    expect(taken.status).toBe(409);
+    expect(taken.body.code).toBe('device_in_use');
+    const mine = (await a.client.get('/me/devices')).body.data;
+    expect(mine).toHaveLength(1);
+    // A signs out on that phone (the app unregisters); now B may register it.
+    expect((await a.client.delete(`/me/devices/${mine[0].id}`)).status).toBe(204);
+    expect((await b.client.post('/me/devices', { token: TOKEN, platform: 'android' })).status).toBe(
+      200,
+    );
     const theirs = (await b.client.get('/me/devices')).body.data[0].id as number;
     expect((await a.client.delete(`/me/devices/${theirs}`)).status).toBe(404);
     expect((await b.client.delete(`/me/devices/${theirs}`)).status).toBe(204);

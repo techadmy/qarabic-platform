@@ -204,6 +204,7 @@ export class SessionPresenter {
     computed: Pick<SessionDto, 'attention' | 'allowedActions' | 'upcomingActions'>,
   ): SessionDto {
     const academy = st['academy.timezone'];
+    const manages = viewer === null || viewer.permissions.has('sessions.manage');
     const starts = s.startsAt.getTime();
     const ends = s.endsAt.getTime();
     const joinAvailable =
@@ -251,11 +252,14 @@ export class SessionPresenter {
           ? Math.floor((s.activatedAt.getTime() - starts) / MINUTE)
           : 0,
       zoom: { status: s.zoomStatus, joinAvailable },
-      evidence: {
-        actualStartedAt: isoZ(s.actualStartedAt),
-        teacherJoinedAt: isoZ(s.teacherJoinedAt),
-        studentJoinedAt: isoZ(s.studentJoinedAt),
-      },
+      // P0-4: join evidence and the review flag are for staff who manage classes.
+      evidence: manages
+        ? {
+            actualStartedAt: isoZ(s.actualStartedAt),
+            teacherJoinedAt: isoZ(s.teacherJoinedAt),
+            studentJoinedAt: isoZ(s.studentJoinedAt),
+          }
+        : { actualStartedAt: null, teacherJoinedAt: null, studentJoinedAt: null },
       report: { submitted: s.report !== null, editableUntil: isoZ(reportEditableUntil(s, st)) },
       ...(viewer?.permissions.has('payroll.view') || viewer?.permissions.has('sessions.manage')
         ? {
@@ -270,8 +274,8 @@ export class SessionPresenter {
       pendingRequests: s.requests.map((r) => ({ id: r.id, type: r.type })),
       allowedActions: computed.allowedActions,
       upcomingActions: computed.upcomingActions,
-      needsReview: s.needsReview,
-      reviewReason: s.reviewReason,
+      needsReview: manages ? s.needsReview : false,
+      reviewReason: manages ? s.reviewReason : null,
       lockVersion: s.lockVersion,
       updatedAt: isoZ(s.updatedAt)!,
     };

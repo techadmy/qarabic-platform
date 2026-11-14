@@ -6,5 +6,5 @@ import { createCn } from 'cn/config';
  * dropped. Add any new `--text-*` token here too.
  */
 export const cn = createCn({
-  extend: { classGroups: { 'font-size': [{ text: ['body', 'caption'] }] } },
+  extend: { classGroups: { 'font-size': [{ text: ['body', 'caption', 'micro', 'small', 'lead', 'display'] }] } },
 });

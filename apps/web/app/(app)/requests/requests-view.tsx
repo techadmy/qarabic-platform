@@ -246,8 +246,16 @@ export function RequestCard({
           <span className="font-bold">{r.student?.name}</span>
         )}
         <span className="text-sm text-muted-foreground">
-          {r.requestedBy.name}
-          {role && <> ({role})</>} ·{' '}
+          {/* P0-4: someone else's request reaches a parent or teacher by role only. */}
+          {r.requestedBy.name ? (
+            <>
+              <bdi>{r.requestedBy.name}</bdi>
+              {role && <> ({role})</>}
+            </>
+          ) : (
+            (role ?? t('staff'))
+          )}{' '}
+          ·{' '}
           <span title={dayAndClock(r.createdAt, tz, locale)}>
             {relativeTime(r.createdAt, now, locale)}
           </span>
@@ -309,7 +317,7 @@ export function RequestCard({
               disabled={withdraw.isPending}
               onClick={() => withdraw.mutate()}
             >
-              <Undo2Icon />
+              <Undo2Icon className="rtl:-scale-x-100" />
               {t('actions.cancel')}
             </Button>
           )}
