@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
 import { trialTeachersResponseSchema } from '@qarabic/shared';
+import { sentence } from './helpers';
 import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
 
 /**
@@ -189,18 +190,23 @@ test('real API (N4): staff reply to a ticket; the reply is on the ticket', async
   const item = list.getByRole('listitem').first();
   // The ticket link: the split view (`?id=`) from 1024 px, the ticket page below (D141 §1).
   const link = item.locator('a[href*="id="], a[href^="/tickets/"]').first();
-  const number = (await link.textContent())!.match(/#(\d+)/)![1]!;
+  // Ticket numbers are bidi-isolated in the text (docs/39 P1-10).
+  const number = (await link.textContent())!.match(/#[\u2066-\u2069]*(\d+)/)![1]!;
 
   const text = `E2E reply ${runTag()}`;
-  await item.getByRole('button', { name: new RegExp(`^رد\\s?: #${number}$`) }).click();
-  const reply = page.getByRole('dialog', { name: `الرد على الطلب #${number}` });
+  await item
+    .getByRole('button', {
+      name: new RegExp(`^رد\\s?: [\\u2066-\\u2069]*#${number}[\\u2066-\\u2069]*$`),
+    })
+    .click();
+  const reply = page.getByRole('dialog', { name: sentence(`الرد على الطلب #${number}`) });
   await reply.getByRole('textbox').first().fill(text);
   await reply.getByRole('button', { name: 'إرسال' }).click();
   await expect(page.getByText('أُرسل الرد.')).toBeVisible();
 
   await page.goto(`/tickets/${number}`);
   await expect(
-    page.getByRole('heading', { level: 1, name: new RegExp(`#${number}`) }),
+    page.getByRole('heading', { level: 1, name: sentence(`#${number}`, { exact: false }) }),
   ).toBeVisible();
   await expect(page.getByText(text)).toBeVisible();
   await expectLoaded(page);
@@ -229,7 +235,7 @@ test('real API (N5): the public trial form stores a lead (no sign-in)', async ({
   await page.getByRole('checkbox', { name: 'السبت' }).check();
   await page.getByRole('checkbox', { name: 'مساءً' }).check();
   await page.getByRole('button', { name: 'أرسل الطلب' }).click();
-  await expect(page.getByRole('heading', { name: `شكرًا لك، ${parent}` })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence(`شكرًا لك، ${parent}`) })).toBeVisible();
 
   // Staff see it under «الكل»: «جديد», or «مزعج» when this address sent several within the hour
   // (the API's spam score — expected when the suite runs again soon).
