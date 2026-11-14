@@ -138,7 +138,7 @@ function LineRow({
           value={line.description}
           onChange={(e) => onChange({ description: e.target.value })}
           aria-label={of('description')}
-          className="h-10 md:text-[0.9375rem]"
+          className="h-10 md:text-body"
         />
       </FormRow>
       <Button
@@ -275,7 +275,7 @@ export function EntryForm() {
                 onChange={(e) => edit({ ...form, memo: e.target.value })}
                 aria-invalid={!!err('memo')}
                 aria-describedby={err('memo') ? `${ids.memo}-error` : undefined}
-                className="min-h-10 md:text-[0.9375rem]"
+                className="min-h-10 md:text-body"
               />
             </FormRow>
           </FieldGroup>

@@ -164,7 +164,7 @@ export function VouchersView() {
   const actions = manage && (
     <div className="flex flex-wrap gap-2">
       <Button className="h-10" onClick={() => setCreating('payment')}>
-        <ArrowUpRightIcon />
+        <ArrowUpRightIcon className="rtl:-scale-x-100" />
         {t('voucher.newPayment')}
       </Button>
       <Button variant="outline" className="h-10" onClick={() => setCreating('receipt')}>
