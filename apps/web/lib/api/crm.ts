@@ -39,6 +39,8 @@ import {
   trialReportSchema,
   type TrialReportDto,
   type TrialChecklistItemDto,
+  leadKpisSchema,
+  type LeadKpisDto,
   trialTeachersResponseSchema,
   trialOfferSchema,
   myTrialOfferSchema,
@@ -182,6 +184,14 @@ export async function fetchTrialsToday(
   ).data;
 }
 
+/** T5: the CRM rates for a period (docs/33 §6). */
+export async function fetchLeadKpis(
+  query: { from?: string; to?: string },
+  signal?: AbortSignal,
+): Promise<LeadKpisDto> {
+  return (await apiFetch(`/leads/kpis${qs(query)}`, { schema: one(leadKpisSchema), signal })).data;
+}
+
 /** T2: the teachers for a trial at this time, eligible ones ranked (docs/33 §4.1–4.2). */
 export async function fetchTrialTeachers(
   id: number,
@@ -305,5 +315,6 @@ export const crmKeys = {
   settings: ['crm', 'settings'] as const,
   trialsToday: (query: unknown) => ['crm', 'trials-today', query] as const,
   trialReports: (leadId: number) => ['crm', 'trial-reports', leadId] as const,
+  kpis: (query: unknown) => ['crm', 'kpis', query] as const,
   publicCourses: ['public', 'courses'] as const,
 };
