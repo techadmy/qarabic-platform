@@ -15,6 +15,7 @@ import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
 import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import { isParentViewer, isTeacherViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isValidZone } from '../schedule/time.js';
 import { sessionScopeWhere, viewerScope } from '../schedule/scope.js';
@@ -31,6 +32,30 @@ type ListQuery = z.output<typeof sessionListQuerySchema>;
  * the viewer's day, the old counters in the old order and a `since` cursor for 15-second polling.
  * Rows are scoped to the viewer (a teacher: own classes; a parent: own children).
  */
+/** The class events a parent or teacher sees (no notes, Zoom internals or undo bookkeeping). */
+const PORTAL_EVENT_TYPES = new Set([
+  'generated',
+  'created',
+  'activated',
+  'started',
+  'ended',
+  'marked',
+  'cancelled',
+  'moved_out',
+  'reverted',
+  'report_submitted',
+  'time_changed',
+  'teacher_changed',
+]);
+/** Payload keys a parent or teacher may see: the step and its fixed code, never free text. */
+const PORTAL_PAYLOAD_KEYS = ['action', 'stageReason', 'undo', 'from', 'to'];
+function portalPayload(raw: Record<string, unknown>): Record<string, unknown> | null {
+  const out = Object.fromEntries(
+    Object.entries(raw).filter(([k]) => PORTAL_PAYLOAD_KEYS.includes(k)),
+  );
+  return Object.keys(out).length ? out : null;
+}
+
 @Injectable()
 export class SessionReads {
   constructor(
@@ -124,32 +149,50 @@ export class SessionReads {
       }),
       this.reports.forSession(row, viewer),
     ]);
+    // P0-4 (docs/39 ISO-1, B118): parents and teachers see the class's own story — an allow-list
+    // of events with no staff notes, reasons or overrides, and staff by role only, never by name.
+    const portal = isParentViewer(viewer) || isTeacherViewer(viewer);
+    const mine = (userId: number | null) => userId !== null && userId === viewer.id;
     return {
       ...base,
-      events: events.map((e) => ({
-        id: e.id,
-        type: e.type,
-        fromStage: e.fromStage,
-        toStage: e.toStage,
-        actor: e.actorUserId
-          ? { id: e.actorUserId, name: e.actor?.name ?? '', role: e.actorRole }
-          : null,
-        payload: (e.payload as Record<string, unknown> | null) ?? null,
-        occurredAt: isoZ(e.occurredAt)!,
-      })),
+      events: events
+        .filter((e) => !portal || PORTAL_EVENT_TYPES.has(e.type))
+        .map((e) => {
+          const raw = (e.payload as Record<string, unknown> | null) ?? null;
+          const own = mine(e.actorUserId);
+          return {
+            id: e.id,
+            type: e.type,
+            fromStage: e.fromStage,
+            toStage: e.toStage,
+            actor: e.actorUserId
+              ? portal && !own
+                ? { id: null, name: null, role: e.actorRole }
+                : { id: e.actorUserId, name: e.actor?.name ?? '', role: e.actorRole }
+              : null,
+            payload: portal && raw ? portalPayload(raw) : raw,
+            occurredAt: isoZ(e.occurredAt)!,
+          };
+        }),
       lessonReport,
-      requests: requests.map((r) => ({
-        id: r.id,
-        type: r.type,
-        status: r.status,
-        reason: r.reason,
-        requestedBy: { id: r.requestedById, name: r.requestedBy.name, role: r.requesterRole },
-        proposedStartsAt: isoZ(r.proposedStartsAt),
-        decidedAt: isoZ(r.decidedAt),
-        decisionNote: r.decisionNote,
-        resultSessionId: r.resultSessionId,
-        createdAt: isoZ(r.createdAt)!,
-      })),
+      requests: requests.map((r) => {
+        const own = mine(r.requestedById);
+        const hide = portal && !own;
+        return {
+          id: r.id,
+          type: r.type,
+          status: r.status,
+          reason: hide ? '' : r.reason,
+          requestedBy: hide
+            ? { id: null, name: null, role: r.requesterRole }
+            : { id: r.requestedById, name: r.requestedBy.name, role: r.requesterRole },
+          proposedStartsAt: isoZ(r.proposedStartsAt),
+          decidedAt: isoZ(r.decidedAt),
+          decisionNote: hide ? null : r.decisionNote,
+          resultSessionId: r.resultSessionId,
+          createdAt: isoZ(r.createdAt)!,
+        };
+      }),
     };
   }
 
