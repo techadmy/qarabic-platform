@@ -5,18 +5,23 @@ on:
   push:
     branches: [main]
 
+# The token only reads the repository (CodeQL has its own workflow with security-events: write).
+permissions:
+  contents: read
+
+# A newer push cancels an older run on a PR branch; on main every merged commit is tested.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 jobs:
   checks:
     name: Format · lint · typecheck · unit · build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -49,15 +54,20 @@ jobs:
       TEST_DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_test
       NODE_ENV: test
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/api test:e2e
+      # Schema drift: the migrations applied above must produce exactly prisma/schema.prisma
+      # (a model change without its migration fails here; exit 2 = differences).
+      - name: Migrations match the Prisma schema
+        working-directory: apps/api
+        run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
 
   web-e2e-real:
     # The web app against the real API and a freshly seeded database (fake demo data only), so the
@@ -84,9 +94,9 @@ jobs:
       SEED_ADMIN_EMAIL: admin@example.test
       E2E_ADMIN_EMAIL: admin@example.test
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -106,7 +116,11 @@ jobs:
       - run: pnpm --filter @qarabic/api db:seed
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e:real
-      - uses: actions/upload-artifact@v4
+      - name: Report flaky tests
+        if: always()
+        working-directory: apps/web
+        run: node e2e/report-flaky.mjs e2e-results.json
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report-real-api
@@ -122,9 +136,9 @@ jobs:
       matrix:
         shard: [1, 2]
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -132,6 +146,10 @@ jobs:
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e --shard=${{ matrix.shard }}/2
+      - name: Report flaky tests
+        if: always()
+        working-directory: apps/web
+        run: node e2e/report-flaky.mjs e2e-results.json
       # N8: the app is served at api.qarabic.com/app/ — build under /app and check links and assets
       # (once: on the first shard).
       - run: pnpm --filter @qarabic/web test:e2e
@@ -139,7 +157,7 @@ jobs:
         env:
           E2E_BASE_PATH: /app
           E2E_PORT: '3250'
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         if: failure()
         with:
           name: playwright-report-${{ matrix.shard }}
@@ -149,8 +167,8 @@ jobs:
     name: Deploy scripts (shellcheck + harness + nginx -t)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
       - run: sudo apt-get update -q && sudo apt-get install -y -q nginx-core shellcheck
@@ -162,9 +180,9 @@ jobs:
     name: Dependency audit
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version-file: .nvmrc
       - run: pnpm audit --prod --audit-level high
