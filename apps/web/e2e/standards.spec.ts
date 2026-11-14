@@ -43,6 +43,11 @@ for (const [name, width] of Object.entries(WIDTHS)) {
 
       for (const path of PAGES) {
         test(`${path} fits the screen and passes axe`, async ({ page }) => {
+          // docs/39 P0-2: the Content-Security-Policy blocks nothing the app needs.
+          const cspViolations: string[] = [];
+          page.on('console', (m) => {
+            if (/Content[- ]Security[- ]Policy/i.test(m.text())) cspViolations.push(m.text());
+          });
           await page.goto('/login');
           await login(page);
           await expect(page.locator('main h1').first()).toBeVisible();
@@ -56,6 +61,7 @@ for (const [name, width] of Object.entries(WIDTHS)) {
           // Next streams <title> with the page metadata; axe needs it in place.
           await expect(page).toHaveTitle(/\S/);
           await expectNoSeriousA11yViolations(page);
+          expect(cspViolations).toEqual([]);
         });
       }
     });

@@ -1,11 +1,13 @@
 import {
   LEAD_NOTIFICATION_LABELS,
   NOTIFICATION_KINDS,
+  TICKET_QUEUE_LABELS,
   TASK_NOTIFICATION_EVENTS,
   TRIAL_NOTIFICATION_EVENTS,
   type LeadNotificationEvent,
   type NotificationDto,
   type NotificationKind,
+  type TicketQueue,
 } from '@qarabic/shared';
 
 /** Rules of the bell rows and the notification preferences (M8), kept out of the components. */
@@ -21,7 +23,7 @@ export type BellText =
   | { kind: 'message'; key: string; values: Record<string, string> }
   | { kind: 'other' };
 
-export function bellText(n: NotificationDto): BellText {
+export function bellText(n: NotificationDto, locale: 'ar' | 'en' = 'ar'): BellText {
   if (n.kind === 'lead' && n.event in LEAD_NOTIFICATION_LABELS) {
     return {
       kind: 'lead',
@@ -54,6 +56,14 @@ export function bellText(n: NotificationDto): BellText {
       values: { student: str(n.data.student), startsAt: str(n.data.startsAt) },
     };
   }
+  if (n.kind === 'support' && n.event === 'sla_breach') {
+    const queue = TICKET_QUEUE_LABELS[str(n.data.queue) as TicketQueue];
+    return {
+      kind: 'message',
+      key: 'supportSlaBreach',
+      values: { number: str(n.data.number), queue: queue ? queue[locale] : '' },
+    };
+  }
   return { kind: 'other' };
 }
 
@@ -70,6 +80,7 @@ export function bellHref(n: NotificationDto, roleKind: string | null | undefined
     const id = num(n.data.announcementId);
     return id ? `/announcements#ann-${id}` : '/announcements';
   }
+  if (n.kind === 'support' && num(n.data.ticketId)) return `/tickets/${num(n.data.ticketId)}`;
   // An offer leads to the teacher home's «عروض الحصص التجريبية».
   if (n.kind === 'trial' && num(n.data.offerId) && !num(n.data.sessionId)) return '/#trial-offers';
   if ((n.kind === 'class_reminder' || n.kind === 'trial') && num(n.data.sessionId)) {
