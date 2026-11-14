@@ -433,7 +433,7 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
       <span className="flex justify-end gap-1">
         {a.status === 'draft' && (
           <Button size="sm" className="h-9" onClick={() => setConfirm(a)}>
-            <SendIcon />
+            <SendIcon className="rtl:-scale-x-100" />
             {t('publish')}
             <span className="sr-only">: {a.title}</span>
           </Button>
@@ -607,7 +607,7 @@ function Manage({ onEdit }: { onEdit: (a: AnnouncementDto) => void }) {
                 if (c) act.mutate({ id: c.id, action: 'publish' });
               }}
             >
-              {act.isPending ? <Spinner /> : <SendIcon />}
+              {act.isPending ? <Spinner /> : <SendIcon className="rtl:-scale-x-100" />}
               {t('publish')}
             </AlertDialogAction>
           </AlertDialogFooter>

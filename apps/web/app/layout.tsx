@@ -2,6 +2,7 @@ import '@qarabic/ui/globals.css';
 import type { Metadata } from 'next';
 import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { headers } from 'next/headers';
 import { IBM_Plex_Sans_Arabic, Inter } from 'next/font/google';
 import type { ReactNode } from 'react';
 import { Providers } from '@/components/providers';
@@ -32,6 +33,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const current = await getLocale();
   const locale = isLocale(current) ? current : DEFAULT_LOCALE;
   const dir = directionOf(locale);
+  // The CSP nonce proxy.ts set for this request (docs/39 P0-2).
+  const nonce = (await headers()).get('x-nonce') ?? undefined;
   return (
     <html
       lang={locale}
@@ -41,7 +44,9 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     >
       <body>
         <NextIntlClientProvider>
-          <Providers dir={dir}>{children}</Providers>
+          <Providers dir={dir} nonce={nonce}>
+            {children}
+          </Providers>
         </NextIntlClientProvider>
       </body>
     </html>
