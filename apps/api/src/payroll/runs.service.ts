@@ -377,6 +377,11 @@ export class PayrollRunsService {
   async approve(id: number, by: AuthUser, expectedUpdatedAt?: string): Promise<void> {
     const approved = await this.prisma.$transaction(async (tx) => {
       const run = await this.lock(tx, id, ['reviewed'], expectedUpdatedAt);
+      // P0-3 (B116): a second person approves, and never a run with their own payslip.
+      if (run.reviewedById === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'same_reviewer');
+      if (await tx.payslip.count({ where: { runId: id, userId: by.id } })) {
+        throw payrollError(HttpStatus.FORBIDDEN, 'own_payslip_in_run');
+      }
       await this.assertNoErrors(tx, run.id);
       const now = this.clock.now();
       const totalsBy: Record<string, string> = {};
@@ -457,6 +462,7 @@ export class PayrollRunsService {
         where: { id: slipId },
         include: { run: true },
       });
+      if (slip.userId === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
       if (slip.status === 'paid') throw payrollError(HttpStatus.CONFLICT, 'payslip_already_paid');
       if (slip.status !== 'approved') {
         throw payrollError(HttpStatus.CONFLICT, 'invalid_run_status', {

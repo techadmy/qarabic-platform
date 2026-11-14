@@ -44,6 +44,9 @@ export class LeaveService {
     const leave = await this.prisma.leaveRequest.findUnique({ where: { id } });
     if (!leave || !leaveCan.view(viewer, leave)) throw notFound();
     if (ability === 'decide' && !leaveCan.decide(viewer)) throw forbidden();
+    if (ability === 'decide' && leave.userId === viewer.id) {
+      throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
+    }
     if (ability === 'cancel' && !leaveCan.cancel(viewer, leave)) throw forbidden();
     return leave;
   }
