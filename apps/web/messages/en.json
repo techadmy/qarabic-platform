@@ -772,7 +772,8 @@
       "joined": "Joined",
       "requests": "Requests",
       "timeline": "Class log",
-      "system": "System"
+      "system": "System",
+      "staff": "Academy staff"
     },
     "events": {
       "generated": "Created from the schedule",
@@ -968,7 +969,8 @@
       "reasonRequired": "Give the reason for the request",
       "back": "Back",
       "send": "Send request"
-    }
+    },
+    "staff": "Academy staff"
   },
   "schedule": {
     "title": "Schedule",
