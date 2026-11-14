@@ -129,8 +129,11 @@ export function PaymentsList({
   receiptHref,
   onVoid,
   viewerTz,
+  staff = false,
 }: {
   payments: PaymentDto[];
+  /** Staff see the internal review flag on a payment; the family never does (P1-1). */
+  staff?: boolean;
   receiptHref?: (p: PaymentDto) => string;
   onVoid?: (p: PaymentDto) => void;
   viewerTz: string;
@@ -149,7 +152,7 @@ export function PaymentsList({
                 <span className="font-semibold">{method}</span>
                 <PaymentStatusBadge status={p.status} />
                 {/* P1-1: staff look at a payment that went beyond the invoice. */}
-                {p.needsReview && (
+                {staff && p.needsReview && (
                   <ToneBadge
                     tone="orange"
                     icon={FlagIcon}
@@ -193,11 +196,14 @@ export function PaymentsList({
                 })}
               </span>
             )}
-            {p.needsReview && p.reviewReason && t.has(`reviewReason.${p.reviewReason}`) && (
-              <span className="text-sm text-muted-foreground">
-                {t(`reviewReason.${p.reviewReason}`)}
-              </span>
-            )}
+            {staff &&
+              p.needsReview &&
+              p.reviewReason &&
+              t.has(`reviewReason.${p.reviewReason}`) && (
+                <span className="text-sm text-muted-foreground">
+                  {t(`reviewReason.${p.reviewReason}`)}
+                </span>
+              )}
             {p.note && (
               <span className="text-sm break-words" dir="auto">
                 {p.note}

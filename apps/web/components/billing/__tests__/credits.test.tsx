@@ -4,6 +4,9 @@ import { describe, expect, it } from 'vitest';
 import { CreditsView } from '@/components/billing/credits-view';
 import { FamilyBillingSection } from '@/components/billing/family-billing';
 import { InvoiceDetailView } from '@/components/billing/invoice-detail-view';
+import { ParentInvoiceView } from '@/components/billing/parent-invoices';
+import { http, HttpResponse } from 'msw';
+import { server } from '@/mocks/node';
 import { bdb } from '@/mocks/billing-db';
 import { renderPage } from '@/test/people';
 
@@ -23,7 +26,7 @@ describe('P1-1 family credits (B115)', () => {
     const table = await screen.findByRole('table', { name: 'الأرصدة الدائنة للأسر' });
     expect(within(table).getAllByRole('row')).toHaveLength(2);
     expect(table).toHaveTextContent(
-      new RegExp(`الفاتورة #\\W?${payment.invoiceId}\\W? · تحويل بنكي`),
+      new RegExp(`الفاتورة\\W*#${payment.invoiceId}\\W* · \\W*تحويل بنكي`),
     );
     expect(table).toHaveTextContent('20.00');
     await user.click(within(table).getByRole('button', { name: /^تمت المراجعة/ }));
@@ -60,8 +63,44 @@ describe('P1-1 family credits (B115)', () => {
     const note = screen.getByText('رصيد دائن').closest('[role="alert"], [data-slot="alert"]')!;
     expect(
       within(note as HTMLElement).getByRole('link', { name: 'الأرصدة الدائنة' }),
-    ).toHaveAttribute('href', '/billing/credits');
+    ).toHaveAttribute('href', `/billing/credits?view=all&family=${familyId}`);
     expect(screen.getAllByText('يحتاج مراجعة').length).toBeGreaterThan(0);
+  });
+
+  it('a parent sees the part kept as credit, never the staff review flag', async () => {
+    // The demo parent's card payment on invoice 2 (as if it had paid more than owed).
+    const p = bdb.payments.find((x) => x.invoiceId === 2)!;
+    Object.assign(p, {
+      unappliedMinor: 500,
+      needsReview: true,
+      reviewReason: 'overpaid',
+    });
+    renderPage(<ParentInvoiceView id={2} />, { as: 'parent@qarabic.test', path: '/invoices/2' });
+    expect(await screen.findByText(/أُضيفت إلى رصيد الأسرة الدائن/)).toBeInTheDocument();
+    expect(screen.queryByText('تحتاج مراجعة')).toBeNull();
+    expect(screen.queryByText(/دُفع أكثر من المستحق/)).toBeNull();
+  });
+
+  it('opened from a family, the list shows that family only, with a chip to clear it', async () => {
+    const user = userEvent.setup();
+    const familyId = credit().familyId;
+    renderPage(<CreditsView />, { path: `/billing/credits?view=all&family=${familyId}` });
+    const chip = await screen.findByRole('button', { name: 'إزالة تصفية الأسرة' });
+    const table = await screen.findByRole('table', { name: 'الأرصدة الدائنة للأسر' });
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(2));
+    // «تحتاج مراجعة» keeps its count on the other tabs.
+    await waitFor(() =>
+      expect(screen.getAllByRole('radio').map((r) => r.textContent)).toContain('تحتاج مراجعة (1)'),
+    );
+    await user.click(chip);
+  });
+
+  it('a failed credit load on the family tab says so, with a retry', async () => {
+    server.use(http.get('*/api/v1/billing/credits', () => HttpResponse.json({}, { status: 500 })));
+    const familyId = credit().familyId;
+    renderPage(<FamilyBillingSection familyId={familyId} />, { path: `/families/${familyId}` });
+    expect(await screen.findByText('تعذّر تحميل الرصيد الدائن للأسرة.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'أعد المحاولة' })).toBeInTheDocument();
   });
 
   it('a teacher cannot open the list', async () => {

@@ -11,11 +11,12 @@ import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { CheckIcon, CircleCheckIcon, FlagIcon, PiggyBankIcon } from 'lucide-react';
+import { CheckIcon, CircleCheckIcon, FlagIcon, PiggyBankIcon, XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import type { ColumnMeta } from '@/components/data-table';
 import { fixFirstColumn, useColumnVisibility } from '@/components/list/column-chooser';
 import { StatusTabs } from '@/components/list/list-toolbar';
 import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
@@ -35,6 +36,8 @@ import { Money, useBillingError } from './billing-bits';
 
 type View = 'review' | 'open' | 'all';
 const VIEWS: View[] = ['review', 'open', 'all'];
+/** The API returns at most this many credits (no paging yet): say so when the list is full. */
+const MAX_ROWS = 500;
 
 const STATUS_TONE: Record<FamilyCreditStatus, 'green' | 'grey' | 'brown'> = {
   open: 'green',
@@ -60,11 +63,26 @@ export function CreditsView() {
   const view: View = VIEWS.includes(params.get('view') as View)
     ? (params.get('view') as View)
     : 'review';
-  const query =
-    view === 'review' ? { needsReview: true } : view === 'open' ? { status: 'open' as const } : {};
+  // One family's credits, from its billing tab («الأرصدة الدائنة» link).
+  const familyId = Number(params.get('family')) || undefined;
+  const query = {
+    ...(view === 'review'
+      ? { needsReview: true }
+      : view === 'open'
+        ? { status: 'open' as const }
+        : {}),
+    familyId,
+  };
   const list = useQuery({
     queryKey: billingKeys.credits(query),
     queryFn: ({ signal }) => fetchFamilyCredits(query, signal),
+    enabled: allowed,
+  });
+  // How many still need review, whichever tab is open.
+  const reviewQuery = { needsReview: true, familyId };
+  const pending = useQuery({
+    queryKey: billingKeys.credits(reviewQuery),
+    queryFn: ({ signal }) => fetchFamilyCredits(reviewQuery, signal),
     enabled: allowed,
   });
   const live = refreshState(list);
@@ -86,7 +104,10 @@ export function CreditsView() {
         className="text-primary hover:underline"
       >
         {t('fromInvoice', {
-          id: c.sourcePayment.invoiceId,
+          // The invoice number when the API sends it (a draft has none), else its id.
+          id:
+            (c.sourcePayment as { invoiceNumber?: string | null }).invoiceNumber ??
+            `#${c.sourcePayment.invoiceId}`,
           method:
             PAYMENT_METHOD_LABELS[c.sourcePayment.method as PaymentMethod]?.[locale] ??
             c.sourcePayment.method,
@@ -146,11 +167,13 @@ export function CreditsView() {
       {
         id: 'amount',
         header: t('cols.amount'),
+        meta: { numeric: true } satisfies ColumnMeta,
         cell: ({ row }) => <Money amount={row.original.amount} currency={row.original.currency} />,
       },
       {
         id: 'remaining',
         header: t('cols.remaining'),
+        meta: { numeric: true } satisfies ColumnMeta,
         cell: ({ row }) => (
           <Money amount={row.original.remaining} currency={row.original.currency} />
         ),
@@ -192,10 +215,31 @@ export function CreditsView() {
             options={VIEWS.map((v) => ({
               value: v,
               label: t(`views.${v}`),
-              count: v === view && list.data ? rows.length : undefined,
+              count:
+                v === 'review'
+                  ? pending.data?.length
+                  : v === view && list.data
+                    ? rows.length
+                    : undefined,
             }))}
           />
+          {familyId && (
+            <Button
+              variant="outline"
+              className="mt-3 h-10"
+              aria-label={t('removeFamily')}
+              onClick={() => params.set({ family: null })}
+            >
+              {t('familyFilter', { name: rows[0]?.family.name ?? `#${familyId}` })}
+              <XIcon />
+            </Button>
+          )}
         </div>
+        {rows.length >= MAX_ROWS && (
+          <p role="status" className="border-b px-4 py-2 text-sm text-muted-foreground">
+            {t('truncated', { count: MAX_ROWS })}
+          </p>
+        )}
         {live.failed ? (
           <div className="p-4">
             <ErrorState onRetry={() => void list.refetch()} />

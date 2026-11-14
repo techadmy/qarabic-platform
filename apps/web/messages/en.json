@@ -3131,7 +3131,9 @@
       "credit": "Credit",
       "creditNeedsReview": "Needs review",
       "creditHint": "Used automatically on the next invoice.",
-      "creditList": "Family credits"
+      "creditList": "Family credits",
+      "creditLoadError": "Couldn’t load the family’s credit.",
+      "creditRetry": "Try again"
     },
     "parent": {
       "title": "My invoices",
@@ -3226,7 +3228,7 @@
         "reviewed": "Review"
       },
       "needsReview": "Needs review",
-      "fromInvoice": "Invoice #\u2068{id}\u2069 · {method}",
+      "fromInvoice": "Invoice \u2068{id}\u2069 · \u2068{method}\u2069",
       "markReviewed": "Mark reviewed",
       "reviewTitle": "Review the credit of \u2068{name}\u2069",
       "reviewHint": "Check why the extra came in (a late or double payment). The credit stays with the family and is used on their next invoice.",
@@ -3234,7 +3236,10 @@
       "reviewed": "Credit of \u2068{name}\u2069 reviewed.",
       "empty": "No family credits.",
       "emptyReview": "No credits need review.",
-      "emptyHint": "What a family pays beyond its invoice shows here."
+      "emptyHint": "What a family pays beyond its invoice shows here.",
+      "removeFamily": "Remove the family filter",
+      "familyFilter": "Family: \u2068{name}\u2069",
+      "truncated": "Showing the first {count} credits only. Filter the list to see the rest."
     }
   },
   "payroll": {

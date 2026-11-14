@@ -3,6 +3,7 @@
 import {
   CURRENCIES,
   CURRENCY_LABELS,
+  fromMinor,
   type Currency,
   type FamilyBillingDto,
   type FamilyCreditDto,
@@ -154,11 +155,24 @@ export function FamilyBillingSection({ familyId }: { familyId: number }) {
     <>
       <Section title={t('title')} className="lg:col-span-2">
         <div className="flex flex-col gap-4">
-          {(credits.data ?? []).length > 0 && (
-            <CreditNote
-              credits={credits.data!}
-              needsReview={credits.data!.some((c) => !c.reviewedAt)}
-            />
+          {credits.isError && !credits.data ? (
+            <Alert variant="destructive">
+              <PiggyBankIcon />
+              <AlertTitle>{t('creditLoadError')}</AlertTitle>
+              <AlertDescription>
+                <Button variant="outline" size="sm" onClick={() => void credits.refetch()}>
+                  {t('creditRetry')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            (credits.data ?? []).length > 0 && (
+              <CreditNote
+                familyId={familyId}
+                credits={credits.data!}
+                needsReview={credits.data!.some((c) => !c.reviewedAt)}
+              />
+            )
           )}
           {b.balance.length > 0 && (
             <dl className="flex flex-wrap gap-x-6 gap-y-2">
@@ -518,9 +532,11 @@ function ProfileForm({ billing: b }: { billing: FamilyBillingDto }) {
 
 /** The family's open credit by currency, with the review flag and a way to the list (P1-1). */
 function CreditNote({
+  familyId,
   credits,
   needsReview,
 }: {
+  familyId: number;
   credits: FamilyCreditDto[];
   needsReview: boolean;
 }) {
@@ -535,13 +551,16 @@ function CreditNote({
       <AlertTitle className="flex flex-wrap items-center gap-2">
         {t('credit')}
         {[...byCurrency].map(([currency, minor]) => (
-          <Money key={currency} amount={(minor / 100).toFixed(2)} currency={currency} strong />
+          <Money key={currency} amount={fromMinor(minor)} currency={currency} strong />
         ))}
         {needsReview && <ToneBadge tone="orange" icon={FlagIcon} label={t('creditNeedsReview')} />}
       </AlertTitle>
       <AlertDescription>
         {t('creditHint')}{' '}
-        <Link href="/billing/credits" className="text-primary underline-offset-4 hover:underline">
+        <Link
+          href={`/billing/credits?view=all&family=${familyId}`}
+          className="text-primary underline-offset-4 hover:underline"
+        >
           {t('creditList')}
         </Link>
       </AlertDescription>
