@@ -181,6 +181,8 @@ export class AttendanceService {
       select: { id: true },
     });
     if (!target) throw notFound();
+    // P0-3 (B116): nobody marks their own day.
+    if (userId === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
     await this.runs.assertOpen(date);
     const zone = await this.zoneOf(userId);
     const id = await this.prisma.$transaction(async (tx) => {
