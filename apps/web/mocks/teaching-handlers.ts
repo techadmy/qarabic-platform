@@ -30,11 +30,13 @@ import {
   type ReportState,
   type TestDto,
   type TestErrorCode,
+  trialReportInputSchema,
+  type TrialReportDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import { addDays, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import type { MockUser } from './data';
-import { db as people } from './people-db';
+import { COURSES, db as people } from './people-db';
 import { addEvent, sdb, type SessionRow } from './schedule-db';
 import {
   body,
@@ -348,7 +350,78 @@ function lastPositionsOf(studentId: number): LastPositionDto[] {
 
 // ------------------------------------------------------------------ handlers
 
+/** T4 trial reports (`PUT /sessions/:id/trial-report`), by session id. */
+const trialReports = new Map<number, TrialReportDto>();
+export const resetTrialReports = () => trialReports.clear();
+
 export const teachingHandlers: HttpHandler[] = [
+  http.get(`${API}/sessions/:id/trial-report`, ({ request, params }) => {
+    const g = guardAny(request, 'sessions.conduct', 'sessions.manage');
+    if ('error' in g) return g.error;
+    const s = sessionOr404(params.id as string, g.me);
+    if (!s) return notFound();
+    return HttpResponse.json({ data: trialReports.get(s.id) ?? null });
+  }),
+
+  http.put(`${API}/sessions/:id/trial-report`, async ({ request, params }) => {
+    const g = guardAny(request, 'sessions.conduct', 'sessions.manage');
+    if ('error' in g) return g.error;
+    const s = sessionOr404(params.id as string, g.me);
+    if (!s) return notFound();
+    if (s.kind !== 'trial') return apiError(422, 'not_a_trial', 'This is not a trial class.');
+    const parsed = trialReportInputSchema.safeParse(await body(request));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const input = parsed.data;
+    const manage = canManage(g.me);
+    const own = g.me.permissions.includes('sessions.conduct') && ownTeacherId(g.me) === s.teacherId;
+    if (!manage && !own) return apiError(403, 'forbidden', 'Forbidden.');
+    const now = Date.now();
+    const by = actorOf(g.me);
+    const old = trialReports.get(s.id);
+    if (s.stage === 'ended') {
+      s.stage = 'taken';
+      s.markedAt = iso(now);
+      s.markedFrom = 'ended';
+      addEvent(s.id, 'report_submitted', 'ended', 'taken', {
+        ...by,
+        role: g.me.role?.name ?? null,
+      });
+    } else if (s.stage === 'taken') {
+      const until = editableUntil(s);
+      if (!manage && (!until || now > Date.parse(until))) {
+        return apiError(
+          422,
+          'trial_report_locked',
+          'The edit window of this trial report has closed.',
+        );
+      }
+    } else {
+      return apiError(409, 'invalid_transition', 'Not allowed from this stage.');
+    }
+    const course = input.recommendedCourseId
+      ? COURSES.find((c) => c.id === input.recommendedCourseId)
+      : null;
+    const report: TrialReportDto = {
+      sessionId: s.id,
+      leadId: null,
+      attendance: input.attendance,
+      level: input.level,
+      recommendedCourse: course
+        ? { id: course.id, nameAr: course.nameAr, nameEn: course.nameEn }
+        : null,
+      classesPerWeek: input.classesPerWeek,
+      minutesPerClass: input.minutesPerClass,
+      engagement: input.engagement,
+      notes: input.notes ?? null,
+      submittedBy: old?.submittedBy ?? by,
+      submittedAt: old?.submittedAt ?? iso(now),
+      updatedAt: iso(now),
+    };
+    trialReports.set(s.id, report);
+    touch(s);
+    return HttpResponse.json({ data: report });
+  }),
+
   http.get(`${API}/sessions/:id/report`, ({ request, params }) => {
     const g = guard(request, 'sessions.view');
     if ('error' in g) return g.error;

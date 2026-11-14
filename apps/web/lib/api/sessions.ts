@@ -22,6 +22,9 @@ import {
   type UpdateSessionSettingsInput,
   type UpdateZoomHostInput,
   type ZoomHostDto,
+  trialReportSchema,
+  type TrialReportDto,
+  type TrialReportInput,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { API_PREFIX, API_URL, ApiError, apiFetch } from './client';
@@ -152,11 +155,39 @@ export async function updateZoomHost(id: number, body: UpdateZoomHostInput): Pro
   ).data;
 }
 
+/** T4: the teacher's trial report of a trial class (null until written). */
+export async function fetchTrialReport(
+  id: number,
+  signal?: AbortSignal,
+): Promise<TrialReportDto | null> {
+  return (
+    await apiFetch(`/sessions/${id}/trial-report`, {
+      schema: z.object({ data: trialReportSchema.nullable() }),
+      signal,
+    })
+  ).data;
+}
+
+/** Writes or edits it; on an ended trial class this closes the class (B85). */
+export async function saveTrialReport(
+  id: number,
+  body: TrialReportInput,
+): Promise<TrialReportDto | null> {
+  return (
+    await apiFetch(`/sessions/${id}/trial-report`, {
+      method: 'PUT',
+      body,
+      schema: z.object({ data: trialReportSchema.nullable() }),
+    })
+  ).data;
+}
+
 export const sessionKeys = {
   all: ['sessions'] as const,
   board: (date: string, tz: string) => ['sessions', 'board', date, tz] as const,
   list: (query: unknown) => ['sessions', 'list', query] as const,
   detail: (id: number) => ['sessions', 'detail', id] as const,
+  trialReport: (id: number) => ['sessions', 'trial-report', id] as const,
   settings: ['sessions', 'settings'] as const,
   zoomHosts: ['sessions', 'zoom-hosts'] as const,
 };
