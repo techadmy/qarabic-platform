@@ -591,8 +591,8 @@ export class PayrollRunsService {
   async assertOpen(date: string, db: Db = this.prisma): Promise<void> {
     let run = await this.runFor(date, db);
     if (run && db !== this.prisma) {
-      await lockPayrollRow(db as Tx, 'payroll_runs', run.id);
-      run = await (db as Tx).payrollRun.findUniqueOrThrow({ where: { id: run.id } });
+      await lockPayrollRow(db, 'payroll_runs', run.id);
+      run = await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } });
     }
     if (run && isLockedRun(run.status)) {
       throw payrollError(HttpStatus.CONFLICT, 'period_locked', { data: { period: run.period } });
