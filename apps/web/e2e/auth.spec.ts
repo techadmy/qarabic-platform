@@ -27,6 +27,25 @@ test('an unauthenticated deep link comes back after login', async ({ page }) => 
   await expect(page.getByRole('table', { name: 'الأدوار' })).toBeVisible();
 });
 
+// docs/39 P0-1: `next` cannot send a signed-in user off the app (tab / backslash tricks that URL
+// parsing turns into `//evil.test`).
+for (const next of ['/%09/evil.test', '/%5C/evil.test', '/%0a/evil.test', 'https:evil.test']) {
+  test(`a signed-in user on /login?next=${next} stays on the app`, async ({ page, baseURL }) => {
+    const leftTheApp: string[] = [];
+    page.on('request', (r) => {
+      if (r.isNavigationRequest() && new URL(r.url()).hostname === 'evil.test') {
+        leftTheApp.push(r.url());
+      }
+    });
+    await page.goto('/login');
+    await login(page);
+    await expect(page).toHaveURL(/\/$/);
+    await page.goto(`/login?next=${next}`);
+    await expect(page).toHaveURL(new RegExp(`^${baseURL}/?$`));
+    expect(leftTheApp).toEqual([]);
+  });
+}
+
 test('wrong password shows the invalid-credentials message', async ({ page }) => {
   await page.goto('/login');
   await page.getByLabel('البريد الإلكتروني').fill('admin@qarabic.test');
