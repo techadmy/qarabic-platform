@@ -35,6 +35,8 @@ import {
   type TrialOutcomeInput,
   type UpdateCrmSettingsInput,
   type UpdateLeadInput,
+  leadKpisSchema,
+  type LeadKpisDto,
   trialTeachersResponseSchema,
   trialOfferSchema,
   myTrialOfferSchema,
@@ -150,6 +152,14 @@ export async function bookTrial(
     schema: z.object({ data: leadDetailSchema, meta: z.object({ trial: bookedTrialSchema }) }),
   });
   return { lead: res.data, trial: res.meta.trial };
+}
+
+/** T5: the CRM rates for a period (docs/33 §6). */
+export async function fetchLeadKpis(
+  query: { from?: string; to?: string },
+  signal?: AbortSignal,
+): Promise<LeadKpisDto> {
+  return (await apiFetch(`/leads/kpis${qs(query)}`, { schema: one(leadKpisSchema), signal })).data;
 }
 
 /** T2: the teachers for a trial at this time, eligible ones ranked (docs/33 §4.1–4.2). */
@@ -273,5 +283,6 @@ export const crmKeys = {
   trialOffers: (leadId: number) => ['crm', 'trial-offers', leadId] as const,
   myTrialOffers: ['crm', 'my-trial-offers'] as const,
   settings: ['crm', 'settings'] as const,
+  kpis: (query: unknown) => ['crm', 'kpis', query] as const,
   publicCourses: ['public', 'courses'] as const,
 };
