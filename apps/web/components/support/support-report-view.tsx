@@ -237,6 +237,7 @@ export function SupportReportView() {
               d.byCategory,
               (r) => TICKET_CATEGORY_LABELS[r.category][locale],
               (r) => r.category,
+              d.total,
             )}
             {grouped(
               'report-channels',
@@ -245,6 +246,7 @@ export function SupportReportView() {
               d.byChannel,
               (r) => TICKET_CHANNEL_LABELS[r.channel][locale],
               (r) => r.channel,
+              d.total,
             )}
           </div>
           {section(

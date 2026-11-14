@@ -1,4 +1,4 @@
-import { act, screen, within } from '@testing-library/react';
+import { act, screen, waitFor, within } from '@testing-library/react';
 import { focusManager } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { InboxView } from '@/components/support/inbox-view';
 import { SupportReportView } from '@/components/support/support-report-view';
 import { server } from '@/mocks/node';
-import { supdb } from '@/mocks/support-db';
+import { isClosed, supdb } from '@/mocks/support-db';
 import { lastReplacedUrl, renderPage } from '@/test/people';
 
 describe('S4 «الآن» tiles on the inbox', () => {
@@ -21,6 +21,23 @@ describe('S4 «الآن» tiles on the inbox', () => {
     await user.click(within(tiles).getByRole('button', { name: /دون مسؤول/ }));
     expect(lastReplacedUrl().searchParams.get('assignee')).toBe('none');
     expect(lastReplacedUrl().searchParams.get('breached')).toBeNull();
+  });
+
+  it('with a queue tab open, the numbers are that queue’s; a tile clears the other filters', async () => {
+    const user = userEvent.setup();
+    const billing = supdb.tickets.filter((t) => t.queue === 'billing' && !isClosed(t.status));
+    renderPage(<InboxView />, { path: '/support?queue=billing&kind=ticket&q=invoice' });
+    const tiles = await screen.findByRole('navigation', { name: 'الآن' });
+    const open = within(tiles).getByRole('button', { name: /مفتوحة/ });
+    await waitFor(() => expect(open).toHaveTextContent(String(billing.length)));
+    // Other filters narrow the list: no tile claims to be what is shown.
+    expect(open).toHaveAttribute('aria-pressed', 'false');
+    await user.click(within(tiles).getByRole('button', { name: /تجاوزت الموعد/ }));
+    const url = lastReplacedUrl().searchParams;
+    expect(url.get('breached')).toBe('1');
+    expect(url.get('queue')).toBe('billing');
+    expect(url.get('kind')).toBeNull();
+    expect(url.get('q')).toBeNull();
   });
 
   it('keeps the rows when a refresh fails, and says so quietly', async () => {

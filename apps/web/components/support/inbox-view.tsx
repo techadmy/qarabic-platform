@@ -72,7 +72,7 @@ import {
 import { SplitList, SplitView, useSplitView } from '@/components/list/split-view';
 import { MAX_STATUS_TABS, ViewsMenu } from '@/components/list/views-menu';
 import { PageHeader } from '@/components/page-header';
-import { SlaTiles } from './sla-tiles';
+import { SlaTiles, type SlaTile } from './sla-tiles';
 import { TicketDetailView } from './ticket-detail';
 import { SessionSheet } from '@/components/sessions/session-sheet';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
@@ -534,6 +534,17 @@ export function InboxView() {
   // More than five queues move into the title (D141 §2; «كل الأقسام» does not count); five or fewer
   // stay tabs. Before the first answer, decide from every queue, so a cold load does not swap the
   // tabs for the menu once the data arrives.
+  // Which «الآن» tile the list shows: only when no other filter narrows it.
+  const plain = status === 'open' && !kind && !category && !priority && !familyId && !params.q;
+  const activeTile: SlaTile | null = !plain
+    ? null
+    : breached && !assignee
+      ? 'breached'
+      : assignee === 'none' && !breached
+        ? 'unassigned'
+        : !breached && !assignee
+          ? 'open'
+          : null;
   const useViews = (meta ? queues.length : TICKET_QUEUES.length) > MAX_STATUS_TABS;
   const header = (
     <PageHeader
@@ -623,14 +634,22 @@ export function InboxView() {
     <>
       {header}
       <SlaTiles
-        breached={breached}
-        unassigned={assignee === 'none'}
-        onPick={(k) =>
+        active={activeTile}
+        queueCounts={query.queue ? meta?.counts[query.queue] : undefined}
+        onPick={(k) => {
+          // A tile is the whole filter: it keeps the queue tab and clears the rest.
+          params.setSearchInput('');
           params.set({
+            q: null,
+            status: null,
+            kind: null,
+            category: null,
+            priority: null,
+            family: null,
             breached: k === 'breached' ? 1 : null,
             assignee: k === 'unassigned' ? 'none' : null,
-          })
-        }
+          });
+        }}
       />
       {live.stale && <RefreshFailed onRetry={() => void list.refetch()} />}
       <Card className="gap-0 py-0 shadow-none">
