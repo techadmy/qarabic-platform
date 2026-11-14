@@ -46,7 +46,9 @@ pnpm --filter @qarabic/web test:e2e:real    # web e2e on the real API + the seed
 
 `test:e2e:real` (`apps/web/e2e/real-api*.spec.ts`, also a CI job) builds and starts the API and the
 web app itself (or reuses servers already on 3000/3001; `E2E_PORT`, `E2E_API_PORT` and
-`E2E_BASE_URL` move them). The N3–N7 flows write to the dev database and pick a fresh lead,
+`E2E_BASE_URL` move them). The portal spec (`real-api-portals`) signs in as the seed's made-up
+demo parents and teacher: run `db:seed` with `SEED_DEMO_PASSWORD` set (dev only) and pass the same value
+as `E2E_DEMO_PASSWORD` (or keep it in `apps/api/.env`); without it that spec is skipped. The N3–N7 flows write to the dev database and pick a fresh lead,
 invoice month and payroll month each run, so the suite can run again without reseeding. The API's
 rate limits are in memory: running it many times within an hour (10 tickets an hour per user,
 5 logins a minute) needs an API restart in between. A public-form lead sent again from the same
