@@ -39,7 +39,13 @@ import { Toggle } from '@qarabic/ui/components/toggle';
 import { cn } from '@qarabic/ui/lib/utils';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { SearchXIcon, SettingsIcon, UserRoundPlusIcon, UsersRoundIcon } from 'lucide-react';
+import {
+  SearchXIcon,
+  SettingsIcon,
+  UserRoundPlusIcon,
+  UsersRoundIcon,
+  ChartNoAxesColumnIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useMemo, useState } from 'react';
 import { toast } from 'sonner';
@@ -366,11 +372,13 @@ export function LeadsView() {
       actions={
         <ListActions
           create={manage ? { label: t('newLead'), onClick: () => setAdding(true) } : undefined}
-          more={
-            can(me, 'settings.view')
+          more={[
+            // T5: the CRM rates (docs/33 §6).
+            { label: t('kpis.title'), icon: ChartNoAxesColumnIcon, href: '/leads/kpis' },
+            ...(can(me, 'settings.view')
               ? [{ label: t('settings.title'), icon: SettingsIcon, href: '/settings/crm' }]
-              : []
-          }
+              : []),
+          ]}
         />
       }
     />

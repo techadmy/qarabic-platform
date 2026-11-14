@@ -65,6 +65,7 @@ import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { PageHeader } from '@/components/page-header';
 import { InfoSection, KeyFacts, type InfoRow } from '@/components/people/detail';
 import { ToneBadge } from '@/components/sessions/badges';
+import { TrialOffersList } from './trial-offers-list';
 import { ReasonDialog } from '@/components/sessions/reason-dialog';
 import { BothClassTimes, useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -451,7 +452,11 @@ function Workbench({ lead }: { lead: LeadDetailDto }) {
           <DataTab lead={lead} canEdit={can('edit')} onSaved={setLead} />
         </TabsContent>
         <TabsContent value="trials" className="mt-2">
-          <TrialsTab lead={lead} />
+          <div className="flex flex-col gap-4">
+            {/* T3: offers to the teachers come first (they become the trial when taken). */}
+            <TrialOffersList leadId={lead.id} canManage={can('book_trial')} />
+            <TrialsTab lead={lead} />
+          </div>
         </TabsContent>
         <TabsContent value="family" className="mt-2">
           <FamilyTab lead={lead} />

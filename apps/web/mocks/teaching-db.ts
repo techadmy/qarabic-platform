@@ -190,6 +190,11 @@ function shapeDemoTeacher(now: number) {
   if (past[0]) ended(past[0]);
   const old = past.find((s) => endOf(s) < now - 30 * HOUR && s !== past[0]);
   if (old) ended(old);
+  // T4: the latest past trial class waits for its trial report too, whatever the weekday.
+  if (!past[0] || past[0].kind !== 'trial') {
+    const trial = past.find((s) => s.kind === 'trial' && s !== old);
+    if (trial) ended(trial);
+  }
   sdb.sessions.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id);
 }
 

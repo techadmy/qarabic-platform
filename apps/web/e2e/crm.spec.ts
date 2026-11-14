@@ -16,6 +16,13 @@ async function pickTomorrow(page: Page, scope: ReturnType<Page['getByRole']>, tz
   await pickDay(page, scope, tz, 1);
 }
 
+/** Days from today (in `tz`) to the next Friday, 1–7 (the demo teachers work Sat–Thu). */
+function daysToFriday(tz: string) {
+  const day = new Intl.DateTimeFormat('en', { weekday: 'short', timeZone: tz }).format(new Date());
+  const iso = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].indexOf(day) + 1;
+  return (5 - iso + 7) % 7 || 7;
+}
+
 /** Picks the day `days` ahead (in `tz`, at most a month) in that calendar. */
 async function pickDay(page: Page, scope: ReturnType<Page['getByRole']>, tz: string, days: number) {
   const tomorrow = new Date(Date.now() + days * 86_400_000);
@@ -58,8 +65,9 @@ test('lead lifecycle: contact → book trial → interested → convert to regul
   await pickTomorrow(page, book, 'Europe/London');
   await book.getByRole('combobox', { name: 'الوقت' }).click();
   await page.getByRole('option', { name: '4:00 ص', exact: true }).click();
-  const teachers = book.getByRole('radiogroup', { name: 'المعلم' });
-  await expect(teachers.locator('label').first()).toContainText('#1');
+  const teachers = book.getByRole('radiogroup', { name: 'المعلم', exact: true });
+  // The ranked list is a server answer: allow for a loaded runner.
+  await expect(teachers.locator('label').first()).toContainText('#1', { timeout: 15_000 });
   await teachers.getByRole('radio').first().check();
   await expect(book.getByText(/عند المعلم: /)).toBeVisible();
   // The warnings of this teacher and time (outside hours, DST, …) each need a tick before booking.
@@ -150,13 +158,61 @@ test('trial booking on a phone, in English: the list fits, «Book» stays in rea
   const book = page.getByRole('dialog', { name: /trial/i });
   await book.getByRole('combobox', { name: 'Time' }).click();
   await page.getByRole('option', { name: '10:00 PM' }).click();
-  const teachers = book.getByRole('radiogroup', { name: 'Teacher' });
+  const teachers = book.getByRole('radiogroup', { name: 'Teacher', exact: true });
   await expect(teachers.getByRole('radio').first()).toBeVisible();
   await expect(teachers.locator('label').first()).toContainText('#1');
   await expect(teachers.locator('label').first()).toContainText('Their time');
   // The footer is sticky: «Book» is on screen without scrolling the long form.
   await expect(book.getByRole('button', { name: 'Book the class', exact: true })).toBeInViewport();
   await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+});
+
+test('open offers (T3, 1440): cancel with a reason, offer to a shortlist; the list in English', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await signIn(page, 'admin@qarabic.test', '/leads/6');
+  await page.goto('/leads/6?tab=trials');
+  const offers = page.getByRole('region', { name: 'عروض الحصة التجريبية على المعلمين' });
+  await expect(offers).toBeVisible();
+  // The seeded open offer: cancelling asks for a reason (D31).
+  await offers.getByRole('button', { name: 'ألغِ العرض' }).click();
+  const cancel = page.getByRole('alertdialog', { name: 'إلغاء العرض؟' });
+  await cancel.getByLabel(/سبب الإلغاء/).fill('The family asked for another day');
+  await cancel.getByRole('button', { name: 'ألغِ العرض' }).click();
+  await expect(page.getByText('أُلغي العرض.')).toBeVisible();
+
+  // A new offer to a shortlist of the eligible teachers.
+  await page
+    .getByRole('button', { name: /احجز حصة تجريبية|أعد حجز التجريبية/ })
+    .first()
+    .click();
+  const book = page.getByRole('dialog', { name: 'حجز حصة تجريبية' });
+  await pickDay(page, book, 'America/New_York', daysToFriday('America/New_York') + 1);
+  await book.getByRole('combobox', { name: 'الوقت' }).click();
+  await page.getByRole('option', { name: '10:00 ص' }).click();
+  await book.getByRole('radio', { name: 'اعرضها على المعلمين' }).check();
+  await book.getByRole('radio', { name: 'قائمة أختارها' }).check();
+  await book.getByRole('button', { name: 'أرسل العرض' }).click();
+  await expect(book.getByText('اختر معلمًا واحدًا على الأقل.')).toBeVisible();
+  await expect(book.getByRole('checkbox').first()).toBeFocused();
+  await book.getByRole('checkbox').first().check();
+  await expect(book.getByText(/مختار/)).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  await book.getByRole('button', { name: 'أرسل العرض' }).click();
+  await expect(page.getByText(/^أُرسل العرض إلى/)).toBeVisible();
+
+  // The lead's offers in English: the new open one, who it went to, axe.
+  await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+  await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+  const list = page.getByRole('region', { name: 'Trial offers to teachers' });
+  await expect(list.getByText('Open').first()).toBeVisible();
+  await expect(
+    list.getByRole('list', { name: 'Teachers who got the offer' }).first(),
+  ).toBeVisible();
+  // Let the «sent» toast finish fading first (axe reads its mid-fade contrast).
+  await expect(page.locator('[data-sonner-toast]')).toHaveCount(0, { timeout: 10_000 });
   await expectNoSeriousA11yViolations(page);
 });
 

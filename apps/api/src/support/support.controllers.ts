@@ -40,6 +40,8 @@ import {
   updateTicketSchema,
   requestActionSchema,
   requestAnswerSchema,
+  supportReportQuerySchema,
+  type SupportReportDto,
 } from '@qarabic/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -56,6 +58,7 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { InboxService } from './inbox.service.js';
 import { SupportRequestsService } from './requests.service.js';
+import { SupportReports } from './reports.service.js';
 import { SupportContext, SupportPolicy } from './policy.js';
 import { extensionFor, FileStorage } from './storage.js';
 import { TicketsService, userActor } from './tickets.service.js';
@@ -261,8 +264,20 @@ export class SupportController {
     private readonly inbox: InboxService,
     private readonly tickets: TicketsService,
     private readonly context: SupportContext,
+    private readonly reports: SupportReports,
     private readonly requests: SupportRequestsService,
   ) {}
+
+  /** S4: volume, first response, SLA met and time to resolve inside the viewer's queues. */
+  @Can('support.view')
+  @Get('reports')
+  async report(
+    @ZodQuery(supportReportQuerySchema) q: z.output<typeof supportReportQuerySchema>,
+    @CurrentUser() user: AuthUser,
+  ): Promise<{ data: SupportReportDto }> {
+    const v = await this.context.viewer(user);
+    return { data: await this.reports.report(q.from, q.to, v) };
+  }
 
   /**
    * S3 typed requests: a staff step — `propose` a teacher (teacher change), `approve`, `complete`

@@ -3,6 +3,8 @@ import { AuthModule } from '../auth/auth.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { InboxService } from './inbox.service.js';
 import { SupportRequestsService } from './requests.service.js';
+import { SupportReports } from './reports.service.js';
+import { SupportOffRamp, SupportOffRampController } from './offramp.js';
 import { SupportContext } from './policy.js';
 import {
   FeedbackController,
@@ -24,16 +26,19 @@ import { WhatsAppConfig, WhatsAppIntake, WhatsAppWebhookController } from './wha
     SupportController,
     SupportSettingsController,
     WhatsAppWebhookController,
+    SupportOffRampController,
   ],
   providers: [
     SupportContext,
     TicketsService,
     InboxService,
     SupportRequestsService,
+    SupportReports,
+    SupportOffRamp,
     TicketCli,
     WhatsAppConfig,
     WhatsAppIntake,
   ],
-  exports: [TicketsService, TicketCli, WhatsAppConfig],
+  exports: [TicketsService, TicketCli, WhatsAppConfig, SupportReports],
 })
 export class SupportModule {}

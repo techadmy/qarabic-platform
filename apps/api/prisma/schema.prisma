@@ -1312,6 +1312,8 @@ enum LostReason {
   schedule
   duplicate
   other
+  /// T5 (docs/33 §3.7): the family did not take to the teacher.
+  teacher
 }
 
 enum TrialOutcome {
@@ -2656,4 +2658,23 @@ model TrialReport {
 
   @@index([leadId])
   @@map("trial_reports")
+}
+
+// ====================================================================== S5 WhatsApp off-ramp
+/// A saved reply staff paste on WhatsApp: "please do this from the system: {link}" (docs/32 §7).
+model SupportSavedReply {
+  id          Int      @id @default(autoincrement())
+  key         String   @unique @db.VarChar(40)
+  titleAr     String   @map("title_ar") @db.VarChar(120)
+  titleEn     String   @map("title_en") @db.VarChar(120)
+  bodyAr      String   @map("body_ar") @db.VarChar(2000)
+  bodyEn      String   @map("body_en") @db.VarChar(2000)
+  /// The deep link (`contactLinkSchema`), or null for none.
+  link        Json?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById Int?     @map("created_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("support_saved_replies")
 }
