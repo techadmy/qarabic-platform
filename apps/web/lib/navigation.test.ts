@@ -10,23 +10,18 @@ function as(role: Role) {
 }
 
 describe('navFor', () => {
-  it('groups the staff sidebar like the current app: home, «المستخدمون», «الحسابات», «الإعدادات»', () => {
+  it('groups the staff sidebar by section (D150): top items, then users, reports, support, tasks, money, settings', () => {
     const nav = navFor(as('admin'));
     expect(nav.map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'today',
       'schedule',
       'requests',
-      'leads',
       'trialsToday',
-      'lessonReports',
-      'tests',
-      'supportInbox',
-      'feedbackTriage',
-      'myRequests',
-      'tasks',
-      'announcements',
       'users',
+      'reports',
+      'support',
+      'tasksAnnouncements',
       'billing',
       'payroll',
       'accounting',
@@ -37,8 +32,11 @@ describe('navFor', () => {
       'today',
       'schedule',
       'requests',
-      'leads',
       'trialsToday',
+      'families',
+      'students',
+      'teachers',
+      'staff',
       'lessonReports',
       'tests',
       'supportInbox',
@@ -46,10 +44,6 @@ describe('navFor', () => {
       'myRequests',
       'tasks',
       'announcements',
-      'families',
-      'students',
-      'teachers',
-      'staff',
       'invoices',
       'packages',
       'familyCredits',
@@ -85,15 +79,15 @@ describe('navFor', () => {
       'schedule',
       'requests',
       'trialsToday',
+      'families',
+      'students',
+      'teachers',
       'lessonReports',
       'tests',
       'supportInbox',
       'myRequests',
       'tasks',
       'announcements',
-      'families',
-      'students',
-      'teachers',
       'packages',
       'attendance',
       'fines',
@@ -104,10 +98,8 @@ describe('navFor', () => {
     // ledger is the owner's), no packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
-      'supportInbox',
-      'myRequests',
-      'tasks',
-      'announcements',
+      'support',
+      'tasksAnnouncements',
       'billing',
       'payroll',
       'accounting',
@@ -166,6 +158,8 @@ describe('navFor', () => {
     expect(currentPage(as('parent'), '/tickets/4')?.key).toBe('myRequests');
     expect(currentPage(as('admin'), '/tickets/4')?.key).toBe('ticket');
     expect(currentPage(as('admin'), '/support')?.key).toBe('supportInbox');
+    // D150: leads left the sidebar but the page still has its title.
+    expect(currentPage(as('admin'), '/leads')?.key).toBe('leads');
     expect(currentPage(as('admin'), '/settings/support')?.key).toBe('supportSettings');
     // N6: an invoice and its receipt stay under «الفواتير» / «فواتيري».
     expect(currentPage(as('admin'), '/invoices/3')?.key).toBe('invoices');

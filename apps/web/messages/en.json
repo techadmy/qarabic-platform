@@ -87,7 +87,10 @@
       "billing": "Accounts",
       "settings": "Settings",
       "payroll": "Payroll & attendance",
-      "accounting": "Accounting"
+      "accounting": "Accounting",
+      "reports": "Reports",
+      "support": "Support",
+      "tasksAnnouncements": "Tasks & announcements"
     },
     "today": "Today's classes",
     "schedule": "Schedule",
@@ -132,7 +135,7 @@
     "chartOfAccounts": "Chart of accounts",
     "financialReports": "Financial reports",
     "periods": "Accounting periods",
-    "trialsToday": "Today’s trial classes",
+    "trialsToday": "Trial classes",
     "familyCredits": "Family credits",
     "paymentsReview": "Payments to review",
     "exchangeRates": "Exchange rates"
