@@ -21,6 +21,11 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-chart-taken: var(--chart-taken);
+  --color-chart-leave: var(--chart-leave);
+  --color-chart-declined: var(--chart-declined);
+  --color-chart-absent: var(--chart-absent);
+  --color-chart-cancelled: var(--chart-cancelled);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -141,11 +146,6 @@
   --border: #e4e1de; /* line */
   --input: #e4e1de;
   --ring: #2f6fde; /* focus */
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --radius: 0.4375rem;
   --sidebar: #ffffff;
   --sidebar-foreground: #4f4947; /* ink2: nav items */
@@ -210,6 +210,20 @@
   --status-teal-foreground: oklch(43.7% 0.078 188.216); /* teal-800 */
   --status-teal-border: oklch(91% 0.096 180.426); /* teal-200 */
   --status-teal-emphasis: oklch(51.1% 0.096 186.391); /* teal-700 */
+  /* Chart palette (dashboards, D144; picked with the dataviz method and its validator, see
+     apps/web/test/status-tokens.test.ts). --chart-1..5: series identity, used in this fixed order
+     (1 = brand maroon lifted to a data-mark lightness). --chart-taken…cancelled: class outcomes in
+     the same hues as their chips (D35); cancelled is a deliberate neutral grey. */
+  --chart-1: #8a2a2d;
+  --chart-2: #0d9488;
+  --chart-3: #d97706;
+  --chart-4: #0284c7;
+  --chart-5: #7c3aed;
+  --chart-taken: #047857;
+  --chart-leave: #6d28d9;
+  --chart-declined: #0369a1;
+  --chart-absent: #b91c1c;
+  --chart-cancelled: #78716c;
 }
 
 .dark {
@@ -234,11 +248,6 @@
   --border: rgb(255 255 255 / 10%);
   --input: rgb(255 255 255 / 15%);
   --ring: #6b9cf0;
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
   --sidebar: #1f1c1b;
   --sidebar-foreground: #d6d0cd;
   --sidebar-primary: #d9a3a4;
@@ -296,6 +305,17 @@
   --status-teal-foreground: oklch(85.5% 0.138 181.071); /* teal-300 */
   --status-teal-border: oklch(38.6% 0.063 188.416); /* teal-900 */
   --status-teal-emphasis: oklch(77.7% 0.152 181.912); /* teal-400 */
+  /* Chart palette, dark: own steps validated on the dark card, same hue order. */
+  --chart-1: #c25a5d;
+  --chart-2: #0d9488;
+  --chart-3: #d97706;
+  --chart-4: #0284c7;
+  --chart-5: #8b5cf6;
+  --chart-taken: #059669;
+  --chart-leave: #8b5cf6;
+  --chart-declined: #0284c7;
+  --chart-absent: #dc2626;
+  --chart-cancelled: #a8a29e;
 }
 
 /*
