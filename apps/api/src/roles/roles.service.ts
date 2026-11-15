@@ -113,6 +113,13 @@ export class RolesService {
           if (!source) {
             throw validationError({ copyFrom: ['The selected role to copy is invalid.'] });
           }
+          // RBAC-5 (docs/39 P2-3): custom roles are staff roles, which are never row-scoped. A
+          // copy of the teacher or parent role would see every class and family unscoped.
+          if (source.kind === 'teacher' || source.kind === 'parent') {
+            throw validationError({
+              copyFrom: ['A staff role cannot be copied from the teacher or parent role.'],
+            });
+          }
           permissions = permissionsOf(source);
         }
         permissions ??= [];

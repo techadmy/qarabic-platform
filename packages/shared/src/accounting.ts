@@ -97,6 +97,7 @@ export const SYSTEM_ACCOUNT_KEYS = [
   'salaries_expense',
   'gateway_fees',
   'customer_credits',
+  'suspense',
 ] as const;
 export type SystemAccountKey = (typeof SYSTEM_ACCOUNT_KEYS)[number];
 

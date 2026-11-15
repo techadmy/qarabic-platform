@@ -462,9 +462,8 @@ const TEACHER_ROWS: Row[] = [
   ['GET teachers/:teacherId/blocks', teacherOf],
   ['GET teachers/:teacherId/timetable', teacherOf],
   ['GET teachers/:teacherId/work-hours', teacherOf],
-  // Another teacher's hours: refused with 403, not 404 (no data leaks; reported as an
-  // inconsistency with the 404 reads, docs/39-evidence/p1-6-role-route-matrix.md).
-  ['PUT teachers/:teacherId/work-hours', teacherOf, { workHours: [] }, 403],
+  // Another teacher's hours: 404 like the reads (aligned in P2-3).
+  ['PUT teachers/:teacherId/work-hours', teacherOf, { workHours: [] }],
   ['GET tests/:id', id('test')],
   ['PATCH tests/:id', id('test'), { notes: 'E2E' }],
   ['POST tests/:id/cancel', id('test'), { reason: 'E2E cancel' }],

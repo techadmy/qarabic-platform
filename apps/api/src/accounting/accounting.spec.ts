@@ -53,7 +53,7 @@ describe('chart of accounts', () => {
       'utf8',
     );
     // The M7 seed is the chart without the accounts added later by their own migrations.
-    const later = ['2140'];
+    const later = ['2140', '2150'];
     for (const stmt of chartStatements(CHART.filter((r) => !later.includes(r.code)))) {
       expect(sql).toContain(stmt);
     }

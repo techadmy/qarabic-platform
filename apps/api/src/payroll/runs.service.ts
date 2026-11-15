@@ -12,13 +12,13 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
-import { notFound } from '../common/errors.js';
+import { notFound, validationError } from '../common/errors.js';
 import { pageMeta, statusCounts } from '../common/pagination.js';
 import { Prisma, type PayrollRun } from '../generated/prisma/client.js';
 import { MAILER, type Mailer } from '../mail/mailer.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { isoZ, toDbDate } from '../schedule/time.js';
+import { isoZ, toDbDate, localDate } from '../schedule/time.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
 import { type ComputedSlip, PayrollCalculator } from './calculator.js';
 import { payrollError } from './errors.js';
@@ -377,6 +377,11 @@ export class PayrollRunsService {
   async approve(id: number, by: AuthUser, expectedUpdatedAt?: string): Promise<void> {
     const approved = await this.prisma.$transaction(async (tx) => {
       const run = await this.lock(tx, id, ['reviewed'], expectedUpdatedAt);
+      // P0-3 (B116): a second person approves, and never a run with their own payslip.
+      if (run.reviewedById === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'same_reviewer');
+      if (await tx.payslip.count({ where: { runId: id, userId: by.id } })) {
+        throw payrollError(HttpStatus.FORBIDDEN, 'own_payslip_in_run');
+      }
       await this.assertNoErrors(tx, run.id);
       const now = this.clock.now();
       const totalsBy: Record<string, string> = {};
@@ -451,12 +456,18 @@ export class PayrollRunsService {
    * record only: no transfer is made (D140). The wallet ledger is debited by the net.
    */
   async recordPayment(slipId: number, input: RecordPaymentInput, by: AuthUser): Promise<void> {
+    // BIL-9 (docs/39 P2-2): the same rule as billing: not after today (academy zone).
+    const zone = await this.settings.get('academy.timezone');
+    if (input.paidOn > localDate(this.clock.nowMs(), zone)) {
+      throw validationError({ paidOn: ['The payment date cannot be in the future.'] });
+    }
     await this.prisma.$transaction(async (tx) => {
       if (!(await lockPayrollRow(tx, 'payslips', slipId))) throw notFound();
       const slip = await tx.payslip.findUniqueOrThrow({
         where: { id: slipId },
         include: { run: true },
       });
+      if (slip.userId === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
       if (slip.status === 'paid') throw payrollError(HttpStatus.CONFLICT, 'payslip_already_paid');
       if (slip.status !== 'approved') {
         throw payrollError(HttpStatus.CONFLICT, 'invalid_run_status', {
