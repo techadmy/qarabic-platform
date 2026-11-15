@@ -11,6 +11,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { Button } from '@qarabic/ui/components/button';
 import { Money } from '@/components/billing/billing-bits';
+import { DashboardSection } from '@/components/dashboard/dashboard-section';
 import { PageHeader } from '@/components/page-header';
 import { useNow, useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -143,6 +144,8 @@ export function StaffHomeView() {
           description={t('emptyHint')}
         />
       )}
+      {/* The management dashboard (docs/40, D144): range, KPIs and charts by permission. */}
+      <DashboardSection />
       {queues.length > 0 && (
         <Section id="home-queues" title={t('queuesTitle')}>
           {queues.map((q) => (

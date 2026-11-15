@@ -424,8 +424,10 @@ export function ReportsView() {
   const params = useListParams();
   const ids = { currency: useId(), asOf: useId() };
   const allowed = can(me, 'accounting.view');
+  // D145: profit and loss is for the owner only (`reports.profit`); the others never see the tab.
+  const reports = REPORTS.filter((r) => r !== 'profit-and-loss' || can(me, 'reports.profit'));
   const reportParam = params.get('report') as ReportName;
-  const report: ReportName = REPORTS.includes(reportParam) ? reportParam : 'trial-balance';
+  const report: ReportName = reports.includes(reportParam) ? reportParam : 'trial-balance';
   const today = academyToday();
   const month = monthBounds(today);
   const currencyParam = params.get('currency');
@@ -514,7 +516,7 @@ export function ReportsView() {
         className="gap-4"
       >
         <TabsList className="h-auto max-w-full flex-wrap justify-start print:hidden">
-          {REPORTS.map((r) => (
+          {reports.map((r) => (
             <TabsTrigger key={r} value={r} className="h-9 px-3">
               {t(r)}
             </TabsTrigger>
@@ -547,7 +549,7 @@ export function ReportsView() {
             <DateRangeFilters from={from} to={to} onChange={(v) => params.set(v)} />
           )}
         </Card>
-        {REPORTS.map((r) => (
+        {reports.map((r) => (
           <TabsContent key={r} value={r} forceMount hidden={r !== report}>
             {r === report && body}
           </TabsContent>

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { PeriodsView } from '@/components/accounting/periods-view';
 import { ReportsView } from '@/components/accounting/reports-view';
 import { adb } from '@/mocks/accounting-db';
+import { MOCK_USERS } from '@/mocks/data';
 import { renderPage } from '@/test/people';
 
 // D146: the books are the owner's by default (accounts see collections only).
@@ -30,14 +31,28 @@ describe('Financial reports', () => {
     );
   });
 
-  it('profit and loss shows income, expenses and the net result', async () => {
+  it('profit and loss (owner only, D145) shows income, expenses and the net result', async () => {
     renderPage(<ReportsView />, {
-      as: ACCOUNTS,
+      as: 'admin@qarabic.test',
       path: `/accounting/reports?report=profit-and-loss&currency=USD&${WIDE}`,
     });
     expect(await screen.findByRole('table', { name: 'الإيرادات' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'المصروفات' })).toBeInTheDocument();
     expect(screen.getByText(/صافي (الربح|الخسارة)/)).toBeInTheDocument();
+  });
+
+  it('without reports.profit there is no profit and loss tab, even from a link (D145)', async () => {
+    // A staff member who reads the ledger but is not the owner.
+    const admin = MOCK_USERS.find((u) => u.email === 'admin@qarabic.test')!;
+    const before = admin.permissions;
+    admin.permissions = before.filter((p) => p !== 'reports.profit');
+    renderPage(<ReportsView />, {
+      as: 'admin@qarabic.test',
+      path: `/accounting/reports?report=profit-and-loss&currency=USD&${WIDE}`,
+    });
+    expect(await screen.findByRole('table', { name: 'ميزان المراجعة' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'قائمة الدخل' })).toBeNull();
+    admin.permissions = before;
   });
 
   it('balance sheet balances (earnings to date in equity)', async () => {
