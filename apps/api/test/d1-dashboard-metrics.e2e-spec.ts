@@ -253,7 +253,19 @@ describe('operations', () => {
     // The previous period (October) is empty.
     expect(d.kpis.active_students.previous).toBe(0);
 
+    // The academy's week starts on Saturday: Nov 1 (Sunday) is in the week of Sat Oct 31, and the
+    // Friday trial (Nov 6) and the Saturday class (Nov 7) fall in different weeks.
+    await m2Session(ctx, eb, '2026-11-07T12:00:00Z', { stage: 'taken' });
     const weekly = (await admin.get(`${NOV}&bucket=week`)).body.data;
-    expect(weekly.series.class_outcomes[0].bucket).toBe('2026-10-26'); // Monday before Nov 1
+    const weeks = weekly.series.class_outcomes as Array<{ bucket: string; taken: number }>;
+    expect(weeks.map((w) => w.bucket)).toEqual([
+      '2026-10-31',
+      '2026-11-07',
+      '2026-11-14',
+      '2026-11-21',
+      '2026-11-28',
+    ]);
+    expect(weeks[0]).toMatchObject({ taken: 3, absent: 1, cancelled: 1 });
+    expect(weeks[1]).toMatchObject({ taken: 1 });
   });
 });

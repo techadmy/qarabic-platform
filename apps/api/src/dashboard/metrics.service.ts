@@ -277,7 +277,7 @@ export class DashboardMetricsService {
       const invoiced = await this.prisma.$queryRaw<
         Array<{ bucket: string; currency: string; month: string; amount: Prisma.Decimal }>
       >`
-        SELECT to_char(date_trunc(${bucket}, issue_date::timestamp), 'YYYY-MM-DD') AS bucket, currency,
+        SELECT to_char(${trunc(bucket, Prisma.sql`issue_date::timestamp`)}, 'YYYY-MM-DD') AS bucket, currency,
                to_char(issue_date, 'YYYY-MM') AS month, sum(total) AS amount
           FROM invoices
          WHERE ${BILLED} AND issue_date BETWEEN ${r.from}::date AND ${r.to}::date
@@ -299,7 +299,7 @@ export class DashboardMetricsService {
         ]),
       );
       const firsts = await this.prisma.$queryRaw<Array<{ bucket: string; n: bigint }>>`
-        SELECT to_char(date_trunc(${bucket}, f.first::timestamp), 'YYYY-MM-DD') AS bucket, count(*) AS n
+        SELECT to_char(${trunc(bucket, Prisma.sql`f.first::timestamp`)}, 'YYYY-MM-DD') AS bucket, count(*) AS n
           FROM (SELECT min(starts_on) AS first FROM enrollments WHERE kind = 'regular' GROUP BY student_id) f
          WHERE f.first BETWEEN ${r.from}::date AND ${r.to}::date
          GROUP BY 1`;
@@ -310,7 +310,7 @@ export class DashboardMetricsService {
       const trials = await this.prisma.$queryRaw<
         Array<{ bucket: string; booked: bigint; attended: bigint }>
       >`
-        SELECT to_char(date_trunc(${bucket}, starts_at AT TIME ZONE ${zone}), 'YYYY-MM-DD') AS bucket,
+        SELECT to_char(${trunc(bucket, Prisma.sql`starts_at AT TIME ZONE ${zone}`)}, 'YYYY-MM-DD') AS bucket,
                count(*) FILTER (WHERE ${LIVE_STAGES}) AS booked,
                count(*) FILTER (WHERE stage = 'taken') AS attended
           FROM class_sessions
@@ -323,7 +323,7 @@ export class DashboardMetricsService {
         p.trialsAttended = Number(row.attended);
       }
       const converted = await this.prisma.$queryRaw<Array<{ bucket: string; n: bigint }>>`
-        SELECT to_char(date_trunc(${bucket}, converted_at AT TIME ZONE ${zone}), 'YYYY-MM-DD') AS bucket,
+        SELECT to_char(${trunc(bucket, Prisma.sql`converted_at AT TIME ZONE ${zone}`)}, 'YYYY-MM-DD') AS bucket,
                count(*) AS n
           FROM leads WHERE converted_at >= ${r.start} AND converted_at < ${r.end}
          GROUP BY 1`;
@@ -360,7 +360,7 @@ export class DashboardMetricsService {
       const zero = () => ({ taken: 0, absent: 0, leave: 0, declined: 0, cancelled: 0 });
       const points = new Map(keys.map((k) => [k, zero()]));
       const rows = await this.prisma.$queryRaw<Array<{ bucket: string; stage: string; n: bigint }>>`
-        SELECT to_char(date_trunc(${bucket}, starts_at AT TIME ZONE ${zone}), 'YYYY-MM-DD') AS bucket,
+        SELECT to_char(${trunc(bucket, Prisma.sql`starts_at AT TIME ZONE ${zone}`)}, 'YYYY-MM-DD') AS bucket,
                stage::text AS stage, count(*) AS n
           FROM class_sessions
          WHERE deleted_at IS NULL AND stage IN ('taken', 'absent', 'leave', 'declined', 'cancelled')
@@ -405,7 +405,7 @@ export class DashboardMetricsService {
     return this.prisma.$queryRaw<
       Array<{ bucket: string; currency: string; month: string; amount: Prisma.Decimal }>
     >`
-      SELECT to_char(date_trunc(${bucket}, received_at AT TIME ZONE ${zone}), 'YYYY-MM-DD') AS bucket,
+      SELECT to_char(${trunc(bucket, Prisma.sql`received_at AT TIME ZONE ${zone}`)}, 'YYYY-MM-DD') AS bucket,
              currency, to_char(received_at AT TIME ZONE ${zone}, 'YYYY-MM') AS month,
              sum(amount) AS amount
         FROM payments
@@ -468,7 +468,7 @@ export class DashboardMetricsService {
         net: Prisma.Decimal;
       }>
     >`
-      SELECT to_char(date_trunc(${bucket}, l.entry_date::timestamp), 'YYYY-MM-DD') AS bucket, l.currency,
+      SELECT to_char(${trunc(bucket, Prisma.sql`l.entry_date::timestamp`)}, 'YYYY-MM-DD') AS bucket, l.currency,
              to_char(l.entry_date, 'YYYY-MM') AS month, a.type::text AS type,
              coalesce(a.system_key = 'salaries_expense', false) AS teacher,
              sum(l.credit - l.debit) AS net
@@ -497,14 +497,24 @@ function addLedger(
   if (row.type === 'income' || row.teacher) gross.add(row.currency, row.month, row.net);
 }
 
-/** First academy-local day of every bucket that overlaps [from, to] (weeks start on Monday). */
+/**
+ * The bucket start of a local timestamp or date. The academy's week starts on Saturday (docs/15
+ * §5.12): Postgres weeks start on Monday, so shift by two days, truncate, and shift back.
+ */
+function trunc(bucket: DashboardBucket, value: Prisma.Sql): Prisma.Sql {
+  return bucket === 'week'
+    ? Prisma.sql`(date_trunc('week', ${value} + interval '2 days') - interval '2 days')`
+    : Prisma.sql`date_trunc(${bucket}, ${value})`;
+}
+
+/** First academy-local day of every bucket that overlaps [from, to] (weeks start on Saturday). */
 export function bucketKeys(from: string, to: string, bucket: DashboardBucket): string[] {
   const start =
     bucket === 'day'
       ? from
       : bucket === 'month'
         ? `${from.slice(0, 7)}-01`
-        : addDays(from, -((new Date(`${from}T00:00:00Z`).getUTCDay() + 6) % 7));
+        : addDays(from, -((new Date(`${from}T00:00:00Z`).getUTCDay() + 1) % 7));
   const keys: string[] = [];
   for (let k = start; k <= to;) {
     keys.push(k);
