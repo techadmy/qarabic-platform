@@ -3,6 +3,7 @@ import { SchedulerRegistry } from '@nestjs/schedule';
 import { CronJob } from 'cron';
 import { ENV, type Env } from '../config/env.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { PaymentReconciler } from './reconcile.service.js';
 import { InvoiceReminderService, type ReminderStats } from './reminders.service.js';
 
 /**
@@ -21,6 +22,7 @@ export class BillingJobs implements OnApplicationBootstrap {
     private readonly registry: SchedulerRegistry,
     private readonly settings: SettingsService,
     private readonly reminders: InvoiceReminderService,
+    private readonly reconciler: PaymentReconciler,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -37,6 +39,18 @@ export class BillingJobs implements OnApplicationBootstrap {
     });
     this.registry.addCronJob('billing:reminders', job);
     job.start();
+    // P1-2: nightly reconciliation of stuck online attempts (03:10 academy time).
+    const nightly = CronJob.from({
+      cronTime: '0 10 3 * * *',
+      timeZone: zone,
+      onTick: () => {
+        this.reconciler
+          .run()
+          .catch((error: unknown) => this.logger.error('billing:reconcile failed', error as Error));
+      },
+    });
+    this.registry.addCronJob('billing:reconcile', nightly);
+    nightly.start();
   }
 
   async sendReminders(): Promise<ReminderStats> {

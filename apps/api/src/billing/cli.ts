@@ -2,6 +2,7 @@ import type { INestApplicationContext } from '@nestjs/common';
 import { fromMinor } from '@qarabic/shared';
 import { InvoiceService } from './invoices.service.js';
 import { BillingJobs } from './jobs.js';
+import { PaymentReconciler } from './reconcile.service.js';
 
 export interface CliResult {
   code: number;
@@ -20,6 +21,15 @@ export async function billingCommand(
   command: string | undefined,
   args: string[],
 ): Promise<CliResult | null> {
+  if (command === 'billing:reconcile') {
+    const r = await app.get(PaymentReconciler).run();
+    return {
+      code: r.failed ? 1 : 0,
+      out: [
+        `Checked ${r.checked} stuck online payment(s): ${r.paid} paid, ${r.closed} closed, ${r.failed} failed.`,
+      ],
+    };
+  }
   if (command === 'billing:reminders') {
     const stats = await app.get(BillingJobs).sendReminders();
     return {
