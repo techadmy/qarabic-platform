@@ -66,7 +66,14 @@ describe('D2 management dashboard (docs/40, D144)', () => {
   it('a month with no exchange rate is said, never shown as 0 (D144)', async () => {
     renderPage(<StaffHomeView />, { path: '/?range=last_12_months' });
     await kpis();
-    expect(await screen.findByText(/لا يوجد سعر صرف إلى الدولار لـ/)).toBeInTheDocument();
+    // A banner on top, the chart note, and the card shows the original currencies instead of
+    // a USD total.
+    expect(await screen.findByText('أسعار صرف ناقصة')).toBeInTheDocument();
+    expect(screen.getAllByText(/لا يوجد سعر صرف إلى الدولار لـ/).length).toBeGreaterThan(1);
+    const collected = screen.getByRole('link', { name: /^المُحصّل/ });
+    expect(collected).toHaveTextContent('—');
+    expect(collected).toHaveTextContent(/£/);
+    expect(collected).not.toHaveTextContent(/\$0\b/);
   });
 
   it('billing staff see the money widgets only; a monitor the classes only', async () => {

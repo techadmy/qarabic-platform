@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useUiLocale } from '@/components/sessions/times';
+import type { UsdMoney } from '@qarabic/shared';
+import { Money } from '@/components/billing/billing-bits';
 import { changePct } from '@/lib/dashboard/range';
 import { intlLocale } from '@/lib/time';
 
@@ -26,6 +28,27 @@ export function Usd({ amount, compact = false }: { amount: string | number; comp
     <bdi dir="ltr" className="tabular-nums">
       {n < 0 ? '−' : ''}${text}
     </bdi>
+  );
+}
+
+/**
+ * A USD total (D144). When a part has no exchange rate the API sends no USD figure: the card shows
+ * «—» and the amounts in their own currencies instead of a wrong total (never a silent 0).
+ */
+export function UsdTotal({ money }: { money: UsdMoney }) {
+  if (money.usd !== null && !money.missingRate) return <Usd amount={money.usd} />;
+  return <span aria-hidden>—</span>;
+}
+
+/** The original-currency parts of a total that could not be converted («€1,200 · £340»). */
+export function CurrencyParts({ money }: { money: UsdMoney }) {
+  if (money.usd !== null && !money.missingRate) return null;
+  return (
+    <span className="flex flex-wrap gap-x-2">
+      {money.byCurrency.map((p) => (
+        <Money key={p.currency} amount={p.amount} currency={p.currency} />
+      ))}
+    </span>
   );
 }
 

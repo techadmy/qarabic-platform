@@ -4236,21 +4236,22 @@
       }
     },
     "kpi": {
-      "activeStudents": "Active students",
-      "newStudents": "New students",
-      "teachersOnDuty": "Teachers on duty",
+      "active_students": "Active students",
+      "new_students": "New students",
+      "teachers_on_duty": "Teachers on duty",
       "trials": "Trial classes",
       "collected": "Collected",
       "outstanding": "Outstanding",
-      "grossProfit": "Gross profit",
-      "attendanceRate": "Attendance rate",
+      "gross_profit": "Gross profit",
+      "attendance_rate": "Attendance rate",
       "trialsDetail": "{attended} attended · {converted} converted (<pct></pct>)",
       "overdue": "<amount></amount> of it overdue",
       "missingRate": "Some amounts have no exchange rate; the total is incomplete.",
       "error": "Couldn’t load",
       "up": "up from the previous period",
       "down": "down from the previous period",
-      "flat": "no change from the previous period"
+      "flat": "no change from the previous period",
+      "net_profit": "Net profit"
     },
     "chart": {
       "week": "Week of",
@@ -4258,7 +4259,7 @@
       "error": "Couldn’t load the chart.",
       "retry": "Try again",
       "empty": "No data in this period.",
-      "finance": {
+      "revenue_expenses": {
         "title": "Revenue, expenses and profit",
         "description": "In US dollars, from the ledger.",
         "revenue": "Revenue",
@@ -4271,14 +4272,14 @@
         "collected": "Collected",
         "invoiced": "Invoiced"
       },
-      "growth": {
+      "students_trials": {
         "title": "New students and trial classes",
         "description": "New students, trial classes, and how many became regular.",
         "newStudents": "New students",
         "trials": "Trial classes",
         "converted": "Became regular"
       },
-      "outcomes": {
+      "class_outcomes": {
         "title": "Class outcomes",
         "description": "How classes ended in each period.",
         "taken": "Taken",
@@ -4287,6 +4288,10 @@
         "declined": "Declined",
         "cancelled": "Cancelled"
       }
+    },
+    "missingRates": {
+      "title": "Missing exchange rates",
+      "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency."
     }
   }
 }

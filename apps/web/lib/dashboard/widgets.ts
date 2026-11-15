@@ -1,29 +1,39 @@
+import { visibleWidgets, type DashboardWidget, type UsdMoney } from '@qarabic/shared';
+
 /**
- * The dashboard's widgets and the permission each needs (docs/40 §2.1–2.2). The page shows a
- * widget only to someone who may open its module; the API applies the same rule (a hidden widget's
- * data comes back `null`), so hiding it here is never the only protection.
+ * The dashboard's layout over the shared widget list (docs/40 §2.1–2.2): which widgets are KPI
+ * cards and which are charts, and the list each KPI opens (docs/40 §2.5). Who may see a widget
+ * comes from `visibleWidgets()` in `@qarabic/shared`, the same rule the API applies.
  */
-export const KPI_WIDGETS = [
-  { key: 'activeStudents', permission: 'sessions.view', href: '/students?status=active' },
-  { key: 'newStudents', permission: 'sessions.view', href: '/students?sort=-created' },
-  { key: 'teachersOnDuty', permission: 'sessions.view', href: '/teachers' },
-  { key: 'trials', permission: 'leads.view', href: '/trials' },
-  { key: 'collected', permission: 'invoices.view', href: '/invoices?status=paid' },
-  { key: 'outstanding', permission: 'invoices.view', href: '/invoices?status=overdue' },
-  { key: 'grossProfit', permission: 'reports.financial', href: '/accounting/reports' },
-  { key: 'attendanceRate', permission: 'sessions.view', href: '/today' },
-] as const;
-export type KpiKey = (typeof KPI_WIDGETS)[number]['key'];
+export const KPI_HREF: Partial<Record<DashboardWidget, string>> = {
+  active_students: '/students?status=active',
+  new_students: '/students?sort=-created',
+  teachers_on_duty: '/teachers',
+  trials: '/trials',
+  attendance_rate: '/today',
+  collected: '/invoices?status=paid',
+  outstanding: '/invoices?status=overdue',
+  gross_profit: '/accounting/reports',
+  net_profit: '/accounting/reports',
+};
 
-export const CHART_WIDGETS = [
-  { key: 'finance', permission: 'reports.financial' },
-  { key: 'collections', permission: 'invoices.view' },
-  { key: 'growth', permission: 'leads.view' },
-  { key: 'outcomes', permission: 'sessions.view' },
-] as const;
-export type ChartKey = (typeof CHART_WIDGETS)[number]['key'];
+/** D2: the four main charts (the rest come in D3). */
+export const MAIN_CHARTS = [
+  'revenue_expenses',
+  'collections',
+  'students_trials',
+  'class_outcomes',
+] as const satisfies readonly DashboardWidget[];
+export type MainChart = (typeof MAIN_CHARTS)[number];
 
-export const visibleWidgets = <T extends { permission: string }>(
-  widgets: readonly T[],
-  permissions: readonly string[],
-) => widgets.filter((w) => permissions.includes(w.permission));
+export function dashboardLayout(permissions: readonly string[]) {
+  const visible = visibleWidgets(new Set(permissions));
+  return {
+    kpis: visible.filter((w) => w in KPI_HREF),
+    charts: MAIN_CHARTS.filter((w) => visible.includes(w)),
+  };
+}
+
+/** A USD total as a number, or null when a rate is missing (a gap, never a 0). */
+export const usdOf = (m: UsdMoney | null | undefined): number | null =>
+  m && m.usd !== null && !m.missingRate ? Number(m.usd) : null;

@@ -35,7 +35,8 @@ import { useUiLocale } from '@/components/sessions/times';
 import type { Bucket } from '@/lib/dashboard/range';
 import { intlLocale } from '@/lib/time';
 
-type Point = Record<string, string | number | boolean> & { bucket: string };
+/** A bucket's values; `null` is a gap (an amount without an exchange rate), never a 0. */
+type Point = Record<string, string | number | boolean | null> & { bucket: string };
 
 /** «18 نوف» / «أسبوع 14 نوف» / «نوف 26»: a bucket's start in the UI language. */
 export function bucketLabel(key: string, bucket: Bucket, locale: 'ar' | 'en', week: string) {
@@ -148,7 +149,7 @@ export function SeriesChart({
   const rows = data.map((p) => ({
     ...p,
     label: bucketLabel(p.bucket, bucket, locale, tw('week')),
-    ...Object.fromEntries(keys.map((k) => [k, Number(p[k])])),
+    ...Object.fromEntries(keys.map((k) => [k, p[k] === null ? null : Number(p[k])])),
   }));
   const ordered = locale === 'ar' ? [...rows].reverse() : rows;
   // Compact ticks; money with a «$» in front (the card says it is USD).

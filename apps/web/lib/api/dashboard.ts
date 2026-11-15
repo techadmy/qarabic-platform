@@ -1,18 +1,26 @@
-import { apiFetch } from './client';
+import { dashboardMetricsSchema, type DashboardMetricsDto } from '@qarabic/shared';
 import { z } from 'zod';
-import {
-  dashboardMetricsSchema,
-  type DashboardMetricsDto,
-  type DashboardMetricsQuery,
-} from '@/lib/dashboard/metrics';
+import { apiFetch } from './client';
 
-/** D2: the dashboard's KPIs and series for a range (docs/40 §5). */
+export interface DashboardMetricsQuery {
+  from: string;
+  to: string;
+  compare: boolean;
+  bucket: 'day' | 'week' | 'month';
+}
+
+/** D2: the dashboard's KPIs and series for a range (docs/40 §5, `GET /dashboard/metrics`). */
 export async function fetchDashboardMetrics(
   q: DashboardMetricsQuery,
   signal?: AbortSignal,
 ): Promise<DashboardMetricsDto> {
-  const qs = new URLSearchParams({ from: q.from, to: q.to, bucket: q.bucket });
-  if (q.compare) qs.set('compare', '1');
+  // The API compares by default: say «none» when the switch is off.
+  const qs = new URLSearchParams({
+    from: q.from,
+    to: q.to,
+    bucket: q.bucket,
+    compare: q.compare ? 'prev' : 'none',
+  });
   return (
     await apiFetch(`/dashboard/metrics?${qs}`, {
       schema: z.object({ data: dashboardMetricsSchema }),
