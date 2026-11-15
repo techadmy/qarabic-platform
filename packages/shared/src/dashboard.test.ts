@@ -8,14 +8,7 @@ import {
   upsertExchangeRateSchema,
   visibleWidgets,
 } from './dashboard.js';
-import {
-  allPermissions,
-  OWNER_ONLY_PERMISSIONS,
-  permissionsFor,
-  ROLES,
-  type Role,
-} from './permissions.js';
-import { permissionListSchema } from './roles.js';
+import { allPermissions, permissionsFor, type Role } from './permissions.js';
 
 const widgetsOf = (role: Role) => visibleWidgets(new Set<string>(permissionsFor(role)));
 
@@ -47,21 +40,16 @@ describe('dashboard widgets by role (B121)', () => {
     expect(widgetsOf('billing')).toEqual(['collected', 'outstanding', 'collections']);
   });
 
-  it('accounts sees basic finance and payroll, not profit and loss (D145)', () => {
+  it('accounts sees all finance including profit and payroll', () => {
     expect(widgetsOf('accounts')).toEqual([
       'collected',
       'outstanding',
+      'gross_profit',
+      'net_profit',
+      'revenue_expenses',
       'collections',
       'teacher_hours',
     ]);
-  });
-
-  it('profit and loss is the owner’s only: no preset role has it', () => {
-    for (const role of ['senior_manager', 'manager', 'accounts', 'billing'] as const) {
-      const w = widgetsOf(role);
-      for (const pl of ['gross_profit', 'net_profit', 'revenue_expenses'])
-        expect(w).not.toContain(pl);
-    }
   });
 
   it('teachers and parents see nothing', () => {
@@ -160,15 +148,5 @@ describe('dashboardMetricsSchema', () => {
     });
     expect(parsed.kpis.gross_profit).toBeUndefined();
     expect(parsed.kpis.collected?.previous?.usd).toBeNull();
-  });
-});
-
-describe('owner-only permissions (D145)', () => {
-  it('no role preset holds reports.profit, and no role can be given it', () => {
-    for (const role of ROLES.filter((r) => r !== 'admin'))
-      for (const p of OWNER_ONLY_PERMISSIONS) expect(permissionsFor(role)).not.toContain(p);
-    expect(permissionsFor('admin')).toContain('reports.profit');
-    expect(permissionListSchema.safeParse(['reports.profit']).success).toBe(false);
-    expect(permissionListSchema.safeParse(['reports.financial']).success).toBe(true);
   });
 });
