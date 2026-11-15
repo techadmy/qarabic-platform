@@ -47,6 +47,7 @@ import { TicketCli } from './support/ticket-cli.js';
  *   pnpm --filter @qarabic/api cli invoices:generate --period=YYYY-MM [--day=1|15] [--family=ID ...]
  *                                                    (--dry-run | --due=YYYY-MM-DD)
  *   pnpm --filter @qarabic/api cli billing:reminders   (a no-op while billing.notify_parents is off)
+ *   pnpm --filter @qarabic/api cli billing:reconcile   (stuck online payments at the provider, sandbox; P1-2)
  *
  * N8 data move from the Laravel MySQL database (docs/34 §5, docs/37). Refuses a target database
  * whose name does not end in _rehearsal, _dev or _test without --i-know-this-is-production:
@@ -204,7 +205,7 @@ async function main(): Promise<number> {
       default:
         console.error(
           'Commands: sessions:generate, session-requests:expire, zoom:ensure-upcoming, sessions:audit-overlaps, leads:notify, trials:expire-offers, trials:follow-up, support:sla, ' +
-            'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, payroll:compute, ' +
+            'tickets:list, tickets:show, tickets:status, tickets:reply, invoices:generate, billing:reminders, billing:reconcile, payroll:compute, ' +
             'ledger:post, openapi:export, legacy:import, legacy:verify',
         );
         return 2;
