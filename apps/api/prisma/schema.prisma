@@ -431,19 +431,20 @@ model Teacher {
   // N4 support centre
   tickets Ticket[]
 
-  user            User              @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
-  statusChangedBy User?             @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
-  archivedBy      User?             @relation("TeacherArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
-  courses         TeacherCourse[]
-  students        Student[]
-  enrollments     Enrollment[]
-  slots           ScheduleSlot[]
-  sessions        ClassSession[]
-  blocks          TeacherBlock[]
-  workHours       TeacherWorkHour[]
-  zoomHosts       ZoomHost[]
-  lessonReports   LessonReport[]
-  tests           StudentTest[]
+  user                User                 @relation("TeacherUser", fields: [userId], references: [id], onDelete: Restrict)
+  statusChangedBy     User?                @relation("TeacherStatusChangedBy", fields: [statusChangedById], references: [id], onDelete: SetNull)
+  archivedBy          User?                @relation("TeacherArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  courses             TeacherCourse[]
+  students            Student[]
+  enrollments         Enrollment[]
+  slots               ScheduleSlot[]
+  sessions            ClassSession[]
+  blocks              TeacherBlock[]
+  availabilityChanges AvailabilityChange[]
+  workHours           TeacherWorkHour[]
+  zoomHosts           ZoomHost[]
+  lessonReports       LessonReport[]
+  tests               StudentTest[]
 
   // N7: the hourly rate lives on the pay profile (D89); back-relations.
   payProfile PayProfile?
@@ -703,6 +704,47 @@ model TeacherBlock {
 }
 
 /// The teacher's published weekly working hours (docs/14 §2.7). No rows = not set.
+enum AvailabilityChangeKind {
+  work_hours
+  block_create
+  block_update
+  block_delete
+}
+
+enum AvailabilityChangeStatus {
+  pending
+  approved
+  applied
+  rejected
+  withdrawn
+}
+
+/// A1 (docs/42 §4, B131): a teacher's change to their own work hours or blocks, waiting for staff
+/// approval. Work hours apply from `effective_from` (the teacher's local date).
+model AvailabilityChange {
+  id             Int                      @id @default(autoincrement())
+  teacherId      Int                      @map("teacher_id")
+  kind           AvailabilityChangeKind
+  blockId        Int?                     @map("block_id")
+  payload        Json
+  effectiveFrom  DateTime                 @map("effective_from") @db.Date
+  status         AvailabilityChangeStatus @default(pending)
+  note           String?                  @db.VarChar(500)
+  requestedById  Int?                     @map("requested_by")
+  decidedById    Int?                     @map("decided_by")
+  decidedAt      DateTime?                @map("decided_at") @db.Timestamptz(6)
+  decisionReason String?                  @map("decision_reason") @db.VarChar(500)
+  appliedAt      DateTime?                @map("applied_at") @db.Timestamptz(6)
+  createdAt      DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  teacher Teacher @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+
+  @@index([status, teacherId])
+  @@index([status, effectiveFrom])
+  @@map("availability_changes")
+}
+
 model TeacherWorkHour {
   id             Int      @id @default(autoincrement())
   teacherId      Int      @map("teacher_id")
