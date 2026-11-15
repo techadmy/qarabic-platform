@@ -149,6 +149,14 @@ export const dashboardHandlers: HttpHandler[] = [
         previous: before ? { total: usd(before.outstanding), overdue: usd(before.overdue) } : null,
       };
     }
+    if (has('collection_rate')) {
+      // D146: unknown (null) when a month of the period has no rate.
+      const rate = (seed: string) => Math.round((0.78 + noise(seed) * 0.17) * 1000) / 1000;
+      kpis.collection_rate = {
+        value: noRate ? null : rate('cr' + from),
+        previous: previous ? rate('cr' + previous.from) : null,
+      };
+    }
     if (has('gross_profit')) {
       kpis.gross_profit = { value: usd(now.gross), previous: before ? usd(before.gross) : null };
     }
@@ -200,6 +208,14 @@ export const dashboardHandlers: HttpHandler[] = [
         { source: 'web_form', count: 41 },
         { source: 'whatsapp', count: 27 },
         { source: 'referral', count: 18 },
+      ];
+    }
+    if (has('lost_reasons')) {
+      series.lost_reasons = [
+        { reason: 'no_response', count: 14 },
+        { reason: 'price', count: 9 },
+        { reason: 'schedule', count: 6 },
+        { reason: 'not_interested', count: 4 },
       ];
     }
     if (has('class_outcomes')) {

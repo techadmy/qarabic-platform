@@ -63,10 +63,19 @@ const KIND_ONLY: Record<string, Role> = {
 };
 
 /** Queries a route validates before its handler runs (so the handler's own rule is reached). */
-const REQUIRED_QUERY: Record<string, string> = { 'GET tests/summary': '?month=2026-11' };
+// Colons encoded: the route helpers substitute `:param` placeholders.
+const CAL = '?from=2026-11-01T00%3A00%3A00Z&to=2026-11-29T00%3A00%3A00Z';
+const REQUIRED_QUERY: Record<string, string> = {
+  'GET tests/summary': '?month=2026-11',
+  'GET calendar/events': CAL,
+  'GET calendar/background': CAL,
+};
 
 /** Routes a role passes at the guard but the handler refuses to that role outright (403). */
 const HANDLER_DENIES: Record<string, Role[]> = {
+  // C1: the calendar is for staff and teachers (a parent calendar comes with the portal later).
+  'GET calendar/background': ['parent'],
+  'GET calendar/events': ['parent'],
   'GET lesson-reports': ['parent'],
   'GET tests/summary': ['parent'],
 };
@@ -119,6 +128,8 @@ const PARENT_ROUTES = [
   'GET announcements',
   'GET announcements/:id',
   'GET billing/providers',
+  'GET calendar/background',
+  'GET calendar/events',
   'GET enrollments',
   'GET enrollments/:id',
   'GET families',
@@ -171,6 +182,8 @@ const TEACHER_ROUTES = [
   'GET announcements/:id',
   'GET attendance',
   'GET attendance/today',
+  'GET calendar/background',
+  'GET calendar/events',
   'GET enrollments',
   'GET enrollments/:id',
   'GET feedback/attachments/:id',
@@ -492,6 +505,8 @@ const PARENT_LISTS = [
 const TEACHER_LISTS = [
   'GET attendance',
   'GET attendance/today',
+  `GET calendar/background${CAL}`,
+  `GET calendar/events${CAL}`,
   'GET enrollments',
   'GET feedback/summary',
   'GET feedback/tickets',
@@ -517,6 +532,8 @@ const TEACHER_LISTS = [
  * status, and why.
  */
 const PARENT_DENIED: Array<[string, number, string]> = [
+  [`GET calendar/background${CAL}`, 403, 'the calendar is for staff and teachers'],
+  [`GET calendar/events${CAL}`, 403, 'the calendar is for staff and teachers'],
   ['GET lesson-reports', 403, 'the reports list is for staff and teachers'],
   ['GET tests/summary?month=2026-11', 403, 'the month summary is for staff and teachers'],
   ['GET teachers/:teacherId/blocks', 404, 'a parent reads no teacher calendar'],

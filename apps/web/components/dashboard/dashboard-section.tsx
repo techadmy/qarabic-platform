@@ -1,6 +1,12 @@
 'use client';
 
-import type { DashboardMetricsDto, UsdMoney } from '@qarabic/shared';
+import {
+  AGEING_BANDS,
+  LEAD_SOURCES,
+  LOST_REASONS,
+  type DashboardMetricsDto,
+  type UsdMoney,
+} from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import type { ChartConfig } from '@qarabic/ui/components/chart';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -17,12 +23,12 @@ import {
   dashboardLayout,
   kpiHref,
   usdOf,
+  type ChartWidget,
   type KpiWidget,
-  type MainChart,
 } from '@/lib/dashboard/widgets';
 import { useListParams } from '@/lib/list-params';
 import { intlLocale } from '@/lib/time';
-import { bucketLabel, ChartCard, SeriesChart } from './charts';
+import { bucketLabel, CategoryBars, ChartCard, Donut, SeriesChart } from './charts';
 import { Change, Count, CurrencyParts, KpiCard, Pct, Usd, UsdTotal } from './kpi-card';
 import { RangeBar } from './range-bar';
 
@@ -114,8 +120,10 @@ export function DashboardSection() {
           />
         );
       }
-      case 'attendance_rate': {
-        const v = k?.attendance_rate;
+      case 'attendance_rate':
+      case 'collection_rate': {
+        const v = k?.[widget];
+        // D146: no rate for a month of the period → the share is unknown (null), said by the banner.
         return (
           <KpiCard
             key={key}
@@ -174,7 +182,7 @@ export function DashboardSection() {
   };
 
   const s = d?.series;
-  const chart = (widget: MainChart) => {
+  const chart = (widget: ChartWidget) => {
     const common = {
       id: `dash-${widget}`,
       title: t(`chart.${widget}.title`),
@@ -307,6 +315,112 @@ export function DashboardSection() {
           </ChartCard>
         );
       }
+      case 'ageing': {
+        const ageing = s?.collections?.ageing;
+        const data = AGEING_BANDS.map((b) => ({ key: b, value: ageing ? usdOf(ageing[b]) : null }));
+        const config = Object.fromEntries(
+          AGEING_BANDS.map((b) => [b, { label: t(`chart.ageing.${b}`) }]),
+        ) satisfies ChartConfig;
+        const missing = AGEING_BANDS.filter((b) => ageing?.[b].missingRate).map((b) =>
+          t(`chart.ageing.${b}`),
+        );
+        return (
+          <ChartCard
+            key={widget}
+            {...common}
+            empty={!ageing || data.every((p) => !p.value)}
+            missingRate={missing}
+          >
+            <CategoryBars
+              data={data}
+              config={config}
+              money
+              color="var(--chart-3)"
+              summary={categorySummary(config, data, locale, true)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'leads_by_source': {
+        const rows = s?.leads_by_source ?? [];
+        const data = LEAD_SOURCES.map((src) => ({
+          key: src,
+          value: rows.find((r) => r.source === src)?.count ?? 0,
+        }))
+          .filter((p) => p.value > 0)
+          .sort((a, b) => b.value - a.value);
+        // Series colours in rank order; «other» always the neutral one.
+        let next = 0;
+        const config = Object.fromEntries(
+          data.map((p) => [
+            p.key,
+            {
+              label: t(`chart.leads_by_source.${p.key}`),
+              color: p.key === 'other' ? 'var(--chart-cancelled)' : `var(--chart-${++next})`,
+            },
+          ]),
+        ) satisfies ChartConfig;
+        return (
+          <ChartCard key={widget} {...common} empty={!data.length}>
+            <Donut
+              data={data}
+              config={config}
+              totalLabel={t('chart.leads_by_source.total')}
+              summary={categorySummary(config, data, locale)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'lost_reasons': {
+        const rows = s?.lost_reasons ?? [];
+        const data = LOST_REASONS.map((r) => ({
+          key: r,
+          value: rows.find((x) => x.reason === r)?.count ?? 0,
+        }))
+          .filter((p) => p.value > 0)
+          .sort((a, b) => b.value - a.value);
+        const config = Object.fromEntries(
+          LOST_REASONS.map((r) => [r, { label: t(`chart.lost_reasons.${r}`) }]),
+        ) satisfies ChartConfig;
+        return (
+          <ChartCard key={widget} {...common} empty={!data.length}>
+            <CategoryBars
+              data={data}
+              config={config}
+              summary={categorySummary(config, data, locale)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'teacher_hours': {
+        const pts = s?.teacher_hours ?? [];
+        const data = pts.map((p) => ({ bucket: p.bucket, hours: p.hours }));
+        const config = {
+          hours: { label: t('chart.teacher_hours.hours'), color: 'var(--chart-1)' },
+        } satisfies ChartConfig;
+        const payroll = pts.map((p) => usdOf(p.payroll));
+        const payrollTotal = payroll.some((x) => x === null)
+          ? null
+          : payroll.reduce<number>((a, x) => a + (x ?? 0), 0);
+        const missing = pts.filter((p) => p.payroll.missingRate).map((p) => label(p.bucket));
+        return (
+          <ChartCard key={widget} {...common} empty={!pts.length} missingRate={missing}>
+            <SeriesChart
+              kind="bar"
+              data={data}
+              config={config}
+              bucket={range.bucket}
+              summary={summaryOf(config, data, locale)}
+            />
+            <p className="text-sm text-muted-foreground">
+              {t.rich('chart.teacher_hours.payroll', {
+                amount: () =>
+                  payrollTotal === null ? '—' : <Usd amount={payrollTotal.toFixed(2)} />,
+              })}
+            </p>
+          </ChartCard>
+        );
+      }
     }
   };
 
@@ -324,7 +438,10 @@ export function DashboardSection() {
       {live.stale && <RefreshFailed onRetry={retry} />}
       {d && d.missingRates.length > 0 && <MissingRates rates={d.missingRates} />}
       {kpis.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3" aria-busy={loading || undefined}>
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
+          aria-busy={loading || undefined}
+        >
           {kpis.map(kpiCard)}
         </div>
       )}
@@ -356,6 +473,24 @@ function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] })
       </AlertDescription>
     </Alert>
   );
+}
+
+/** «السعر: 12 · المواعيد: 7»: a category chart said once. */
+function categorySummary(
+  config: ChartConfig,
+  data: { key: string; value: number | null }[],
+  locale: 'ar' | 'en',
+  money = false,
+): string {
+  const fmt = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
+  return data
+    .map(
+      (p) =>
+        `${String(config[p.key]?.label ?? p.key)}: ${
+          p.value === null ? '—' : `${money ? '$' : ''}${fmt.format(p.value)}`
+        }`,
+    )
+    .join(' · ');
 }
 
 /** Teacher pay + other expenses in USD, or null when either lacks a rate. */

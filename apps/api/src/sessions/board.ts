@@ -15,6 +15,7 @@ import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
 import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import type { Prisma } from '../generated/prisma/client.js';
+import type { SessionKind } from '../generated/prisma/enums.js';
 import { isParentViewer, isTeacherViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { isValidZone } from '../schedule/time.js';
@@ -102,6 +103,7 @@ export class SessionReads {
     if (q.teacherId) and.push({ teacherId: q.teacherId });
     if (q.studentId) and.push({ studentId: q.studentId });
     if (q.enrollmentId) and.push({ enrollmentId: q.enrollmentId });
+    if (q.courseIds?.length) and.push({ courseId: { in: q.courseIds } });
     if (q.kind?.length) and.push({ kind: { in: q.kind } });
     if (q.attention === 'needs_review') and.push({ needsReview: true });
     if (q.attention === 'zoom_failed') and.push({ zoomStatus: 'failed' });
@@ -201,7 +203,7 @@ export class SessionReads {
    * so an unchanged board answers 304).
    */
   async board(
-    q: { date?: string; tz?: string; since?: string },
+    q: { date?: string; tz?: string; since?: string; courseIds?: number[]; kinds?: SessionKind[] },
     viewer: AuthUser,
   ): Promise<{ body: Omit<BoardDto, 'serverTime'>; etag: string }> {
     const zone = q.tz ?? (await this.viewerZone(viewer));
@@ -217,6 +219,9 @@ export class SessionReads {
             lt: new Date(startOfLocalDay(addDays(date, 1), zone)),
           },
         },
+        // D148 T1: the counters follow the filters.
+        ...(q.courseIds?.length ? [{ courseId: { in: q.courseIds } }] : []),
+        ...(q.kinds?.length ? [{ kind: { in: q.kinds } }] : []),
       ],
     };
     const orderBy = [{ startsAt: 'asc' as const }, { id: 'asc' as const }];

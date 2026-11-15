@@ -7,6 +7,7 @@ import { LessonReportsService } from '../sessions/lesson-reports.js';
 import { SessionPresenter } from '../sessions/presenter.js';
 import { SessionRequestsService } from '../sessions/requests.service.js';
 import { ResyncService } from '../sessions/resync.js';
+import { SeriesEditService } from '../sessions/series.js';
 import {
   LessonReportsController,
   SessionRequestsController,
@@ -52,6 +53,7 @@ import {
   providers: [
     ConflictChecker,
     EnrollmentsService,
+    SeriesEditService,
     CalendarService,
     AvailabilityService,
     ZoomDriver,
