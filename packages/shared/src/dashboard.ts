@@ -50,15 +50,26 @@ export const exchangeRateQuerySchema = z.object({
 });
 
 /** `PUT /accounting/exchange-rates` (`accounting.manage`): set the rate of a currency for a month. */
-export const upsertExchangeRateSchema = z.object({
-  currency: rateCurrencySchema,
-  month: rateMonthSchema,
-  rateToUsd: rateToUsdSchema,
-  note: z.preprocess(
-    (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
-    z.string().trim().max(500).nullable().optional(),
-  ),
-});
+export const upsertExchangeRateSchema = z
+  .object({
+    currency: rateCurrencySchema,
+    month: rateMonthSchema,
+    rateToUsd: rateToUsdSchema,
+    note: z.preprocess(
+      (v) => (typeof v === 'string' && v.trim() === '' ? null : v),
+      z.string().trim().max(500).nullable().optional(),
+    ),
+    /**
+     * A month that already has a rate is never overwritten silently (it re-prices every report):
+     * 409 `rate_exists` with the current rate, unless `replace: true` with a `reason` (audited).
+     */
+    replace: z.boolean().optional(),
+    reason: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => !v.replace || (v.reason !== undefined && v.reason.length >= 3), {
+    path: ['reason'],
+    message: 'Give a reason for replacing the rate.',
+  });
 export type UpsertExchangeRateInput = z.input<typeof upsertExchangeRateSchema>;
 
 /**
