@@ -69,6 +69,11 @@ export class PeriodsService {
       throw accountingError('outbox_pending', HttpStatus.CONFLICT);
     }
     await this.prisma.$transaction(async (tx) => {
+      // BIL-12: exclusive month lock (posting takes it shared), then the outbox check again inside.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`ledger_period:${period}`}))`;
+      if ((await this.outbox.pendingBefore(end, tx)) > 0) {
+        throw accountingError('outbox_pending', HttpStatus.CONFLICT);
+      }
       const row = await tx.accountingPeriod.findUnique({ where: { period } });
       if (row?.closed) throw accountingError('period_already_closed', HttpStatus.CONFLICT);
       const now = this.clock.now();

@@ -134,7 +134,14 @@ export class PaymentService {
       await this.invoices.recalculate(tx, invoice);
       // BIL-1: the open checkouts were for the old balance: nobody should pay them any more.
       closed = await this.invoices.cancelPendingPayments(tx, invoice.id, 'superseded_by_manual');
-      await paymentEvent(tx, BILLING_EVENT.paymentSucceeded, payment, amount, now);
+      // BIL-8 (docs/39 P2-2): the ledger dates a manual payment on the day the money came in.
+      await paymentEvent(
+        tx,
+        BILLING_EVENT.paymentSucceeded,
+        payment,
+        amount,
+        payment.receivedAt ?? now,
+      );
       await this.audit.record(
         {
           actorId: actor.id,
