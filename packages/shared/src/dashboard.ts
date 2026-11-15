@@ -154,8 +154,9 @@ export type DashboardWidget = (typeof DASHBOARD_WIDGETS)[number];
 
 /**
  * Every widget needs ALL of its permissions (the same as the module it reads). The endpoint itself
- * needs `reports.view`. Money needs `reports.financial` (B121: owner, accounts, billing, senior
- * manager); profit also needs `accounting.view`.
+ * needs `reports.view`. Basic finance (collections, outstanding, ageing, payroll) needs
+ * `reports.financial`; profit and loss (expenses, gross and net profit) needs `reports.profit`,
+ * which only the owner holds (D145).
  */
 export const DASHBOARD_WIDGET_PERMISSIONS: Record<DashboardWidget, readonly Permission[]> = {
   active_students: ['reports.view', 'sessions.view'],
@@ -170,9 +171,9 @@ export const DASHBOARD_WIDGET_PERMISSIONS: Record<DashboardWidget, readonly Perm
   collected: ['reports.financial', 'invoices.view'],
   outstanding: ['reports.financial', 'invoices.view'],
   collections: ['reports.financial', 'invoices.view'],
-  gross_profit: ['reports.financial', 'accounting.view'],
-  net_profit: ['reports.financial', 'accounting.view'],
-  revenue_expenses: ['reports.financial', 'accounting.view'],
+  gross_profit: ['reports.profit'],
+  net_profit: ['reports.profit'],
+  revenue_expenses: ['reports.profit'],
   teacher_hours: ['reports.financial', 'payroll.view'],
 };
 
