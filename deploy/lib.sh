@@ -151,13 +151,16 @@ env_set() {
 # never by this shell), so no script ever holds or prints them.
 
 # Commands run as the app user with the Node 24 toolchain first on PATH.
+# Run from the app user's home: a cwd it cannot enter (/root) makes Node's spawn fail (EACCES).
 as_app() {
-  run sudo -u "$QARABIC_USER" -H env "PATH=$QARABIC_NODE_DIR/bin:/usr/local/bin:/usr/bin:/bin" "$@"
+  run sudo -u "$QARABIC_USER" -H \
+    env --chdir="/home/$QARABIC_USER" "PATH=$QARABIC_NODE_DIR/bin:/usr/local/bin:/usr/bin:/bin" "$@"
 }
 
 utc_stamp() { date -u +%Y%m%dT%H%M%SZ; }
 
 # pm2 for the app user (its own PM2_HOME; the global pm2 binary is fine on any Node).
 pm2_app() {
-  run sudo -u "$QARABIC_USER" -H env "PATH=$QARABIC_NODE_DIR/bin:/usr/local/bin:/usr/bin:/bin" pm2 "$@"
+  run sudo -u "$QARABIC_USER" -H \
+    env --chdir="/home/$QARABIC_USER" "PATH=$QARABIC_NODE_DIR/bin:/usr/local/bin:/usr/bin:/bin" pm2 "$@"
 }

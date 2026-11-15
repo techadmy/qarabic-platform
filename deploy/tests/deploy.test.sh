@@ -313,7 +313,8 @@ check "backup fails on a tiny dump" test "$RC" -ne 0
 echo "nginx + pm2 config"
 N8="$DEPLOY/nginx/qarabic-n8.conf"
 check "/app/ goes to Next on 4000 keeping the prefix" has 'proxy_pass http://127.0.0.1:4000;' "$N8"
-check "/app/ wins over the PHP regex (^~)" has 'location \^~ /app/' "$N8"
+check "/app wins over the PHP regex (^~)" has 'location \^~ /app \{' "$N8"
+check "no /app -> /app/ redirect (Next redirects the other way: loop)" hasnt 'return 301 /app/' "$N8"
 check "/api/ goes to Nest on 4100" has 'proxy_pass http://127.0.0.1:4100;' "$N8"
 check "/api/ wins over the PHP regex (^~)" has 'location \^~ /api/' "$N8"
 check "/up goes to the health endpoint" has 'location = /up' "$N8"
@@ -336,6 +337,8 @@ if command -v node >/dev/null; then
       && by["qarabic-web"].args === "start -p 4000 -H 127.0.0.1"
       && by["qarabic-web-rehearsal"].args === "start -p 4001 -H 127.0.0.1"
       && by["qarabic-web-rehearsal"].env.NEXT_DIST_DIR === ".next-rehearsal"
+      && by["qarabic-web"].env.NEXT_PUBLIC_BASE_PATH === "/app"
+      && by["qarabic-web-rehearsal"].env.NEXT_PUBLIC_API_URL === "http://localhost:4200"
       && by["qarabic-api"].node_args[0].endsWith("/api.env")
       && by["qarabic-api-rehearsal"].node_args[1].endsWith("/api-rehearsal.env") && by["qarabic-api-rehearsal"].node_args[0].endsWith("/api.env")
       && !JSON.stringify(c).match(/SECRET|PASSWORD|DATABASE_URL=/);
