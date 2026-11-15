@@ -6,6 +6,7 @@ import {
   reviewPaymentSchema,
   type FamilyCreditDto,
   type PaymentDto,
+  type PaymentReviewItemDto,
 } from '@qarabic/shared';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
@@ -149,14 +150,19 @@ export class PaymentReviewController {
 
   @CanAny('invoices.manage', 'reports.financial')
   @Get('review')
-  async list(): Promise<{ data: PaymentDto[] }> {
+  async list(): Promise<{ data: PaymentReviewItemDto[] }> {
     const rows = await this.prisma.payment.findMany({
       where: { needsReview: true },
-      include: { recordedBy: { select: { id: true, name: true } } },
+      include: {
+        recordedBy: { select: { id: true, name: true } },
+        invoice: { select: { number: true } },
+      },
       orderBy: { id: 'desc' },
       take: 500,
     });
-    return { data: rows.map((p) => paymentDto(p, true)) };
+    return {
+      data: rows.map((p) => ({ ...paymentDto(p, true), invoiceNumber: p.invoice.number })),
+    };
   }
 
   @Can('invoices.manage')
