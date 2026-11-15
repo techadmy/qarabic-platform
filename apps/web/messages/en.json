@@ -137,7 +137,8 @@
     "periods": "Accounting periods",
     "trialsToday": "Trial classes",
     "familyCredits": "Family credits",
-    "paymentsReview": "Payments to review"
+    "paymentsReview": "Payments to review",
+    "utilization": "Teacher utilization"
   },
   "home": {
     "title": "Home",
@@ -4352,6 +4353,55 @@
     "missingRates": {
       "title": "Missing exchange rates",
       "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency."
+    }
+  },
+  "utilization": {
+    "title": "Teacher utilization",
+    "description": "Teachers’ available, booked and free hours in the period, utilization against the period before, and the week’s free capacity.",
+    "filters": "Filter the report",
+    "course": "Course",
+    "allCourses": "All courses",
+    "searchCourse": "Search by course name",
+    "gender": "Teacher gender",
+    "allGenders": "All teachers",
+    "genders": {
+      "male": "Male teachers",
+      "female": "Female teachers"
+    },
+    "audience": "Audience",
+    "allAudiences": "All audiences",
+    "audiences": {
+      "children": "Children",
+      "adults": "Adults"
+    },
+    "available": "Available hours",
+    "booked": "Booked hours",
+    "free": "Free hours",
+    "utilization": "Utilization",
+    "availableShort": "Available",
+    "bookedShort": "Booked",
+    "freeShort": "Free",
+    "outside": "Outside work hours",
+    "delta": "Change",
+    "teacher": "Teacher",
+    "tableLabel": "Teacher utilization in the period",
+    "utilizationOf": "Utilization of \u2068{name}\u2069",
+    "classes": "{count, plural, =0 {no classes} one {# class} other {# classes}}",
+    "empty": "No teachers match the filters.",
+    "deltaUp": "{count, plural, one {up # point} other {up # points}}",
+    "deltaDown": "{count, plural, one {down # point} other {down # points}}",
+    "deltaFlat": "no change",
+    "capacity": {
+      "title": "Free capacity",
+      "description": "How many teachers are free for each whole hour, in \u2068{city}\u2069 time.",
+      "tableLabel": "Teachers free per hour (of \u2068{count}\u2069)",
+      "day": "Day",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week"
+    },
+    "mine": {
+      "title": "My utilization this month",
+      "description": "Your available and booked hours this month."
     }
   }
 }

@@ -39,6 +39,7 @@ describe('navFor', () => {
       'staff',
       'lessonReports',
       'tests',
+      'utilization',
       'supportInbox',
       'feedbackTriage',
       'myRequests',
@@ -83,6 +84,7 @@ describe('navFor', () => {
       'teachers',
       'lessonReports',
       'tests',
+      'utilization',
       'supportInbox',
       'myRequests',
       'tasks',
@@ -97,6 +99,7 @@ describe('navFor', () => {
     // packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
+      'reports',
       'support',
       'tasksAnnouncements',
       'billing',
@@ -104,6 +107,7 @@ describe('navFor', () => {
     ]);
     expect(navItemsFor(as('accounts')).map((i) => i.key)).toEqual([
       'home',
+      'utilization',
       'supportInbox',
       'myRequests',
       'tasks',

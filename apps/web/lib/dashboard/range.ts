@@ -88,10 +88,17 @@ export function bucketFor(from: string, to: string): Bucket {
  * asked for even when they cannot be used (`invalid` says why). The period it is compared with
  * comes from the API's answer (`range.previous`), never computed here (one rule, in the API).
  */
-export function rangeFromParams(get: (key: string) => string, today: string): DashboardRange {
+export function rangeFromParams(
+  get: (key: string) => string,
+  today: string,
+  /** Another report's limits (R1 utilization: at most 92 days, fewer presets). */
+  opts: { presets?: readonly RangePreset[]; maxDays?: number } = {},
+): DashboardRange {
+  const presets = opts.presets ?? RANGE_PRESETS;
+  const maxDays = opts.maxDays ?? MAX_RANGE_DAYS;
   const asked = get('range') as RangePreset;
   const compare = get('compare') === '1';
-  let preset: RangePreset = RANGE_PRESETS.includes(asked) ? asked : DEFAULT_PRESET;
+  let preset: RangePreset = presets.includes(asked) ? asked : DEFAULT_PRESET;
   let span: { from: string; to: string };
   let invalid: DashboardRange['invalid'] = null;
   if (preset === 'custom') {
@@ -104,7 +111,7 @@ export function rangeFromParams(get: (key: string) => string, today: string): Da
           ? 'order'
           : to > today
             ? 'future'
-            : daysIn(from, to) > MAX_RANGE_DAYS
+            : daysIn(from, to) > maxDays
               ? 'too_long'
               : null;
     } else {
