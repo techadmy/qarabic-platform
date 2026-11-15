@@ -20,6 +20,7 @@ import {
 import { accountingHandlers } from './accounting-handlers';
 import { resetAccountingDb } from './accounting-db';
 import { billingHandlers } from './billing-handlers';
+import { dashboardHandlers } from './dashboard-handlers';
 import { operationsHandlers } from './operations-handlers';
 import { resetOperationsDb } from './operations-db';
 import { payrollHandlers } from './payroll-handlers';
@@ -316,6 +317,7 @@ export const handlers: HttpHandler[] = [
   ...trialOfferHandlers,
   ...billingHandlers,
   ...operationsHandlers,
+  ...dashboardHandlers,
   ...accountingHandlers,
   ...payrollHandlers,
   ...peopleHandlers,

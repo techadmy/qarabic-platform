@@ -4213,5 +4213,80 @@
       "failureReason": "The automatic entry for this event could not be made. Check its accounts, then post again.",
       "technicalDetails": "Technical details"
     }
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "range": {
+      "label": "Time range",
+      "period": "Period",
+      "from": "From",
+      "to": "To",
+      "compare": "Compare with the previous period",
+      "span": "{from} – {to}",
+      "versus": "vs {span}",
+      "presets": {
+        "today": "Today",
+        "this_week": "This week",
+        "this_month": "This month",
+        "last_month": "Last month",
+        "this_quarter": "This quarter",
+        "this_year": "This year",
+        "last_12_months": "Last 12 months",
+        "custom": "Custom"
+      }
+    },
+    "kpi": {
+      "activeStudents": "Active students",
+      "newStudents": "New students",
+      "teachersOnDuty": "Teachers on duty",
+      "trials": "Trial classes",
+      "collected": "Collected",
+      "outstanding": "Outstanding",
+      "grossProfit": "Gross profit",
+      "attendanceRate": "Attendance rate",
+      "trialsDetail": "{attended} attended · {converted} converted (<pct></pct>)",
+      "overdue": "<amount></amount> of it overdue",
+      "missingRate": "Some amounts have no exchange rate; the total is incomplete.",
+      "error": "Couldn’t load",
+      "up": "up from the previous period",
+      "down": "down from the previous period",
+      "flat": "no change from the previous period"
+    },
+    "chart": {
+      "week": "Week of",
+      "missingRate": "No USD exchange rate for: {buckets}. The amounts in these periods are incomplete.",
+      "error": "Couldn’t load the chart.",
+      "retry": "Try again",
+      "empty": "No data in this period.",
+      "finance": {
+        "title": "Revenue, expenses and profit",
+        "description": "In US dollars, from the ledger.",
+        "revenue": "Revenue",
+        "expenses": "Expenses",
+        "profit": "Profit"
+      },
+      "collections": {
+        "title": "Collections and new invoices",
+        "description": "Collected vs invoiced, in US dollars.",
+        "collected": "Collected",
+        "invoiced": "Invoiced"
+      },
+      "growth": {
+        "title": "New students and trial classes",
+        "description": "New students, trial classes, and how many became regular.",
+        "newStudents": "New students",
+        "trials": "Trial classes",
+        "converted": "Became regular"
+      },
+      "outcomes": {
+        "title": "Class outcomes",
+        "description": "How classes ended in each period.",
+        "taken": "Taken",
+        "absent": "Absent",
+        "leave": "Leave",
+        "declined": "Declined",
+        "cancelled": "Cancelled"
+      }
+    }
   }
 }
