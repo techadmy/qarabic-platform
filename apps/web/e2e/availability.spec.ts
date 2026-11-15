@@ -37,7 +37,10 @@ test('a teacher requests new hours: they wait for approval, visible, and can be 
 }) => {
   // Approval by staff is covered in the unit tests (a reload here would rebuild the mocks).
   await signIn(page, 'teacher@qarabic.test', '/my-schedule');
-  await page.getByRole('button', { name: /^احذف فترة/ }).first().click();
+  await page
+    .getByRole('button', { name: /^احذف فترة/ })
+    .first()
+    .click();
   await page.getByRole('button', { name: 'أرسل الطلب للاعتماد' }).click();
   const mine = page.getByRole('region', { name: 'طلباتي لتعديل الإتاحة' });
   await expect(mine.getByText('بانتظار الاعتماد')).toBeVisible();
