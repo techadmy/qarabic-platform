@@ -40,10 +40,13 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   MinusIcon,
+  TriangleAlertIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { RangeBar } from '@/components/dashboard/range-bar';
+import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
+import { RowHead, STICKY_COL } from '@/components/list/report-table';
 import { Combobox } from '@/components/forms/fields';
 import { PageHeader } from '@/components/page-header';
 import { KeyFacts } from '@/components/people/detail';
@@ -58,7 +61,7 @@ import { can } from '@/lib/auth/use-me';
 import { ACADEMY_TZ } from '@/lib/billing/labels';
 import { paramsOf, rangeFromParams, type RangePreset } from '@/lib/dashboard/range';
 import { useListParams } from '@/lib/list-params';
-import { addDays, isDateKey, weekdayName, weekStart } from '@/lib/schedule-time';
+import { addDays, dayLabel, isDateKey, weekdayName, weekStart } from '@/lib/schedule-time';
 import { cityOf, intlLocale } from '@/lib/time';
 
 /** Ranges the API takes (at most 92 days). */
@@ -142,6 +145,7 @@ export function UtilizationView() {
   }
 
   const d = report.data;
+  const live = refreshState(report);
   const value = (r: TeacherUtilizationDto): number | string => {
     switch (sort) {
       case 'name':
@@ -163,6 +167,8 @@ export function UtilizationView() {
   const rows = [...(d?.teachers ?? [])].sort((a, b) => {
     const x = value(a);
     const y = value(b);
+    // Nothing to measure («—») stays last, whichever way the column is sorted.
+    if (x === -Infinity || y === -Infinity) return x === y ? 0 : x === -Infinity ? 1 : -1;
     const c = typeof x === 'string' ? x.localeCompare(String(y)) : x - (y as number);
     // Numbers: biggest first by default; names A→Z.
     return (sort === 'name' ? c : -c) * (asc ? -1 : 1);
@@ -173,8 +179,9 @@ export function UtilizationView() {
     const active = sort === s;
     return (
       <TableHead
+        scope="col"
         aria-sort={active ? (asc ? 'ascending' : 'descending') : undefined}
-        className={end ? 'text-end' : undefined}
+        className={end ? 'text-end' : s === 'name' ? STICKY_COL : undefined}
       >
         <Button variant="ghost" size="sm" className="-mx-2 h-8" onClick={() => sortBy(s)}>
           {label}
@@ -237,7 +244,7 @@ export function UtilizationView() {
         </Select>
       </div>
 
-      {report.isError && !d ? (
+      {live.failed ? (
         <ErrorState onRetry={() => void report.refetch()} />
       ) : (
         <>
@@ -250,9 +257,21 @@ export function UtilizationView() {
                 { label: t('utilization'), value: pct(d.totals.utilization, locale) },
               ]}
             />
-          ) : (
+          ) : range.invalid ? null : (
             <Skeleton className="h-20" />
           )}
+          {/* Compare is always on here: say which period «التغيّر» compares with. */}
+          {d && !report.isPlaceholderData && (
+            <p className="text-sm text-muted-foreground">
+              {t('comparedWith', {
+                span: t('span', {
+                  from: dayLabel(d.range.previous.from, locale, true),
+                  to: dayLabel(d.range.previous.to, locale, true),
+                }),
+              })}
+            </p>
+          )}
+          {live.stale && <RefreshFailed onRetry={() => void report.refetch()} />}
           <Card className="gap-0 overflow-x-auto py-0 shadow-none">
             <Table aria-label={t('tableLabel')} aria-busy={report.isFetching || undefined}>
               <TableHeader>
@@ -269,7 +288,7 @@ export function UtilizationView() {
               <TableBody>
                 {rows.map((r) => (
                   <TableRow key={r.teacher.id}>
-                    <TableCell className="font-medium whitespace-nowrap">
+                    <RowHead className="whitespace-nowrap">
                       <Link
                         href={`/schedule?view=week&teachers=${r.teacher.id}&date=${range.from}`}
                         className="text-primary hover:underline"
@@ -279,7 +298,7 @@ export function UtilizationView() {
                       <span className="block text-sm font-normal text-muted-foreground">
                         {t('classes', { count: r.classes })}
                       </span>
-                    </TableCell>
+                    </RowHead>
                     <TableCell className="min-w-40">
                       <span className="flex items-center gap-2">
                         <Progress
@@ -304,7 +323,8 @@ export function UtilizationView() {
                     </TableCell>
                     <TableCell className="text-end tabular-nums">
                       {r.outsideHours > 0 ? (
-                        <span className="font-semibold text-status-orange-emphasis">
+                        <span className="inline-flex items-center gap-1 font-semibold text-status-orange-emphasis">
+                          <TriangleAlertIcon aria-hidden className="size-3.5" />
                           {hours(r.outsideHours, locale)}
                         </span>
                       ) : (
@@ -313,7 +333,15 @@ export function UtilizationView() {
                     </TableCell>
                   </TableRow>
                 ))}
+                {range.invalid && !d && (
+                  <TableRow>
+                    <TableCell colSpan={7} className="py-6 text-center text-muted-foreground">
+                      {t('invalidRange')}
+                    </TableCell>
+                  </TableRow>
+                )}
                 {report.isPending &&
+                  !range.invalid &&
                   Array.from({ length: 6 }, (_, i) => (
                     <TableRow key={i}>
                       <TableCell colSpan={7}>
@@ -418,15 +446,22 @@ function CapacityTable({ data }: { data: FreeCapacityDto }) {
   const t = useTranslations('utilization.capacity');
   const locale = useUiLocale();
   const max = Math.max(1, data.teacherCount);
+  // «5 م» / «5 PM»: the hour in the UI language.
+  const hourLabel = (h: number) =>
+    new Intl.DateTimeFormat(intlLocale(locale), { hour: 'numeric', timeZone: 'UTC' }).format(
+      new Date(Date.UTC(2026, 0, 1, h)),
+    );
   return (
     <div className="overflow-x-auto">
       <Table aria-label={t('tableLabel', { count: data.teacherCount })} className="tabular-nums">
         <TableHeader>
           <TableRow className="hover:bg-transparent">
-            <TableHead className="sticky start-0 bg-card">{t('day')}</TableHead>
+            <TableHead scope="col" className={STICKY_COL}>
+              {t('day')}
+            </TableHead>
             {Array.from({ length: 24 }, (_, h) => (
-              <TableHead key={h} className="px-1 text-center text-xs">
-                <bdi>{String(h).padStart(2, '0')}</bdi>
+              <TableHead key={h} scope="col" className="px-1 text-center text-xs whitespace-nowrap">
+                <bdi>{hourLabel(h)}</bdi>
               </TableHead>
             ))}
           </TableRow>
@@ -434,7 +469,7 @@ function CapacityTable({ data }: { data: FreeCapacityDto }) {
         <TableBody>
           {data.days.map((day) => (
             <TableRow key={day.date} className="hover:bg-transparent">
-              <TableHead scope="row" className="sticky start-0 bg-card whitespace-nowrap">
+              <RowHead className="whitespace-nowrap">
                 {weekdayName(day.weekday, locale)}{' '}
                 <span className="text-xs font-normal text-muted-foreground">
                   {new Intl.DateTimeFormat(intlLocale(locale), {
@@ -443,7 +478,7 @@ function CapacityTable({ data }: { data: FreeCapacityDto }) {
                     timeZone: 'UTC',
                   }).format(new Date(`${day.date}T00:00:00Z`))}
                 </span>
-              </TableHead>
+              </RowHead>
               {day.free.map((n, h) => (
                 <TableCell
                   key={h}
@@ -452,7 +487,8 @@ function CapacityTable({ data }: { data: FreeCapacityDto }) {
                     backgroundColor: `color-mix(in oklch, var(--chart-2) ${Math.round((n / max) * 70)}%, transparent)`,
                   }}
                 >
-                  {n || <span className="text-muted-foreground">0</span>}
+                  <span aria-hidden>{n || <span className="text-muted-foreground">0</span>}</span>
+                  <span className="sr-only">{t('free', { count: n })}</span>
                 </TableCell>
               ))}
             </TableRow>

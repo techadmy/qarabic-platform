@@ -4397,11 +4397,15 @@
       "tableLabel": "Teachers free per hour (of \u2068{count}\u2069)",
       "day": "Day",
       "prevWeek": "Previous week",
-      "nextWeek": "Next week"
+      "nextWeek": "Next week",
+      "free": "{count, plural, =0 {no teachers free} one {# teacher free} other {# teachers free}}"
     },
     "mine": {
       "title": "My utilization this month",
       "description": "Your available and booked hours this month."
-    }
+    },
+    "invalidRange": "Choose a valid period to see the report.",
+    "comparedWith": "Change compared with \u2068{span}\u2069.",
+    "span": "\u2068{from}\u2069 – \u2068{to}\u2069"
   }
 }

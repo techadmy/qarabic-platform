@@ -2,7 +2,11 @@ import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import { MyScheduleView } from '@/app/(app)/my-schedule/my-schedule-view';
+import { http, HttpResponse } from 'msw';
 import { UtilizationView } from '@/components/reports/utilization-view';
+import { fetchUtilization } from '@/lib/api/utilization';
+import { mockSignIn } from '@/mocks/handlers';
+import { server } from '@/mocks/node';
 import { lastReplacedUrl, renderPage } from '@/test/people';
 
 const table = () => screen.findByRole('table', { name: 'إشغال المعلمين في الفترة' });
@@ -39,6 +43,42 @@ describe('R1 teacher utilization (docs/42 §5)', () => {
     const cap = await screen.findByRole('table', { name: /المعلمون المتاحون لكل ساعة/ });
     expect(within(cap).getAllByRole('row')).toHaveLength(8);
     expect(within(cap).getAllByRole('columnheader')).toHaveLength(25);
+    // Each cell is said in words, not only by its shade.
+    expect(
+      within(cap).getAllByText(/معلم(ان)? متاح|معلمين متاحين|معلمًا متاحًا|لا معلمين متاحين/).length,
+    ).toBeGreaterThan(0);
+  });
+
+  it('a week with nobody free says 0 in every cell (no shade alone)', async () => {
+    server.use(
+      http.get('*/api/v1/reports/free-capacity', () =>
+        HttpResponse.json({
+          data: {
+            range: { from: '2026-11-14', to: '2026-11-20', timezone: 'Africa/Cairo' },
+            teacherCount: 0,
+            days: Array.from({ length: 7 }, (_, i) => ({
+              date: `2026-11-${14 + i}`,
+              weekday: ((5 + i) % 7) + 1,
+              free: Array(24).fill(0),
+            })),
+          },
+        }),
+      ),
+    );
+    renderPage(<UtilizationView />, { path: '/reports/utilization' });
+    const cap = await screen.findByRole('table', { name: /المعلمون المتاحون لكل ساعة/ });
+    expect(within(cap).getAllByText('لا معلمين متاحين')).toHaveLength(7 * 24);
+  });
+
+  it('a teacher gets only their own row from the API', async () => {
+    mockSignIn('teacher@qarabic.test');
+    const r = await fetchUtilization({});
+    expect(r.teachers.map((x) => x.teacher.id)).toEqual([1]);
+  });
+
+  it('says which period the change compares with', async () => {
+    renderPage(<UtilizationView />, { path: '/reports/utilization' });
+    expect(await screen.findByText(/التغيّر مقارنةً بـ/)).toBeInTheDocument();
   });
 
   it('a teacher sees only their own utilization card in «جدولي»', async () => {
