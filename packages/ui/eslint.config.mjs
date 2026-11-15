@@ -22,5 +22,15 @@ export default tseslint.config(
   // Audit 39 P1-9: tokens and logical (RTL) utilities only (generated shadcn code included;
   // documented exceptions carry an eslint-disable comment).
   designTokens,
+  // Vendored ReUI Event Calendar (D149, src/components/reui/LICENSE.md): kept close to upstream so
+  // it can be compared and updated; its unused parameters and ref-sync patterns are upstream's.
+  {
+    files: ['src/components/reui/**'],
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'react-hooks/refs': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+    },
+  },
   { ignores: ['dist/**', 'node_modules/**'] },
 );
