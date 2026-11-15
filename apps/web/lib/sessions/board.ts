@@ -1,4 +1,4 @@
-import type { BoardCounter, SessionDto, SessionStage } from '@qarabic/shared';
+import type { BoardCounter, SessionDto, SessionKind, SessionStage } from '@qarabic/shared';
 
 /**
  * Today board tiles and filters (docs/15 §3.1 K1, §6.1; the current app's `boardFilters`): one
@@ -106,6 +106,10 @@ export interface BoardFilters {
   teacher: number | null;
   stage: SessionStage | null;
   q: string;
+  course?: number | null;
+  kind?: SessionKind | null;
+  /** «المشكلات فقط»: the rows «تحتاج إجراء» counts. */
+  problems?: boolean;
 }
 
 export function applyFilters(rows: SessionDto[], f: BoardFilters): SessionDto[] {
@@ -114,6 +118,9 @@ export function applyFilters(rows: SessionDto[], f: BoardFilters): SessionDto[] 
     if (f.tile && !matchesTile(f.tile, s)) return false;
     if (f.teacher && s.teacher.id !== f.teacher) return false;
     if (f.stage && s.stage !== f.stage) return false;
+    if (f.course && s.course.id !== f.course) return false;
+    if (f.kind && s.kind !== f.kind) return false;
+    if (f.problems && !needsAttention(s)) return false;
     if (q && !s.student.name.toLowerCase().includes(q) && !s.teacher.name.toLowerCase().includes(q))
       return false;
     return true;
@@ -121,20 +128,32 @@ export function applyFilters(rows: SessionDto[], f: BoardFilters): SessionDto[] 
 }
 
 /**
- * Board order (docs/15 §6.1): late rows first (they need action now), then by start time. Returns
- * where the «الآن» divider goes (before the first row starting after now), or -1.
+ * Board order (D148, docs/42 §2.1): pure start-time order (15:00, then 15:30…), so a problem keeps
+ * its place in time and is highlighted instead of jumping to the top. Returns where the «الآن»
+ * divider goes (before the first class starting after now), or -1 with no rows.
  */
 export function orderRows(rows: SessionDto[], now: Date): { rows: SessionDto[]; nowIndex: number } {
-  const late = rows.filter((s) => has(s, 'late'));
-  const rest = rows
-    .filter((s) => !has(s, 'late'))
-    .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id);
+  const sorted = [...rows].sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id);
   const nowIso = now.toISOString();
-  const idx = rest.findIndex((s) => s.startsAt > nowIso);
-  return {
-    rows: [...late, ...rest],
-    nowIndex: idx === -1 ? (rest.length ? late.length + rest.length : -1) : late.length + idx,
-  };
+  const idx = sorted.findIndex((s) => s.startsAt > nowIso);
+  return { rows: sorted, nowIndex: idx === -1 ? (sorted.length ? sorted.length : -1) : idx };
+}
+
+/** Attention codes that are an emergency now (red); the other follow-ups are orange. */
+const URGENT_CODES = new Set(['late', 'teacher_unavailable', 'zoom_failed']);
+
+/**
+ * How a row looks (D148, docs/42 §2.3), from the status tokens only: a problem first (red or
+ * orange, with its reason badge), then running (green + elapsed), done or off (muted), else plain.
+ */
+export type RowTone = 'urgent' | 'attention' | 'running' | 'done' | 'off' | 'plain';
+export function rowTone(s: SessionDto): RowTone {
+  if (s.attention.some((a) => URGENT_CODES.has(a))) return 'urgent';
+  if (needsAttention(s)) return 'attention';
+  if (s.stage === 'activated' || s.stage === 'in_progress') return 'running';
+  if (s.stage === 'ended' || s.stage === 'taken') return 'done';
+  if (['cancelled', 'leave', 'declined', 'absent', 'moved_out'].includes(s.stage)) return 'off';
+  return 'plain';
 }
 
 /** Upserts a board delta by id; rows removed by a re-sync (`deleted`) leave the list. */
