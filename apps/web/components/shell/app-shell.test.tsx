@@ -35,6 +35,10 @@ describe('AppShell', () => {
     // Grouped like the current app: «المستخدمون» and «الإعدادات».
     expect(menu.getByRole('button', { name: 'المستخدمون' })).toBeInTheDocument();
     expect(menu.getByRole('button', { name: 'الإعدادات' })).toBeInTheDocument();
+    // D150: the new sections.
+    for (const name of ['التقارير', 'الدعم', 'المهام والإعلانات']) {
+      expect(menu.getByRole('button', { name })).toBeInTheDocument();
+    }
     // Link names only (the requests item carries a pending-count badge beside it).
     // (The «+» beside a section, D141 §6, is a separate link with an aria-label.)
     const pages = menu.getAllByRole('link').filter((l) => !l.getAttribute('aria-label'));
@@ -43,8 +47,11 @@ describe('AppShell', () => {
       'حصص اليوم',
       'الجدول',
       'طلبات الحصص',
-      'العملاء المحتملون',
-      'الحصص التجريبية اليوم',
+      'الحصص التجريبية',
+      'العائلات',
+      'الطلاب',
+      'المعلمون',
+      'الموظفون',
       'تقارير الحصص',
       'الاختبارات والنتائج',
       'صندوق الطلبات',
@@ -52,10 +59,6 @@ describe('AppShell', () => {
       'طلباتي',
       'المهام',
       'الإعلانات',
-      'العائلات',
-      'الطلاب',
-      'المعلمون',
-      'الموظفون',
       'الفواتير',
       'الباقات',
       'الأرصدة الدائنة',
@@ -70,6 +73,7 @@ describe('AppShell', () => {
       'دليل الحسابات',
       'التقارير المالية',
       'الفترات المحاسبية',
+      'أسعار الصرف',
       'العطلات الرسمية',
       'إعدادات الحصص',
       'إعدادات الدعم',

@@ -244,7 +244,7 @@ export function NewEnrollmentView() {
 
   return (
     <>
-      <PageHeader back={{ href: '/schedule', label: ts('back') }} title={t('title')} />
+      <PageHeader back={{ href: '/schedule/enrollments', label: ts('back') }} title={t('title')} />
       <ol className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label={t('steps')}>
         {STEPS.map((s, i) => (
           <li

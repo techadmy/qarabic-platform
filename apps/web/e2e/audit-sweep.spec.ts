@@ -15,6 +15,7 @@ const ROUTES: Record<string, string[]> = {
     '/',
     '/today',
     '/schedule',
+    '/schedule/enrollments',
     '/schedule/1',
     '/schedule/new',
     '/schedule/availability',

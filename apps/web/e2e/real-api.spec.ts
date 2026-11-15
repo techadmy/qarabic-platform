@@ -125,7 +125,7 @@ test('real API: Today board on real data → open a class', async ({ page }) => 
 test('real API: the N2 pages load real data (the shared schemas parse every answer)', async ({
   page,
 }) => {
-  await signInReal(page, '/schedule');
+  await signInReal(page, '/schedule/enrollments');
   const table = page.getByRole('table', { name: 'الاشتراكات' });
   // A regular enrollment: it has weekly times (the flows spec adds trials, which have none).
   const seeded = table.locator('tbody tr').filter({ hasText: 'منتظم' }).first();
