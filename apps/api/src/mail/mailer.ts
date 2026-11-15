@@ -49,7 +49,10 @@ export class MemoryMailer implements Mailer {
   }
 }
 
-/** The part of a Nodemailer transport the SMTP mailer uses (a fake in tests). */
+/**
+ * The part of a Nodemailer transport the SMTP mailer uses (a fake in tests). Only these four
+ * fields are ever passed: never `raw`, attachments or HTML (GHSA-p6gq-j5cr-w38f).
+ */
 export interface MailTransport {
   sendMail(mail: { from: string; to: string; subject: string; text: string }): Promise<unknown>;
 }
@@ -143,6 +146,9 @@ export class MailGateway implements Mailer, OnApplicationBootstrap {
             secure: this.env.SMTP_PORT === 465,
             requireTLS: this.env.SMTP_PORT !== 465,
             auth: { user: this.env.SMTP_USER!, pass: this.env.SMTP_PASS! },
+            // Plain-text mails only: no attachment or content is ever read from disk or a URL.
+            disableFileAccess: true,
+            disableUrlAccess: true,
           }),
           this.env.MAIL_FROM!,
         )

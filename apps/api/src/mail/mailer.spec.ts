@@ -112,6 +112,22 @@ describe('MailGateway', () => {
     expect(line).not.toMatch(/elsewhere|token|Body/);
   });
 
+  it('builds the SMTP transport with TLS by port and no file or URL access', () => {
+    type Inner = { inner: { transport: { options: Record<string, unknown> } } };
+    const optionsFor = (port: string) => {
+      const env = loadEnv({ ...base, ...smtp, SMTP_PORT: port });
+      const gateway = new MailGateway(env, new MemoryMailer(env));
+      return (gateway as unknown as Inner).inner.transport.options;
+    };
+    expect(optionsFor('465')).toMatchObject({
+      secure: true,
+      requireTLS: false,
+      disableFileAccess: true,
+      disableUrlAccess: true,
+    });
+    expect(optionsFor('587')).toMatchObject({ secure: false, requireTLS: true });
+  });
+
   it('sends to anyone when no allowlist is set', async () => {
     const env = loadEnv(base);
     const gateway = new MailGateway(env, new MemoryMailer(env));
