@@ -7,7 +7,8 @@ Radix flavour (`radix-nova` registry style). They were copied from Ahmed's Janna
 
 Local changes: import aliases (`@qarabic/ui/...`), lucide icons in place of ReUI's
 `IconPlaceholder`, and the event colour presets mapped to our tokens (`--chart-*`,
-`--status-*-emphasis`).
+`--status-*-emphasis`); TypeScript non-null assertions for our `noUncheckedIndexedAccess`; and
+logical `insetInlineStart` instead of `left` for the now-indicator and overlapping events, and prev/next chevrons that turn in RTL.
 
 ## MIT License
 

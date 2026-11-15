@@ -12,6 +12,7 @@ const PAGES = [
   '/today',
   '/families',
   '/schedule',
+  '/schedule/enrollments',
   '/leads',
   '/invoices',
   '/payroll',
@@ -89,9 +90,9 @@ test('keyboard: Tab moves focus through the login form with a visible focus indi
 });
 
 test('the warning alert uses the warning token surface', async ({ page }) => {
-  await page.goto(`/login?next=${encodeURIComponent('/schedule')}`);
+  await page.goto(`/login?next=${encodeURIComponent('/schedule/enrollments')}`);
   await login(page);
-  await expect(page).toHaveURL(/\/schedule$/);
+  await expect(page).toHaveURL(/\/schedule\/enrollments$/);
   // D141: «اشتراك جديد» is the ListActions create link.
   await page.getByRole('link', { name: 'اشتراك جديد' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'اشتراك جديد' })).toBeVisible();

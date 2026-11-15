@@ -196,7 +196,7 @@ function EventCalendarNavPrev({
       >
         {children ?? (
           <ChevronLeftIcon
-            className="size-4"
+            className="size-4 rtl:rotate-180"
             aria-hidden="true"
           />
         )}
@@ -231,7 +231,7 @@ function EventCalendarNavNext({
       >
         {children ?? (
           <ChevronRightIcon
-            className="size-4"
+            className="size-4 rtl:rotate-180"
             aria-hidden="true"
           />
         )}

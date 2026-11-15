@@ -78,3 +78,5 @@ Element.prototype.scrollIntoView ??= () => undefined;
 Element.prototype.hasPointerCapture ??= () => false;
 Element.prototype.releasePointerCapture ??= () => undefined;
 Element.prototype.setPointerCapture ??= () => undefined;
+// The ReUI calendar scrolls its time grid to an hour.
+Element.prototype.scrollTo ??= () => undefined;

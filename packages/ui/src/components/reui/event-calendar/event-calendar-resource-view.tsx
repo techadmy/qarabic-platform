@@ -705,7 +705,7 @@ function EventCalendarResourceColumn({
             style={
               {
                 ...minuteBlockStyle(startMin, endMin, boundsStartMin),
-                left: `calc(${EVENT_TRACK_WIDTH} * ${column / columnCount})`,
+                insetInlineStart: `calc(${EVENT_TRACK_WIDTH} * ${column / columnCount})`,
                 width: `calc(${EVENT_TRACK_WIDTH} * ${span / columnCount})`,
                 "--ec-z": zIndex,
               } as CSSProperties

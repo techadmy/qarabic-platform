@@ -1537,6 +1537,8 @@ export const scheduleHandlers: HttpHandler[] = [
   http.get(`${API}/calendar/events`, ({ request }) => {
     const g = guard(request, 'schedule.view');
     if ('error' in g) return g.error;
+    // C1: a parent gets 403 on the calendar routes (the portal shows their own classes).
+    if (isParent(g.me)) return apiError(403, 'forbidden', 'Not allowed.');
     const url = new URL(request.url);
     const raw: Record<string, string | string[]> = {};
     for (const k of new Set(url.searchParams.keys())) {
@@ -1594,6 +1596,8 @@ export const scheduleHandlers: HttpHandler[] = [
   http.get(`${API}/calendar/background`, ({ request }) => {
     const g = guard(request, 'schedule.view');
     if ('error' in g) return g.error;
+    // C1: a parent gets 403 on the calendar routes (the portal shows their own classes).
+    if (isParent(g.me)) return apiError(403, 'forbidden', 'Not allowed.');
     const url = new URL(request.url);
     const raw: Record<string, string | string[]> = {};
     for (const k of new Set(url.searchParams.keys())) {

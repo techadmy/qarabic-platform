@@ -1159,7 +1159,7 @@ function EventCalendarDayColumn({
             style={
               {
                 ...minuteBlockStyle(startMin, endMin, boundsStartMin),
-                left: `calc(${EVENT_TRACK_WIDTH} * ${column / columnCount})`,
+                insetInlineStart: `calc(${EVENT_TRACK_WIDTH} * ${column / columnCount})`,
                 width: `calc(${EVENT_TRACK_WIDTH} * ${span / columnCount})`,
                 "--ec-z": zIndex,
               } as CSSProperties
@@ -1332,7 +1332,7 @@ function EventCalendarNowIndicator({
       <div
         className="absolute h-px"
         style={{
-          left: `calc(var(--ec-gutter-width, 4.5rem) + (100% - var(--ec-gutter-width, 4.5rem)) * ${(todayIndex * columnWidthPct) / 100})`,
+          insetInlineStart: `calc(var(--ec-gutter-width, 4.5rem) + (100% - var(--ec-gutter-width, 4.5rem)) * ${(todayIndex * columnWidthPct) / 100})`,
           width: `calc((100% - var(--ec-gutter-width, 4.5rem)) * ${columnWidthPct / 100})`,
         }}
       >

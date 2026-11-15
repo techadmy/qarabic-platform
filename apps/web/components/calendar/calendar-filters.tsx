@@ -37,6 +37,7 @@ export function CalendarFilters({
   onChange,
   zones,
   showTeachers = true,
+  stacked = false,
 }: {
   state: CalendarState;
   onChange: (patch: Partial<CalendarState>) => void;
@@ -44,6 +45,8 @@ export function CalendarFilters({
   zones: { academy: string; mine: string; teacher: string | null; student: string | null };
   /** A teacher's own calendar has no teacher filter. */
   showTeachers?: boolean;
+  /** Phones: one control per row (in the «تصفية» sheet). */
+  stacked?: boolean;
 }) {
   const t = useTranslations('calendar.filters');
   const locale = useUiLocale();
@@ -80,7 +83,11 @@ export function CalendarFilters({
     !!state.stage;
 
   return (
-    <div role="group" aria-label={t('label')} className="flex flex-wrap items-center gap-2">
+    <div
+      role="group"
+      aria-label={t('label')}
+      className={stacked ? 'flex flex-col gap-3' : 'flex flex-wrap items-center gap-2'}
+    >
       {showTeachers && (
         <MultiCombobox
           ariaLabel={t('teachers')}

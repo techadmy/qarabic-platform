@@ -12,7 +12,8 @@ import { addDays, isDateKey, weekStart, zonedInstant } from '@/lib/schedule-time
  * the zone the times are drawn in. One class has three local times (academy, teacher, student),
  * so the zone is a choice; the teacher's or student's zone needs exactly one of them selected.
  */
-export const CALENDAR_VIEWS = ['month', 'week', 'day', 'list'] as const;
+/** `teachers`: one day, one column per chosen teacher (ReUI's resource view, D149). */
+export const CALENDAR_VIEWS = ['month', 'week', 'day', 'list', 'teachers'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
 export const CALENDAR_ZONES = ['academy', 'mine', 'teacher', 'student'] as const;
 export type CalendarZone = (typeof CALENDAR_ZONES)[number];
@@ -77,6 +78,7 @@ export function calendarParams(
 export function viewDays(view: CalendarView, date: string): { first: string; last: string } {
   switch (view) {
     case 'day':
+    case 'teachers':
       return { first: date, last: date };
     case 'week':
       return { first: weekStart(date), last: addDays(weekStart(date), 6) };
@@ -104,7 +106,7 @@ export function viewRange(view: CalendarView, date: string, tz: string) {
 
 /** Previous / next page of the view. */
 export function stepDate(view: CalendarView, date: string, dir: 1 | -1): string {
-  if (view === 'day') return addDays(date, dir);
+  if (view === 'day' || view === 'teachers') return addDays(date, dir);
   if (view === 'week') return addDays(date, 7 * dir);
   if (view === 'list') return addDays(date, 28 * dir);
   const [y, m] = date.split('-').map(Number);
