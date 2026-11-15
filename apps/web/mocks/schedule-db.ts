@@ -312,6 +312,7 @@ function build(): ScheduleDb {
         email: 'zoom1@qarabic.test',
         label: 'Zoom 1',
         teacherId: null,
+        pmiMeetingId: null,
         isActive: true,
       },
       {
@@ -320,6 +321,7 @@ function build(): ScheduleDb {
         email: 'zoom2@qarabic.test',
         label: 'Zoom 2',
         teacherId: 2,
+        pmiMeetingId: null,
         isActive: false,
       },
     ],
