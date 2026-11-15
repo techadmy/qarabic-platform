@@ -552,6 +552,11 @@ export const SESSION_SETTING_RULES = {
   'sessions.min_duration_min': z.number().int().min(0).max(180),
   'sessions.leave_notice_hours': z.number().int().min(0).max(72),
   'sessions.late_teacher_min': z.number().int().min(0).max(60),
+  /** B132: Zoom thresholds (used once the Zoom driver lands, Z1). */
+  'sessions.teacher_no_show_min': z.number().int().min(1).max(120),
+  'sessions.student_no_show_min': z.number().int().min(1).max(120),
+  /** A class shorter than this share of its duration is "too short" (percent). */
+  'sessions.short_class_pct': z.number().int().min(1).max(100),
   'sessions.report_due_hours': z.number().int().min(1).max(168),
   'sessions.report_edit_hours': z.number().int().min(0).max(720),
   'sessions.makeup_window_days': z.number().int().min(1).max(90),
