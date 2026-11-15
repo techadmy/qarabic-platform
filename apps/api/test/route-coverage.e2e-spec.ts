@@ -447,6 +447,9 @@ describe('route permission coverage', () => {
       'GET calendar/background': 'any:schedule.view|sessions.conduct',
       // D1 (docs/40): each widget is further gated by DASHBOARD_WIDGET_PERMISSIONS.
       'GET dashboard/metrics': 'all:reports.view',
+      // R1 (docs/42 §5): staff with reports.view, or a teacher for their own numbers.
+      'GET reports/teacher-utilization': 'any:reports.view|sessions.conduct',
+      'GET reports/free-capacity': 'any:reports.view|sessions.conduct',
       'GET task-templates': 'all:tasks.manage',
       'GET tasks': 'all:tasks.view',
       'GET tasks/:id': 'all:tasks.view',
