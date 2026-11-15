@@ -347,6 +347,7 @@ export function InvoiceDetailView({ id }: { id: number }) {
             <PaymentsList
               payments={inv.payments}
               viewerTz={tz}
+              staff
               receiptHref={(p) => `/invoices/${inv.id}/receipts/${p.id}`}
               onVoid={can(me, 'invoices.manage') ? setVoidingPayment : undefined}
             />

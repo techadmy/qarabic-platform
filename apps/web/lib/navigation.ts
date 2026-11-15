@@ -22,6 +22,7 @@ import {
   UserSearchIcon,
   ContactRoundIcon,
   PackageIcon,
+  PiggyBankIcon,
   ReceiptTextIcon,
   WalletIcon,
   UsersIcon,
@@ -71,6 +72,7 @@ export type NavKey =
   | 'crmSettings'
   | 'invoices'
   | 'packages'
+  | 'familyCredits'
   | 'billingSettings'
   | 'myInvoices'
   | 'attendance'
@@ -248,6 +250,12 @@ export const STAFF_NAV: NavEntry[] = [
     items: [
       { key: 'invoices', href: '/invoices', icon: ReceiptTextIcon, permission: 'invoices.view' },
       { key: 'packages', href: '/packages', icon: PackageIcon, permission: 'packages.view' },
+      {
+        key: 'familyCredits',
+        href: '/billing/credits',
+        icon: PiggyBankIcon,
+        anyPermission: ['invoices.manage', 'reports.financial'],
+      },
     ],
   },
   {

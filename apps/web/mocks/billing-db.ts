@@ -93,6 +93,25 @@ export interface PaymentRow {
   providerPaymentId: string | null;
   providerRef: string | null;
   recordedBy: { id: number; name: string } | null;
+  /** P1-1 (B115): the part kept as the family's credit, and the review flag. */
+  unappliedMinor?: number;
+  needsReview?: boolean;
+  reviewReason?: string | null;
+}
+
+/** P1-1: money a family paid beyond an invoice, kept and used on the next one. */
+export interface CreditRow {
+  id: number;
+  familyId: number;
+  currency: string;
+  amountMinor: number;
+  remainingMinor: number;
+  status: 'open' | 'used' | 'refunded';
+  sourcePaymentId: number | null;
+  reviewedAt: string | null;
+  reviewedBy: { id: number; name: string } | null;
+  note: string | null;
+  createdAt: string;
 }
 
 export interface BillingDb {
@@ -102,12 +121,20 @@ export interface BillingDb {
   studentPackages: Map<number, number | null>;
   invoices: InvoiceRow[];
   payments: PaymentRow[];
+  credits: CreditRow[];
   settings: BillingSettingsDto;
   /** Online providers the mock reports as configured (tests can switch one off). */
   online: ('stripe' | 'paypal')[];
   /** Invoice id → last manual reminder (ms). */
   reminded: Map<number, number>;
-  next: { invoice: number; line: number; payment: number; package: number; receipt: number };
+  next: {
+    invoice: number;
+    line: number;
+    payment: number;
+    package: number;
+    receipt: number;
+    credit: number;
+  };
   /** Year → last invoice number. */
   numbers: Map<number, number>;
 }
@@ -261,9 +288,10 @@ export function totalsOf(bdb: BillingDb, inv: InvoiceRow) {
   const adjustments = sum(['adjustment']);
   const discounts = sum(['discount']);
   const total = subtotal + adjustments + discounts;
+  // What a payment kept as the family's credit is not paid on this invoice (P1-1).
   const paid = bdb.payments
     .filter((p) => p.invoiceId === inv.id && p.status === 'succeeded')
-    .reduce((s, p) => s + p.amountMinor, 0);
+    .reduce((s, p) => s + p.amountMinor - (p.unappliedMinor ?? 0), 0);
   return { subtotal, adjustments, discounts, total, paid, balance: total - paid };
 }
 
@@ -354,10 +382,11 @@ function build(): BillingDb {
     studentPackages: new Map(),
     invoices: [],
     payments: [],
+    credits: [],
     settings: structuredClone(BILLING_DEFAULTS),
     online: ['stripe', 'paypal'],
     reminded: new Map(),
-    next: { invoice: 1, line: 1, payment: 1, package: 5, receipt: 0 },
+    next: { invoice: 1, line: 1, payment: 1, package: 5, receipt: 0, credit: 1 },
     numbers: new Map(),
   };
 
@@ -521,6 +550,42 @@ function build(): BillingDb {
   // 10: paid in cash.
   const cash = add(13, { status: 'issued', month: thisMonth, issue: addDays(today, -6) });
   pay(cash, 'cash', totalsOf(bdb, cash).total, addDays(today, -2), { note: 'استُلمت في المكتب' });
+  // P1-1: a bank transfer arrived after the cash: kept as the family's credit, flagged for review.
+  const late = pay(cash, 'bank_transfer', toMinor('20.00'), addDays(today, -1), {
+    reference: 'TRX-88213',
+  });
+  Object.assign(late, {
+    unappliedMinor: late.amountMinor,
+    needsReview: true,
+    reviewReason: 'invoice_closed',
+  });
+  bdb.credits.push({
+    id: bdb.next.credit++,
+    familyId: cash.familyId,
+    currency: cash.currency,
+    amountMinor: late.amountMinor,
+    remainingMinor: late.amountMinor,
+    status: 'open',
+    sourcePaymentId: late.id,
+    reviewedAt: null,
+    reviewedBy: null,
+    note: null,
+    createdAt: late.createdAt,
+  });
+  // …and an older one, reviewed and used on the next invoice.
+  bdb.credits.push({
+    id: bdb.next.credit++,
+    familyId: 2,
+    currency: 'USD',
+    amountMinor: toMinor('5.00'),
+    remainingMinor: 0,
+    status: 'used',
+    sourcePaymentId: null,
+    reviewedAt: instantOf(addDays(today, -20), 10),
+    reviewedBy: ADMIN,
+    note: 'دُفع مرتين بالخطأ؛ يُستخدم في الشهر التالي.',
+    createdAt: instantOf(addDays(today, -21), 9),
+  });
   // 11: a 10 % discount.
   const discounted = add(15, { status: 'issued', month: thisMonth, due: addDays(today, 10) });
   discounted.lines.push({

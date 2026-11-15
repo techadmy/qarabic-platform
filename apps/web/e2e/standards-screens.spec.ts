@@ -33,6 +33,7 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
       '/feedback',
       '/fines',
       '/packages',
+      '/billing/credits',
     ],
   },
   'staff details': {
