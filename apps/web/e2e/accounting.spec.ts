@@ -30,7 +30,7 @@ const PAGES = [
 
 async function signIn(page: Page, path: string) {
   await page.goto(`/login?next=${encodeURIComponent(path)}`);
-  await login(page, 'accounts@qarabic.test');
+  await login(page, 'admin@qarabic.test'); // D146: the books are the owner's
   await expect(page.locator('main h1').first()).toBeVisible();
 }
 

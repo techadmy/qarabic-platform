@@ -6,7 +6,8 @@ import { ReportsView } from '@/components/accounting/reports-view';
 import { adb } from '@/mocks/accounting-db';
 import { renderPage } from '@/test/people';
 
-const ACCOUNTS = 'accounts@qarabic.test';
+// D146: the books are the owner's by default (accounts see collections only).
+const ACCOUNTS = 'admin@qarabic.test';
 const WIDE = 'from=2000-01-01&to=2100-12-31';
 const monthBack = (n: number) => {
   const d = new Date();

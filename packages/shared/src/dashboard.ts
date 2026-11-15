@@ -139,6 +139,7 @@ export const DASHBOARD_WIDGETS = [
   'attendance_rate',
   'collected',
   'outstanding',
+  'collection_rate',
   'gross_profit',
   'net_profit',
   // charts
@@ -154,9 +155,9 @@ export type DashboardWidget = (typeof DASHBOARD_WIDGETS)[number];
 
 /**
  * Every widget needs ALL of its permissions (the same as the module it reads). The endpoint itself
- * needs `reports.view`. Basic finance (collections, outstanding, ageing, payroll) needs
- * `reports.financial`; profit and loss (expenses, gross and net profit) needs `reports.profit`,
- * which only the owner holds (D145).
+ * needs `reports.view`. Basic finance (collections, outstanding, ageing, collection rate) needs
+ * `reports.financial`; profit and loss (expenses, teacher pay, gross and net profit) needs
+ * `reports.profit`, which only the owner holds (D145, D146).
  */
 export const DASHBOARD_WIDGET_PERMISSIONS: Record<DashboardWidget, readonly Permission[]> = {
   active_students: ['reports.view', 'sessions.view'],
@@ -170,11 +171,13 @@ export const DASHBOARD_WIDGET_PERMISSIONS: Record<DashboardWidget, readonly Perm
   students_trials: ['reports.view', 'sessions.view', 'leads.view'],
   collected: ['reports.financial', 'invoices.view'],
   outstanding: ['reports.financial', 'invoices.view'],
+  collection_rate: ['reports.financial', 'invoices.view'],
   collections: ['reports.financial', 'invoices.view'],
   gross_profit: ['reports.profit'],
   net_profit: ['reports.profit'],
   revenue_expenses: ['reports.profit'],
-  teacher_hours: ['reports.financial', 'payroll.view'],
+  // Teacher pay is an expense: owner only (D145, D146).
+  teacher_hours: ['reports.profit'],
 };
 
 /** The widgets a set of permissions can see, in display order. */
@@ -219,6 +222,11 @@ export const dashboardKpisSchema = z.object({
       previous: z.object({ total: usdMoneySchema, overdue: usdMoneySchema }).nullable(),
     })
     .optional(),
+  /**
+   * D146: of the invoices due in the period, the share paid by its end (applied payments ÷ total,
+   * in USD). Null when nothing was due, or when a rate is missing (see `missingRates`).
+   */
+  collection_rate: ratioKpi.optional(),
   /** Revenue − teacher pay (B123). */
   gross_profit: moneyKpi.optional(),
   /** Revenue − every expense account in the ledger (B123). */

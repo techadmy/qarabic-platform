@@ -32,7 +32,7 @@ for (const [size, viewport] of Object.entries(sizes)) {
     await page.emulateMedia({ colorScheme: 'light' });
     await page.setViewportSize(viewport);
     await page.goto('/login?next=%2Faccounting%2Fjournal');
-    await login(page, 'accounts@qarabic.test');
+    await login(page, 'admin@qarabic.test'); // D146: the books are the owner's
     await expect(page.getByRole('heading', { level: 1, name: 'القيود اليومية' })).toBeVisible();
     await shot(page, 'journal', size);
     await open(page, '/accounting/journal/new');

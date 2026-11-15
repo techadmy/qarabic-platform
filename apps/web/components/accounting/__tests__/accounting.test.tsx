@@ -15,7 +15,8 @@ import { server } from '@/mocks/node';
 import { renderPage } from '@/test/people';
 import { routerMock } from '@/test/router-mock';
 
-const ACCOUNTS = 'accounts@qarabic.test';
+// D146: the books are the owner's by default (accounts see collections only).
+const ACCOUNTS = 'admin@qarabic.test';
 
 async function pickAccount(
   user: ReturnType<typeof userEvent.setup>,
