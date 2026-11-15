@@ -817,7 +817,15 @@
       "optional": "optional",
       "back": "Back",
       "save": "Save time",
-      "done": "\u2068{name}\u2069's class time changed"
+      "done": "\u2068{name}\u2069's class time changed",
+      "scope": {
+        "legend": "What changes?",
+        "this": "This class only",
+        "following": "This and following classes",
+        "followingHint": "The weekly time ends before this class and a new one starts from it; earlier classes stay as they are."
+      },
+      "doneSeries": "Moved \u2068{name}\u2069’s classes from this one on ({count, plural, one {# class} other {# classes}}).",
+      "reasonRequired": "Write why the class moves (at least 3 characters)."
     },
     "refusals": {
       "generic": "The action could not be done. Try again.",

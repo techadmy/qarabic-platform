@@ -1,5 +1,9 @@
 import {
   addSlotSchema,
+  calendarBackgroundQuerySchema,
+  calendarEventsQuerySchema,
+  type CalendarBackgroundDto,
+  type CalendarEventDto,
   approveSessionRequestSchema,
   createEnrollmentSchema,
   createHolidaySchema,
@@ -1529,6 +1533,158 @@ export const scheduleHandlers: HttpHandler[] = [
   }),
 
   // ---------------------------------------------------------------- classes
+  // C1 calendar (docs/42 §3, D148): the classes of a range as events, and the shading behind them.
+  http.get(`${API}/calendar/events`, ({ request }) => {
+    const g = guard(request, 'schedule.view');
+    if ('error' in g) return g.error;
+    const url = new URL(request.url);
+    const raw: Record<string, string | string[]> = {};
+    for (const k of new Set(url.searchParams.keys())) {
+      const all = url.searchParams.getAll(k);
+      raw[k] = all.length > 1 ? all : all[0]!;
+    }
+    const parsed = calendarEventsQuerySchema.safeParse(raw);
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const q = parsed.data;
+    const from = Date.parse(q.from);
+    const to = Date.parse(q.to);
+    const events = sdb.sessions
+      .filter((s) => {
+        const at = Date.parse(s.startsAt);
+        if (s.deleted || at < from || at >= to || !seesSession(g.me, s)) return false;
+        const student = studentOf(s.studentId)!;
+        return (
+          (!q.teacherIds || q.teacherIds.includes(s.teacherId)) &&
+          (!q.studentIds || q.studentIds.includes(s.studentId)) &&
+          (!q.familyIds || q.familyIds.includes(student.familyId)) &&
+          (!q.courseIds || q.courseIds.includes(s.courseId)) &&
+          (!q.kinds || q.kinds.includes(s.kind)) &&
+          (!q.stages || q.stages.includes(s.stage))
+        );
+      })
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id - b.id)
+      .map((s): CalendarEventDto => {
+        const dto = presentSession(s, g.me);
+        return {
+          id: s.id,
+          startsAt: s.startsAt,
+          endsAt: endsAt(s),
+          durationMinutes: s.durationMinutes,
+          kind: s.kind,
+          stage: s.stage,
+          attention: dto.attention,
+          teacher: { id: dto.teacher.id, name: dto.teacher.name, timezone: dto.teacher.timezone },
+          student: dto.student,
+          course: dto.course,
+          enrollmentId: s.enrollmentId,
+          slotId: s.scheduleSlotId,
+          isDetached: s.isDetached,
+          lockVersion: s.lockVersion,
+        };
+      });
+    return HttpResponse.json({
+      data: {
+        range: { from: q.from, to: q.to, timezone: q.tz ?? g.me.timezone },
+        events,
+        truncated: false,
+      },
+    });
+  }),
+
+  http.get(`${API}/calendar/background`, ({ request }) => {
+    const g = guard(request, 'schedule.view');
+    if ('error' in g) return g.error;
+    const url = new URL(request.url);
+    const raw: Record<string, string | string[]> = {};
+    for (const k of new Set(url.searchParams.keys())) {
+      const all = url.searchParams.getAll(k);
+      raw[k] = all.length > 1 ? all : all[0]!;
+    }
+    const parsed = calendarBackgroundQuerySchema.safeParse(raw);
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const q = parsed.data;
+    const own = isTeacher(g.me) ? ownTeacherId(g.me) : null;
+    const teachers = people.teachers.filter((t) =>
+      own ? t.id === own : !q.teacherIds || q.teacherIds.includes(t.id),
+    );
+    // Each rule is applied day by day in its own zone (exact across DST).
+    const daysIn = (tz: string) => {
+      const out: string[] = [];
+      for (let d = addDays(dateKeyIn(tz, new Date(q.from)), -1); ; d = addDays(d, 1)) {
+        if (Date.parse(zonedInstant(d, '00:00', tz)) >= Date.parse(q.to)) break;
+        out.push(d);
+      }
+      return out;
+    };
+    const clip = (start: string, end: string) => {
+      const a = Math.max(Date.parse(start), Date.parse(q.from));
+      const b = Math.min(Date.parse(end), Date.parse(q.to));
+      return a < b ? { start: iso(a), end: iso(b) } : null;
+    };
+    return HttpResponse.json({
+      data: {
+        range: { from: q.from, to: q.to, timezone: q.tz ?? g.me.timezone },
+        teachers: teachers.map((t) => {
+          const hours = sdb.workHours.get(t.id) ?? [];
+          const workHours = daysIn(t.timezone).flatMap((d) =>
+            hours
+              .filter((h) => h.weekday === isoWeekday(d))
+              .map((h) =>
+                clip(
+                  zonedInstant(d, h.localStartTime, h.timezone),
+                  zonedInstant(
+                    h.localEndTime > h.localStartTime ? d : addDays(d, 1),
+                    h.localEndTime,
+                    h.timezone,
+                  ),
+                ),
+              )
+              .filter((x): x is { start: string; end: string } => !!x),
+          );
+          const blocks = sdb.blocks
+            .filter((b) => b.teacherId === t.id)
+            .flatMap((b): CalendarBackgroundDto['teachers'][number]['blocks'] => {
+              if (b.kind === 'one_off' && b.startsAt && b.endsAt) {
+                const c = clip(b.startsAt, b.endsAt);
+                return c
+                  ? [{ ...c, blockId: b.id, reason: b.reason, kind: 'one_off' as const }]
+                  : [];
+              }
+              const tz = b.timezone ?? t.timezone;
+              return daysIn(tz)
+                .filter(
+                  (d) =>
+                    b.weekday === isoWeekday(d) &&
+                    (!b.validFrom || d >= b.validFrom) &&
+                    (!b.validTo || d <= b.validTo),
+                )
+                .map((d) => {
+                  const start = zonedInstant(d, b.localStartTime ?? '00:00', tz);
+                  return clip(start, iso(Date.parse(start) + (b.durationMinutes ?? 0) * MIN));
+                })
+                .filter((x): x is { start: string; end: string } => !!x)
+                .map((c) => ({
+                  ...c,
+                  blockId: b.id,
+                  reason: b.reason,
+                  kind: 'recurring' as const,
+                }));
+            });
+          return { teacherId: t.id, name: t.name, timezone: t.timezone, workHours, blocks };
+        }),
+        holidays: sdb.holidays
+          .map((h) => {
+            const c = clip(
+              zonedInstant(h.date, '00:00', 'Africa/Cairo'),
+              zonedInstant(addDays(h.endsOn ?? h.date, 1), '00:00', 'Africa/Cairo'),
+            );
+            return c ? { ...c, id: h.id, name: h.name, appliesTo: h.appliesTo } : null;
+          })
+          .filter((x) => x !== null),
+      },
+    });
+  }),
+
   http.get(`${API}/sessions/board`, ({ request }) => {
     const g = guard(request, 'sessions.view');
     if ('error' in g) return g.error;
@@ -1729,6 +1885,66 @@ export const scheduleHandlers: HttpHandler[] = [
         from: s.teacherId,
         to: teacherId,
       });
+    if (input.scope === 'following') {
+      // D148: the weekly slot closes the day before this class; a new one opens from it with the
+      // new weekday, time, length and teacher; later generated classes move with it.
+      const slot = sdb.slots.find((x) => x.id === s.scheduleSlotId);
+      if (!slot || !s.occurrenceDate) {
+        return apiError(422, 'not_in_series', 'This class has no weekly time to move.');
+      }
+      const tz = slot.timezone;
+      const newKey = dateKeyIn(tz, new Date(startsAt));
+      const dayDelta = Math.round(
+        (Date.parse(`${newKey}T00:00:00Z`) - Date.parse(`${s.occurrenceDate}T00:00:00Z`)) /
+          86_400_000,
+      );
+      const time = hhmmIn(startsAt, tz);
+      slot.validTo = addDays(s.occurrenceDate, -1);
+      const next: SlotRow = {
+        ...slot,
+        id: sdb.nextId.slot++,
+        weekday: isoWeekday(newKey),
+        localStartTime: time,
+        durationMinutes: duration,
+        teacherId,
+        validFrom: newKey,
+        validTo: null,
+      };
+      sdb.slots.push(next);
+      const moved: number[] = [];
+      for (const o of sdb.sessions) {
+        if (o.id === s.id || o.scheduleSlotId !== slot.id || o.deleted || o.isDetached) continue;
+        if (o.stage !== 'scheduled' || (o.occurrenceDate ?? '') <= s.occurrenceDate) continue;
+        const key = addDays(o.occurrenceDate!, dayDelta);
+        Object.assign(o, {
+          startsAt: zonedInstant(key, time, tz),
+          durationMinutes: duration,
+          teacherId,
+          occurrenceDate: key,
+          scheduleSlotId: next.id,
+        });
+        touch(o);
+        moved.push(o.id);
+      }
+      Object.assign(s, {
+        startsAt,
+        durationMinutes: duration,
+        teacherId,
+        occurrenceDate: newKey,
+        scheduleSlotId: next.id,
+        isDetached: false,
+      });
+      touch(s);
+      return HttpResponse.json({
+        data: presentSession(s, g.me),
+        series: {
+          closedSlotId: slot.id,
+          newSlotId: next.id,
+          effectiveFrom: newKey,
+          movedSessionIds: moved,
+        },
+      });
+    }
     Object.assign(s, { startsAt, durationMinutes: duration, teacherId, isDetached: true });
     touch(s);
     return HttpResponse.json({ data: presentSession(s, g.me) });
