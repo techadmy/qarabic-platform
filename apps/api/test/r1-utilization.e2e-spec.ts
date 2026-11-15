@@ -139,7 +139,7 @@ describe('GET /reports/teacher-utilization', () => {
   });
 
   it('a teacher sees only their own row; parents 403; no session 401; a long range 422', async () => {
-    const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: b.userId! } });
+    const user = await ctx.prisma.user.findUniqueOrThrow({ where: { id: b.userId } });
     const teacher = await signInAs(ctx, user);
     const own = await teacher.get(`/reports/teacher-utilization?${WEEK}&teacherIds=${a.id}`);
     expect(own.status).toBe(200);
