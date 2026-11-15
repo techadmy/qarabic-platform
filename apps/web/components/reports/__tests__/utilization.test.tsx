@@ -45,7 +45,7 @@ describe('R1 teacher utilization (docs/42 §5)', () => {
     expect(within(cap).getAllByRole('columnheader')).toHaveLength(25);
     // Each cell is said in words, not only by its shade.
     expect(
-      within(cap).getAllByText(/معلم(ان)? متاح|معلمين متاحين|معلمًا متاحًا|لا معلمين متاحين/).length,
+      within(cap).getAllByText(/معلم(ان)? متاح|معلمين متاحين|معلمًا متاحًا|لا يوجد معلم متاح/).length,
     ).toBeGreaterThan(0);
   });
 
@@ -67,7 +67,7 @@ describe('R1 teacher utilization (docs/42 §5)', () => {
     );
     renderPage(<UtilizationView />, { path: '/reports/utilization' });
     const cap = await screen.findByRole('table', { name: /المعلمون المتاحون لكل ساعة/ });
-    expect(within(cap).getAllByText('لا معلمين متاحين')).toHaveLength(7 * 24);
+    expect(within(cap).getAllByText('لا يوجد معلم متاح')).toHaveLength(7 * 24);
   });
 
   it('a teacher gets only their own row from the API', async () => {
