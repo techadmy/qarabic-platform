@@ -216,3 +216,36 @@ describe('blocks and staff edits', () => {
     ).toBe(401);
   });
 });
+
+describe('separation of duties (D142)', () => {
+  it('a staff member who is also the teacher still asks, and cannot approve their own', async () => {
+    // The teacher's login moves to a staff role with schedule.manage.
+    const monitorRole = await ctx.prisma.role.findUniqueOrThrow({ where: { name: 'monitor' } });
+    const user = await ctx.prisma.user.update({
+      where: { id: teacher.userId },
+      data: { roleId: monitorRole.id },
+    });
+    const self = await signInAs(ctx, user);
+    const res = await self.put(`/teachers/${teacher.id}/work-hours`, NARROWER);
+    expect(res.status).toBe(202);
+    expect(res.body.data).toMatchObject({ status: 'pending', can: { approve: false } });
+    const block = await self.post(`/teachers/${teacher.id}/blocks`, {
+      kind: 'one_off',
+      reason: 'other',
+      startsAt: '2026-11-12T10:00:00Z',
+      endsAt: '2026-11-12T12:00:00Z',
+    });
+    expect(block.status).toBe(202);
+    expect(await hours()).toEqual(['2 09:00-17:00']);
+    expect(await ctx.prisma.teacherBlock.count()).toBe(0);
+
+    const own = await self.post(`/availability-changes/${res.body.data.id}/approve`, {});
+    expect(own.status).toBe(403);
+    expect(own.body.code).toBe('self_decision');
+    // Another staff member decides.
+    expect(
+      (await monitor.post(`/availability-changes/${res.body.data.id}/approve`, {})).status,
+    ).toBe(200);
+    expect(await hours()).toEqual(['2 09:00-12:00']);
+  });
+});

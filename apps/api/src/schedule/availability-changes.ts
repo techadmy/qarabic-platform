@@ -63,6 +63,13 @@ export class AvailabilityChangesService {
 
   /** Is this the teacher changing their own availability (no staff rights)? */
   async isOwnRequest(teacherId: number, actor: AuthUser): Promise<boolean> {
+    // D142 separation of duties: changing one's OWN availability is always a request, even for
+    // staff with schedule.manage (and self_decision stops them approving it).
+    const teacher = await this.prisma.teacher.findUnique({
+      where: { id: teacherId },
+      select: { userId: true },
+    });
+    if (teacher?.userId === actor.id) return true;
     if (actor.permissions.has('schedule.manage') || !isTeacherViewer(actor)) return false;
     // Another teacher: 404, as for reading their calendar.
     await this.calendar.assertCanSee(teacherId, actor);
