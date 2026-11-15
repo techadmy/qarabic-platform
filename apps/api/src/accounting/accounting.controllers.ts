@@ -274,7 +274,8 @@ export class AccountingReportsController {
     return { data: await this.reports.trialBalance(q.currency, q.from, q.to) };
   }
 
-  @Can('accounting.view')
+  /** D145: profit and loss is the owner's only (`reports.profit`). */
+  @Can('reports.profit')
   @Get('profit-and-loss')
   async profitAndLoss(
     @ZodQuery(reportRangeQuerySchema) q: Out<typeof reportRangeQuerySchema>,

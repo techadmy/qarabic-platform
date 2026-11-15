@@ -397,7 +397,7 @@ describe('route permission coverage', () => {
     });
   });
 
-  it('every M7 accounting route needs accounting.view to read and accounting.manage to write', () => {
+  it('every M7 accounting route needs accounting.view to read and accounting.manage to write (P&L: reports.profit)', () => {
     const byRoute = Object.fromEntries(
       auditRoutes(ctx.app).map((r) => [r.route, `${r.mode ?? ''}:${r.permissions.join('|')}`]),
     );
@@ -411,7 +411,8 @@ describe('route permission coverage', () => {
       'GET accounting/periods': 'all:accounting.view',
       'GET accounting/reports/balance-sheet': 'all:accounting.view',
       'GET accounting/reports/cash': 'all:accounting.view',
-      'GET accounting/reports/profit-and-loss': 'all:accounting.view',
+      // D145: profit and loss is the owner's only.
+      'GET accounting/reports/profit-and-loss': 'all:reports.profit',
       'GET accounting/reports/trial-balance': 'all:accounting.view',
       'GET accounting/vouchers': 'all:accounting.view',
       'GET accounting/vouchers/:id': 'all:accounting.view',
@@ -424,6 +425,10 @@ describe('route permission coverage', () => {
       'POST accounting/periods/:period/reopen': 'all:accounting.manage',
       'POST accounting/vouchers': 'all:accounting.manage',
       'POST accounting/vouchers/:id/void': 'all:accounting.manage',
+      // D1 (D144): monthly rates to USD; billing and the owner read them via reports.financial.
+      'GET accounting/exchange-rates': 'any:accounting.view|reports.financial',
+      'PUT accounting/exchange-rates': 'all:accounting.manage',
+      'DELETE accounting/exchange-rates/:id': 'all:accounting.manage',
     });
   });
 
