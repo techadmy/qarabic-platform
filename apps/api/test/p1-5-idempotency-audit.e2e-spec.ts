@@ -57,6 +57,16 @@ const pay = (key?: string) =>
   );
 
 describe('P1-5 manual payment idempotency', () => {
+  it('the browser may send the key from the web origin (CORS preflight allows it)', async () => {
+    const res = await request(ctx.app.getHttpServer())
+      .options(`/api/v1/invoices/${invoiceId}/payments`)
+      .set('Origin', 'http://localhost:3000')
+      .set('Access-Control-Request-Method', 'POST')
+      .set('Access-Control-Request-Headers', 'content-type,idempotency-key');
+    expect(res.status).toBeLessThan(300);
+    expect(res.headers['access-control-allow-headers']?.toLowerCase()).toContain('idempotency-key');
+  });
+
   it('the same key twice is one payment; another key is another payment', async () => {
     const a = await pay('cash-20-key-0001');
     const b = await pay('cash-20-key-0001');
