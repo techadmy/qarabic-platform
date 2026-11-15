@@ -9,6 +9,7 @@ import {
   VouchersController,
 } from './accounting.controllers.js';
 import { AccountsService } from './accounts.service.js';
+import { ExchangeRatesController, ExchangeRatesService } from './exchange-rates.js';
 import { AccountingJobs } from './jobs.js';
 import { JournalService } from './journal.service.js';
 import { LedgerService } from './ledger.service.js';
@@ -31,6 +32,7 @@ import { VouchersService } from './vouchers.service.js';
     PeriodsController,
     OutboxController,
     AccountingReportsController,
+    ExchangeRatesController,
   ],
   providers: [
     LedgerService,
@@ -41,7 +43,8 @@ import { VouchersService } from './vouchers.service.js';
     OutboxService,
     ReportsService,
     AccountingJobs,
+    ExchangeRatesService,
   ],
-  exports: [OutboxService],
+  exports: [OutboxService, ExchangeRatesService],
 })
 export class AccountingModule {}
