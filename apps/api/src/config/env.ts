@@ -39,10 +39,18 @@ export const envSchema = z
         message: 'Use 32 random bytes in base64 (openssl rand -base64 32).',
       }),
     /**
-     * Zoom meetings driver (docs/14 §7.1): `none` = no Zoom account yet (classes use the
-     * enrollment's fixed link), `fake` = deterministic local/CI driver. No real driver yet (B7).
+     * Zoom driver (docs/14 §7.1, docs/42 §6): `none` = no Zoom account yet (classes use the
+     * fixed link), `fake` = deterministic local/CI meetings, `s2s` = Z1 attendance tracking with
+     * a Server-to-Server OAuth app (classes keep each teacher's personal link, PMI; needs the four
+     * ZOOM_* keys below, set on the server by the owner).
      */
-    ZOOM_DRIVER: z.enum(['none', 'fake']).default('none'),
+    ZOOM_DRIVER: z.enum(['none', 'fake', 's2s']).default('none'),
+    /** Z1 Server-to-Server OAuth app (Zoom Marketplace). Never logged. */
+    ZOOM_ACCOUNT_ID: optionalSecret,
+    ZOOM_CLIENT_ID: optionalSecret,
+    ZOOM_CLIENT_SECRET: optionalSecret,
+    /** The app's webhook "Secret Token": signs every event (x-zm-signature). */
+    ZOOM_WEBHOOK_SECRET: optionalSecret,
     /** Run the class generator and the other class jobs on a timer in this process (cron). */
     SCHEDULER_ENABLED: z
       .enum(['true', 'false', '1', '0'])
@@ -218,6 +226,18 @@ export const envSchema = z
           path: [key],
           message: 'Set all of SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM, or none.',
         });
+      }
+    }
+    if (env.ZOOM_DRIVER === 's2s') {
+      for (const key of [
+        'ZOOM_ACCOUNT_ID',
+        'ZOOM_CLIENT_ID',
+        'ZOOM_CLIENT_SECRET',
+        'ZOOM_WEBHOOK_SECRET',
+      ] as const) {
+        if (!env[key]) {
+          ctx.addIssue({ code: 'custom', path: [key], message: 'Required with ZOOM_DRIVER=s2s.' });
+        }
       }
     }
     if (env.FORMS_CAPTCHA_DRIVER === 'turnstile' && !env.TURNSTILE_SECRET_KEY) {
