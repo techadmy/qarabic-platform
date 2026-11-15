@@ -4,6 +4,9 @@ import {
   billingSummarySchema,
   checkoutResultSchema,
   familyBillingSchema,
+  familyCreditSchema,
+  type FamilyCreditDto,
+  type FamilyCreditStatus,
   feePackageSchema,
   invoiceDetailSchema,
   invoiceListResponseSchema,
@@ -272,6 +275,38 @@ export async function updateBillingSettings(
   ).data;
 }
 
+/** P1-1 (B115): family credits — the review list, or one family's open credit. */
+export async function fetchFamilyCredits(
+  query: { status?: FamilyCreditStatus; needsReview?: boolean; familyId?: number },
+  signal?: AbortSignal,
+): Promise<FamilyCreditDto[]> {
+  const qs = new URLSearchParams();
+  if (query.status) qs.set('status', query.status);
+  if (query.needsReview !== undefined) qs.set('needsReview', query.needsReview ? '1' : '0');
+  if (query.familyId) qs.set('familyId', String(query.familyId));
+  const suffix = qs.toString() ? `?${qs}` : '';
+  return (
+    await apiFetch(`/billing/credits${suffix}`, {
+      schema: z.object({ data: z.array(familyCreditSchema) }),
+      signal,
+    })
+  ).data;
+}
+
+/** «تمت المراجعة» on a family credit, with an optional note. */
+export async function reviewFamilyCredit(
+  id: number,
+  note: string | null,
+): Promise<FamilyCreditDto> {
+  return (
+    await apiFetch(`/billing/credits/${id}/review`, {
+      method: 'POST',
+      body: { note },
+      schema: one(familyCreditSchema),
+    })
+  ).data;
+}
+
 export const billingKeys = {
   all: ['billing'] as const,
   providers: ['billing', 'providers'] as const,
@@ -282,4 +317,5 @@ export const billingKeys = {
   invoice: (id: number) => ['billing', 'invoice', id] as const,
   settings: ['billing', 'settings'] as const,
   paymentsReview: ['billing', 'payments-review'] as const,
+  credits: (query: unknown) => ['billing', 'credits', query] as const,
 };

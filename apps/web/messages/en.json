@@ -132,7 +132,8 @@
     "chartOfAccounts": "Chart of accounts",
     "financialReports": "Financial reports",
     "periods": "Accounting periods",
-    "trialsToday": "Today’s trial classes"
+    "trialsToday": "Today’s trial classes",
+    "familyCredits": "Family credits"
   },
   "home": {
     "title": "Home",
@@ -2952,7 +2953,13 @@
       "recordedBy": "Recorded by {name}",
       "receipt": "Receipt",
       "voidPayment": "Void payment",
-      "monthlyFee": "Monthly fee"
+      "monthlyFee": "Monthly fee",
+      "needsReview": "Needs review",
+      "keptAsCredit": "<amount></amount> kept as the family’s credit.",
+      "reviewReason": {
+        "overpaid": "More than the invoice owed was paid.",
+        "invoice_closed": "The payment came after the invoice was paid or voided."
+      }
     },
     "actions": {
       "issue": "Issue invoice",
@@ -3120,7 +3127,13 @@
       "enabledLabel": "Issue a monthly invoice",
       "enabledHint": "When off, the family is left out of the monthly run.",
       "save": "Save billing details",
-      "saved": "Billing details saved. A package change applies from the next invoice."
+      "saved": "Billing details saved. A package change applies from the next invoice.",
+      "credit": "Credit",
+      "creditNeedsReview": "Needs review",
+      "creditHint": "Used automatically on the next invoice.",
+      "creditList": "Family credits",
+      "creditLoadError": "Couldn’t load the family’s credit.",
+      "creditRetry": "Try again"
     },
     "parent": {
       "title": "My invoices",
@@ -3195,6 +3208,38 @@
       "save": "Save settings",
       "saved": "Billing settings saved.",
       "nothingChanged": "Nothing to save."
+    },
+    "credits": {
+      "title": "Family credits",
+      "subtitle": "What families paid beyond their invoices: kept as credit and used on the next invoice.",
+      "viewLabel": "View",
+      "views": {
+        "review": "Needs review",
+        "open": "Open",
+        "all": "All"
+      },
+      "cols": {
+        "family": "Family",
+        "amount": "Amount",
+        "remaining": "Remaining",
+        "status": "Status",
+        "source": "Source",
+        "created": "Date",
+        "reviewed": "Review"
+      },
+      "needsReview": "Needs review",
+      "fromInvoice": "Invoice \u2068{id}\u2069 · \u2068{method}\u2069",
+      "markReviewed": "Mark reviewed",
+      "reviewTitle": "Review the credit of \u2068{name}\u2069",
+      "reviewHint": "Check why the extra came in (a late or double payment). The credit stays with the family and is used on their next invoice.",
+      "note": "Note (optional)",
+      "reviewed": "Credit of \u2068{name}\u2069 reviewed.",
+      "empty": "No family credits.",
+      "emptyReview": "No credits need review.",
+      "emptyHint": "What a family pays beyond its invoice shows here.",
+      "removeFamily": "Remove the family filter",
+      "familyFilter": "Family: \u2068{name}\u2069",
+      "truncated": "Showing the first {count} credits only. Filter the list to see the rest."
     }
   },
   "payroll": {
