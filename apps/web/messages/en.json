@@ -133,7 +133,8 @@
     "financialReports": "Financial reports",
     "periods": "Accounting periods",
     "trialsToday": "Today’s trial classes",
-    "familyCredits": "Family credits"
+    "familyCredits": "Family credits",
+    "paymentsReview": "Payments to review"
   },
   "home": {
     "title": "Home",
@@ -2868,7 +2869,8 @@
       "tooMany": "Too many attempts. Wait a moment and try again.",
       "notFound": "This invoice was not found or is no longer available.",
       "forbidden": "You do not have permission to do this.",
-      "invalid": "Check the details you entered."
+      "invalid": "Check the details you entered.",
+      "paymentChanged": "The payment details changed since the last attempt, so it was not recorded. Check them and press «Record payment» again."
     },
     "fields": {
       "number": "Invoice number",
@@ -2958,7 +2960,9 @@
       "keptAsCredit": "<amount></amount> kept as the family’s credit.",
       "reviewReason": {
         "overpaid": "More than the invoice owed was paid.",
-        "invoice_closed": "The payment came after the invoice was paid or voided."
+        "invoice_closed": "The payment came after the invoice was paid or voided.",
+        "amount_mismatch": "A different amount was captured; nothing was applied to the invoice.",
+        "currency_mismatch": "The payment was captured in another currency; nothing was applied to the invoice."
       }
     },
     "actions": {
@@ -3240,6 +3244,31 @@
       "removeFamily": "Remove the family filter",
       "familyFilter": "Family: \u2068{name}\u2069",
       "truncated": "Showing the first {count} credits only. Filter the list to see the rest."
+    },
+    "paymentsReview": {
+      "title": "Payments to review",
+      "subtitle": "Payments the system did not settle by itself: a different amount or currency (held in suspense), or more than the invoice owed (kept as the family’s credit).",
+      "cols": {
+        "invoice": "Invoice",
+        "method": "Method",
+        "reason": "Reason",
+        "received": "Date",
+        "action": "Action",
+        "amount": "Payment amount",
+        "outcome": "Outcome"
+      },
+      "invoice": "Invoice \u2068{id}\u2069",
+      "needsReview": "Needs review",
+      "reasonOther": "Needs a look from billing.",
+      "kept": "<amount></amount> kept as the family’s credit",
+      "markReviewed": "Mark reviewed",
+      "reviewTitle": "Review the payment on invoice \u2068{id}\u2069",
+      "note": "What did you do? (refund at the provider, moved it, contacted the family)",
+      "reviewed": "Review recorded.",
+      "empty": "No payments to review.",
+      "emptyHint": "Payments with a different amount or currency, and overpayments, show here.",
+      "truncated": "Showing the first {count} payments only.",
+      "reviewAsCredit": "Review as a family credit"
     }
   },
   "payroll": {

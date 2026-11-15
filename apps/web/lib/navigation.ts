@@ -73,6 +73,7 @@ export type NavKey =
   | 'invoices'
   | 'packages'
   | 'familyCredits'
+  | 'paymentsReview'
   | 'billingSettings'
   | 'myInvoices'
   | 'attendance'
@@ -254,6 +255,12 @@ export const STAFF_NAV: NavEntry[] = [
         key: 'familyCredits',
         href: '/billing/credits',
         icon: PiggyBankIcon,
+        anyPermission: ['invoices.manage', 'reports.financial'],
+      },
+      {
+        key: 'paymentsReview',
+        href: '/billing/payments-review',
+        icon: ScaleIcon,
         anyPermission: ['invoices.manage', 'reports.financial'],
       },
     ],

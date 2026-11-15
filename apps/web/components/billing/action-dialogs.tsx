@@ -33,8 +33,9 @@ import { cn } from '@qarabic/ui/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircleIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { isApiError } from '@/lib/api/client';
 import { useUiLocale } from '@/components/sessions/times';
 import {
   addInvoiceLine,
@@ -173,10 +174,27 @@ export function RecordPaymentDialog({
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [touched, setTouched] = useState(false);
+  // P1-5: one Idempotency-Key per payment as entered. A double click or a retry of the same
+  // details reuses it (the API returns the first payment); any change to the details gets a new
+  // key, so an edited retry is never answered with the old payment; a recorded payment ends it.
+  const keyRef = useRef<{ details: string; key: string } | null>(null);
+  const keyFor = (body: Parameters<typeof recordPayment>[1]) => {
+    const details = JSON.stringify(body);
+    if (keyRef.current?.details !== details) keyRef.current = { details, key: newPaymentKey() };
+    return keyRef.current.key;
+  };
   const save = useInvoiceMutation(
-    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body),
+    (body: Parameters<typeof recordPayment>[1]) =>
+      recordPayment(invoice.id, body, keyFor(body)).catch((e: unknown) => {
+        // The API saw this key with other details (409): the next submit gets a fresh key.
+        if (isApiError(e) && e.code === 'idempotency_conflict') keyRef.current = null;
+        throw e;
+      }),
     tp('saved'),
-    () => onOpenChange(false),
+    () => {
+      keyRef.current = null;
+      onOpenChange(false);
+    },
   );
   const balance = minorOf(invoice.balance);
   const check = validatePayment(
@@ -659,4 +677,9 @@ export function ManualInvoiceDialog({
       </FormRow>
     </FormDialog>
   );
+}
+
+/** A fresh Idempotency-Key (8–64 of A–Z a–z 0–9 _ -). */
+export function newPaymentKey(): string {
+  return `pay_${crypto.randomUUID().replace(/-/g, '')}`;
 }

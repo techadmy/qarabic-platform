@@ -81,6 +81,8 @@ type RequestOptions<S extends z.ZodType | undefined> = {
   body?: unknown;
   schema?: S;
   signal?: AbortSignal;
+  /** Extra request headers (e.g. `Idempotency-Key` on a manual payment, P1-5). */
+  headers?: Record<string, string>;
 };
 
 type Result<S> = S extends z.ZodType ? z.infer<S> : unknown;
@@ -90,8 +92,9 @@ async function send(
   method: string,
   body: unknown,
   signal?: AbortSignal,
+  extra?: Record<string, string>,
 ): Promise<{ res: Response; data: unknown }> {
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  const headers: Record<string, string> = { Accept: 'application/json', ...extra };
   // Multipart (ticket files): the browser sets the boundary itself.
   const form = typeof FormData !== 'undefined' && body instanceof FormData;
   if (body !== undefined && !form) headers['Content-Type'] = 'application/json';
@@ -120,13 +123,13 @@ async function send(
 
 export async function apiFetch<S extends z.ZodType | undefined = undefined>(
   path: string,
-  { method = 'GET', body, schema, signal }: RequestOptions<S> = {},
+  { method = 'GET', body, schema, signal, headers }: RequestOptions<S> = {},
 ): Promise<Result<S>> {
-  let { res, data } = await send(path, method, body, signal);
+  let { res, data } = await send(path, method, body, signal, headers);
   // 403 `csrf_mismatch`: the token expired or rotated. Fetch a fresh one and retry once.
   if (!SAFE_METHODS.has(method) && isCsrfMismatch(res.status, data)) {
     await ensureCsrfToken(true);
-    ({ res, data } = await send(path, method, body, signal));
+    ({ res, data } = await send(path, method, body, signal, headers));
   }
   if (!res.ok) {
     recordApiError({

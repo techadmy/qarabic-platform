@@ -34,6 +34,7 @@ import {
   type PaymentDto,
   familyCreditQuerySchema,
   reviewFamilyCreditSchema,
+  reviewPaymentSchema,
   type FamilyCreditDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
@@ -148,8 +149,8 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
         // P1-1: the review flag is for staff only (#92).
         needsReview: !!p.needsReview,
         reviewReason: p.reviewReason ?? null,
-        capturedAmount: null,
-        capturedCurrency: null,
+        capturedAmount: p.capturedMinor == null ? null : fromMinor(p.capturedMinor),
+        capturedCurrency: p.capturedCurrency ?? null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
@@ -829,9 +830,22 @@ export const billingHandlers: HttpHandler[] = [
     if ('error' in g) return g.error;
     const inv = findInvoice(g.me, Number(params.id));
     if (!inv || isParent(g.me)) return notFound();
+    // P1-5: a retried or double submit with the same key gets the first payment back.
+    const key = request.headers.get('idempotency-key');
+    if (key !== null && !/^[A-Za-z0-9_-]{8,64}$/.test(key)) {
+      return validationFailed([{ path: ['idempotencyKey'], message: 'Use 8–64 letters.' }]);
+    }
     const parsed = manualPaymentSchema.safeParse(await body(request));
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const v = parsed.data;
+    // #96: the same key with other details is refused; the same details replay the payment.
+    const details = JSON.stringify({ ...v, amount: fromMinor(toMinor(v.amount)) });
+    const seen = key ? bdb.idempotency.get(key) : undefined;
+    if (seen && seen.details !== details) {
+      return apiError(409, 'idempotency_conflict', 'This key was used for a different payment.');
+    }
+    const first = seen ? bdb.payments.find((p) => p.id === seen.paymentId) : undefined;
+    if (first) return HttpResponse.json({ data: paymentDto(first, true) }, { status: 201 });
     if (v.receivedOn > academyToday()) {
       return apiError(422, 'validation_failed', 'The given data was invalid.', {
         receivedOn: ['The date received cannot be in the future.'],
@@ -859,8 +873,33 @@ export const billingHandlers: HttpHandler[] = [
       recordedBy: { id: g.me.id, name: g.me.name },
     };
     bdb.payments.push(row);
+    if (key) bdb.idempotency.set(key, { paymentId: row.id, details });
     recalculate(bdb, inv);
     return HttpResponse.json({ data: paymentDto(row, true) }, { status: 201 });
+  }),
+
+  // P1-3: the payments review queue (held mismatches, overpayments) and «تمت المراجعة».
+  http.get(`${API}/billing/payments/review`, ({ request }) => {
+    const g = guardAny(request, 'invoices.manage', 'reports.financial');
+    if ('error' in g) return g.error;
+    const rows = bdb.payments.filter((p) => p.needsReview).sort((a, b) => b.id - a.id);
+    return HttpResponse.json({
+      data: rows.map((p) => ({
+        ...paymentDto(p, true),
+        invoiceNumber: bdb.invoices.find((i) => i.id === p.invoiceId)?.number ?? null,
+      })),
+    });
+  }),
+  http.post(`${API}/billing/payments/:id/reviewed`, async ({ request, params }) => {
+    const g = guard(request, 'invoices.manage');
+    if ('error' in g) return g.error;
+    const p = bdb.payments.find((x) => x.id === Number(params.id));
+    if (!p) return notFound();
+    const parsed = reviewPaymentSchema.safeParse(await body(request));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    p.needsReview = false;
+    p.note = `${p.note ?? ''}\nReviewed: ${parsed.data.note}`.trim().slice(0, 1000);
+    return HttpResponse.json({ data: paymentDto(p, true) });
   }),
 
   http.post(`${API}/payments/:id/void`, async ({ request, params }) => {

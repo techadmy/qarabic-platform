@@ -11,7 +11,7 @@ import { bdb } from '@/mocks/billing-db';
 import { renderPage } from '@/test/people';
 
 /** The seeded late bank transfer on an already paid invoice (P1-1, B115). */
-const late = () => bdb.payments.find((p) => p.needsReview)!;
+const late = () => bdb.payments.find((p) => p.needsReview && p.reviewReason === 'invoice_closed')!;
 const credit = () => bdb.credits.find((c) => c.status === 'open')!;
 
 describe('P1-1 family credits (B115)', () => {

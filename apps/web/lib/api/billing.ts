@@ -12,7 +12,9 @@ import {
   invoiceListResponseSchema,
   invoiceRunPreviewResponseSchema,
   invoiceRunResultSchema,
+  paymentReviewItemSchema,
   paymentSchema,
+  type PaymentReviewItemDto,
   remindResultSchema,
   splitResultSchema,
   type AddInvoiceLineInput,
@@ -165,9 +167,43 @@ export async function remindInvoice(id: number): Promise<RemindResultDto> {
   ).data;
 }
 
-export async function recordPayment(id: number, body: ManualPaymentInput): Promise<PaymentDto> {
+/**
+ * A manual payment. P1-5: `idempotencyKey` (one per payment dialog) makes a retried or double
+ * submit return the first payment instead of recording a second one.
+ */
+export async function recordPayment(
+  id: number,
+  body: ManualPaymentInput,
+  idempotencyKey?: string,
+): Promise<PaymentDto> {
   return (
-    await apiFetch(`/invoices/${id}/payments`, { method: 'POST', body, schema: one(paymentSchema) })
+    await apiFetch(`/invoices/${id}/payments`, {
+      method: 'POST',
+      body,
+      schema: one(paymentSchema),
+      headers: idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : undefined,
+    })
+  ).data;
+}
+
+/** P1-3: payments held for staff (amount/currency mismatch) or paid beyond the invoice. */
+export async function fetchPaymentsToReview(signal?: AbortSignal): Promise<PaymentReviewItemDto[]> {
+  return (
+    await apiFetch('/billing/payments/review', {
+      schema: z.object({ data: z.array(paymentReviewItemSchema) }),
+      signal,
+    })
+  ).data;
+}
+
+/** «تمت المراجعة» on a held payment, with what was done (refund at the provider, moved, …). */
+export async function reviewPayment(id: number, note: string): Promise<PaymentDto> {
+  return (
+    await apiFetch(`/billing/payments/${id}/reviewed`, {
+      method: 'POST',
+      body: { note },
+      schema: one(paymentSchema),
+    })
   ).data;
 }
 
@@ -282,5 +318,6 @@ export const billingKeys = {
   invoices: (query: unknown) => ['billing', 'invoices', query] as const,
   invoice: (id: number) => ['billing', 'invoice', id] as const,
   settings: ['billing', 'settings'] as const,
+  paymentsReview: ['billing', 'payments-review'] as const,
   credits: (query: unknown) => ['billing', 'credits', query] as const,
 };
