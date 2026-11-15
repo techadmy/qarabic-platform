@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from '@qarabic/ui/components/select';
 import { ToggleGroup, ToggleGroupItem } from '@qarabic/ui/components/toggle-group';
-import { CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
+import { CheckIcon, CircleCheckIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { useUiLocale } from '@/components/sessions/times';
@@ -150,14 +150,19 @@ export function HiringCheck({ grid }: { grid: FreeCapacityDto }) {
             className="flex-wrap"
           >
             {STAFF_WEEK.map((d) => (
-              <ToggleGroupItem key={d} value={String(d)} className="h-10 px-3">
+              <ToggleGroupItem
+                key={d}
+                value={String(d)}
+                className="h-10 px-3 data-[state=on]:border-primary data-[state=on]:bg-primary/10 data-[state=on]:font-semibold"
+              >
+                {weekdays.includes(String(d)) && <CheckIcon aria-hidden />}
                 {weekdayName(d, locale)}
               </ToggleGroupItem>
             ))}
           </ToggleGroup>
         </FieldSet>
         {!valid ? (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="status" className="text-sm text-destructive">
             {t('invalid')}
           </p>
         ) : result ? (

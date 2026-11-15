@@ -77,8 +77,12 @@ export function BusyDays({ days }: { days: UtilizationDayDto[] }) {
       util: d.utilization,
     })),
   ).filter((r) => r.util !== null);
-  const busiest = dates.slice(0, 5);
-  const emptiest = [...dates].reverse().slice(0, 5);
+  // With 10 dates or fewer the two lists split them (no date in both).
+  const top = Math.min(5, Math.ceil(dates.length / 2));
+  const busiest = dates.slice(0, top);
+  const emptiest = dates.slice(top).reverse().slice(0, 5);
+  // Classes booked on a day with no available hours (e.g. Friday): outside work hours.
+  const outsideOnly = weekdays.some((r) => r.available === 0 && r.booked > 0);
 
   const table = (label: string, rows: Row[]) => (
     <div className="overflow-x-auto">
@@ -132,6 +136,7 @@ export function BusyDays({ days }: { days: UtilizationDayDto[] }) {
             {t('byWeekday')}
           </h3>
           {table(t('byWeekday'), weekdays)}
+          {outsideOnly && <p className="text-sm text-muted-foreground">{t('outsideOnly')}</p>}
         </section>
         <section aria-labelledby="busy-busiest" className="flex flex-col gap-2">
           <h3 id="busy-busiest" className="font-semibold">

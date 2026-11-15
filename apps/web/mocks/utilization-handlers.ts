@@ -148,7 +148,7 @@ export const utilizationHandlers: HttpHandler[] = [
         classes: each.reduce((n, x) => n + x.classes, 0),
       };
     });
-    const data: UtilizationReportDto & { days: typeof days } = {
+    const data: UtilizationReportDto = {
       range: { from, to, previous, timezone: ACADEMY_TZ },
       days,
       teachers,

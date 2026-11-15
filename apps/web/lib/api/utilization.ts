@@ -3,30 +3,14 @@ import {
   utilizationReportSchema,
   type FreeCapacityDto,
   type FreeCapacityQuery,
+  type UtilizationReportDto,
   type UtilizationQuery,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
 
-/**
- * Per-day totals for the busiest / emptiest days (R1 follow-up). Asked of backend for
- * `utilizationReportSchema` (#118 follow-up); optional here until it is in `@qarabic/shared`.
- */
-export const utilizationDaySchema = z.object({
-  date: z.string(),
-  weekday: z.number().int().min(1).max(7),
-  availableHours: z.number(),
-  bookedHours: z.number(),
-  freeHours: z.number(),
-  outsideHours: z.number(),
-  utilization: z.number().nullable(),
-  classes: z.number().int(),
-});
-export type UtilizationDayDto = z.infer<typeof utilizationDaySchema>;
-const reportSchema = utilizationReportSchema.extend({
-  days: z.array(utilizationDaySchema).optional(),
-});
-export type UtilizationReport = z.infer<typeof reportSchema>;
+/** One date's totals (busiest / emptiest days, R1 follow-up; backend #118). */
+export type UtilizationDayDto = UtilizationReportDto['days'][number];
 
 /** R1 (docs/42 §5, D148): teacher utilization and the free-capacity heatmap. */
 function qs(query: Record<string, unknown>) {
@@ -42,10 +26,10 @@ function qs(query: Record<string, unknown>) {
 export async function fetchUtilization(
   query: UtilizationQuery,
   signal?: AbortSignal,
-): Promise<UtilizationReport> {
+): Promise<UtilizationReportDto> {
   return (
     await apiFetch(`/reports/teacher-utilization${qs(query as Record<string, unknown>)}`, {
-      schema: z.object({ data: reportSchema }),
+      schema: z.object({ data: utilizationReportSchema }),
       signal,
     })
   ).data;

@@ -364,7 +364,7 @@ export function UtilizationView() {
         </>
       )}
 
-      {d?.days && d.days.length > 0 && <BusyDays days={d.days} />}
+      {d && d.days.length > 0 && <BusyDays days={d.days} />}
       <Card className="gap-3 shadow-none">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div className="flex flex-col gap-1">

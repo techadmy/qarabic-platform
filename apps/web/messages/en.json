@@ -4417,7 +4417,8 @@
       "booked": "Booked",
       "available": "Available",
       "utilization": "Utilization",
-      "empty": "No available hours in the period."
+      "empty": "No available hours in the period.",
+      "outsideOnly": "Classes booked on a day with no available hours (e.g. Friday) are outside work hours, so there is no utilization for it."
     },
     "hiring": {
       "title": "Do we need a new teacher?",
