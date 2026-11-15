@@ -243,6 +243,8 @@ const TEACHER_ROUTES = [
   'PUT sessions/:id/trial-report',
   'PUT teachers/:teacherId/work-hours',
   'PUT tests/:id/result',
+  'GET reports/free-capacity',
+  'GET reports/teacher-utilization',
 ];
 
 describe('portal surfaces (what a parent / teacher passes at the guard)', () => {
@@ -503,6 +505,8 @@ const PARENT_LISTS = [
   'GET tests',
 ];
 const TEACHER_LISTS = [
+  'GET reports/free-capacity',
+  'GET reports/teacher-utilization',
   'GET attendance',
   'GET attendance/today',
   `GET calendar/background${CAL}`,

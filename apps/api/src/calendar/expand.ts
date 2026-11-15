@@ -105,3 +105,24 @@ export function merge(spans: Span[]): Span[] {
 }
 
 export const iso = (ms: number) => new Date(ms).toISOString();
+
+/** `spans` minus `cut` (both any order; the result is merged and sorted). */
+export function subtract(spans: Span[], cut: Span[]): Span[] {
+  const cuts = merge(cut);
+  const out: Span[] = [];
+  for (const s of merge(spans)) {
+    let start = s.start;
+    for (const c of cuts) {
+      if (c.end <= start || c.start >= s.end) continue;
+      if (c.start > start) out.push({ start, end: c.start });
+      start = Math.max(start, c.end);
+      if (start >= s.end) break;
+    }
+    if (start < s.end) out.push({ start, end: s.end });
+  }
+  return out;
+}
+
+/** Total length in hours, two decimals. */
+export const hoursOf = (spans: Span[]): number =>
+  Math.round((spans.reduce((t, s) => t + (s.end - s.start), 0) / 3_600_000) * 100) / 100;
