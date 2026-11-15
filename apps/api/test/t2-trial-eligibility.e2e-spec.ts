@@ -150,7 +150,8 @@ describe('T2 trial teachers: eligibility and ranking', () => {
       [adults.id]: ['audience'],
       [capped.id]: ['weekly_limit'],
       [onLeave.id]: ['on_leave'],
-      [busy.id]: ['busy'],
+      // A block over the time is its own reason now (still a clash: not overridable).
+      [busy.id]: ['blocked'],
     });
     // Bookable with a reason first, the busy one last.
     expect(ineligible.at(-1).teacher.id).toBe(busy.id);
@@ -348,5 +349,72 @@ describe('T2 teacher trial settings', () => {
       where: { subjectType: 'teacher', subjectId: t.id, action: 'updated' },
     });
     expect(audit.after).toMatchObject({ acceptsTrials: false, audience: 'children' });
+  });
+
+  it('outside approved work hours (teacher zone, DST-exact) and blocked are reasons', async () => {
+    // 17:00 London (GMT) on Wed 18 Nov = 19:00 Cairo (UTC+2).
+    const inside = await teacher('Amal', { gender: 'female' });
+    const outside = await teacher('Bushra', { gender: 'female' });
+    const blockedOnLeave = await teacher('Dina', { gender: 'female' });
+    await ctx.prisma.teacherWorkHour.createMany({
+      data: [
+        {
+          teacherId: inside.id,
+          weekday: 3,
+          localStartTime: '18:00',
+          localEndTime: '21:00',
+          timezone: 'Africa/Cairo',
+        },
+        {
+          teacherId: outside.id,
+          weekday: 3,
+          localStartTime: '09:00',
+          localEndTime: '12:00',
+          timezone: 'Africa/Cairo',
+        },
+      ],
+    });
+    await ctx.prisma.leaveRequest.create({
+      data: {
+        userId: blockedOnLeave.userId,
+        startsOn: new Date('2026-11-17'),
+        endsOn: new Date('2026-11-19'),
+        days: 3,
+        leaveType: 'paid',
+        reason: 'Leave',
+        status: 'approved',
+      },
+    });
+    await ctx.prisma.teacherBlock.create({
+      data: {
+        teacherId: blockedOnLeave.id,
+        kind: 'one_off',
+        startsAt: new Date('2026-11-18T16:00:00Z'),
+        endsAt: new Date('2026-11-18T19:00:00Z'),
+      },
+    });
+
+    const res = await query();
+    const all = [...res.body.data.eligible, ...res.body.data.ineligible] as Array<{
+      teacher: { id: number };
+      reasons: string[];
+      overridable: boolean;
+      inWorkHours: boolean;
+    }>;
+    const byId = (id: number) => all.find((o) => o.teacher.id === id)!;
+    expect(byId(inside.id)).toMatchObject({ reasons: [], inWorkHours: true });
+    expect(byId(outside.id)).toMatchObject({
+      reasons: ['outside_work_hours'],
+      overridable: true,
+      inWorkHours: false,
+    });
+    // On leave already explains the block: one reason, not two.
+    expect(byId(blockedOnLeave.id).reasons).toEqual(['on_leave']);
+
+    // Booking outside hours needs a reason (an override), like the other soft reasons.
+    expect((await book(outside.id)).status).toBe(422);
+    expect((await book(outside.id, { overrideReason: 'Family can only do evenings' })).status).toBe(
+      201,
+    );
   });
 });
