@@ -4308,5 +4308,31 @@
       "title": "Missing exchange rates",
       "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency."
     }
+  },
+  "calendar": {
+    "filters": {
+      "label": "Filter the calendar",
+      "teachers": "Teachers",
+      "allTeachers": "All teachers",
+      "students": "Students",
+      "allStudents": "All students",
+      "course": "Course",
+      "allCourses": "All courses",
+      "searchCourse": "Search by course name",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "stage": "Status",
+      "allStages": "All statuses",
+      "zoneLabel": "Show times in",
+      "zone": {
+        "academy": "Academy time (\u2068{city}\u2069)",
+        "mine": "My time (\u2068{city}\u2069)",
+        "teacher": "Teacher’s time (\u2068{city}\u2069)",
+        "student": "Student’s time (\u2068{city}\u2069)",
+        "teacherUnset": "Teacher’s time (choose one teacher)",
+        "studentUnset": "Student’s time (choose one student)"
+      },
+      "clear": "Clear filters"
+    }
   }
 }
