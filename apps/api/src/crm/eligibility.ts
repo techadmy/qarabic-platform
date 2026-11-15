@@ -31,8 +31,8 @@ import { crmError } from './errors.js';
 
 const DAY = 86_400_000;
 const occupying = { in: [...OCCUPYING_STAGES] } as Prisma.EnumSessionStageFilter;
-/** Hard conflicts that make a teacher `busy` for the trial. */
-const BUSY = new Set(['teacher_overlap', 'teacher_blocked', 'teacher_inactive']);
+/** Hard conflicts that make a teacher `busy` for the trial (a block is its own reason). */
+const BUSY = new Set(['teacher_overlap', 'teacher_inactive']);
 
 /** Local wall time in `zone` → UTC ms; a time skipped by a clock change is a 422 on `field`. */
 export function localToUtc(date: string, time: string, zone: string, field: string): number {
@@ -258,8 +258,13 @@ export class TrialEligibility {
         },
         st,
       );
-      if (check.conflicts.some((c) => BUSY.has(c.code))) reasons.push('busy');
       const inWorkHours = !check.warnings.some((w) => w.code === 'outside_work_hours');
+      // Approved hours only (pending availability changes are not in the work-hours table).
+      if (!inWorkHours) reasons.push('outside_work_hours');
+      if (!onLeave && check.conflicts.some((c) => c.code === 'teacher_blocked')) {
+        reasons.push('blocked');
+      }
+      if (check.conflicts.some((c) => BUSY.has(c.code))) reasons.push('busy');
 
       const mine = trialEnrollments.filter((e) => e.teacherId === t.id);
       const converted = mine.filter((e) =>
@@ -278,7 +283,9 @@ export class TrialEligibility {
         teacher: { id: t.id, name, gender: t.gender, timezone: zone },
         eligible: reasons.length === 0,
         reasons,
-        overridable: reasons.length > 0 && !reasons.includes('busy'),
+        // A clash (busy, or a block) is refused when booking (409): never overridable.
+        overridable:
+          reasons.length > 0 && !reasons.includes('busy') && !reasons.includes('blocked'),
         rank: null,
         teacherLocal: { date: at.date, time: at.time },
         inWorkHours,
