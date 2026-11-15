@@ -549,11 +549,12 @@ describe('row scoping of the portal routes', () => {
     const b = await side('Bravo', pkg);
     // Payslips of last month for both teachers (run → review → approve).
     const accounts = (await userWithRole(ctx, 'accounts')).client;
-    const senior = (await userWithRole(ctx, 'senior_manager')).client;
+    // D147: a second accountant reviews (P0-3: never the approver).
+    const reviewer = (await userWithRole(ctx, 'accounts')).client;
     const run = await accounts.post('/payroll/runs', { period: '2026-10' });
     expect(run.status).toBe(201);
     const runId = (run.body as { data: { id: number } }).data.id;
-    const reviewed = await senior.post(`/payroll/runs/${runId}/review`);
+    const reviewed = await reviewer.post(`/payroll/runs/${runId}/review`);
     expect(reviewed.status, JSON.stringify(reviewed.body)).toBe(200);
     expect((await accounts.post(`/payroll/runs/${runId}/approve`)).status).toBe(200);
     for (const s of [a, b]) {

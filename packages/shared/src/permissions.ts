@@ -103,8 +103,7 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, 'admin'>, Entry[]> = {
     'tests.*',
     'invoices.view',
     'invoices.manage',
-    'payroll.view',
-    'payroll.review',
+    // D147: salaries are the accounts' and the owner's only.
     'tasks.*',
     'complaints.*',
     'announcements.*',
@@ -210,8 +209,11 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, 'admin'>, Entry[]> = {
     'invoices.view',
     'attendance.view',
     'attendance.request',
+    // D147: accounts run payroll end to end (prepare, review, approve, pay); P0-3 still needs a
+    // second person to approve (another accountant, or the owner).
     'payroll.view',
     'payroll.manage',
+    'payroll.review',
     'payroll.approve',
     'wallet.view',
     'wallet.manage',

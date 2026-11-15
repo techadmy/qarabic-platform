@@ -22,7 +22,7 @@ import {
 
 let ctx: TestContext;
 let accounts: Client;
-let senior: Client;
+let reviewer: Client;
 let teacher: Awaited<ReturnType<typeof m6Teacher>>;
 
 beforeAll(async () => {
@@ -35,7 +35,7 @@ beforeEach(async () => {
   await resetState(ctx);
   m6At(ctx, '2026-11-15T08:00:00Z');
   accounts = (await userWithRole(ctx, 'accounts')).client;
-  senior = (await userWithRole(ctx, 'senior_manager')).client;
+  reviewer = (await userWithRole(ctx, 'accounts')).client;
   teacher = await m6Teacher(ctx, { hourlyRate: '300.00' });
   const e = await m6Enrollment(ctx, teacher);
   await m6Session(ctx, e, '2026-10-05T10:00:00Z', 'taken');
@@ -49,7 +49,7 @@ async function run(): Promise<number> {
 }
 
 async function review(id: number): Promise<void> {
-  const res = await senior.post(`/payroll/runs/${id}/review`);
+  const res = await reviewer.post(`/payroll/runs/${id}/review`);
   expect(res.status).toBe(200);
   expect(res.body.data.status).toBe('reviewed');
 }
@@ -90,7 +90,7 @@ describe('payroll run lifecycle (D92)', () => {
     expect(res.body.data).toMatchObject({
       period: '2026-10',
       totals: [{ currency: 'PKR', net: '300.00', people: 1 }],
-      can: { review: false, recompute: true }, // accounts prepares, the senior manager reviews
+      can: { review: true, recompute: true }, // D147: accounts prepare and may review
     });
     expect(res.body.data.payslips[0].user.id).toBe(teacher.userId);
     expect((await accounts.get('/payroll/runs')).body.data[0].period).toBe('2026-10');
@@ -111,7 +111,7 @@ describe('payroll run lifecycle (D92)', () => {
       (await ctx.prisma.payslip.findFirstOrThrow({ where: { userId: broke.id } })).currency,
     ).toBe('EGP');
 
-    const res = await senior.post(`/payroll/runs/${id}/review`);
+    const res = await reviewer.post(`/payroll/runs/${id}/review`);
     expect(res.status).toBe(422);
     expect(res.body.code).toBe('payroll_blocked');
     expect(res.body.data[0].errors[0].code).toBe('negative_net');
@@ -319,7 +319,7 @@ describe('idempotent compute, preview, emails, CLI', () => {
   });
 
   it('previews a month without storing anything', async () => {
-    const res = await senior.get('/payroll/runs/preview?period=2026-10');
+    const res = await reviewer.get('/payroll/runs/preview?period=2026-10');
     expect(res.status).toBe(200);
     expect(res.body.data.payslips).toHaveLength(1);
     expect(res.body.data.payslips[0]).toMatchObject({
@@ -339,7 +339,7 @@ describe('idempotent compute, preview, emails, CLI', () => {
     ]);
     expect(await ctx.prisma.payrollRun.count()).toBe(0);
     expect(await ctx.prisma.payslip.count()).toBe(0);
-    expect((await senior.get('/payroll/runs/preview?period=2026-1')).status).toBe(422);
+    expect((await reviewer.get('/payroll/runs/preview?period=2026-1')).status).toBe(422);
   });
 
   it('sends no payslip email unless the setting is on (then to the in-memory mailer only)', async () => {

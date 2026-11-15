@@ -25,7 +25,7 @@ describe('stale_run (docs/21 §7)', () => {
     const teacher = await m6Teacher(ctx, { hourlyRate: '300.00' });
     await m6Session(ctx, await m6Enrollment(ctx, teacher), '2026-10-05T10:00:00Z', 'taken');
     const { client: accounts } = await userWithRole(ctx, 'accounts');
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
     const created = (await accounts.post('/payroll/runs', { period: '2026-10' })).body.data;
     expect(created.updatedAt).toEqual(expect.any(String));
     const seen = created.updatedAt as string;
@@ -39,7 +39,7 @@ describe('stale_run (docs/21 §7)', () => {
     const fresh = recomputed.body.data.updatedAt as string;
     expect(fresh).not.toBe(seen);
 
-    const stale = await senior.post(`/payroll/runs/${created.id}/review`, {
+    const stale = await reviewer.post(`/payroll/runs/${created.id}/review`, {
       expectedUpdatedAt: seen,
     });
     expect(stale.status).toBe(409);
@@ -49,7 +49,7 @@ describe('stale_run (docs/21 §7)', () => {
     });
 
     m6At(ctx, '2026-11-15T08:10:00Z');
-    const reviewed = await senior.post(`/payroll/runs/${created.id}/review`, {
+    const reviewed = await reviewer.post(`/payroll/runs/${created.id}/review`, {
       expectedUpdatedAt: fresh,
     });
     expect(reviewed.status).toBe(200);
@@ -73,7 +73,7 @@ describe('stale_run (docs/21 §7)', () => {
     ).toBe('stale_run');
 
     // Without the field (old clients) the status check still applies: 409 invalid_run_status.
-    expect((await senior.post(`/payroll/runs/${created.id}/review`)).body.code).toBe(
+    expect((await reviewer.post(`/payroll/runs/${created.id}/review`)).body.code).toBe(
       'invalid_run_status',
     );
     expect(
