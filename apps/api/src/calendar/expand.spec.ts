@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { expandRecurring, expandWorkHours, holidaySpan, merge } from './expand.js';
+import {
+  expandRecurring,
+  expandWorkHours,
+  holidaySpan,
+  hoursOf,
+  merge,
+  subtract,
+} from './expand.js';
 
 const ms = (iso: string) => Date.parse(iso);
 const isoSpans = (spans: Array<{ start: number; end: number }>) =>
@@ -76,5 +83,24 @@ describe('holidaySpan and merge', () => {
         { start: 2, end: 6 },
       ]),
     ).toEqual([{ start: 1, end: 9 }]);
+  });
+});
+
+describe('subtract and hoursOf', () => {
+  it('cuts holes, edges and whole spans', () => {
+    const h = 3_600_000;
+    const day = [{ start: 9 * h, end: 17 * h }];
+    expect(subtract(day, [{ start: 12 * h, end: 13 * h }])).toEqual([
+      { start: 9 * h, end: 12 * h },
+      { start: 13 * h, end: 17 * h },
+    ]);
+    expect(
+      subtract(day, [
+        { start: 8 * h, end: 10 * h },
+        { start: 16 * h, end: 18 * h },
+      ]),
+    ).toEqual([{ start: 10 * h, end: 16 * h }]);
+    expect(subtract(day, [{ start: 0, end: 24 * h }])).toEqual([]);
+    expect(hoursOf(subtract(day, [{ start: 9 * h, end: 9.5 * h }]))).toBe(7.5);
   });
 });
