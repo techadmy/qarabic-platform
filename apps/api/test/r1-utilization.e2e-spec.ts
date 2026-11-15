@@ -116,6 +116,25 @@ describe('GET /reports/teacher-utilization', () => {
       utilizationDelta: null,
       previous: { availableHours: 2 },
     });
+    // Per day (D148 «busiest / emptiest days»): Monday carries everything, Wednesday is a holiday.
+    expect(res.body.data.days).toHaveLength(7);
+    expect(res.body.data.days[0]).toEqual({
+      date: '2026-11-02',
+      weekday: 1,
+      classes: 2,
+      availableHours: 3,
+      bookedHours: 1.5,
+      freeHours: 2,
+      outsideHours: 0.5,
+      utilization: 0.5,
+    });
+    expect(res.body.data.days[2]).toMatchObject({
+      date: '2026-11-04',
+      weekday: 3,
+      availableHours: 0,
+      utilization: null,
+    });
+    expect(res.body.data.days[6]).toMatchObject({ date: '2026-11-08', weekday: 7, classes: 0 });
     expect(res.body.data.totals).toEqual({
       availableHours: 3,
       bookedHours: 1.5,
