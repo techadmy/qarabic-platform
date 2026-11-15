@@ -131,7 +131,12 @@ describe('P1-1 overpayment kept as the family’s credit', () => {
         amount: '60.00',
         remaining: '60.00',
         status: 'open',
-        sourcePayment: { id: attempt.id, invoiceId, method: 'stripe' },
+        sourcePayment: {
+          id: attempt.id,
+          invoiceId,
+          invoiceNumber: expect.stringMatching(/^INV-\d{4}-\d{6}$/),
+          method: 'stripe',
+        },
       }),
     ]);
 

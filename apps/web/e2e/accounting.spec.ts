@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * M7 accounting against the MSW mocks: the journal, a new balanced entry, vouchers (create and
@@ -100,13 +105,15 @@ test('accounts: a payment voucher on a phone, then void it', async ({ page }) =>
   const confirm = page.getByRole('alertdialog');
   await confirm.getByRole('textbox').fill('Duplicate');
   await confirm.getByRole('button', { name: 'إلغاء السند' }).click();
-  await expect(page.getByText(/السبب: Duplicate/)).toBeVisible();
+  await expect(page.getByText(sentence('السبب: Duplicate', { exact: false }))).toBeVisible();
 });
 
 test('accounts: the chart opens a statement', async ({ page }) => {
   await signIn(page, '/accounting/accounts');
   await page.getByRole('link', { name: 'البنك', exact: true }).click();
-  await expect(page.getByRole('heading', { level: 1, name: /كشف حساب 1120/ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: sentence('كشف حساب 1120', { exact: false }) }),
+  ).toBeVisible();
   await expect(page.getByText('الرصيد الافتتاحي')).toBeVisible();
 });
 

@@ -11,6 +11,8 @@ export const BILLING_EVENT = {
   invoiceVoided: 'invoice.voided',
   paymentSucceeded: 'payment.succeeded',
   paymentRefunded: 'payment.refunded',
+  /** P1-3: captured but not matching (amount / currency): suspense until reviewed. */
+  paymentHeld: 'payment.held',
 } as const;
 type EventType = (typeof BILLING_EVENT)[keyof typeof BILLING_EVENT];
 

@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N4 support centre against the MSW mocks (production build, mocks on). The mock data is built
@@ -29,7 +34,7 @@ test('parent: «تواصل معنا» → a class → «مشكلة في هذه �
 }) => {
   await signIn(page, 'parent@qarabic.test');
   await expect(
-    page.getByRole('heading', { level: 1, name: 'مرحبًا، ولي أمر تجريبي' }),
+    page.getByRole('heading', { level: 1, name: sentence('مرحبًا، ولي أمر تجريبي') }),
   ).toBeVisible();
   await contactButton(page).click();
   const hub = page.getByRole('dialog', { name: 'تواصل معنا' });
@@ -44,17 +49,25 @@ test('parent: «تواصل معنا» → a class → «مشكلة في هذه �
   await expect(form.getByText(/^الحصة:/)).toBeVisible();
   await form.getByLabel(/ما المشكلة في هذه الحصة؟/).fill('The teacher could not hear us today.');
   await form.getByRole('button', { name: 'أرسل' }).click();
-  await expect(page.getByText(/أُرسل طلبك رقم #9/).first()).toBeVisible();
+  await expect(
+    page.getByText(/أُرسل طلبك رقم #[\u2066-\u2069]*9[\u2066-\u2069]*/).first(),
+  ).toBeVisible();
 
   await page.getByRole('link', { name: 'طلباتي', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'طلباتي' })).toBeVisible();
   const list = page.getByRole('list', { name: 'طلباتي' });
   await expect(
-    list.getByRole('link', { name: /#9 · The teacher could not hear us today/ }),
+    list.getByRole('link', {
+      name: /#[\u2066-\u2069]*9[\u2066-\u2069]* · [\u2066-\u2069]*The teacher could not hear us today/,
+    }),
   ).toBeVisible();
   await expectNoSeriousA11yViolations(page);
-  await list.getByRole('link', { name: /#9 · / }).click();
-  await expect(page.getByRole('heading', { level: 1, name: /#9/ })).toBeVisible();
+  await list
+    .getByRole('link', { name: /#[\u2066-\u2069]*9[\u2066-\u2069]* · [\u2066-\u2069]*/ })
+    .click();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /#[\u2066-\u2069]*9[\u2066-\u2069]*/ }),
+  ).toBeVisible();
   await expect(page.getByText('الحصة #', { exact: false }).first()).toBeVisible();
   await expect(
     page.getByText('بانتظار رد الفريق').or(page.getByText('لم يُحدَّد بعد؛ سنراجعه قريبًا')),
@@ -77,18 +90,22 @@ test('staff take → reply → fixed in the inbox; the parent confirms the fix',
   await expect(row.getByText(/^متأخر /)).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 
-  await row.getByRole('button', { name: /^استلام\s?: #2$/ }).click();
+  await row
+    .getByRole('button', { name: /^استلام\s?: #[\u2066-\u2069]*2[\u2066-\u2069]*$/ })
+    .click();
   await expect(page.getByText('استلمتَ الطلب.')).toBeVisible();
-  await expect(row.getByText('المسؤول: مدير النظام')).toBeVisible();
+  await expect(row.getByText(sentence('المسؤول: مدير النظام'))).toBeVisible();
 
-  await row.getByRole('button', { name: /^رد\s?: #2$/ }).click();
-  const reply = page.getByRole('dialog', { name: 'الرد على الطلب #2' });
+  await row.getByRole('button', { name: /^رد\s?: #[\u2066-\u2069]*2[\u2066-\u2069]*$/ }).click();
+  const reply = page.getByRole('dialog', { name: sentence('الرد على الطلب #2') });
   await reply.getByLabel('نص الرد').fill('We found your payment; we are updating the invoice.');
   await reply.getByRole('button', { name: 'إرسال' }).click();
   await expect(page.getByText('أُرسل الرد.')).toBeVisible();
 
   for (const status of ['قيد التنفيذ', 'تم الحل (بانتظار التأكيد)']) {
-    await row.getByRole('button', { name: /^تغيير الحالة\s?: #2$/ }).click();
+    await row
+      .getByRole('button', { name: /^تغيير الحالة\s?: #[\u2066-\u2069]*2[\u2066-\u2069]*$/ })
+      .click();
     const dialog = page.getByRole('dialog', { name: /الحالة الجديدة|نقل الطلب/ });
     await dialog.getByRole('combobox', { name: 'الحالة الجديدة' }).click();
     await page.getByRole('option', { name: status }).click();
@@ -105,7 +122,9 @@ test('staff take → reply → fixed in the inbox; the parent confirms the fix',
   const mine = page.getByRole('list', { name: 'طلباتي' });
   const two = mine.getByRole('listitem').filter({ hasText: '#2 · I paid' });
   await expect(two.getByText('تحديث جديد')).toBeVisible();
-  await two.getByRole('link', { name: /#2 · / }).click();
+  await two
+    .getByRole('link', { name: /#[\u2066-\u2069]*2[\u2066-\u2069]* · [\u2066-\u2069]*/ })
+    .click();
   await expect(page.getByText('We found your payment; we are updating the invoice.')).toBeVisible();
   await expect(page.getByText('هل حُلّت المشكلة؟')).toBeVisible();
   await expectNoSeriousA11yViolations(page);
@@ -154,7 +173,9 @@ test('staff at 375 px: the inbox and a ticket fit; settings and triage pass axe'
   await expect(page.getByRole('list', { name: 'صندوق الطلبات' })).toBeVisible();
   await expectNoHorizontalScroll(page);
   await page.goto('/tickets/4');
-  await expect(page.getByRole('heading', { level: 1, name: /#4/ })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { level: 1, name: /#[\u2066-\u2069]*4[\u2066-\u2069]*/ }),
+  ).toBeVisible();
   await expectNoHorizontalScroll(page);
   await expectNoSeriousA11yViolations(page);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -192,7 +213,9 @@ test('a parent (phone) asks to pause the subscription: dates and reason, then «
   await form.getByRole('combobox', { name: 'السبب' }).click();
   await page.getByRole('option', { name: 'سفر' }).click();
   await form.getByRole('button', { name: 'أرسل' }).click();
-  await expect(page.getByText(/أُرسل طلبك رقم #\d+/).first()).toBeVisible();
+  await expect(
+    page.getByText(/أُرسل طلبك رقم [\u2066-\u2069]*#[\u2066-\u2069]*\d+[\u2066-\u2069]*/).first(),
+  ).toBeVisible();
   await expectNoHorizontalScroll(page);
 });
 
@@ -211,10 +234,10 @@ test('teacher change (S3): staff propose at 1440 in English, the family accepts 
   await form.getByRole('textbox').last().fill('We would like a teacher who explains in English.');
   await form.getByRole('button', { name: 'أرسل' }).click();
   const sent = await page
-    .getByText(/أُرسل طلبك رقم #\d+/)
+    .getByText(/أُرسل طلبك رقم [\u2066-\u2069]*#[\u2066-\u2069]*\d+[\u2066-\u2069]*/)
     .first()
     .textContent();
-  const number = /#(\d+)/.exec(sent ?? '')![1]!;
+  const number = /#[\u2066-\u2069]*(\d+)/.exec(sent ?? '')![1]!;
 
   // Staff, in English: the request card on the ticket, then a proposal.
   await signOutAndIn(page, 'admin@qarabic.test');

@@ -32,6 +32,9 @@ import {
   type InvoiceDto,
   type PackageUsageDto,
   type PaymentDto,
+  familyCreditQuerySchema,
+  reviewFamilyCreditSchema,
+  type FamilyCreditDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import { addDays } from '@/lib/schedule-time';
@@ -57,6 +60,7 @@ import type { MockUser } from './data';
 import { db as people } from './people-db';
 import { paginate, queryOf } from './schedule-handlers';
 import { apiError, guard, guardAny, notFound, validationFailed } from './session';
+import type { CreditRow } from './billing-db';
 
 /**
  * MSW handlers for N6 (apps/api README «Endpoints (N6: billing)»): packages, the family billing
@@ -136,13 +140,16 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: p.refundedAt,
     createdAt: p.createdAt,
     receiptNumber: p.receiptNumber,
-    unapplied: '0.00',
-    needsReview: false,
-    reviewReason: null,
+    unapplied: fromMinor(p.unappliedMinor ?? 0),
   };
   return staff
     ? {
         ...base,
+        // P1-1: the review flag is for staff only (#92).
+        needsReview: !!p.needsReview,
+        reviewReason: p.reviewReason ?? null,
+        capturedAmount: null,
+        capturedCurrency: null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
@@ -360,7 +367,62 @@ function runRows(month: string, day: 1 | 15, familyIds?: number[]) {
     });
 }
 
+function creditDto(c: CreditRow): FamilyCreditDto {
+  const source = c.sourcePaymentId ? bdb.payments.find((p) => p.id === c.sourcePaymentId) : null;
+  return {
+    id: c.id,
+    family: { id: c.familyId, name: familyName(c.familyId) },
+    currency: c.currency,
+    amount: fromMinor(c.amountMinor),
+    remaining: fromMinor(c.remainingMinor),
+    status: c.status,
+    sourcePayment: source
+      ? {
+          id: source.id,
+          invoiceId: source.invoiceId,
+          invoiceNumber: bdb.invoices.find((i) => i.id === source.invoiceId)?.number ?? null,
+          method: source.method,
+        }
+      : null,
+    reviewedAt: c.reviewedAt,
+    reviewedBy: c.reviewedBy,
+    note: c.note,
+    createdAt: c.createdAt,
+  };
+}
+
 export const billingHandlers: HttpHandler[] = [
+  // P1-1 (B115): the family credits review list, and «تمت المراجعة».
+  http.get(`${API}/billing/credits`, ({ request }) => {
+    const g = guardAny(request, 'invoices.manage', 'reports.financial');
+    if ('error' in g) return g.error;
+    const parsed = familyCreditQuerySchema.safeParse(
+      Object.fromEntries(new URL(request.url).searchParams),
+    );
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const q = parsed.data;
+    const rows = bdb.credits
+      .filter((c) => !q.status || c.status === q.status)
+      .filter((c) => !q.familyId || c.familyId === q.familyId)
+      .filter((c) => q.needsReview === undefined || !c.reviewedAt === q.needsReview)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return HttpResponse.json({ data: rows.map(creditDto) });
+  }),
+  http.post(`${API}/billing/credits/:id/review`, async ({ request, params }) => {
+    const g = guard(request, 'invoices.manage');
+    if ('error' in g) return g.error;
+    const c = bdb.credits.find((x) => x.id === Number(params.id));
+    if (!c) return notFound();
+    const parsed = reviewFamilyCreditSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    c.reviewedAt = new Date().toISOString();
+    c.reviewedBy = { id: g.me.id, name: g.me.name };
+    if (parsed.data.note !== undefined) c.note = parsed.data.note;
+    const source = bdb.payments.find((p) => p.id === c.sourcePaymentId);
+    if (source) source.needsReview = false;
+    return HttpResponse.json({ data: creditDto(c) });
+  }),
+
   http.get(`${API}/billing/providers`, ({ request }) => {
     const g = guard(request, 'invoices.view');
     if ('error' in g) return g.error;

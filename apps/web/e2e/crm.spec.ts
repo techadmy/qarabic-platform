@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N5 CRM on the mock API: a new lead goes contact → trial booked → outcome → converted; the list,
@@ -244,7 +249,9 @@ test('public trial form: required fields, then the thank-you message', async ({ 
   await expect(page.getByText('اختر وقتًا واحدًا على الأقل.')).toBeVisible();
   await page.getByRole('checkbox', { name: 'مساءً' }).check();
   await page.getByRole('button', { name: 'أرسل الطلب' }).click();
-  await expect(page.getByRole('heading', { name: 'شكرًا لك، Layla Hassan' })).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: sentence('شكرًا لك، Layla Hassan') }),
+  ).toBeVisible();
   await expectNoSeriousA11yViolations(page);
 });
 

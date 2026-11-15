@@ -1512,6 +1512,8 @@ enum PaymentStatus {
   failed
   cancelled
   refunded
+  /// P1-3: money captured, but not what the attempt asked for (amount or currency): held for staff.
+  needs_review
 }
 
 enum WebhookEventStatus {
@@ -1696,12 +1698,17 @@ model Payment {
   failureReason     String?       @map("failure_reason") @db.VarChar(500)
   recordedById      Int?          @map("recorded_by")
   initiatedById     Int?          @map("initiated_by")
-  idempotencyKey    String?       @unique @map("idempotency_key") @db.VarChar(64)
+  idempotencyKey    String?       @unique @map("idempotency_key") @db.VarChar(100)
+  /// P1-5: sha256 of the manual request body sent with the Idempotency-Key (same key, other body → 409).
+  requestHash       String?       @map("request_hash") @db.Char(64)
   /// P1-1: the part of a succeeded payment not applied to its invoice (became a family credit).
   unapplied         Decimal       @default(0) @db.Decimal(12, 2)
   /// Staff should look at it: `overpaid` (more than the balance) or `invoice_closed`.
   needsReview       Boolean       @default(false) @map("needs_review")
   reviewReason      String?       @map("review_reason") @db.VarChar(32)
+  /// P1-3: what the provider captured when it did not match the attempt.
+  capturedAmount    Decimal?      @map("captured_amount") @db.Decimal(12, 2)
+  capturedCurrency  String?       @map("captured_currency") @db.Char(3)
   createdAt         DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 

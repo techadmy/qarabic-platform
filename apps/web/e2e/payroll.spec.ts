@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N7 payroll on the mock API (no money ever moves: «تسجيل الصرف» only records). Steps that change
@@ -66,7 +71,7 @@ test('leave: the teacher requests, a manager approves (days go to attendance)', 
   await page.getByRole('tab', { name: /طلبات الإجازة/ }).click();
   const list = page.getByRole('table', { name: 'طلبات الإجازة' });
   await list.getByRole('button', { name: 'موافقة: معلم تجريبي' }).click();
-  const approve = page.getByRole('dialog', { name: 'اعتماد إجازة معلم تجريبي' });
+  const approve = page.getByRole('dialog', { name: sentence('اعتماد إجازة معلم تجريبي') });
   await expect(approve).toContainText('تُسجّل أيام الإجازة');
   await approve.getByRole('button', { name: 'موافقة' }).click();
   await expect(page.getByText('اعتُمدت الإجازة وسُجّلت أيامها في الحضور.')).toBeVisible();
@@ -93,7 +98,9 @@ test('fine: a monitor proposes, a manager approves', async ({ page }) => {
   await sidebar(page).getByRole('link', { name: 'الغرامات والبنود' }).click();
   const table = page.getByRole('table', { name: 'الغرامات والبنود' });
   await table.getByRole('button', { name: 'اعتماد: Huda Mostafa' }).click();
-  const approve = page.getByRole('dialog', { name: /اعتماد غرامة: Huda Mostafa/ });
+  const approve = page.getByRole('dialog', {
+    name: sentence('اعتماد غرامة: Huda Mostafa', { exact: false }),
+  });
   await approve.getByRole('button', { name: 'اعتماد' }).click();
   await expect(page.getByText('اعتُمد البند.')).toBeVisible();
   await expect(table.getByRole('button', { name: 'اعتماد: Huda Mostafa' })).toHaveCount(0);
@@ -131,7 +138,10 @@ test('run: create the month → review → approve → record a payment → pays
     .getByRole('link', { name: 'Ahmed Fathy' })
     .click();
   await expect(
-    page.getByRole('heading', { level: 1, name: /قسيمة راتب Ahmed Fathy/ }),
+    page.getByRole('heading', {
+      level: 1,
+      name: sentence('قسيمة راتب Ahmed Fathy', { exact: false }),
+    }),
   ).toBeVisible();
   await expectNoSeriousA11yViolations(page);
   await page.getByRole('button', { name: 'سجّل الصرف' }).click();

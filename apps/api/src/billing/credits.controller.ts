@@ -3,7 +3,10 @@ import { ApiBody, ApiTags } from '@nestjs/swagger';
 import {
   familyCreditQuerySchema,
   reviewFamilyCreditSchema,
+  reviewPaymentSchema,
   type FamilyCreditDto,
+  type PaymentDto,
+  type PaymentReviewItemDto,
 } from '@qarabic/shared';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
@@ -17,12 +20,15 @@ import { ZodBody } from '../common/zod.pipe.js';
 import { ZodQuery } from '../common/zod-query.pipe.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { paymentDto } from './presenter.js';
 
 type Out<S extends z.ZodType> = z.output<S>;
 
 const include = {
   family: { select: { id: true, user: { select: { name: true } } } },
-  sourcePayment: { select: { id: true, invoiceId: true, method: true } },
+  sourcePayment: {
+    select: { id: true, invoiceId: true, method: true, invoice: { select: { number: true } } },
+  },
 } satisfies Prisma.FamilyCreditInclude;
 type Row = Prisma.FamilyCreditGetPayload<{ include: typeof include }>;
 
@@ -113,11 +119,80 @@ export class FamilyCreditsController {
       amount: r.amount.toFixed(2),
       remaining: r.remaining.toFixed(2),
       status: r.status,
-      sourcePayment: r.sourcePayment,
+      sourcePayment: r.sourcePayment
+        ? {
+            id: r.sourcePayment.id,
+            invoiceId: r.sourcePayment.invoiceId,
+            invoiceNumber: r.sourcePayment.invoice.number,
+            method: r.sourcePayment.method,
+          }
+        : null,
       reviewedAt: r.reviewedAt?.toISOString() ?? null,
       reviewedBy: users.find((u) => u.id === r.reviewedById) ?? null,
       note: r.note,
       createdAt: r.createdAt.toISOString(),
     }));
+  }
+}
+
+/**
+ * P1-3 / P1-1 review queue: payments staff must look at — held captures (`needs_review`, amount or
+ * currency not matching) and overpayments kept as credit. Resolving (refund at the provider, a
+ * manual move) is done with the usual tools; `reviewed` records it.
+ */
+@ApiTags('billing')
+@Controller('billing/payments')
+export class PaymentReviewController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  @CanAny('invoices.manage', 'reports.financial')
+  @Get('review')
+  async list(): Promise<{ data: PaymentReviewItemDto[] }> {
+    const rows = await this.prisma.payment.findMany({
+      where: { needsReview: true },
+      include: {
+        recordedBy: { select: { id: true, name: true } },
+        invoice: { select: { number: true } },
+      },
+      orderBy: { id: 'desc' },
+      take: 500,
+    });
+    return {
+      data: rows.map((p) => ({ ...paymentDto(p, true), invoiceNumber: p.invoice.number })),
+    };
+  }
+
+  @Can('invoices.manage')
+  @Post(':id/reviewed')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(reviewPaymentSchema) })
+  async reviewed(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(reviewPaymentSchema) body: Out<typeof reviewPaymentSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: PaymentDto }> {
+    const found = await this.prisma.payment.findUnique({ where: { id } });
+    if (!found) throw notFound();
+    const row = await this.prisma.payment.update({
+      where: { id },
+      data: {
+        needsReview: false,
+        note: `${found.note ?? ''}\nReviewed: ${body.note}`.trim().slice(0, 1000),
+      },
+      include: { recordedBy: { select: { id: true, name: true } } },
+    });
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'payment_reviewed',
+      subjectType: 'payment',
+      subjectId: id,
+      before: { needsReview: true, reason: found.reviewReason },
+      after: { needsReview: false },
+      reason: body.note,
+    });
+    return { data: paymentDto(row, true) };
   }
 }
