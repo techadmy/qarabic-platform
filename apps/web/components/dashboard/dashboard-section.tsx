@@ -276,23 +276,23 @@ export function DashboardSection() {
         const config = {
           taken: {
             label: t('chart.class_outcomes.taken'),
-            color: 'var(--chart-taken, var(--primary))',
+            color: 'var(--chart-taken)',
           },
           absent: {
             label: t('chart.class_outcomes.absent'),
-            color: 'var(--chart-absent, var(--chart-2))',
+            color: 'var(--chart-absent)',
           },
           leave: {
             label: t('chart.class_outcomes.leave'),
-            color: 'var(--chart-leave, var(--chart-3))',
+            color: 'var(--chart-leave)',
           },
           declined: {
             label: t('chart.class_outcomes.declined'),
-            color: 'var(--chart-declined, var(--chart-4))',
+            color: 'var(--chart-declined)',
           },
           cancelled: {
             label: t('chart.class_outcomes.cancelled'),
-            color: 'var(--chart-cancelled, var(--chart-5))',
+            color: 'var(--chart-cancelled)',
           },
         } satisfies ChartConfig;
         return (
