@@ -45,7 +45,15 @@ import {
 } from '@/lib/api/availability';
 import { scheduleKeys } from '@/lib/api/schedule';
 import { useClassError } from '@/lib/sessions/errors';
-import { dayAndClock, dayLabel, wallTime, weekdayName } from '@/lib/schedule-time';
+import {
+  clock,
+  dateKeyIn,
+  dayAndClock,
+  dayLabel,
+  wallTime,
+  weekdayName,
+} from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 
 const STATUS_LOOK: Record<
   AvailabilityChangeStatus,
@@ -67,6 +75,9 @@ function Summary({ c }: { c: AvailabilityChangeDto }) {
     if (!hours.length) return <span>{t('noHours')}</span>;
     return (
       <ul className="flex flex-col gap-0.5">
+        <li className="text-muted-foreground">
+          {t('inTeacherZone', { city: cityOf(c.teacher.timezone, locale) })}
+        </li>
         {hours.map((h, i) => (
           <li key={i}>
             {weekdayName(h.weekday, locale)}:{' '}
@@ -133,6 +144,8 @@ export function AvailabilityChanges({
     queryFn: ({ signal }) => fetchAvailabilityChanges(query, signal),
   });
   const [rejecting, setRejecting] = useState<AvailabilityChangeDto | null>(null);
+  // Approving hours that leave booked classes outside them is confirmed first.
+  const [approving, setApproving] = useState<AvailabilityChangeDto | null>(null);
   const done = (msg: string) => {
     void queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
     void queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
@@ -140,7 +153,10 @@ export function AvailabilityChanges({
   };
   const approve = useMutation({
     mutationFn: (c: AvailabilityChangeDto) => approveAvailabilityChange(c.id),
-    onSuccess: (c) => done(t('approved', { name: c.teacher.name })),
+    onSuccess: (c) => {
+      setApproving(null);
+      done(t('approved', { name: c.teacher.name }));
+    },
     onError: (e) => toast.error(message(e)),
   });
   const reject = useMutation({
@@ -218,17 +234,27 @@ export function AvailabilityChanges({
                       <TriangleAlertIcon />
                       <AlertTitle>{t('affected', { count: c.affected.length })}</AlertTitle>
                       <AlertDescription>
-                        <ul className="flex flex-col gap-0.5">
-                          {c.affected.slice(0, 8).map((a) => (
+                        <ul className="flex max-h-48 flex-col gap-0.5 overflow-y-auto">
+                          {c.affected.map((a) => (
                             <li key={a.id}>
-                              <bdi>{dayAndClock(a.startsAt, c.teacher.timezone, locale)}</bdi> ·{' '}
-                              {a.student.name}
+                              <Link
+                                href={`/today?date=${dateKeyIn(viewerTz, new Date(a.startsAt))}&session=${a.id}`}
+                                className="inline-flex min-h-6 items-center gap-1 underline underline-offset-4"
+                              >
+                                <bdi>{dayAndClock(a.startsAt, viewerTz, locale)}</bdi> (
+                                {cityOf(viewerTz, locale)}) · {a.student.name}
+                              </Link>
+                              {c.teacher.timezone !== viewerTz && (
+                                <span className="text-muted-foreground">
+                                  {' '}
+                                  · {t('teacherTime')}{' '}
+                                  <bdi>{clock(a.startsAt, c.teacher.timezone, locale)}</bdi> (
+                                  {cityOf(c.teacher.timezone, locale)})
+                                </span>
+                              )}
                             </li>
                           ))}
                         </ul>
-                        {c.affected.length > 8 && (
-                          <span>{t('affectedMore', { count: c.affected.length - 8 })}</span>
-                        )}
                       </AlertDescription>
                     </Alert>
                   )}
@@ -238,7 +264,7 @@ export function AvailabilityChanges({
                         <Button
                           className="h-9"
                           disabled={approve.isPending}
-                          onClick={() => approve.mutate(c)}
+                          onClick={() => (c.affected.length ? setApproving(c) : approve.mutate(c))}
                         >
                           <CheckIcon />
                           {t('approve')}
@@ -269,6 +295,18 @@ export function AvailabilityChanges({
           </ul>
         )}
       </CardContent>
+      <ReasonDialog
+        open={!!approving}
+        onOpenChange={(o) => !o && setApproving(null)}
+        title={approving ? t('approveTitle', { name: approving.teacher.name }) : ''}
+        description={
+          approving ? t('approveImpact', { count: approving.affected.length }) : undefined
+        }
+        confirmLabel={t('approve')}
+        busy={approve.isPending}
+        error={null}
+        onConfirm={() => approving && approve.mutate(approving)}
+      />
       <ReasonDialog
         open={!!rejecting}
         onOpenChange={(o) => {

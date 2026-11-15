@@ -1,6 +1,6 @@
 'use client';
 
-import { Tabs, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
 import { useTranslations } from 'next-intl';
 import { PageHeader } from '@/components/page-header';
 import { AvailabilityChanges } from '@/components/schedule/availability-changes';
@@ -38,12 +38,13 @@ export function AvailabilityQueueView() {
           <TabsTrigger value="pending">{t('tabs.pending')}</TabsTrigger>
           <TabsTrigger value="all">{t('tabs.all')}</TabsTrigger>
         </TabsList>
+        <TabsContent value="pending">
+          <AvailabilityChanges status="pending" title={t('tabs.pending')} showTeacher />
+        </TabsContent>
+        <TabsContent value="all">
+          <AvailabilityChanges title={t('tabs.all')} showTeacher />
+        </TabsContent>
       </Tabs>
-      <AvailabilityChanges
-        status={all ? undefined : 'pending'}
-        title={all ? t('tabs.all') : t('tabs.pending')}
-        showTeacher
-      />
     </div>
   );
 }

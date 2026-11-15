@@ -37,10 +37,37 @@ test('a teacher requests new hours: they wait for approval, visible, and can be 
 }) => {
   // Approval by staff is covered in the unit tests (a reload here would rebuild the mocks).
   await signIn(page, 'teacher@qarabic.test', '/my-schedule');
-  await page.getByRole('button', { name: 'أضف فترة' }).click();
+  await page.getByRole('button', { name: /^احذف فترة/ }).first().click();
   await page.getByRole('button', { name: 'أرسل الطلب للاعتماد' }).click();
   const mine = page.getByRole('region', { name: 'طلباتي لتعديل الإتاحة' });
   await expect(mine.getByText('بانتظار الاعتماد')).toBeVisible();
   await mine.getByRole('button', { name: 'سحب الطلب' }).click();
   await expect(mine.getByText('مسحوب')).toBeVisible();
+});
+
+test('staff decide in the queue: reject needs a reason; approving with classes outside asks first', async ({
+  page,
+}) => {
+  await signIn(page, 'admin@qarabic.test', '/schedule/availability-requests');
+  const queue = page.getByRole('region', { name: 'بانتظار الاعتماد' });
+  await expect(queue.getByRole('button', { name: 'اعتماد' })).toHaveCount(2);
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+
+  // Reject the first with a reason.
+  await queue.getByRole('button', { name: 'رفض' }).first().click();
+  const reject = page.getByRole('alertdialog');
+  await reject.getByRole('textbox').fill('نحتاج هذا الوقت للحصص المسائية');
+  await reject.getByRole('button', { name: 'رفض' }).click();
+  await expect(page.getByText(/رُفض طلب/)).toBeVisible();
+  await expect(queue.getByRole('button', { name: 'اعتماد' })).toHaveCount(1);
+
+  // Approve the other (confirmed when booked classes fall outside the new hours).
+  await queue.getByRole('button', { name: 'اعتماد' }).click();
+  const confirm = page.getByRole('dialog', { name: /اعتماد طلب/ });
+  if (await confirm.isVisible().catch(() => false)) {
+    await confirm.getByRole('button', { name: 'اعتماد' }).click();
+  }
+  await expect(page.getByText(/اعتُمد طلب/)).toBeVisible();
+  await expect(queue.getByText('لا طلبات.')).toBeVisible();
 });

@@ -110,7 +110,19 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
   const tz = zone === 'teacher' ? data.teacher.timezone : viewerTz;
   const today = dateKeyIn(tz);
   const shown = data.slots.map((s) => ({ s, side: otherSideOf(s, tz, today) }));
+  // «Student — Course» in the UI language, from the classes of this timetable (the API's slot
+  // label is one language).
+  const slotLabel = new Map(
+    data.sessions
+      .filter((x) => x.enrollmentId)
+      .map((x) => [
+        x.enrollmentId!,
+        `${x.student.name} — ${locale === 'ar' ? x.course.nameAr : x.course.nameEn}`,
+      ]),
+  );
   const canManage = can(me, 'schedule.manage');
+  // D142: a teacher's own hours are always a request (even for staff who also teach).
+  const own = me.teacherId === id;
 
   return (
     <>
@@ -188,7 +200,7 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
                               className="h-auto gap-1.5 px-2 py-1 text-caption font-normal whitespace-normal"
                             >
                               <bdi className="font-semibold">{wallTime(side.time, locale)}</bdi>
-                              <span>{s.label}</span>
+                              <span>{slotLabel.get(s.enrollmentId) ?? s.label}</span>
                             </Badge>
                           ))}
                         </span>
@@ -223,18 +235,29 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
           teacherId={id}
           hours={data.workHours}
           timezone={data.teacher.timezone}
-          editable={canManage || !!mine}
-          asRequest={!!mine && !canManage}
+          editable={canManage || own}
+          asRequest={own}
         />
         <BlocksCard
           teacherId={id}
           blocks={data.blocks}
           timezone={data.teacher.timezone}
-          editable={canManage || !!mine}
-          asRequest={!!mine && !canManage}
+          editable={canManage || own}
+          asRequest={own}
         />
       </div>
     </>
+  );
+}
+
+/** Two periods of the same day overlap (a period past midnight ends at 24:00 for this check). */
+function overlapping(rows: HourRow[]): boolean {
+  const end = (r: HourRow) => (r.localEndTime <= r.localStartTime ? '24:00' : r.localEndTime);
+  return rows.some((a, i) =>
+    rows.some(
+      (b, j) =>
+        j > i && a.weekday === b.weekday && a.localStartTime < end(b) && b.localStartTime < end(a),
+    ),
   );
 }
 
@@ -280,7 +303,7 @@ function WorkHoursCard({
         localEndTime,
       })),
     );
-  const invalid = rows.some((r) => r.localStartTime === r.localEndTime);
+  const invalid = rows.some((r) => r.localStartTime === r.localEndTime) || overlapping(rows);
   const save = useMutation({
     mutationFn: () =>
       replaceWorkHours(teacherId, {
@@ -375,6 +398,11 @@ function WorkHoursCard({
             )}
           </div>
         ))}
+        {overlapping(rows) && (
+          <p role="alert" className="text-sm text-destructive">
+            {t('overlap')}
+          </p>
+        )}
         {error && (
           <Alert variant="destructive" role="alert">
             <AlertCircleIcon />

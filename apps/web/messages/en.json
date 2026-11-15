@@ -1228,7 +1228,8 @@
       "empty": "No working hours",
       "hint": "Drag on empty time to add hours, drag a block or its edges to change it, click it to remove it. Nothing is saved until you save.",
       "readOnly": "Weekly working hours in the teacher’s time zone."
-    }
+    },
+    "overlap": "Two periods overlap on the same day; change or remove one."
   },
   "holidays": {
     "title": "Public holidays",
@@ -4431,7 +4432,6 @@
     "note": "Teacher’s note: \u2068{note}\u2069",
     "decision": "Reason: \u2068{reason}\u2069",
     "affected": "{count, plural, one {# booked class} other {# booked classes}} outside the new hours",
-    "affectedMore": "and \u2068{count}\u2069 more",
     "approve": "Approve",
     "reject": "Reject",
     "withdraw": "Withdraw",
@@ -4446,6 +4446,10 @@
     "tabs": {
       "pending": "Pending",
       "all": "All"
-    }
+    },
+    "inTeacherZone": "In the teacher’s time (\u2068{city}\u2069):",
+    "teacherTime": "Teacher:",
+    "approveTitle": "Approve \u2068{name}\u2069’s request?",
+    "approveImpact": "{count, plural, one {# booked class falls} other {# booked classes fall}} outside the new hours; move or reschedule them after approving."
   }
 }

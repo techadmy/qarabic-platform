@@ -45,9 +45,51 @@ interface ChangeRow {
 
 let changes: ChangeRow[] = [];
 let nextId = 1;
+/** Two teachers' requests waiting for staff (the queue has something to decide). */
+function seed(): ChangeRow[] {
+  const at = (h: number) =>
+    new Date(Date.now() - h * 3_600_000).toISOString().replace(/\.\d{3}Z$/, 'Z');
+  const row = (id: number, teacherId: number, hours: WorkHourDto[], note: string, h: number) => {
+    const t = teacherOf(teacherId)!;
+    return {
+      id,
+      teacherId,
+      kind: 'work_hours' as const,
+      status: 'pending' as const,
+      blockId: null,
+      payload: { workHours: hours },
+      effectiveFrom: dateKeyIn(t.timezone),
+      note,
+      requestedBy: { id: t.userId ?? 100 + teacherId, name: t.name },
+      requestedAt: at(h),
+      decidedBy: null,
+      decidedAt: null,
+      decisionReason: null,
+      appliedAt: null,
+    };
+  };
+  const tz = (id: number) => teacherOf(id)?.timezone ?? 'Africa/Cairo';
+  return [
+    row(
+      1,
+      2,
+      [{ weekday: 6, localStartTime: '09:00', localEndTime: '13:00', timezone: tz(2) }],
+      'أفضّل الفترة الصباحية يوم السبت.',
+      5,
+    ),
+    row(
+      2,
+      3,
+      [{ weekday: 1, localStartTime: '16:00', localEndTime: '22:00', timezone: tz(3) }],
+      'تغيّر موعد عملي الآخر.',
+      9,
+    ),
+  ];
+}
+
 export function resetAvailabilityChanges() {
-  changes = [];
-  nextId = 1;
+  changes = seed();
+  nextId = changes.length + 1;
 }
 
 const teacherOf = (id: number) => people.teachers.find((t) => t.id === id);
@@ -136,9 +178,12 @@ function request(
 function ownRequest(request: Request, teacherId: number) {
   const g = guardAny(request, 'schedule.manage', 'sessions.conduct');
   if ('error' in g) return { error: g.error };
-  if (manages(g.me) || !isTeacher(g.me)) return null;
-  if (ownTeacherId(g.me) !== teacherId) return { error: apiError(403, 'forbidden', 'Forbidden.') };
-  return { me: g.me };
+  // D142: the actor's own teacher record is always a request, whatever their permissions; staff
+  // change other teachers directly (the schedule handlers).
+  const mineId = g.me.teacherId ?? (isTeacher(g.me) ? ownTeacherId(g.me) : null);
+  if (mineId === teacherId) return { me: g.me };
+  if (manages(g.me)) return null;
+  return { error: apiError(403, 'forbidden', 'Forbidden.') };
 }
 
 function apply(c: ChangeRow) {
@@ -279,3 +324,5 @@ export const availabilityHandlers: HttpHandler[] = [
     return HttpResponse.json({ data: present(c, g.me) });
   }),
 ];
+
+resetAvailabilityChanges();
