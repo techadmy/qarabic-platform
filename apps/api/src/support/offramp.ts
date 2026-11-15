@@ -356,7 +356,8 @@ function keyTaken(error: unknown): unknown {
 export class SupportOffRampController {
   constructor(private readonly offramp: SupportOffRamp) {}
 
-  @Can('support.view')
+  /** ISO-2 (docs/39 P2-1): family data needs `families.view` too (not e.g. accounts). */
+  @Can('support.view', 'families.view')
   @Get('links')
   @ApiOperation({ summary: 'Deep links to paste for one family (instead of handling on WhatsApp)' })
   async links(
@@ -433,7 +434,15 @@ export class SupportOffRampController {
   async render(
     @Param('id', IdPipe) id: number,
     @ZodBody(renderSavedReplySchema) body: Out<typeof renderSavedReplySchema>,
+    @CurrentUser() user: AuthUser,
   ): Promise<{ data: RenderedReplyDto }> {
+    // ISO-2: a family's name is family data.
+    if (body.familyId && !user.permissions.has('families.view')) {
+      throw new ApiException(403, {
+        message: 'You do not have permission to do this.',
+        code: 'forbidden',
+      });
+    }
     return { data: await this.offramp.render(id, body) };
   }
 }

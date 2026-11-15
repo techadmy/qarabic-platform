@@ -14,7 +14,7 @@ import { NonePush, PushGateway } from '../src/common/push.js';
 import { Crypto } from '../src/common/crypto.js';
 import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
 import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
-import { MemoryMailer } from '../src/mail/mailer.js';
+import { MailGateway, MemoryMailer } from '../src/mail/mailer.js';
 import { WhatsAppConfig } from '../src/support/whatsapp.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
@@ -63,6 +63,7 @@ export async function resetState(ctx: TestContext): Promise<void> {
   await syncRolesAndPermissions(ctx.prisma);
   ctx.limiter.reset();
   ctx.mailer.clear();
+  ctx.app.get(MailGateway).reset();
   ctx.app.get(Clock).set(null);
   ctx.app.get(ZoomDriver).use(new NoneZoomClient());
   ctx.app.get(WhatsAppConfig).reset();
@@ -123,8 +124,14 @@ export class Client {
     return this.wrap(this.agent.get(`/api/v1${path}`));
   }
 
-  post(path: string, body?: object, opts: { csrf?: boolean } = {}): Promise<request.Response> {
-    return this.wrap(this.withCsrf(this.agent.post(`/api/v1${path}`), opts.csrf).send(body ?? {}));
+  post(
+    path: string,
+    body?: object,
+    opts: { csrf?: boolean; headers?: Record<string, string> } = {},
+  ): Promise<request.Response> {
+    const req = this.withCsrf(this.agent.post(`/api/v1${path}`), opts.csrf);
+    for (const [k, v] of Object.entries(opts.headers ?? {})) void req.set(k, v);
+    return this.wrap(req.send(body ?? {}));
   }
 
   put(path: string, body?: object, opts: { csrf?: boolean } = {}): Promise<request.Response> {

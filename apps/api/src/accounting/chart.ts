@@ -97,14 +97,18 @@ export const CHART: readonly ChartRow[] = [
   { code: '5320', parent: '53', type: 'expense', nameAr: 'مصروفات بنكية أخرى', nameEn: 'Other bank charges' },
   { code: '54', parent: '5', type: 'expense', group: true, nameAr: 'الضرائب', nameEn: 'Tax' },
   { code: '5410', parent: '54', type: 'expense', nameAr: 'ضريبة الدخل', nameEn: 'Income tax' },
+  // P1-1 (B115): added later, so it is last (ids follow this order); a migration adds it in place.
+  { code: '2140', parent: '21', type: 'liability', key: 'customer_credits', nameAr: 'أرصدة دائنة للعملاء (مدفوعات زائدة)', nameEn: 'Customer credits (overpayments)' },
+  // P1-3: captured money that did not match its payment, until staff resolve it.
+  { code: '2150', parent: '21', type: 'liability', key: 'suspense', nameAr: 'مقبوضات قيد المراجعة (حساب معلّق)', nameEn: 'Receipts under review (suspense)' },
 ];
 
 const q = (s: string) => `'${s.replace(/'/g, "''")}'`;
 
 /** The seed as SQL statements (one `INSERT` with fixed ids, then the id sequence), for the migration. */
-export function chartStatements(): string[] {
-  const ids = new Map(CHART.map((r, i) => [r.code, i + 1]));
-  const values = CHART.map(
+export function chartStatements(rows: readonly (typeof CHART)[number][] = CHART): string[] {
+  const ids = new Map(rows.map((r, i) => [r.code, i + 1]));
+  const values = rows.map(
     (r, i) =>
       `(${i + 1}, ${q(r.code)}, ${q(r.nameAr)}, ${q(r.nameEn)}, ${q(r.type)}, ` +
       `${r.parent ? ids.get(r.parent) : 'NULL'}, ${r.group ? 'true' : 'false'}, ` +
@@ -112,7 +116,7 @@ export function chartStatements(): string[] {
   );
   return [
     `INSERT INTO "ledger_accounts" ("id", "code", "name_ar", "name_en", "type", "parent_id", "is_group", "is_cash", "system_key") VALUES\n  ${values.join(',\n  ')};`,
-    `SELECT setval(pg_get_serial_sequence('"ledger_accounts"', 'id'), ${CHART.length});`,
+    `SELECT setval(pg_get_serial_sequence('"ledger_accounts"', 'id'), ${rows.length});`,
   ];
 }
 

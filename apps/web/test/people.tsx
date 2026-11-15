@@ -5,12 +5,15 @@ import { renderWithProviders } from './render';
 import { routerMock } from './router-mock';
 
 /** Signs a mock user in and renders a page inside the app shell at `path` (`/families?status=trial`). */
-export function renderPage(ui: ReactElement, { as = 'admin@qarabic.test', path = '/' } = {}) {
+export function renderPage(
+  ui: ReactElement,
+  { as = 'admin@qarabic.test', path = '/', bidi = false } = {},
+) {
   mockSignIn(as);
   const [pathname, search = ''] = path.split('?');
   routerMock.pathname = pathname!;
   routerMock.search = search;
-  return renderWithProviders(<AppShell defaultOpen>{ui}</AppShell>);
+  return renderWithProviders(<AppShell defaultOpen>{ui}</AppShell>, { bidi });
 }
 
 /** The last URL the list pushed into the address bar (`router.replace`). */

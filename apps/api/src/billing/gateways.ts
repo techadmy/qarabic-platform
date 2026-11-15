@@ -92,6 +92,11 @@ export interface PaymentGateway {
   enabled(): boolean;
   /** The hosted checkout for the payment's amount: `{ ref, url }`. */
   createCheckout(target: CheckoutTarget): Promise<{ ref: string; url: string }>;
+  /**
+   * P1-1: closes a checkout nobody should pay any more (manual payment, split, void, a newer
+   * attempt). Best effort: a failure is logged, never thrown (the attempt is already cancelled).
+   */
+  expire(ref: string): Promise<void>;
 }
 
 /** Stripe's form encoding of nested params (`line_items[0][price_data][currency]=usd`). */
@@ -172,6 +177,47 @@ export class StripeGateway implements PaymentGateway {
     return { ref: id, url };
   }
 
+  /** P1-2 reconciliation: the Checkout Session as Stripe sees it now (sandbox keys only). */
+  async session(ref: string): Promise<{
+    status: string | null;
+    paymentStatus: string | null;
+    paymentIntent: string | null;
+    amountMinor: number;
+    currency: string;
+  }> {
+    const res = await this.http.send({
+      method: 'GET',
+      url: `${StripeGateway.API}/checkout/sessions/${encodeURIComponent(ref)}`,
+      headers: { Authorization: `Bearer ${this.config.stripeSecret ?? ''}` },
+    });
+    if (res.status >= 300)
+      throw new GatewayError(`Stripe session lookup failed: HTTP ${res.status}`);
+    const total = pick(res.json, 'amount_total');
+    return {
+      status: str(pick(res.json, 'status')) ?? null,
+      paymentStatus: str(pick(res.json, 'payment_status')) ?? null,
+      paymentIntent: str(pick(res.json, 'payment_intent')) ?? null,
+      amountMinor: typeof total === 'number' ? total : -1,
+      currency: str(pick(res.json, 'currency')) ?? '',
+    };
+  }
+
+  async expire(ref: string): Promise<void> {
+    const res = await this.http.send({
+      method: 'POST',
+      url: `${StripeGateway.API}/checkout/sessions/${encodeURIComponent(ref)}/expire`,
+      headers: {
+        Authorization: `Bearer ${this.config.stripeSecret ?? ''}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: '',
+    });
+    // 400 = already completed or expired: nothing left to close.
+    if (res.status >= 300 && res.status !== 400) {
+      throw new GatewayError(`Stripe expire failed: HTTP ${res.status}`);
+    }
+  }
+
   /** `Stripe-Signature: t=…,v1=…` with v1 = HMAC-SHA256(secret, "{t}.{payload}"); any v1 may match. */
   static verifySignature(
     payload: Buffer,
@@ -241,6 +287,11 @@ export class PayPalGateway implements PaymentGateway {
 
   enabled(): boolean {
     return this.config.paypalEnabled();
+  }
+
+  /** An unapproved PayPal order simply lapses (about 3 hours); a late capture becomes a credit. */
+  expire(): Promise<void> {
+    return Promise.resolve();
   }
 
   async createCheckout(t: CheckoutTarget): Promise<{ ref: string; url: string }> {

@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page, type Response } from '@playwright/test';
 import { trialTeachersResponseSchema } from '@qarabic/shared';
-import { expectLoaded, REAL_API, runTag, signInReal } from './real-api-helpers';
+import { sentence } from './helpers';
+import { expectLoaded, REAL_API, runTag, seedReviewer, signInReal } from './real-api-helpers';
 
 /**
  * N3–N7 key flows against the real API and its seeded dev database (opt-in: `pnpm test:e2e:real`),
@@ -189,18 +190,23 @@ test('real API (N4): staff reply to a ticket; the reply is on the ticket', async
   const item = list.getByRole('listitem').first();
   // The ticket link: the split view (`?id=`) from 1024 px, the ticket page below (D141 §1).
   const link = item.locator('a[href*="id="], a[href^="/tickets/"]').first();
-  const number = (await link.textContent())!.match(/#(\d+)/)![1]!;
+  // Ticket numbers are bidi-isolated in the text (docs/39 P1-10).
+  const number = (await link.textContent())!.match(/#[\u2066-\u2069]*(\d+)/)![1]!;
 
   const text = `E2E reply ${runTag()}`;
-  await item.getByRole('button', { name: new RegExp(`^رد\\s?: #${number}$`) }).click();
-  const reply = page.getByRole('dialog', { name: `الرد على الطلب #${number}` });
+  await item
+    .getByRole('button', {
+      name: new RegExp(`^رد\\s?: [\\u2066-\\u2069]*#${number}[\\u2066-\\u2069]*$`),
+    })
+    .click();
+  const reply = page.getByRole('dialog', { name: sentence(`الرد على الطلب #${number}`) });
   await reply.getByRole('textbox').first().fill(text);
   await reply.getByRole('button', { name: 'إرسال' }).click();
   await expect(page.getByText('أُرسل الرد.')).toBeVisible();
 
   await page.goto(`/tickets/${number}`);
   await expect(
-    page.getByRole('heading', { level: 1, name: new RegExp(`#${number}`) }),
+    page.getByRole('heading', { level: 1, name: sentence(`#${number}`, { exact: false }) }),
   ).toBeVisible();
   await expect(page.getByText(text)).toBeVisible();
   await expectLoaded(page);
@@ -229,7 +235,7 @@ test('real API (N5): the public trial form stores a lead (no sign-in)', async ({
   await page.getByRole('checkbox', { name: 'السبت' }).check();
   await page.getByRole('checkbox', { name: 'مساءً' }).check();
   await page.getByRole('button', { name: 'أرسل الطلب' }).click();
-  await expect(page.getByRole('heading', { name: `شكرًا لك، ${parent}` })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence(`شكرًا لك، ${parent}`) })).toBeVisible();
 
   // Staff see it under «الكل»: «جديد», or «مزعج» when this address sent several within the hour
   // (the API's spam score — expected when the suite runs again soon).
@@ -408,6 +414,7 @@ test('real API (N6): monthly invoice run → an invoice → a manual payment →
 
 test('real API (N7): payroll run → review → approve → record the payment → payslip paid', async ({
   page,
+  browser,
 }) => {
   await signInReal(page, '/payroll');
   await expect(page.getByRole('heading', { level: 1, name: 'مسيّرات الرواتب' })).toBeVisible();
@@ -441,8 +448,24 @@ test('real API (N7): payroll run → review → approve → record the payment �
   await expect(page.locator('main h1')).toContainText('مسودة');
   await expectLoaded(page);
 
-  await page.getByRole('button', { name: 'اعتمد المراجعة' }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'اعتمد المراجعة' }).click();
+  // P0-3 (B116): the reviewer is not the approver. A senior manager reviews in a second browser
+  // context; the admin approves.
+  const runUrl = page.url();
+  const reviewerContext = await browser.newContext();
+  const reviewer = await reviewerContext.newPage();
+  await reviewer.goto('/login');
+  const login = seedReviewer();
+  await reviewer.getByLabel('البريد الإلكتروني').fill(login.email);
+  await reviewer.locator('#password').fill(login.password);
+  await reviewer.getByRole('button', { name: 'دخول' }).click();
+  await expect(reviewer).not.toHaveURL(/\/login/);
+  await reviewer.goto(runUrl);
+  await reviewer.getByRole('button', { name: 'اعتمد المراجعة' }).click();
+  await reviewer.getByRole('dialog').getByRole('button', { name: 'اعتمد المراجعة' }).click();
+  await expect(reviewer.locator('main h1')).toContainText('تمت المراجعة');
+  await reviewerContext.close();
+
+  await page.reload();
   await expect(page.locator('main h1')).toContainText('تمت المراجعة');
   await page.getByRole('button', { name: 'اعتمد المسيّر' }).click();
   const approve = page.getByRole('dialog', { name: 'اعتماد مسيّر الرواتب' });

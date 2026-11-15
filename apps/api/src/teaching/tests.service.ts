@@ -130,7 +130,8 @@ export class TestsService {
         OR: [
           { teacherId },
           { student: { teacherId } },
-          { student: { enrollments: { some: { teacherId } } } },
+          // ISO-4 (docs/39 P2-1): a former student's tests stay with their current teacher.
+          { student: { enrollments: { some: { teacherId, ...LIVE_ENROLLMENT } } } },
         ],
       };
     }

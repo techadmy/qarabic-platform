@@ -103,6 +103,16 @@ describe('bell rows', () => {
     expect(bellText(n('task', 'unknown_event', {}))).toEqual({ kind: 'other' });
   });
 
+  it('an SLA breach names the request and its queue, and opens the ticket (S4)', () => {
+    const r = n('support', 'sla_breach', { ticketId: 12, number: '#12', queue: 'billing' });
+    expect(bellHref(r, 'staff')).toBe('/tickets/12');
+    expect(bellText(r, 'en')).toEqual({
+      kind: 'message',
+      key: 'supportSlaBreach',
+      values: { number: '#12', queue: 'Billing' },
+    });
+  });
+
   it('preference kinds follow the permissions', () => {
     expect(kindsFor({ permissions: ['tasks.view', 'announcements.view'] })).toEqual([
       'task',

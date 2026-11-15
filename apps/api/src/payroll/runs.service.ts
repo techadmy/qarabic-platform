@@ -12,13 +12,13 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
-import { notFound } from '../common/errors.js';
+import { notFound, validationError } from '../common/errors.js';
 import { pageMeta, statusCounts } from '../common/pagination.js';
 import { Prisma, type PayrollRun } from '../generated/prisma/client.js';
 import { MAILER, type Mailer } from '../mail/mailer.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { isoZ, toDbDate } from '../schedule/time.js';
+import { isoZ, toDbDate, localDate } from '../schedule/time.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
 import { type ComputedSlip, PayrollCalculator } from './calculator.js';
 import { payrollError } from './errors.js';
@@ -377,6 +377,11 @@ export class PayrollRunsService {
   async approve(id: number, by: AuthUser, expectedUpdatedAt?: string): Promise<void> {
     const approved = await this.prisma.$transaction(async (tx) => {
       const run = await this.lock(tx, id, ['reviewed'], expectedUpdatedAt);
+      // P0-3 (B116): a second person approves, and never a run with their own payslip.
+      if (run.reviewedById === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'same_reviewer');
+      if (await tx.payslip.count({ where: { runId: id, userId: by.id } })) {
+        throw payrollError(HttpStatus.FORBIDDEN, 'own_payslip_in_run');
+      }
       await this.assertNoErrors(tx, run.id);
       const now = this.clock.now();
       const totalsBy: Record<string, string> = {};
@@ -451,12 +456,18 @@ export class PayrollRunsService {
    * record only: no transfer is made (D140). The wallet ledger is debited by the net.
    */
   async recordPayment(slipId: number, input: RecordPaymentInput, by: AuthUser): Promise<void> {
+    // BIL-9 (docs/39 P2-2): the same rule as billing: not after today (academy zone).
+    const zone = await this.settings.get('academy.timezone');
+    if (input.paidOn > localDate(this.clock.nowMs(), zone)) {
+      throw validationError({ paidOn: ['The payment date cannot be in the future.'] });
+    }
     await this.prisma.$transaction(async (tx) => {
       if (!(await lockPayrollRow(tx, 'payslips', slipId))) throw notFound();
       const slip = await tx.payslip.findUniqueOrThrow({
         where: { id: slipId },
         include: { run: true },
       });
+      if (slip.userId === by.id) throw payrollError(HttpStatus.FORBIDDEN, 'self_decision');
       if (slip.status === 'paid') throw payrollError(HttpStatus.CONFLICT, 'payslip_already_paid');
       if (slip.status !== 'approved') {
         throw payrollError(HttpStatus.CONFLICT, 'invalid_run_status', {
@@ -582,9 +593,18 @@ export class PayrollRunsService {
     return db.payrollRun.findUnique({ where: { period: Period.ofDate(date).toString() } });
   }
 
-  /** Refuses changes to an approved or paid month (D92): 409 `period_locked`. */
+  /**
+   * Refuses changes to an approved or paid month (D92): 409 `period_locked`. Inside a transaction
+   * (P1-4, docs/39 BIL-4) the month's run row is locked first, so an approval running at the same
+   * time either waits for this change (and then sees the run back in draft) or has already locked
+   * the month (and this change is refused) — never an approved item left out of the payslip.
+   */
   async assertOpen(date: string, db: Db = this.prisma): Promise<void> {
-    const run = await this.runFor(date, db);
+    let run = await this.runFor(date, db);
+    if (run && db !== this.prisma) {
+      await lockPayrollRow(db, 'payroll_runs', run.id);
+      run = await db.payrollRun.findUniqueOrThrow({ where: { id: run.id } });
+    }
     if (run && isLockedRun(run.status)) {
       throw payrollError(HttpStatus.CONFLICT, 'period_locked', { data: { period: run.period } });
     }
@@ -596,7 +616,10 @@ export class PayrollRunsService {
     if (!found || isLockedRun(found.status)) return;
     await lockPayrollRow(tx, 'payroll_runs', found.id);
     const run = await tx.payrollRun.findUniqueOrThrow({ where: { id: found.id } });
-    if (isLockedRun(run.status)) return;
+    // The month was approved while this change ran: refuse it rather than drop it silently.
+    if (isLockedRun(run.status)) {
+      throw payrollError(HttpStatus.CONFLICT, 'period_locked', { data: { period: run.period } });
+    }
     await this.backToDraft(tx, run);
     await this.compute(tx, run);
   }

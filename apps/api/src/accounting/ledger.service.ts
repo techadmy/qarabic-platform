@@ -100,6 +100,9 @@ export class LedgerService {
     if (accounts.some((a) => a.currency && a.currency !== input.currency)) {
       throw accountingError('account_currency', HttpStatus.UNPROCESSABLE_ENTITY, 'lines');
     }
+    // BIL-12 (docs/39 P2-2): a shared lock on the entry's month; closing a month takes it
+    // exclusively, so an entry and a close of the same month never cross.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext(${`ledger_period:${input.date.slice(0, 7)}`}))`;
     if (await this.isClosed(tx, input.date)) {
       throw accountingError('period_closed', HttpStatus.CONFLICT, 'date');
     }

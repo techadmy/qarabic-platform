@@ -102,6 +102,8 @@ const PAYMENT: Record<PaymentStatus, { icon: LucideIcon; tone: Tone }> = {
   failed: { icon: CircleXIcon, tone: 'red' },
   cancelled: { icon: CircleMinusIcon, tone: 'grey' },
   refunded: { icon: Undo2Icon, tone: 'purple' },
+  // P1-3: captured but held for staff (amount or currency did not match).
+  needs_review: { icon: HourglassIcon, tone: 'orange' },
 };
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {
@@ -118,6 +120,8 @@ export function useBillingError() {
   return (error: unknown): string => {
     if (!isApiError(error)) return t('generic');
     const code = error.code ?? '';
+    // P1-5: said in the staff's words (the dialog starts a fresh submit on the next click).
+    if (code === 'idempotency_conflict') return t('paymentChanged');
     if (code in BILLING_ERROR_MESSAGES) {
       return BILLING_ERROR_MESSAGES[code as keyof typeof BILLING_ERROR_MESSAGES][locale];
     }

@@ -15,10 +15,11 @@ import { Card, CardAction, CardContent, CardHeader, CardTitle } from '@qarabic/u
 import { Progress } from '@qarabic/ui/components/progress';
 import { Separator } from '@qarabic/ui/components/separator';
 import { cn } from '@qarabic/ui/lib/utils';
-import { ReceiptTextIcon, Undo2Icon } from 'lucide-react';
+import { FlagIcon, PiggyBankIcon, ReceiptTextIcon, Undo2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { ToneBadge } from '@/components/sessions/badges';
 import { useUiLocale } from '@/components/sessions/times';
 import { lineLabel, prorationOf } from '@/lib/billing/labels';
 import { minorOf } from '@/lib/billing/money';
@@ -128,8 +129,11 @@ export function PaymentsList({
   receiptHref,
   onVoid,
   viewerTz,
+  staff = false,
 }: {
   payments: PaymentDto[];
+  /** Staff see the internal review flag on a payment; the family never does (P1-1). */
+  staff?: boolean;
   receiptHref?: (p: PaymentDto) => string;
   onVoid?: (p: PaymentDto) => void;
   viewerTz: string;
@@ -147,6 +151,19 @@ export function PaymentsList({
               <span className="flex flex-wrap items-center gap-2">
                 <span className="font-semibold">{method}</span>
                 <PaymentStatusBadge status={p.status} />
+                {/* P1-1: staff look at a payment that went beyond the invoice. */}
+                {staff && p.needsReview && (
+                  <ToneBadge
+                    tone="orange"
+                    icon={FlagIcon}
+                    label={t('needsReview')}
+                    title={
+                      p.reviewReason && t.has(`reviewReason.${p.reviewReason}`)
+                        ? t(`reviewReason.${p.reviewReason}`)
+                        : undefined
+                    }
+                  />
+                )}
               </span>
               <Money amount={p.amount} currency={p.currency} />
             </div>
@@ -171,6 +188,22 @@ export function PaymentsList({
                 </>
               )}
             </span>
+            {minorOf(p.unapplied) > 0 && (
+              <span className="flex items-center gap-1.5 text-sm">
+                <PiggyBankIcon aria-hidden className="size-4 text-muted-foreground" />
+                {t.rich('keptAsCredit', {
+                  amount: () => <Money amount={p.unapplied} currency={p.currency} />,
+                })}
+              </span>
+            )}
+            {staff &&
+              p.needsReview &&
+              p.reviewReason &&
+              t.has(`reviewReason.${p.reviewReason}`) && (
+                <span className="text-sm text-muted-foreground">
+                  {t(`reviewReason.${p.reviewReason}`)}
+                </span>
+              )}
             {p.note && (
               <span className="text-sm break-words" dir="auto">
                 {p.note}
@@ -187,14 +220,14 @@ export function PaymentsList({
                     </Link>
                   </Button>
                 )}
-                {onVoid && !isOnlineMethod(p.method) && (
+                {onVoid && !isOnlineMethod(p.method) && p.method !== 'credit' && (
                   <Button
                     variant="ghost"
                     size="sm"
                     className="text-destructive"
                     onClick={() => onVoid(p)}
                   >
-                    <Undo2Icon />
+                    <Undo2Icon className="rtl:-scale-x-100" />
                     {t('voidPayment')}
                     <span className="sr-only">: {method}</span>
                   </Button>

@@ -9,9 +9,9 @@ import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { ApiException } from '../common/errors.js';
 import { ENV, type Env } from '../config/env.js';
-import { CSRF_COOKIE, CSRF_HEADER } from './cookies.js';
+import { CSRF_COOKIE, CSRF_HEADER, SESSION_COOKIE } from './cookies.js';
 import { SKIP_CSRF_KEY } from './decorators.js';
-import { safeEqual, verifyCsrf } from './tokens.js';
+import { safeEqual, verifyCsrf, csrfBinding } from './tokens.js';
 
 const SAFE = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -41,7 +41,7 @@ export class CsrfGuard implements CanActivate {
       cookie &&
       header &&
       safeEqual(cookie, header) &&
-      verifyCsrf(this.env.SESSION_SECRET, header)
+      verifyCsrf(this.env.SESSION_SECRET, csrfBinding(cookies[SESSION_COOKIE]), header)
     ) {
       return true;
     }

@@ -13,7 +13,9 @@ export const managesAttendance = (u: AuthUser) => u.permissions.has('attendance.
 
 export const leaveCan = {
   view: (u: AuthUser, l: { userId: number }) => managesAttendance(u) || l.userId === u.id,
-  decide: (u: AuthUser) => managesAttendance(u),
+  /** P0-3 (B116): never one's own leave, whatever the permissions. */
+  decide: (u: AuthUser, l?: { userId: number }) =>
+    managesAttendance(u) && (l === undefined || l.userId !== u.id),
   /** Own pending request, or any pending / approved one with `attendance.manage`. */
   cancel: (u: AuthUser, l: { userId: number; status: string }) =>
     managesAttendance(u) || (l.userId === u.id && l.status === 'pending'),
@@ -29,8 +31,20 @@ export const seesAllFines = (u: AuthUser) =>
 export const seesAllTypes = (u: AuthUser) =>
   hasAny(u, 'payroll.manage', 'payroll.review', 'payroll.approve');
 
-/** The status a new adjustment gets when this user creates it, or null when not allowed. */
-export function adjustmentStatusFor(u: AuthUser, type: AdjustmentType): AdjustmentStatus | null {
+/**
+ * The status a new adjustment gets when this user creates it, or null when not allowed. One made
+ * for oneself is only ever `proposed`: someone else decides it (P0-3, B116).
+ */
+export function adjustmentStatusFor(
+  u: AuthUser,
+  type: AdjustmentType,
+  targetUserId?: number,
+): AdjustmentStatus | null {
+  const status = statusByRole(u, type);
+  return status && targetUserId === u.id ? 'proposed' : status;
+}
+
+function statusByRole(u: AuthUser, type: AdjustmentType): AdjustmentStatus | null {
   if (type === 'fine') {
     if (hasAny(u, 'fines.manage', 'fines.approve')) return 'approved';
     return u.permissions.has('fines.request') ? 'proposed' : null;
@@ -54,12 +68,15 @@ export const adjustmentCan = {
     seesAllTypes(u) ||
     (seesAllFines(u) && isFineWorkflow(a.type)) ||
     (a.userId === u.id && a.status !== 'proposed' && a.status !== 'rejected'),
-  /** Approve or reject a proposed item. */
+  /** Approve or reject a proposed item; never one about oneself (P0-3). */
   decide: (u: AuthUser, a: AdjustmentLike) =>
-    isFineWorkflow(a.type)
+    a.userId !== u.id &&
+    (isFineWorkflow(a.type)
       ? u.permissions.has('fines.approve')
-      : u.permissions.has('payroll.manage'),
+      : u.permissions.has('payroll.manage')),
   cancel: (u: AuthUser, a: AdjustmentLike) => {
+    // P0-3: one's own items only as a withdrawal of one's own still-proposed item.
+    if (a.userId === u.id) return a.status === 'proposed' && a.createdById === u.id;
     if (isFineWorkflow(a.type)) {
       // The monitor who proposed a fine may withdraw it while it is still proposed.
       if (a.status === 'proposed' && a.createdById === u.id) return true;

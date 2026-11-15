@@ -32,6 +32,10 @@ import {
   type InvoiceDto,
   type PackageUsageDto,
   type PaymentDto,
+  familyCreditQuerySchema,
+  reviewFamilyCreditSchema,
+  reviewPaymentSchema,
+  type FamilyCreditDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import { addDays } from '@/lib/schedule-time';
@@ -57,6 +61,7 @@ import type { MockUser } from './data';
 import { db as people } from './people-db';
 import { paginate, queryOf } from './schedule-handlers';
 import { apiError, guard, guardAny, notFound, validationFailed } from './session';
+import type { CreditRow } from './billing-db';
 
 /**
  * MSW handlers for N6 (apps/api README «Endpoints (N6: billing)»): packages, the family billing
@@ -136,10 +141,16 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: p.refundedAt,
     createdAt: p.createdAt,
     receiptNumber: p.receiptNumber,
+    unapplied: fromMinor(p.unappliedMinor ?? 0),
   };
   return staff
     ? {
         ...base,
+        // P1-1: the review flag is for staff only (#92).
+        needsReview: !!p.needsReview,
+        reviewReason: p.reviewReason ?? null,
+        capturedAmount: p.capturedMinor == null ? null : fromMinor(p.capturedMinor),
+        capturedCurrency: p.capturedCurrency ?? null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
@@ -357,7 +368,62 @@ function runRows(month: string, day: 1 | 15, familyIds?: number[]) {
     });
 }
 
+function creditDto(c: CreditRow): FamilyCreditDto {
+  const source = c.sourcePaymentId ? bdb.payments.find((p) => p.id === c.sourcePaymentId) : null;
+  return {
+    id: c.id,
+    family: { id: c.familyId, name: familyName(c.familyId) },
+    currency: c.currency,
+    amount: fromMinor(c.amountMinor),
+    remaining: fromMinor(c.remainingMinor),
+    status: c.status,
+    sourcePayment: source
+      ? {
+          id: source.id,
+          invoiceId: source.invoiceId,
+          invoiceNumber: bdb.invoices.find((i) => i.id === source.invoiceId)?.number ?? null,
+          method: source.method,
+        }
+      : null,
+    reviewedAt: c.reviewedAt,
+    reviewedBy: c.reviewedBy,
+    note: c.note,
+    createdAt: c.createdAt,
+  };
+}
+
 export const billingHandlers: HttpHandler[] = [
+  // P1-1 (B115): the family credits review list, and «تمت المراجعة».
+  http.get(`${API}/billing/credits`, ({ request }) => {
+    const g = guardAny(request, 'invoices.manage', 'reports.financial');
+    if ('error' in g) return g.error;
+    const parsed = familyCreditQuerySchema.safeParse(
+      Object.fromEntries(new URL(request.url).searchParams),
+    );
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const q = parsed.data;
+    const rows = bdb.credits
+      .filter((c) => !q.status || c.status === q.status)
+      .filter((c) => !q.familyId || c.familyId === q.familyId)
+      .filter((c) => q.needsReview === undefined || !c.reviewedAt === q.needsReview)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    return HttpResponse.json({ data: rows.map(creditDto) });
+  }),
+  http.post(`${API}/billing/credits/:id/review`, async ({ request, params }) => {
+    const g = guard(request, 'invoices.manage');
+    if ('error' in g) return g.error;
+    const c = bdb.credits.find((x) => x.id === Number(params.id));
+    if (!c) return notFound();
+    const parsed = reviewFamilyCreditSchema.safeParse(await request.json().catch(() => ({})));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    c.reviewedAt = new Date().toISOString();
+    c.reviewedBy = { id: g.me.id, name: g.me.name };
+    if (parsed.data.note !== undefined) c.note = parsed.data.note;
+    const source = bdb.payments.find((p) => p.id === c.sourcePaymentId);
+    if (source) source.needsReview = false;
+    return HttpResponse.json({ data: creditDto(c) });
+  }),
+
   http.get(`${API}/billing/providers`, ({ request }) => {
     const g = guard(request, 'invoices.view');
     if ('error' in g) return g.error;
@@ -764,9 +830,22 @@ export const billingHandlers: HttpHandler[] = [
     if ('error' in g) return g.error;
     const inv = findInvoice(g.me, Number(params.id));
     if (!inv || isParent(g.me)) return notFound();
+    // P1-5: a retried or double submit with the same key gets the first payment back.
+    const key = request.headers.get('idempotency-key');
+    if (key !== null && !/^[A-Za-z0-9_-]{8,64}$/.test(key)) {
+      return validationFailed([{ path: ['idempotencyKey'], message: 'Use 8–64 letters.' }]);
+    }
     const parsed = manualPaymentSchema.safeParse(await body(request));
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const v = parsed.data;
+    // #96: the same key with other details is refused; the same details replay the payment.
+    const details = JSON.stringify({ ...v, amount: fromMinor(toMinor(v.amount)) });
+    const seen = key ? bdb.idempotency.get(key) : undefined;
+    if (seen && seen.details !== details) {
+      return apiError(409, 'idempotency_conflict', 'This key was used for a different payment.');
+    }
+    const first = seen ? bdb.payments.find((p) => p.id === seen.paymentId) : undefined;
+    if (first) return HttpResponse.json({ data: paymentDto(first, true) }, { status: 201 });
     if (v.receivedOn > academyToday()) {
       return apiError(422, 'validation_failed', 'The given data was invalid.', {
         receivedOn: ['The date received cannot be in the future.'],
@@ -794,8 +873,33 @@ export const billingHandlers: HttpHandler[] = [
       recordedBy: { id: g.me.id, name: g.me.name },
     };
     bdb.payments.push(row);
+    if (key) bdb.idempotency.set(key, { paymentId: row.id, details });
     recalculate(bdb, inv);
     return HttpResponse.json({ data: paymentDto(row, true) }, { status: 201 });
+  }),
+
+  // P1-3: the payments review queue (held mismatches, overpayments) and «تمت المراجعة».
+  http.get(`${API}/billing/payments/review`, ({ request }) => {
+    const g = guardAny(request, 'invoices.manage', 'reports.financial');
+    if ('error' in g) return g.error;
+    const rows = bdb.payments.filter((p) => p.needsReview).sort((a, b) => b.id - a.id);
+    return HttpResponse.json({
+      data: rows.map((p) => ({
+        ...paymentDto(p, true),
+        invoiceNumber: bdb.invoices.find((i) => i.id === p.invoiceId)?.number ?? null,
+      })),
+    });
+  }),
+  http.post(`${API}/billing/payments/:id/reviewed`, async ({ request, params }) => {
+    const g = guard(request, 'invoices.manage');
+    if ('error' in g) return g.error;
+    const p = bdb.payments.find((x) => x.id === Number(params.id));
+    if (!p) return notFound();
+    const parsed = reviewPaymentSchema.safeParse(await body(request));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    p.needsReview = false;
+    p.note = `${p.note ?? ''}\nReviewed: ${parsed.data.note}`.trim().slice(0, 1000);
+    return HttpResponse.json({ data: paymentDto(p, true) });
   }),
 
   http.post(`${API}/payments/:id/void`, async ({ request, params }) => {

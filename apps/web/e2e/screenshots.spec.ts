@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { login } from './helpers';
+import { login, sentence } from './helpers';
 
 /**
  * Review screenshots for the PR (docs/34 §3.4: desktop + mobile, light + dark).
@@ -27,7 +27,9 @@ for (const scheme of ['light', 'dark'] as const) {
       await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
       await shot(page, `login-${size}-${scheme}`);
       await login(page);
-      await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+      await expect(
+        page.getByRole('heading', { name: sentence('مرحبًا، مدير النظام') }),
+      ).toBeVisible();
       await shot(page, `home-${size}-${scheme}`);
       await page.goto('/roles');
       await expect(page.getByRole('table', { name: 'الأدوار' })).toBeVisible();

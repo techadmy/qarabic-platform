@@ -26,7 +26,8 @@ export function configureApp(app: NestExpressApplication): INestApplication {
   app.enableCors({
     origin: env.WEB_ORIGIN,
     credentials: true,
-    allowedHeaders: ['Content-Type', 'Accept', 'X-Requested-With', CSRF_HEADER],
+    // Idempotency-Key: manual payments (P1-5); the web app on another origin sends it.
+    allowedHeaders: ['Content-Type', 'Accept', 'X-Requested-With', CSRF_HEADER, 'Idempotency-Key'],
   });
   app.enableShutdownHooks();
 

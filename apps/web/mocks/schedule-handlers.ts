@@ -1635,10 +1635,30 @@ export const scheduleHandlers: HttpHandler[] = [
     const s = sessionOr404(params.id as string, g.me);
     if (!s) return notFound();
     const parentView = isParent(g.me);
+    // P0-4 (B118, as the API): parents and teachers see staff by role only, their own actions by
+    // name, and no staff notes or reasons; someone else's request carries no reason or note.
+    const portal = parentView || isTeacher(g.me);
+    const byRole = <T extends { id: number | null; name: string | null; role: string | null }>(
+      who: T,
+    ) => (portal && who.id !== g.me.id ? { id: null, name: null, role: who.role } : who);
     return HttpResponse.json({
       data: {
         ...presentSession(s, g.me),
-        events: eventsOf(s.id),
+        events: eventsOf(s.id).map((e) =>
+          portal
+            ? {
+                ...e,
+                actor: e.actor ? byRole(e.actor) : null,
+                payload: e.payload
+                  ? Object.fromEntries(
+                      Object.entries(e.payload).filter(([k]) =>
+                        ['action', 'stageReason', 'undo', 'from', 'to'].includes(k),
+                      ),
+                    )
+                  : null,
+              }
+            : e,
+        ),
         lessonReport: presentReport(s, g.me),
         requests: sdb.requests
           .filter(
@@ -1648,11 +1668,11 @@ export const scheduleHandlers: HttpHandler[] = [
             id: r.id,
             type: r.type,
             status: r.status,
-            reason: r.reason,
-            requestedBy: r.requestedBy,
+            reason: portal && r.requestedBy.id !== g.me.id ? '' : r.reason,
+            requestedBy: byRole(r.requestedBy),
             proposedStartsAt: r.proposedStartsAt,
             decidedAt: r.decidedAt,
-            decisionNote: r.decisionNote,
+            decisionNote: portal && r.requestedBy.id !== g.me.id ? null : r.decisionNote,
             resultSessionId: r.resultSessionId,
             createdAt: r.createdAt,
           })),

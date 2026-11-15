@@ -81,6 +81,11 @@ describe.each([
       contrast(vars[`status-${tone}-foreground`]!, vars[`status-${tone}`]!),
     ).toBeGreaterThanOrEqual(4.5);
   });
+  it('destructive-foreground on destructive (badges) ≥ 4.5:1', () => {
+    expect(contrast(vars['destructive-foreground']!, vars.destructive!)).toBeGreaterThanOrEqual(
+      4.5,
+    );
+  });
   it.each(TONES)('%s emphasis on the card and the canvas ≥ 4.5:1', (tone) => {
     const emphasis = vars[`status-${tone}-emphasis`]!;
     expect(contrast(emphasis, vars.card!)).toBeGreaterThanOrEqual(4.5);

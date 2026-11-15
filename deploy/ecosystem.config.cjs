@@ -48,14 +48,21 @@ function api(name, release, envFiles) {
 }
 
 /** Next.js web app under basePath /app (baked at build time, deploy/release.sh). */
-function web(name, release, port, distDir) {
+function web(name, release, port, distDir, apiUrl) {
   return {
     ...common,
     name,
     cwd: `${SRV}/${release}/apps/web`,
     script: 'node_modules/next/dist/bin/next',
     args: `start -p ${port} -H 127.0.0.1`,
-    env: { NODE_ENV: 'production', TZ: 'UTC', NEXT_DIST_DIR: distDir },
+    // `next start` reads next.config.ts again: the base path must be set at run time too.
+    env: {
+      NODE_ENV: 'production',
+      TZ: 'UTC',
+      NEXT_DIST_DIR: distDir,
+      NEXT_PUBLIC_BASE_PATH: '/app',
+      NEXT_PUBLIC_API_URL: apiUrl,
+    },
     max_memory_restart: '768M',
     out_file: `${LOGS}/${name}.out.log`,
     error_file: `${LOGS}/${name}.err.log`,
@@ -65,8 +72,8 @@ function web(name, release, port, distDir) {
 module.exports = {
   apps: [
     api('qarabic-api', 'current', [`${ETC}/api.env`]), // 127.0.0.1:4100 via PORT in api.env
-    web('qarabic-web', 'current', 4000, '.next'),
+    web('qarabic-web', 'current', 4000, '.next', 'https://api.qarabic.com'),
     api('qarabic-api-rehearsal', 'current', [`${ETC}/api.env`, `${ETC}/api-rehearsal.env`]), // :4200
-    web('qarabic-web-rehearsal', 'current', 4001, '.next-rehearsal'),
+    web('qarabic-web-rehearsal', 'current', 4001, '.next-rehearsal', 'http://localhost:4200'),
   ],
 };

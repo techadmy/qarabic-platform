@@ -323,7 +323,7 @@ describe('scheduling API (SchedulingApiTest)', () => {
     const other = await m2Teacher(ctx);
     expect(
       (await asTeacher.put(`/teachers/${other.id}/work-hours`, { workHours: [] })).status,
-    ).toBe(403);
+    ).toBe(404); // outside scope = 404, like the reads (P2-3)
     expect((await asTeacher.get(`/teachers/${other.id}/timetable`)).status).toBe(404);
     expect((await asTeacher.get(`/teachers/${teacher.id}/timetable`)).status).toBe(200);
     expect(
