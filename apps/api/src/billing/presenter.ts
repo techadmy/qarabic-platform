@@ -85,6 +85,8 @@ export function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
       ? {
           needsReview: p.needsReview,
           reviewReason: p.reviewReason,
+          capturedAmount: p.capturedAmount ? amountOf(p.capturedAmount) : null,
+          capturedCurrency: p.capturedCurrency,
           note: p.note,
           failureReason: p.failureReason,
           providerPaymentId: p.providerPaymentId,

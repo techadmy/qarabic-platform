@@ -204,6 +204,8 @@ export const PAYMENT_STATUSES = [
   'failed',
   'cancelled',
   'refunded',
+  /** P1-3: captured, but not the amount or currency asked for: held for staff. */
+  'needs_review',
 ] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABELS: Labels<PaymentStatus> = {
@@ -212,6 +214,7 @@ export const PAYMENT_STATUS_LABELS: Labels<PaymentStatus> = {
   failed: { ar: 'فاشلة', en: 'Failed' },
   cancelled: { ar: 'ملغاة', en: 'Cancelled' },
   refunded: { ar: 'مستردة', en: 'Refunded' },
+  needs_review: { ar: 'قيد المراجعة', en: 'Needs review' },
 };
 
 /** Billing day of a family (old `payment_cycle`): the 1st or the 15th. */
@@ -558,6 +561,9 @@ export const paymentSchema = z.object({
   /** Staff only: look at it (`overpaid` / `invoice_closed`). */
   needsReview: z.boolean().optional(),
   reviewReason: z.string().nullable().optional(),
+  /** Staff only. P1-3: what the provider captured when it did not match (`needs_review`). */
+  capturedAmount: z.string().nullable().optional(),
+  capturedCurrency: z.string().nullable().optional(),
 });
 export type PaymentDto = z.infer<typeof paymentSchema>;
 
@@ -865,3 +871,6 @@ export const reviewFamilyCreditSchema = z.object({
     )
     .optional(),
 });
+
+/** `POST /billing/payments/:id/reviewed` (`invoices.manage`): staff looked at it (and refunded it at the provider, moved it, …). */
+export const reviewPaymentSchema = z.object({ note: z.string().trim().min(3).max(1000) });

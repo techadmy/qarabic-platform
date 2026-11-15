@@ -287,6 +287,19 @@ export const PAYROLL_ERROR_MESSAGES = {
     ar: 'لا يمكنك إضافة هذا النوع من البنود.',
     en: 'You cannot add this type of item.',
   },
+  /** P0-3 / B116: nobody decides anything about themselves (owner included). */
+  self_decision: {
+    ar: 'لا يمكنك اتخاذ قرار في أمر يخصك. يتولاه مسؤول آخر.',
+    en: 'You cannot decide on something about yourself. Another approver must do it.',
+  },
+  same_reviewer: {
+    ar: 'من راجع مسير الرواتب لا يعتمده. يعتمده مسؤول آخر.',
+    en: 'The person who reviewed the payroll run cannot approve it. Another approver must.',
+  },
+  own_payslip_in_run: {
+    ar: 'هذا المسير يتضمن قسيمة راتبك، فيعتمده مسؤول آخر.',
+    en: 'This run includes your own payslip, so another approver must approve it.',
+  },
   pay_rule_from_past: {
     ar: 'تبدأ قواعد الأجر الجديدة من اليوم أو بعده.',
     en: 'New pay rules start today or later.',
