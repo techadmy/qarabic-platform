@@ -33,7 +33,7 @@ import { cn } from '@qarabic/ui/lib/utils';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AlertCircleIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useId, useState, type FormEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
 import { useUiLocale } from '@/components/sessions/times';
 import {
@@ -173,14 +173,20 @@ export function RecordPaymentDialog({
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [touched, setTouched] = useState(false);
-  // P1-5: one Idempotency-Key per payment being entered: a double click or a retry after a
-  // timeout returns the first payment; the next payment gets a new key.
-  const [idempotencyKey, setIdempotencyKey] = useState(newPaymentKey);
+  // P1-5: one Idempotency-Key per payment as entered. A double click or a retry of the same
+  // details reuses it (the API returns the first payment); any change to the details gets a new
+  // key, so an edited retry is never answered with the old payment; a recorded payment ends it.
+  const keyRef = useRef<{ details: string; key: string } | null>(null);
+  const keyFor = (body: Parameters<typeof recordPayment>[1]) => {
+    const details = JSON.stringify(body);
+    if (keyRef.current?.details !== details) keyRef.current = { details, key: newPaymentKey() };
+    return keyRef.current.key;
+  };
   const save = useInvoiceMutation(
-    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body, idempotencyKey),
+    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body, keyFor(body)),
     tp('saved'),
     () => {
-      setIdempotencyKey(newPaymentKey());
+      keyRef.current = null;
       onOpenChange(false);
     },
   );

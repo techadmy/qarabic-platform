@@ -6,6 +6,7 @@ import { PaymentsReviewView } from '@/components/billing/payments-review-view';
 import { recordPayment } from '@/lib/api/billing';
 import { bdb } from '@/mocks/billing-db';
 import { mockSignIn } from '@/mocks/handlers';
+import { http, HttpResponse } from 'msw';
 import { server } from '@/mocks/node';
 import { renderPage } from '@/test/people';
 
@@ -21,6 +22,11 @@ describe('P1-3 payments to review (held mismatch, overpayment)', () => {
     expect(table).toHaveTextContent(held().capturedCurrency === 'USD' ? '$' : '€');
     expect(table).toHaveTextContent('حُفظت رصيدًا للأسرة');
     expect(table).toHaveTextContent('قيد المراجعة');
+    // An overpayment is reviewed once, as the family's credit.
+    expect(within(table).getByRole('link', { name: /^راجعه في الأرصدة الدائنة/ })).toHaveAttribute(
+      'href',
+      '/billing/credits',
+    );
   });
 
   it('«تمت المراجعة» needs what was done; the payment leaves the queue', async () => {
@@ -68,6 +74,46 @@ describe('P1-5 Idempotency-Key on a manual payment', () => {
     const b = await recordPayment(inv.id, body, 'pay_test_same_key_1');
     expect(b.id).toBe(a.id);
     expect(bdb.payments.length).toBe(before + 1);
+  });
+
+  it('a retry of the same details reuses the key; edited details get a new one', async () => {
+    const user = userEvent.setup();
+    const keys: string[] = [];
+    server.events.on('request:start', ({ request }) => {
+      if (request.method === 'POST' && /\/invoices\/\d+\/payments$/.test(request.url)) {
+        keys.push(request.headers.get('idempotency-key') ?? '');
+      }
+    });
+    // The first two attempts fail (a time-out after the server saved it, say).
+    server.use(
+      http.post('*/api/v1/invoices/:id/payments', () => HttpResponse.json({}, { status: 503 }), {
+        once: true,
+      }),
+      http.post('*/api/v1/invoices/:id/payments', () => HttpResponse.json({}, { status: 503 }), {
+        once: true,
+      }),
+    );
+    const inv = bdb.invoices.find((i) => i.status === 'issued' && i.number)!;
+    renderPage(<InvoiceDetailView id={inv.id} />, { path: `/invoices/${inv.id}` });
+    await user.click(await screen.findByRole('button', { name: 'تسجيل دفعة' }));
+    const dialog = await screen.findByRole('dialog', { name: /دفعة/ });
+    const field = within(dialog).getByLabelText(/المبلغ/);
+    await user.clear(field);
+    await user.type(field, '1.00');
+    const submit = within(dialog).getByRole('button', { name: 'سجّل الدفعة' });
+    await user.click(submit);
+    await waitFor(() => expect(keys).toHaveLength(1));
+    // Same details again: the same key.
+    await user.click(submit);
+    await waitFor(() => expect(keys).toHaveLength(2));
+    expect(keys[1]).toBe(keys[0]);
+    // The amount edited: a new key, so the old attempt can never answer for it.
+    await user.clear(field);
+    await user.type(field, '2.00');
+    await user.click(submit);
+    await waitFor(() => expect(keys).toHaveLength(3));
+    expect(keys[2]).not.toBe(keys[0]);
+    server.events.removeAllListeners('request:start');
   });
 
   it('the payment dialog sends a key, and a new one for the next payment', async () => {

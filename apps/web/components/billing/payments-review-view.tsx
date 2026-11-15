@@ -5,7 +5,7 @@ import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { CircleCheckIcon, FlagIcon, ScaleIcon } from 'lucide-react';
+import { CircleCheckIcon, FlagIcon, PiggyBankIcon, ScaleIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
@@ -79,8 +79,19 @@ export function PaymentsReviewView() {
     ) : (
       <span className="text-muted-foreground">—</span>
     );
+  // An overpayment is reviewed once, as the family's credit (B115); only held captures here.
+  const isCredit = (p: PaymentDto) =>
+    p.reviewReason === 'overpaid' || p.reviewReason === 'invoice_closed';
   const action = (p: PaymentDto) =>
-    manage ? (
+    isCredit(p) ? (
+      <Button variant="outline" size="sm" className="h-10 md:h-8" asChild>
+        <Link href="/billing/credits">
+          <PiggyBankIcon />
+          {t('reviewAsCredit')}
+          <span className="sr-only">: {t('invoice', { id: p.invoiceId })}</span>
+        </Link>
+      </Button>
+    ) : manage ? (
       <Button
         variant="outline"
         size="sm"
@@ -122,13 +133,13 @@ export function PaymentsReviewView() {
       },
       {
         id: 'amount',
-        header: t('cols.expected'),
+        header: t('cols.amount'),
         meta: { numeric: true } satisfies ColumnMeta,
         cell: ({ row }) => <Money amount={row.original.amount} currency={row.original.currency} />,
       },
       {
         id: 'captured',
-        header: t('cols.captured'),
+        header: t('cols.outcome'),
         meta: { numeric: true } satisfies ColumnMeta,
         cell: ({ row }) => captured(row.original),
       },
@@ -198,14 +209,18 @@ export function PaymentsReviewView() {
                   <Link href={`/invoices/${p.invoiceId}`} className="font-semibold text-primary">
                     {t('invoice', { id: p.invoiceId })}
                   </Link>
-                  <Money amount={p.amount} currency={p.currency} />
                 </div>
+                <span className="text-sm">
+                  {t('cols.amount')}: <Money amount={p.amount} currency={p.currency} />
+                </span>
                 <span className="flex flex-wrap items-center gap-1.5 text-sm">
                   {PAYMENT_METHOD_LABELS[p.method][locale]}
                   <PaymentStatusBadge status={p.status} />
                 </span>
                 <span className="text-sm">{reason(p)}</span>
-                {captured(p)}
+                <span className="flex flex-wrap items-center gap-1.5 text-sm">
+                  {t('cols.outcome')}: {captured(p)}
+                </span>
                 <span className="text-sm text-muted-foreground">
                   {formatInstant(p.receivedAt ?? p.createdAt, tz, locale)}
                 </span>
