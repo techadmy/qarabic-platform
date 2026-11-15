@@ -723,25 +723,32 @@ model TeacherWorkHour {
 /// in the background; `source` = webhook or report (the past-meeting participants pulled after a
 /// meeting ends). Events matching no class stay here as `unmatched`.
 model ZoomWebhookEvent {
-  id           Int       @id @default(autoincrement())
-  eventKey     String    @unique @map("event_key") @db.Char(64)
-  event        String    @db.VarChar(64)
-  source       String    @default("webhook") @db.VarChar(16)
-  meetingId    String?   @map("meeting_id") @db.VarChar(32)
-  meetingUuid  String?   @map("meeting_uuid") @db.VarChar(128)
-  hostId       String?   @map("host_id") @db.VarChar(64)
-  payload      Json
-  eventAt      DateTime  @map("event_at") @db.Timestamptz(6)
+  id            Int       @id @default(autoincrement())
+  eventKey      String    @unique @map("event_key") @db.Char(64)
+  event         String    @db.VarChar(64)
+  source        String    @default("webhook") @db.VarChar(16)
+  meetingId     String?   @map("meeting_id") @db.VarChar(32)
+  meetingUuid   String?   @map("meeting_uuid") @db.VarChar(128)
+  hostId        String?   @map("host_id") @db.VarChar(64)
+  payload       Json
+  eventAt       DateTime  @map("event_at") @db.Timestamptz(6)
   /// received | processed | unmatched | ignored | failed
-  status       String    @default("received") @db.VarChar(16)
-  sessionId    Int?      @map("session_id")
-  error        String?   @db.VarChar(500)
-  receivedAt   DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
-  processedAt  DateTime? @map("processed_at") @db.Timestamptz(6)
+  status        String    @default("received") @db.VarChar(16)
+  sessionId     Int?      @map("session_id")
+  error         String?   @db.VarChar(500)
+  receivedAt    DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt   DateTime? @map("processed_at") @db.Timestamptz(6)
   /// meeting.ended only: when the participant report was pulled.
-  reconciledAt DateTime? @map("reconciled_at") @db.Timestamptz(6)
+  reconciledAt  DateTime? @map("reconciled_at") @db.Timestamptz(6)
+  /// Processing tries so far (failed rows retry with backoff) and when the next may run.
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime? @map("next_attempt_at") @db.Timestamptz(6)
+  /// When a run took the row (a row stuck in `processing` is taken back).
+  claimedAt     DateTime? @map("claimed_at") @db.Timestamptz(6)
 
   @@index([status, receivedAt])
+  @@index([meetingId, eventAt])
+  @@index([hostId, eventAt])
   @@index([sessionId])
   @@index([event, reconciledAt])
   @@map("zoom_webhook_events")

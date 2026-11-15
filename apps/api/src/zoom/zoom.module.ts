@@ -1,4 +1,5 @@
 import { Global, Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module.js';
 import { ZoomApi, ZoomHttp } from './zoom.api.js';
 import { ZoomAttendance } from './zoom.attendance.js';
 import { ZoomConfig } from './zoom.config.js';
@@ -10,6 +11,7 @@ import { ZoomWebhookController } from './zoom.webhook.js';
  */
 @Global()
 @Module({
+  imports: [AuthModule],
   controllers: [ZoomWebhookController],
   providers: [ZoomConfig, ZoomHttp, ZoomApi, ZoomAttendance],
   exports: [ZoomConfig, ZoomApi, ZoomAttendance],
