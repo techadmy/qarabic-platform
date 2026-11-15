@@ -128,6 +128,10 @@ describe('Today board (BoardTest)', () => {
       zoom_failed: 1,
       needs_review: 1,
       pending_requests: 0,
+      // Z1: Zoom-based counters (0 without Zoom tracking).
+      teacher_no_show: 0,
+      student_no_show: 0,
+      short_class: 0,
     });
     expect(res.body.data.sessions).toHaveLength(14); // moved_out rows are listed, not counted
     expect(res.body.data.generator.stale).toBe(true);
