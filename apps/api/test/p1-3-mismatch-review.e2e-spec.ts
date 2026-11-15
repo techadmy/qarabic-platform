@@ -102,7 +102,7 @@ describe('P1-3 amount or currency mismatch', () => {
     await completed(attempt.id, 5000, 'usd', 'evt_mm2');
     expect(await ctx.prisma.billingEvent.count({ where: { type: 'payment.held' } })).toBe(1);
 
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     expect((await accounts.post('/accounting/outbox/process')).status).toBe(200);
     const suspense = await ctx.prisma.journalLine.aggregate({
       where: { account: { systemKey: 'suspense' } },

@@ -98,9 +98,9 @@ describe('navFor', () => {
       'fines',
       'holidays',
     ]);
-    // Accounts (N6, N7): the invoices under «الحسابات»; attendance, pay items, runs, salary
-    // profiles and wallets under «الرواتب والحضور»; M7 journal, vouchers and the chart under
-    // «المحاسبة»; no packages, users or settings.
+    // Accounts (N6, N7, D146): the invoices under «الحسابات»; attendance, pay items, runs, salary
+    // profiles and wallets under «الرواتب والحضور»; no ledger («المحاسبة» is the owner's), no
+    // packages, users or settings.
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'supportInbox',
@@ -109,7 +109,6 @@ describe('navFor', () => {
       'announcements',
       'billing',
       'payroll',
-      'accounting',
     ]);
     expect(navItemsFor(as('accounts')).map((i) => i.key)).toEqual([
       'home',
@@ -125,11 +124,6 @@ describe('navFor', () => {
       'payrollRuns',
       'salaryProfiles',
       'wallets',
-      'journal',
-      'vouchers',
-      'chartOfAccounts',
-      'financialReports',
-      'periods',
     ]);
   });
 

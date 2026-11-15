@@ -43,23 +43,36 @@ describe('dashboard widgets by role (B121)', () => {
     ]);
   });
 
-  it('billing sees collections and outstanding, not profit or operations', () => {
-    expect(widgetsOf('billing')).toEqual(['collected', 'outstanding', 'collections']);
+  it('billing sees collections, outstanding and the collection rate, not profit or operations', () => {
+    expect(widgetsOf('billing')).toEqual([
+      'collected',
+      'outstanding',
+      'collection_rate',
+      'collections',
+    ]);
   });
 
-  it('accounts sees basic finance and payroll, not profit and loss (D145)', () => {
+  it('accounts sees collections only: no expenses, teacher pay or profit (D146)', () => {
     expect(widgetsOf('accounts')).toEqual([
       'collected',
       'outstanding',
+      'collection_rate',
       'collections',
-      'teacher_hours',
     ]);
+  });
+
+  it('no preset other than the owner keeps the ledger (D146)', () => {
+    for (const role of ['senior_manager', 'manager', 'billing', 'accounts'] as const) {
+      expect(permissionsFor(role)).not.toContain('accounting.view');
+      expect(permissionsFor(role)).not.toContain('accounting.manage');
+    }
+    expect(permissionsFor('accounts')).toContain('accounting.rates');
   });
 
   it('profit and loss is the owner’s only: no preset role has it', () => {
     for (const role of ['senior_manager', 'manager', 'accounts', 'billing'] as const) {
       const w = widgetsOf(role);
-      for (const pl of ['gross_profit', 'net_profit', 'revenue_expenses'])
+      for (const pl of ['gross_profit', 'net_profit', 'revenue_expenses', 'teacher_hours'])
         expect(w).not.toContain(pl);
     }
   });

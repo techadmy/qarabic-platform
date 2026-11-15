@@ -38,7 +38,7 @@ describe('ledger from live billing and payroll', () => {
     });
     expect(paid.status).toBe(201);
 
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     expect((await accounts.post('/accounting/outbox/process')).body.data).toMatchObject({
       posted: 2,
       failed: 0,
@@ -95,19 +95,19 @@ describe('ledger from live billing and payroll', () => {
     });
     expect(pay.status).toBe(200);
 
-    const run = (await accounts.post('/accounting/outbox/process')).body.data;
+    // D146: accounts approve and pay the payroll; the books are the owner's.
+    const { client: books } = await signedIn(ctx, 'admin');
+    const run = (await books.post('/accounting/outbox/process')).body.data;
     expect(run).toMatchObject({ posted: 2, failed: 0 });
-    const entries = (await accounts.get('/accounting/journal?source=payroll&currency=PKR')).body
-      .data;
+    const entries = (await books.get('/accounting/journal?source=payroll&currency=PKR')).body.data;
     expect(entries).toHaveLength(2);
     const net = slip.net.toFixed(2);
-    const bs = (
-      await accounts.get('/accounting/reports/balance-sheet?currency=PKR&asOf=2026-11-30')
-    ).body.data;
+    const bs = (await books.get('/accounting/reports/balance-sheet?currency=PKR&asOf=2026-11-30'))
+      .body.data;
     expect(bs.balanced).toBe(true);
     expect(bs.retainedEarnings).toBe(`-${net}`);
     const cash = (
-      await accounts.get('/accounting/reports/cash?currency=PKR&from=2026-11-01&to=2026-11-30')
+      await books.get('/accounting/reports/cash?currency=PKR&from=2026-11-01&to=2026-11-30')
     ).body.data;
     expect(cash.currencies[0].accounts[0]).toMatchObject({ code: '1150', outflow: net });
     // The wallet (salaries payable) is back to zero after the payment.
