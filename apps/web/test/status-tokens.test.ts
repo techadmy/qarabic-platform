@@ -81,6 +81,12 @@ describe.each([
       contrast(vars[`status-${tone}-foreground`]!, vars[`status-${tone}`]!),
     ).toBeGreaterThanOrEqual(4.5);
   });
+  it.each(['1', '2', '3', '4', '5', 'taken', 'leave', 'declined', 'absent', 'cancelled'])(
+    'chart-%s marks on the card ≥ 3:1 (WCAG 1.4.11)',
+    (k) => {
+      expect(contrast(vars[`chart-${k}`]!, vars.card!)).toBeGreaterThanOrEqual(3);
+    },
+  );
   it('destructive-foreground on destructive (badges) ≥ 4.5:1', () => {
     expect(contrast(vars['destructive-foreground']!, vars.destructive!)).toBeGreaterThanOrEqual(
       4.5,
