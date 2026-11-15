@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { allPermissions } from './permissions.js';
+import { allPermissions, OWNER_ONLY_PERMISSIONS } from './permissions.js';
 
 export const roleKindSchema = z.enum(['owner', 'staff', 'teacher', 'parent']);
 
@@ -25,10 +25,16 @@ export const roleSchema = z.object({
 export type RoleDto = z.infer<typeof roleSchema>;
 
 const known = new Set<string>(allPermissions());
+const ownerOnly = new Set<string>(OWNER_ONLY_PERMISSIONS);
 
 /** Known `module.action` names, de-duplicated and sorted. Unknown ones fail at `permissions.<index>`. */
 export const permissionListSchema = z
-  .array(z.string().refine((p) => known.has(p), { message: 'Unknown permission.' }))
+  .array(
+    z
+      .string()
+      .refine((p) => known.has(p), { message: 'Unknown permission.' })
+      .refine((p) => !ownerOnly.has(p), { message: 'Profit and loss is for the owner only.' }),
+  )
   .max(known.size * 2)
   .transform((list) => [...new Set(list)].sort());
 

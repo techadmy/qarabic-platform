@@ -584,8 +584,17 @@ describe('reports', () => {
   });
 
   it('profit and loss, balance sheet (balanced, with the result in equity) and cash per currency', async () => {
+    // D145: the P&L report is the owner's only; accounts keep the books but do not see it.
+    const { client: owner } = await signedIn(ctx, 'admin');
+    expect(
+      (
+        await accounts.get(
+          '/accounting/reports/profit-and-loss?currency=USD&from=2026-11-01&to=2026-11-30',
+        )
+      ).status,
+    ).toBe(403);
     const pl = (
-      await accounts.get(
+      await owner.get(
         '/accounting/reports/profit-and-loss?currency=USD&from=2026-11-01&to=2026-11-30',
       )
     ).body.data;
@@ -631,7 +640,7 @@ describe('reports', () => {
 
     expect(
       (
-        await accounts.get(
+        await owner.get(
           '/accounting/reports/profit-and-loss?currency=USD&from=2026-11-30&to=2026-11-01',
         )
       ).status,
