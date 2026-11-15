@@ -45,6 +45,8 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { RangeBar } from '@/components/dashboard/range-bar';
+import { BusyDays } from './busy-days';
+import { HiringCheck } from './hiring-check';
 import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
 import { RowHead, STICKY_COL } from '@/components/list/report-table';
 import { Combobox } from '@/components/forms/fields';
@@ -362,6 +364,7 @@ export function UtilizationView() {
         </>
       )}
 
+      {d?.days && d.days.length > 0 && <BusyDays days={d.days} />}
       <Card className="gap-3 shadow-none">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
           <div className="flex flex-col gap-1">
@@ -417,6 +420,7 @@ export function UtilizationView() {
           )}
         </CardContent>
       </Card>
+      {capacity.data && <HiringCheck grid={capacity.data} />}
     </div>
   );
 }
