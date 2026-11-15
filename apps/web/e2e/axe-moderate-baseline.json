@@ -51,6 +51,7 @@
     "/schedule region",
     "/schedule/:id region",
     "/schedule/availability region",
+    "/schedule/enrollments region",
     "/schedule/new region",
     "/settings/billing region",
     "/settings/crm region",

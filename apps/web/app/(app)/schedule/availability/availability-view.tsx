@@ -122,7 +122,7 @@ export function AvailabilityView() {
   return (
     <>
       <PageHeader
-        back={{ href: '/schedule', label: ts('back') }}
+        back={{ href: '/schedule/enrollments', label: ts('back') }}
         title={t('title')}
         description={t('description')}
       />

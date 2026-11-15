@@ -821,7 +821,15 @@
       "optional": "optional",
       "back": "Back",
       "save": "Save time",
-      "done": "\u2068{name}\u2069's class time changed"
+      "done": "\u2068{name}\u2069's class time changed",
+      "scope": {
+        "legend": "What changes?",
+        "this": "This class only",
+        "following": "This and following classes",
+        "followingHint": "The weekly time ends before this class and a new one starts from it; earlier classes stay as they are."
+      },
+      "doneSeries": "Moved \u2068{name}\u2069’s classes from this one on ({count, plural, one {# class} other {# classes}}).",
+      "reasonRequired": "Write why the class moves (at least 3 characters)."
     },
     "refusals": {
       "generic": "The action could not be done. Try again.",
@@ -4400,5 +4408,65 @@
       "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency.",
       "link": "Add the missing rate"
     }
+  },
+  "calendar": {
+    "filters": {
+      "label": "Filter the calendar",
+      "teachers": "Teachers",
+      "allTeachers": "All teachers",
+      "students": "Students",
+      "allStudents": "All students",
+      "course": "Course",
+      "allCourses": "All courses",
+      "searchCourse": "Search by course name",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "stage": "Status",
+      "allStages": "All statuses",
+      "zoneLabel": "Show times in",
+      "zone": {
+        "academy": "Academy time (\u2068{city}\u2069)",
+        "mine": "My time (\u2068{city}\u2069)",
+        "teacher": "Teacher’s time (\u2068{city}\u2069)",
+        "student": "Student’s time (\u2068{city}\u2069)",
+        "teacherUnset": "Teacher’s time (choose one teacher)",
+        "studentUnset": "Student’s time (choose one student)"
+      },
+      "clear": "Clear filters"
+    },
+    "title": "Schedule",
+    "description": "The period’s classes on a calendar; drag a scheduled class to move it, or click empty time to add an enrollment.",
+    "enrollments": "Enrollments",
+    "truncated": "Too many classes in this period; narrow the filters or the period to see them all.",
+    "needsAttention": "Needs attention",
+    "trial": "Trial",
+    "rescheduled": "Re-scheduled",
+    "outsideHours": "Outside working hours",
+    "nav": {
+      "today": "Today",
+      "previous": "Previous",
+      "next": "Next",
+      "allDay": "All day",
+      "more": "{count, plural, one {# more} other {# more}}",
+      "noEvents": "No classes in this period",
+      "loading": "Loading classes",
+      "selectView": "View",
+      "teachers": "Teachers",
+      "goToDate": "Go to date",
+      "dropNotAllowed": "Can’t move here"
+    },
+    "views": {
+      "month": "Month",
+      "week": "Week",
+      "day": "Day",
+      "list": "List",
+      "teachers": "Teachers"
+    },
+    "filtersOpen": "Filters",
+    "calendarLabel": "Class calendar",
+    "legend": "Colour key",
+    "pickTeachers": "Choose a teacher (up to 3) to see the week clearly; every teacher’s classes together are too narrow to read.",
+    "pickTeachersAction": "Choose teachers",
+    "teachersCap": "The first 12 teachers are shown; choose teachers in the filters to see others."
   }
 }

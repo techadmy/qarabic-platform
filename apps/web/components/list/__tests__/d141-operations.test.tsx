@@ -18,7 +18,7 @@ afterEach(() => {
 
 describe('split view on the operations lists', () => {
   it('schedule: an enrollment opens beside the list; the list keeps the h1', async () => {
-    renderPage(<ScheduleView />, { path: '/schedule?id=1' });
+    renderPage(<ScheduleView />, { path: '/schedule/enrollments?id=1' });
     const full = await screen.findByRole('link', { name: 'فتح في صفحة كاملة' });
     expect(full).toHaveAttribute('href', '/schedule/1');
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('الجدول');
