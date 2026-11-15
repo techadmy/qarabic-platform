@@ -2087,6 +2087,7 @@ export const scheduleHandlers: HttpHandler[] = [
       email: parsed.data.email,
       label: parsed.data.label ?? null,
       teacherId: parsed.data.teacherId ?? null,
+      pmiMeetingId: parsed.data.pmiMeetingId ?? null,
       isActive: parsed.data.isActive ?? true,
     };
     sdb.zoomHosts.push(host);
@@ -2131,6 +2132,9 @@ export function boardCounters(sessions: SessionDto[]) {
     'zoom_failed',
     'needs_review',
     'pending_requests',
+    'teacher_no_show',
+    'student_no_show',
+    'short_class',
   ] as const;
   const c = Object.fromEntries(keys.map((k) => [k, 0])) as Record<(typeof keys)[number], number>;
   const byStage: Partial<Record<string, (typeof keys)[number]>> = {
@@ -2165,6 +2169,9 @@ export function boardCounters(sessions: SessionDto[]) {
       'teacher_unavailable',
       'zoom_failed',
       'needs_review',
+      'teacher_no_show',
+      'student_no_show',
+      'short_class',
     ] as const)
       if (s.attention.includes(code)) c[code] += 1;
     c.pending_requests += s.pendingRequests.length;
