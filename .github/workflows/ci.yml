@@ -31,6 +31,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # Coverage thresholds (packages/shared, apps/web lib/): a drop fails (docs/39 P2-4).
+      - run: pnpm --filter @qarabic/shared --filter @qarabic/web run test:coverage
 
   api-e2e:
     name: API e2e (PostgreSQL 17)
@@ -71,7 +73,8 @@ jobs:
       - name: Migrations match the Prisma schema
         working-directory: apps/api
         run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
-      - run: pnpm --filter @qarabic/api test:e2e
+      # With coverage: below the thresholds in apps/api/vitest.config.ts fails (docs/39 P2-4).
+      - run: pnpm --filter @qarabic/api test:e2e:coverage
 
   web-e2e-real:
     # The web app against the real API and a freshly seeded database (fake demo data only), so the
@@ -127,6 +130,15 @@ jobs:
       - run: pnpm --filter @qarabic/shared build
       - run: pnpm --filter @qarabic/api exec prisma migrate deploy
       - run: pnpm --filter @qarabic/api db:seed
+      # Browsers cached per Playwright version (docs/39 CI-8); the install is then a quick check.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @qarabic/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e:real
       - name: Report flaky tests
@@ -157,6 +169,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @qarabic/shared build
+      # Browsers cached per Playwright version (docs/39 CI-8); the install is then a quick check.
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @qarabic/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
       - run: pnpm --filter @qarabic/web exec playwright install chromium
       - run: pnpm --filter @qarabic/web test:e2e --shard=${{ matrix.shard }}/2
       - name: Report flaky tests
@@ -179,6 +200,14 @@ jobs:
         with:
           name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report
+      # The visual baselines as rendered here (Linux): written when one is missing or with
+      # --update-snapshots; download and commit them after an intended change (e2e/visual.spec.ts).
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: visual-baselines-${{ matrix.shard }}
+          path: apps/web/e2e/visual.spec.ts-snapshots/
+          if-no-files-found: ignore
 
   deploy-scripts:
     name: Deploy scripts (shellcheck + harness + nginx -t)

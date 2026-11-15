@@ -81,7 +81,7 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
   parent: {
     email: 'parent@qarabic.test',
     // Their own card payment's receipt too.
-    pages: ['/', '/my-family', '/my-requests', '/invoices', '/invoices/2/receipts/1'],
+    pages: ['/', '/my-family', '/my-requests', '/invoices', '/invoices/2/receipts/1', '/contact'],
   },
   teacher: {
     email: 'teacher@qarabic.test',
@@ -94,14 +94,14 @@ const GROUPS: Record<string, { email: string | null; pages: string[] }> = {
       '/payroll',
       '/payroll/me',
       '/fines',
+      // The S5 deep link: «تواصل معنا» opens over the home page.
+      '/contact',
     ],
   },
 };
 
 /** Covered by standards.spec.ts (admin) or not a product screen. */
 const ELSEWHERE = [
-  // support.spec.ts: the S5 deep link opens «تواصل معنا» after sign-in (axe, 375 px).
-  '/contact',
   // operations.spec.ts sweeps tasks and announcements (375/768/1440 × ar/en, axe, no overflow).
   '/tasks',
   '/tasks/1',
@@ -159,6 +159,8 @@ for (const [group, { email, pages }] of Object.entries(GROUPS)) {
         if (email) {
           await page.goto('/login');
           await login(page, email);
+          // Signed in once the URL leaves /login (the login page has a `main h1` too).
+          await expect(page).not.toHaveURL(/\/login/);
           await expect(page.locator('main h1').first()).toBeVisible();
         }
         // Signed in: the header switch (the account's language wins over the cookie). Signed out:
@@ -176,6 +178,8 @@ for (const [group, { email, pages }] of Object.entries(GROUPS)) {
           await test.step(path, async () => {
             try {
               await page.goto(path);
+              // Signed in: not bounced to the login page (it has a `main h1` too).
+              if (email) await expect(page).not.toHaveURL(/\/login/);
               await expect(page.locator('html')).toHaveAttribute('dir', dir);
               await settle(page);
               const known = KNOWN_OVERFLOW[`${path}@${width}`];

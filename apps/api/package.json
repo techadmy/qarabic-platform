@@ -16,7 +16,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx --env-file-if-exists=.env prisma/seed.ts",
     "postinstall": "prisma generate",
-    "cli": "node --env-file-if-exists=.env dist/cli.js"
+    "cli": "node --env-file-if-exists=.env dist/cli.js",
+    "test:e2e:coverage": "vitest run --project e2e --coverage"
   },
   "dependencies": {
     "@nestjs/common": "^12.4.2",
@@ -53,6 +54,7 @@
     "@types/nodemailer": "^8.0.2",
     "@types/pg": "^8.23.1",
     "@types/supertest": "^7.2.1",
+    "@vitest/coverage-v8": "3.2.7",
     "eslint": "^9.39.5",
     "globals": "^17.14.0",
     "pino-pretty": "^13.2.0",

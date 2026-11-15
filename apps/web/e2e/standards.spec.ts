@@ -50,11 +50,15 @@ for (const [name, width] of Object.entries(WIDTHS)) {
           });
           await page.goto('/login');
           await login(page);
+          // Signed in once the URL leaves /login (the login page has a `main h1` too).
+          await expect(page).not.toHaveURL(/\/login/);
           await expect(page.locator('main h1').first()).toBeVisible();
           if (lang === 'en') await switchToEnglish(page);
           // Then a fresh load of the page: a client-side navigation or the language switch re-streams
           // the metadata and briefly leaves <title> empty, which axe reports.
           await page.goto(path);
+          // The login page has a `main h1` too: make sure this is the page under test.
+          await expect(page).not.toHaveURL(/\/login/);
           await expect(page.locator('html')).toHaveAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
           await expect(page.locator('main h1').first()).toBeVisible();
           await expectNoHorizontalScroll(page);

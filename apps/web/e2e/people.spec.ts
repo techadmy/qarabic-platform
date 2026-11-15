@@ -175,22 +175,27 @@ test.describe('mobile 375 px', () => {
 // Nine axe runs used to share one test and outgrew the 30 s budget on the CI runner (it failed on
 // main): the lists and the profile flows are two tests now.
 test.describe('accessibility (axe)', () => {
-  test('lists: families, students, teachers, staff, roles', async ({ page }) => {
+  // One list per test: five axe runs in one test outgrew the 30 s budget again once axe also
+  // checked best-practice rules (docs/39 P2-4).
+  test('list: families (26 rows)', async ({ page }) => {
     await signIn(page, 'admin@qarabic.test', '/families');
     await expect(page.getByRole('table', { name: 'العائلات' }).getByRole('row')).toHaveCount(26);
     await expectNoSeriousA11yViolations(page);
-    for (const [path, ready] of [
-      ['/students', 'الطلاب'],
-      ['/teachers', 'المعلمون'],
-      ['/staff', 'الموظفون'],
-      ['/roles', 'الأدوار'],
-    ] as const) {
-      await page.goto(path);
+  });
+
+  for (const [path, ready] of [
+    ['/students', 'الطلاب'],
+    ['/teachers', 'المعلمون'],
+    ['/staff', 'الموظفون'],
+    ['/roles', 'الأدوار'],
+  ] as const) {
+    test(`list: ${path}`, async ({ page }) => {
+      await signIn(page, 'admin@qarabic.test', path);
       await expect(page.getByRole('table', { name: ready })).toBeVisible();
       await page.waitForLoadState('networkidle');
       await expectNoSeriousA11yViolations(page);
-    }
-  });
+    });
+  }
 
   test('profile, edit sheet, status dialog, a role and the account', async ({ page }) => {
     await signIn(page, 'admin@qarabic.test', '/families/2');
