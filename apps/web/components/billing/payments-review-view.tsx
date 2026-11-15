@@ -136,7 +136,7 @@ export function PaymentsReviewView() {
         id: 'reason',
         header: t('cols.reason'),
         cell: ({ row }) => (
-          <span className="flex flex-col gap-1">
+          <span className="flex max-w-64 flex-col items-start gap-1 whitespace-normal">
             <ToneBadge tone="orange" icon={FlagIcon} label={t('needsReview')} />
             <span className="text-sm text-muted-foreground">{reason(row.original)}</span>
           </span>
