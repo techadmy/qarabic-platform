@@ -1698,7 +1698,9 @@ model Payment {
   failureReason     String?       @map("failure_reason") @db.VarChar(500)
   recordedById      Int?          @map("recorded_by")
   initiatedById     Int?          @map("initiated_by")
-  idempotencyKey    String?       @unique @map("idempotency_key") @db.VarChar(64)
+  idempotencyKey    String?       @unique @map("idempotency_key") @db.VarChar(100)
+  /// P1-5: sha256 of the manual request body sent with the Idempotency-Key (same key, other body → 409).
+  requestHash       String?       @map("request_hash") @db.Char(64)
   /// P1-1: the part of a succeeded payment not applied to its invoice (became a family credit).
   unapplied         Decimal       @default(0) @db.Decimal(12, 2)
   /// Staff should look at it: `overpaid` (more than the balance) or `invoice_closed`.
