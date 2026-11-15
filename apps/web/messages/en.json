@@ -4250,7 +4250,8 @@
         "rateRequired": "Enter the rate.",
         "rate": "Enter a positive number with up to 8 decimals.",
         "fix": "Fix the highlighted fields.",
-        "reason": "Write why the rate is replaced (at least 3 characters)."
+        "reason": "Write why the rate is replaced (at least 3 characters).",
+        "exists": "A rate for this month was just saved; check the current rate, then replace it if needed."
       },
       "replace": "Replace rate",
       "replaceReason": "Why replace it",

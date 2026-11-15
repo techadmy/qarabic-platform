@@ -417,7 +417,13 @@ function RateDialog({ initial, onClose }: { initial: Draft; onClose: () => void 
       description={t('formHint')}
       submitLabel={existing ? t('replace') : t('save')}
       busy={save.isPending}
-      error={save.isError ? message(save.error) : null}
+      error={
+        save.isError
+          ? isApiError(save.error, 409) && save.error.code === 'rate_exists'
+            ? t('errors.exists')
+            : message(save.error)
+          : null
+      }
       summary={touched && !valid ? t('errors.fix') : null}
       onSubmit={() => {
         setTouched(true);
