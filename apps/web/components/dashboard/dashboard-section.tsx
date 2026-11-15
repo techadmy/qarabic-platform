@@ -1,6 +1,6 @@
 'use client';
 
-import type { DashboardMetricsDto, DashboardWidget, UsdMoney } from '@qarabic/shared';
+import type { DashboardMetricsDto, UsdMoney } from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import type { ChartConfig } from '@qarabic/ui/components/chart';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
@@ -13,11 +13,17 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { academyToday } from '@/lib/accounting/forms';
 import { dashboardKeys, fetchDashboardMetrics } from '@/lib/api/dashboard';
 import { paramsOf, rangeFromParams } from '@/lib/dashboard/range';
-import { dashboardLayout, KPI_HREF, usdOf, type MainChart } from '@/lib/dashboard/widgets';
+import {
+  dashboardLayout,
+  kpiHref,
+  usdOf,
+  type KpiWidget,
+  type MainChart,
+} from '@/lib/dashboard/widgets';
 import { useListParams } from '@/lib/list-params';
 import { intlLocale } from '@/lib/time';
 import { bucketLabel, ChartCard, SeriesChart } from './charts';
-import { Change, CurrencyParts, KpiCard, Pct, Usd, UsdTotal } from './kpi-card';
+import { Change, Count, CurrencyParts, KpiCard, Pct, Usd, UsdTotal } from './kpi-card';
 import { RangeBar } from './range-bar';
 
 type CardBase = { key: string; href: string; label: string; loading: boolean };
@@ -41,14 +47,15 @@ export function DashboardSection() {
   const metrics = useQuery({
     queryKey: dashboardKeys.metrics(query),
     queryFn: ({ signal }) => fetchDashboardMetrics(query, signal),
-    enabled: kpis.length + charts.length > 0,
+    enabled: kpis.length + charts.length > 0 && !range.invalid,
     placeholderData: keepPreviousData,
   });
   if (kpis.length + charts.length === 0) return null;
   const live = refreshState(metrics);
   const d = metrics.data;
   const failed = live.failed;
-  const loading = !d && !failed;
+  // A new range keeps the old numbers in place until it answers: say it is loading, not stale.
+  const loading = (!d || metrics.isPlaceholderData || !!range.invalid) && !failed;
   const retry = () => void metrics.refetch();
   const label = (b: string) => bucketLabel(b, range.bucket, locale, t('chart.week'));
 
@@ -83,10 +90,10 @@ export function DashboardSection() {
     );
   };
 
-  const kpiCard = (widget: DashboardWidget) => {
+  const kpiCard = (widget: KpiWidget) => {
     const base: CardBase = {
       key: widget,
-      href: KPI_HREF[widget]!,
+      href: kpiHref(widget, range),
       label: t(`kpi.${widget}`),
       loading,
     };
@@ -102,7 +109,7 @@ export function DashboardSection() {
           <KpiCard
             key={key}
             {...rest}
-            value={<bdi className="tabular-nums">{v?.value ?? '—'}</bdi>}
+            value={v ? <Count value={v.value} /> : '—'}
             change={v && <Change value={v.value} previous={v.previous} />}
           />
         );
@@ -114,7 +121,9 @@ export function DashboardSection() {
             key={key}
             {...rest}
             value={v && v.value !== null ? <Pct value={v.value * 100} /> : '—'}
-            change={v && v.value !== null && <Change value={v.value} previous={v.previous} />}
+            change={
+              v && v.value !== null && <Change value={v.value} previous={v.previous} points />
+            }
           />
         );
       }
@@ -124,14 +133,20 @@ export function DashboardSection() {
           <KpiCard
             key={key}
             {...rest}
-            value={<bdi className="tabular-nums">{v?.value.booked ?? '—'}</bdi>}
+            value={v ? <Count value={v.value.booked} /> : '—'}
             change={v && <Change value={v.value.booked} previous={v.previous?.booked} />}
             detail={
               v &&
               t.rich('kpi.trialsDetail', {
                 attended: v.value.attended,
                 converted: v.value.converted,
-                pct: () => <Pct value={(v.value.conversionRate ?? 0) * 100} />,
+                // Nobody attended: nothing to divide, «—» (never 0%).
+                pct: () =>
+                  v.value.conversionRate === null ? (
+                    '—'
+                  ) : (
+                    <Pct value={v.value.conversionRate * 100} />
+                  ),
               })
             }
           />
@@ -178,9 +193,9 @@ export function DashboardSection() {
           profit: usdOf(p.netProfit),
         }));
         const config = {
-          revenue: { label: t('chart.revenue_expenses.revenue'), color: 'var(--primary)' },
-          expenses: { label: t('chart.revenue_expenses.expenses'), color: 'var(--chart-3)' },
-          profit: { label: t('chart.revenue_expenses.profit'), color: 'var(--chart-2)' },
+          revenue: { label: t('chart.revenue_expenses.revenue'), color: 'var(--chart-1)' },
+          expenses: { label: t('chart.revenue_expenses.expenses'), color: 'var(--chart-2)' },
+          profit: { label: t('chart.revenue_expenses.profit'), color: 'var(--chart-3)' },
         } satisfies ChartConfig;
         const missing = pts
           .filter((p) => [p.revenue, p.teacherPay, p.otherExpenses].some((m) => m.missingRate))
@@ -193,7 +208,10 @@ export function DashboardSection() {
               config={config}
               bucket={range.bucket}
               money
-              summary={summaryOf(config, data, locale)}
+              summary={summaryOf(config, data, locale, {
+                money: true,
+                incomplete: t('chart.incomplete'),
+              })}
             />
           </ChartCard>
         );
@@ -206,8 +224,8 @@ export function DashboardSection() {
           invoiced: usdOf(p.invoiced),
         }));
         const config = {
-          collected: { label: t('chart.collections.collected'), color: 'var(--primary)' },
-          invoiced: { label: t('chart.collections.invoiced'), color: 'var(--chart-3)' },
+          collected: { label: t('chart.collections.collected'), color: 'var(--chart-1)' },
+          invoiced: { label: t('chart.collections.invoiced'), color: 'var(--chart-2)' },
         } satisfies ChartConfig;
         const missing = pts
           .filter((p) => p.collected.missingRate || p.invoiced.missingRate)
@@ -220,7 +238,10 @@ export function DashboardSection() {
               config={config}
               bucket={range.bucket}
               money
-              summary={summaryOf(config, data, locale)}
+              summary={summaryOf(config, data, locale, {
+                money: true,
+                incomplete: t('chart.incomplete'),
+              })}
             />
           </ChartCard>
         );
@@ -234,9 +255,9 @@ export function DashboardSection() {
           converted: p.trialsConverted,
         }));
         const config = {
-          newStudents: { label: t('chart.students_trials.newStudents'), color: 'var(--primary)' },
-          trials: { label: t('chart.students_trials.trials'), color: 'var(--chart-3)' },
-          converted: { label: t('chart.students_trials.converted'), color: 'var(--chart-2)' },
+          newStudents: { label: t('chart.students_trials.newStudents'), color: 'var(--chart-1)' },
+          trials: { label: t('chart.students_trials.trials'), color: 'var(--chart-2)' },
+          converted: { label: t('chart.students_trials.converted'), color: 'var(--chart-3)' },
         } satisfies ChartConfig;
         return (
           <ChartCard key={widget} {...common} empty={!pts.length}>
@@ -253,11 +274,26 @@ export function DashboardSection() {
       case 'class_outcomes': {
         const data = s?.class_outcomes ?? [];
         const config = {
-          taken: { label: t('chart.class_outcomes.taken'), color: 'var(--primary)' },
-          absent: { label: t('chart.class_outcomes.absent'), color: 'var(--chart-2)' },
-          leave: { label: t('chart.class_outcomes.leave'), color: 'var(--chart-3)' },
-          declined: { label: t('chart.class_outcomes.declined'), color: 'var(--chart-4)' },
-          cancelled: { label: t('chart.class_outcomes.cancelled'), color: 'var(--chart-5)' },
+          taken: {
+            label: t('chart.class_outcomes.taken'),
+            color: 'var(--chart-taken, var(--primary))',
+          },
+          absent: {
+            label: t('chart.class_outcomes.absent'),
+            color: 'var(--chart-absent, var(--chart-2))',
+          },
+          leave: {
+            label: t('chart.class_outcomes.leave'),
+            color: 'var(--chart-leave, var(--chart-3))',
+          },
+          declined: {
+            label: t('chart.class_outcomes.declined'),
+            color: 'var(--chart-declined, var(--chart-4))',
+          },
+          cancelled: {
+            label: t('chart.class_outcomes.cancelled'),
+            color: 'var(--chart-cancelled, var(--chart-5))',
+          },
         } satisfies ChartConfig;
         return (
           <ChartCard key={widget} {...common} empty={!data.length}>
@@ -281,16 +317,14 @@ export function DashboardSection() {
       </h2>
       <RangeBar
         range={range}
+        previous={metrics.isPlaceholderData ? undefined : d?.range.previous}
         today={today}
         onChange={(next) => params.set(paramsOf(next), { resetPage: false })}
       />
       {live.stale && <RefreshFailed onRetry={retry} />}
       {d && d.missingRates.length > 0 && <MissingRates rates={d.missingRates} />}
       {kpis.length > 0 && (
-        <div
-          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-4"
-          aria-busy={loading || undefined}
-        >
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3" aria-busy={loading || undefined}>
           {kpis.map(kpiCard)}
         </div>
       )}
@@ -315,7 +349,9 @@ function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] })
       <AlertTitle>{t('missingRates.title')}</AlertTitle>
       <AlertDescription>
         {t('missingRates.body', {
-          list: rates.map((r) => `${r.currency} · ${month(r.month)}`).join('، '),
+          list: new Intl.ListFormat(intlLocale(locale), { type: 'conjunction' }).format(
+            rates.map((r) => `${r.currency} · ${month(r.month)}`),
+          ),
         })}
       </AlertDescription>
     </Alert>
@@ -329,20 +365,24 @@ function sumUsd(a: UsdMoney, b: UsdMoney): number | null {
   return x === null || y === null ? null : x + y;
 }
 
-/** «الإيرادات: 12,400 · المصروفات: 7,100…»: what a chart shows, said once. */
+/**
+ * «الإيرادات: $12,400 · المصروفات: $7,100…»: what a chart shows, said once (its accessible
+ * description). A total with points that have no exchange rate says so instead of a short sum.
+ */
 function summaryOf(
   config: ChartConfig,
   data: Record<string, unknown>[],
   locale: 'ar' | 'en',
+  opts: { money?: boolean; incomplete?: string } = {},
 ): string {
   const fmt = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
   return Object.entries(config)
     .map(([k, v]) => {
-      const total = data.reduce<number>(
-        (a, p) => a + (typeof p[k] === 'number' ? (p[k] as number) : 0),
-        0,
-      );
-      return `${String(v.label)}: ${fmt.format(total)}`;
+      const values = data.map((p) => p[k]);
+      const missing = values.some((x) => x === null);
+      const total = values.reduce<number>((a, x) => a + (typeof x === 'number' ? x : 0), 0);
+      const shown = `${opts.money ? '$' : ''}${fmt.format(total)}`;
+      return `${String(v.label)}: ${shown}${missing && opts.incomplete ? ` (${opts.incomplete})` : ''}`;
     })
     .join(' · ');
 }

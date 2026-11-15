@@ -13,8 +13,13 @@ import { useTranslations } from 'next-intl';
 import { useId } from 'react';
 import { DatePicker } from '@/components/forms/date-time';
 import { useUiLocale } from '@/components/sessions/times';
-import { RANGE_PRESETS, type DashboardRange, type RangePreset } from '@/lib/dashboard/range';
-import { dayLabel } from '@/lib/schedule-time';
+import {
+  MAX_RANGE_DAYS,
+  RANGE_PRESETS,
+  type DashboardRange,
+  type RangePreset,
+} from '@/lib/dashboard/range';
+import { addDays, dayLabel } from '@/lib/schedule-time';
 
 /**
  * The dashboard's one time control (docs/40 §2.4): a preset, or from/to for «مخصّص», and «قارن
@@ -23,10 +28,13 @@ import { dayLabel } from '@/lib/schedule-time';
  */
 export function RangeBar({
   range,
+  previous,
   today,
   onChange,
 }: {
   range: DashboardRange;
+  /** The period the API compared with (its `range.previous`), once the answer is in. */
+  previous: { from: string; to: string } | null | undefined;
   today: string;
   onChange: (next: { preset: RangePreset; from?: string; to?: string; compare: boolean }) => void;
 }) {
@@ -78,7 +86,9 @@ export function RangeBar({
             <DatePicker
               id={ids.from}
               value={range.from}
+              min={addDays(range.to, -(MAX_RANGE_DAYS - 1))}
               max={range.to}
+              invalid={!!range.invalid}
               onChange={(v) => v && set({ from: v })}
             />
           </div>
@@ -91,6 +101,7 @@ export function RangeBar({
               value={range.to}
               min={range.from}
               max={today}
+              invalid={!!range.invalid}
               onChange={(v) => v && set({ to: v })}
             />
           </div>
@@ -106,13 +117,18 @@ export function RangeBar({
       </div>
       <p role="status" className="text-sm text-muted-foreground md:ms-auto md:self-center">
         <bdi>{span(range.from, range.to)}</bdi>
-        {range.previous && (
+        {range.compare && previous && (
           <>
             {' · '}
-            {t('versus', { span: span(range.previous.from, range.previous.to) })}
+            {t('versus', { span: span(previous.from, previous.to) })}
           </>
         )}
       </p>
+      {range.invalid && (
+        <p role="alert" className="basis-full text-sm text-destructive">
+          {t(`invalid.${range.invalid}`, { max: MAX_RANGE_DAYS })}
+        </p>
+      )}
     </section>
   );
 }

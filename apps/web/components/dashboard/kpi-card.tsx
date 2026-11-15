@@ -10,7 +10,7 @@ import type { ReactNode } from 'react';
 import { useUiLocale } from '@/components/sessions/times';
 import type { UsdMoney } from '@qarabic/shared';
 import { Money } from '@/components/billing/billing-bits';
-import { changePct } from '@/lib/dashboard/range';
+import { changePct, changePoints } from '@/lib/dashboard/range';
 import { intlLocale } from '@/lib/time';
 
 /**
@@ -66,29 +66,33 @@ export function Pct({ value }: { value: number }) {
 }
 
 /**
- * The change against the previous period: an arrow and the % (▲ up, ▼ down), said in words for
- * screen readers. `goodWhenDown` turns the tone for numbers that should fall (outstanding).
+ * The change against the previous period: an arrow and a signed figure («+12%», «−5%»), said in
+ * words for screen readers too. A ratio (attendance) changes in percentage points («+3.2 نقطة»),
+ * not in % of itself. `goodWhenDown` turns the tone for numbers that should fall (outstanding).
  */
 export function Change({
   value,
   previous,
   goodWhenDown = false,
+  points = false,
 }: {
   value: number;
   previous: number | null | undefined;
   goodWhenDown?: boolean;
+  /** `value`/`previous` are ratios 0–1: show the difference in percentage points. */
+  points?: boolean;
 }) {
   const t = useTranslations('dashboard.kpi');
   const locale = useUiLocale();
-  const pct = changePct(value, previous);
-  if (pct === null) return null;
-  const fmt = new Intl.NumberFormat(intlLocale(locale), {
-    style: 'percent',
+  const change = points ? changePoints(value, previous) : changePct(value, previous);
+  if (change === null) return null;
+  const signed = new Intl.NumberFormat(intlLocale(locale), {
     maximumFractionDigits: 1,
-    signDisplay: 'never',
-  }).format(Math.abs(pct) / 100);
-  const flat = pct === 0;
-  const up = pct > 0;
+    signDisplay: 'exceptZero',
+    ...(points ? {} : { style: 'percent' as const }),
+  }).format(points ? change : change / 100);
+  const flat = change === 0;
+  const up = change > 0;
   const good = flat ? null : up !== goodWhenDown;
   const Icon = flat ? MinusIcon : up ? TrendingUpIcon : TrendingDownIcon;
   return (
@@ -101,9 +105,17 @@ export function Change({
       )}
     >
       <Icon aria-hidden className="size-4" />
-      <bdi className="tabular-nums">{fmt}</bdi>
+      <bdi className="tabular-nums">{points ? t('points', { value: signed }) : signed}</bdi>
       <span className="sr-only">{t(flat ? 'flat' : up ? 'up' : 'down')}</span>
     </span>
+  );
+}
+
+/** A count in the UI's digits (Latin, grouped). */
+export function Count({ value }: { value: number }) {
+  const locale = useUiLocale();
+  return (
+    <bdi className="tabular-nums">{new Intl.NumberFormat(intlLocale(locale)).format(value)}</bdi>
   );
 }
 

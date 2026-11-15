@@ -1,3 +1,4 @@
+import { DASHBOARD_MAX_DAYS } from '@qarabic/shared';
 import { addDays, isDateKey, weekStart } from '@/lib/schedule-time';
 
 /**
@@ -28,10 +29,16 @@ export interface DashboardRange {
   from: string;
   to: string;
   compare: boolean;
-  /** The period just before, of the same length (null without compare). */
-  previous: { from: string; to: string } | null;
   bucket: Bucket;
+  /**
+   * Why a custom range cannot be asked for (start after end, end after today, longer than the
+   * API's limit): the bar says so and nothing is fetched, instead of quietly showing another range.
+   */
+  invalid: 'order' | 'future' | 'too_long' | null;
 }
+
+/** The longest range the API takes (`DASHBOARD_MAX_DAYS` in `@qarabic/shared`). */
+export const MAX_RANGE_DAYS = DASHBOARD_MAX_DAYS;
 
 const monthStart = (key: string) => `${key.slice(0, 7)}-01`;
 const addMonths = (key: string, n: number) => {
@@ -70,38 +77,36 @@ export function presetSpan(preset: Exclude<RangePreset, 'custom'>, today: string
   }
 }
 
-/**
- * The previous period of the same length: a calendar month compares with the month before (so
- * «this month so far» compares with the same days of last month), anything else with the same
- * number of days just before.
- */
-export function previousOf(preset: RangePreset, from: string, to: string) {
-  if (preset === 'this_month' || preset === 'last_month') {
-    const start = addMonths(from, -1);
-    const end = addDays(start, daysIn(from, to) - 1);
-    return { from: start, to: end > monthEnd(start) ? monthEnd(start) : end };
-  }
-  const length = daysIn(from, to);
-  return { from: addDays(from, -length), to: addDays(from, -1) };
-}
-
 /** Bars per day up to a month, per week up to ~4 months, else per month. */
 export function bucketFor(from: string, to: string): Bucket {
   const days = daysIn(from, to);
   return days <= 31 ? 'day' : days <= 120 ? 'week' : 'month';
 }
 
-/** The range the URL asks for (anything invalid falls back to the default month). */
+/**
+ * The range the URL asks for. A preset is resolved on `today`; a custom range keeps the dates
+ * asked for even when they cannot be used (`invalid` says why). The period it is compared with
+ * comes from the API's answer (`range.previous`), never computed here (one rule, in the API).
+ */
 export function rangeFromParams(get: (key: string) => string, today: string): DashboardRange {
   const asked = get('range') as RangePreset;
   const compare = get('compare') === '1';
   let preset: RangePreset = RANGE_PRESETS.includes(asked) ? asked : DEFAULT_PRESET;
   let span: { from: string; to: string };
+  let invalid: DashboardRange['invalid'] = null;
   if (preset === 'custom') {
     const from = get('from');
     const to = get('to');
-    if (isDateKey(from) && isDateKey(to) && from <= to && to <= today && daysIn(from, to) <= 731) {
+    if (isDateKey(from) && isDateKey(to)) {
       span = { from, to };
+      invalid =
+        from > to
+          ? 'order'
+          : to > today
+            ? 'future'
+            : daysIn(from, to) > MAX_RANGE_DAYS
+              ? 'too_long'
+              : null;
     } else {
       preset = DEFAULT_PRESET;
       span = presetSpan(DEFAULT_PRESET, today);
@@ -113,8 +118,8 @@ export function rangeFromParams(get: (key: string) => string, today: string): Da
     preset,
     ...span,
     compare,
-    previous: compare ? previousOf(preset, span.from, span.to) : null,
     bucket: bucketFor(span.from, span.to),
+    invalid,
   };
 }
 
@@ -131,6 +136,12 @@ export function paramsOf(r: {
     to: r.preset === 'custom' ? (r.to ?? null) : null,
     compare: r.compare ? '1' : null,
   };
+}
+
+/** A ratio's change (0–1) in percentage points, one decimal; null when there is nothing before. */
+export function changePoints(value: number, previous: number | null | undefined): number | null {
+  if (previous === null || previous === undefined) return null;
+  return Math.round((value - previous) * 1000) / 10;
 }
 
 /** Change from `previous` to `value` in %, one decimal; null when there is nothing to compare. */

@@ -4233,6 +4233,11 @@
         "this_year": "This year",
         "last_12_months": "Last 12 months",
         "custom": "Custom"
+      },
+      "invalid": {
+        "order": "The start is after the end. Fix the period.",
+        "future": "The period cannot end after today.",
+        "too_long": "Choose a period of at most {max} days."
       }
     },
     "kpi": {
@@ -4251,7 +4256,8 @@
       "up": "up from the previous period",
       "down": "down from the previous period",
       "flat": "no change from the previous period",
-      "net_profit": "Net profit"
+      "net_profit": "Net profit",
+      "points": "\u2068{value}\u2069 pts"
     },
     "chart": {
       "week": "Week of",
@@ -4287,7 +4293,8 @@
         "leave": "Leave",
         "declined": "Declined",
         "cancelled": "Cancelled"
-      }
+      },
+      "incomplete": "incomplete: no exchange rate"
     },
     "missingRates": {
       "title": "Missing exchange rates",

@@ -19,7 +19,7 @@ import {
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { ChartNoAxesColumnIcon, TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import type { ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import {
   Area,
   AreaChart,
@@ -43,8 +43,9 @@ export function bucketLabel(key: string, bucket: Bucket, locale: 'ar' | 'en', we
   const d = new Date(`${key}T00:00:00Z`);
   if (bucket === 'month') {
     return new Intl.DateTimeFormat(intlLocale(locale), {
+      // «أكتوبر 2026»: a month and its year (never read as a date).
       month: 'short',
-      year: '2-digit',
+      year: 'numeric',
       timeZone: 'UTC',
     }).format(d);
   }
@@ -83,6 +84,7 @@ export function ChartCard({
   children: ReactNode;
 }) {
   const t = useTranslations('dashboard.chart');
+  const locale = useUiLocale();
   return (
     <Card className="min-w-0 gap-3 shadow-none" aria-labelledby={id}>
       <CardHeader>
@@ -97,7 +99,11 @@ export function ChartCard({
         {missingRate && missingRate.length > 0 && (
           <p className="flex items-start gap-1.5 text-sm text-status-orange-emphasis">
             <TriangleAlertIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-            {t('missingRate', { buckets: missingRate.join('، ') })}
+            {t('missingRate', {
+              buckets: new Intl.ListFormat(intlLocale(locale), { type: 'conjunction' }).format(
+                missingRate,
+              ),
+            })}
           </p>
         )}
         {loading ? (
@@ -158,6 +164,11 @@ export function SeriesChart({
       notation: 'compact',
       maximumFractionDigits: 1,
     }).format(v)}`;
+  const valueText = (v: number) =>
+    `${money ? '$' : ''}${new Intl.NumberFormat(intlLocale(locale), {
+      maximumFractionDigits: money ? 0 : 1,
+    }).format(v)}`;
+  const summaryId = useId();
   const axes = (
     <>
       <CartesianGrid vertical={false} />
@@ -169,12 +180,45 @@ export function SeriesChart({
         tickFormatter={tick}
         orientation={locale === 'ar' ? 'right' : 'left'}
       />
-      <ChartTooltip content={<ChartTooltipContent />} />
-      <ChartLegend content={<ChartLegendContent />} />
+      <ChartTooltip
+        content={
+          <ChartTooltipContent
+            formatter={(value, name, item) => (
+              <div className="flex w-full items-center justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-muted-foreground">
+                  <span
+                    aria-hidden
+                    className="size-2.5 shrink-0 rounded-[2px]"
+                    style={{ background: item.color }}
+                  />
+                  {config[String(name)]?.label ?? name}
+                </span>
+                <span className="font-medium text-foreground tabular-nums">
+                  {/* A gap (no exchange rate) is «—», never 0. */}
+                  {value === null || value === undefined ? '—' : valueText(Number(value))}
+                </span>
+              </div>
+            )}
+          />
+        }
+      />
+      <ChartLegend
+        content={(props) => (
+          // The canvas is LTR; the legend reads in the UI's direction.
+          <div dir={locale === 'ar' ? 'rtl' : 'ltr'}>
+            <ChartLegendContent payload={props.payload} verticalAlign={props.verticalAlign} />
+          </div>
+        )}
+      />
     </>
   );
   return (
-    <div role="img" aria-label={summary}>
+    // The chart keeps recharts' keyboard layer; its spoken summary describes it (no role="img"
+    // around an interactive element).
+    <div aria-describedby={summaryId}>
+      <p id={summaryId} className="sr-only">
+        {summary}
+      </p>
       <ChartContainer config={config} className="aspect-auto h-56 w-full" dir="ltr">
         {kind === 'area' ? (
           <AreaChart accessibilityLayer data={ordered} margin={{ top: 8, left: 0, right: 0 }}>
@@ -216,6 +260,8 @@ export function SeriesChart({
                 isAnimationActive={false}
                 fill={`var(--color-${k})`}
                 stackId={kind === 'stacked' ? 'a' : undefined}
+                stroke={kind === 'stacked' ? 'var(--card)' : undefined}
+                strokeWidth={kind === 'stacked' ? 2 : undefined}
                 radius={kind === 'stacked' ? (i === keys.length - 1 ? [4, 4, 0, 0] : 0) : 4}
               />
             ))}

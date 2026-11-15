@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { bucketFor, changePct, paramsOf, presetSpan, previousOf, rangeFromParams } from './range';
+import { bucketFor, changePct, changePoints, paramsOf, presetSpan, rangeFromParams } from './range';
 
 // A Wednesday in mid-November.
 const TODAY = '2026-11-18';
@@ -21,51 +21,52 @@ describe('dashboard range (docs/40 §2.4)', () => {
 
   it('defaults to this month, without compare (B122)', () => {
     const r = rangeFromParams(params({}), TODAY);
-    expect(r).toMatchObject({ preset: 'this_month', from: '2026-11-01', compare: false });
-    expect(r.previous).toBeNull();
+    expect(r).toMatchObject({
+      preset: 'this_month',
+      from: '2026-11-01',
+      compare: false,
+      invalid: null,
+    });
     expect(paramsOf(r)).toEqual({ range: null, from: null, to: null, compare: null });
   });
 
-  it('compares a month so far with the same days of the month before', () => {
-    expect(previousOf('this_month', '2026-11-01', '2026-11-18')).toEqual({
-      from: '2026-10-01',
-      to: '2026-10-18',
-    });
-    // March 31 days → February stops at its own end.
-    expect(previousOf('last_month', '2026-03-01', '2026-03-31')).toEqual({
-      from: '2026-02-01',
-      to: '2026-02-28',
-    });
-  });
-
-  it('compares any other range with the same number of days just before', () => {
-    expect(previousOf('custom', '2026-11-10', '2026-11-16')).toEqual({
-      from: '2026-11-03',
-      to: '2026-11-09',
-    });
-  });
-
-  it('reads a custom range from the URL, and refuses a broken one', () => {
+  it('reads a custom range from the URL', () => {
     const ok = rangeFromParams(
       params({ range: 'custom', from: '2026-09-01', to: '2026-09-30', compare: '1' }),
       TODAY,
     );
-    expect(ok).toMatchObject({ preset: 'custom', from: '2026-09-01', to: '2026-09-30' });
-    expect(ok.previous).toEqual({ from: '2026-08-02', to: '2026-08-31' });
-    for (const bad of [
-      { range: 'custom', from: '2026-09-30', to: '2026-09-01' },
-      { range: 'custom', from: '2026-12-01', to: '2026-12-31' },
-      { range: 'custom', from: 'x', to: '2026-09-01' },
-      { range: 'nonsense' },
-    ]) {
-      expect(rangeFromParams(params(bad), TODAY).preset).toBe('this_month');
-    }
+    expect(ok).toMatchObject({
+      preset: 'custom',
+      from: '2026-09-01',
+      to: '2026-09-30',
+      compare: true,
+      invalid: null,
+    });
+  });
+
+  it('keeps a custom range it cannot use and says why (never another range quietly)', () => {
+    const bad = (from: string, to: string) =>
+      rangeFromParams(params({ range: 'custom', from, to }), TODAY);
+    expect(bad('2026-09-30', '2026-09-01')).toMatchObject({ preset: 'custom', invalid: 'order' });
+    expect(bad('2026-12-01', '2026-12-31').invalid).toBe('future');
+    expect(bad('2024-01-01', '2026-11-01').invalid).toBe('too_long');
+    // Not dates at all, or an unknown preset: the default month.
+    expect(rangeFromParams(params({ range: 'custom', from: 'x', to: 'y' }), TODAY).preset).toBe(
+      'this_month',
+    );
+    expect(rangeFromParams(params({ range: 'nonsense' }), TODAY).preset).toBe('this_month');
   });
 
   it('picks the bars: per day up to a month, per week up to ~4 months, else per month', () => {
     expect(bucketFor('2026-11-01', '2026-11-30')).toBe('day');
     expect(bucketFor('2026-09-01', '2026-11-30')).toBe('week');
     expect(bucketFor('2025-12-01', '2026-11-30')).toBe('month');
+  });
+
+  it('a ratio changes in percentage points', () => {
+    expect(changePoints(0.9, 0.8)).toBe(10);
+    expect(changePoints(0.75, 0.8)).toBe(-5);
+    expect(changePoints(0.8, null)).toBeNull();
   });
 
   it('change in % (none against zero or nothing)', () => {
