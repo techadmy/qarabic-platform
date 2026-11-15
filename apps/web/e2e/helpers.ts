@@ -53,6 +53,8 @@ export async function expectNoSeriousA11yViolations(page: Page) {
 
   // Moderate (docs/39 E2E-4), WCAG and axe best-practice rules (landmarks, heading order…): the
   // known ones are in e2e/axe-moderate-baseline.json (page + rule); a new one fails. `AXE_BASELINE_UPDATE=1` records instead (then `node e2e/axe-baseline.mjs`).
+  // The baseline comes from the mock sweep; the real-API suite keeps the serious/critical gate.
+  if (process.env.E2E_REAL_API === '1') return;
   const moderate = results.violations.filter((v) => v.impact === 'moderate');
   const page_ = pageKey(page.url());
   const keys = moderate.map((v) => `${page_} ${v.id}`);

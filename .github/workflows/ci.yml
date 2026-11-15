@@ -31,6 +31,8 @@ jobs:
       - run: pnpm lint
       - run: pnpm typecheck
       - run: pnpm test
+      # Coverage thresholds (packages/shared, apps/web lib/): a drop fails (docs/39 P2-4).
+      - run: pnpm --filter @qarabic/shared --filter @qarabic/web run test:coverage
 
   api-e2e:
     name: API e2e (PostgreSQL 17)
@@ -71,7 +73,8 @@ jobs:
       - name: Migrations match the Prisma schema
         working-directory: apps/api
         run: pnpm exec prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
-      - run: pnpm --filter @qarabic/api test:e2e
+      # With coverage: below the thresholds in apps/api/vitest.config.ts fails (docs/39 P2-4).
+      - run: pnpm --filter @qarabic/api test:e2e:coverage
 
   web-e2e-real:
     # The web app against the real API and a freshly seeded database (fake demo data only), so the
