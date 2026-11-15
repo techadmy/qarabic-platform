@@ -334,6 +334,9 @@ export function counters(sessions: SessionDto[]): BoardDto['counters'] {
       'teacher_unavailable',
       'zoom_failed',
       'needs_review',
+      'teacher_no_show',
+      'student_no_show',
+      'short_class',
     ] as const) {
       if (s.attention.includes(code)) inc(code);
     }

@@ -15,6 +15,8 @@ import {
   HOUR,
 } from '../schedule/time.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
+import { zoomFlags } from '../zoom/zoom.attendance.js';
+import { ZoomConfig } from '../zoom/zoom.config.js';
 import {
   Actor,
   type GuardContext,
@@ -66,12 +68,19 @@ export function attentionFor(
   now: number,
   st: SettingsMap,
   blocks: TeacherBlock[],
+  /** Z1: the teacher's meeting is tracked by Zoom (their PMI is mapped and tracking is on). */
+  zoomTracked = false,
 ): string[] {
   const codes: string[] = [];
   const starts = s.startsAt.getTime();
   const ends = s.endsAt.getTime();
   const late = st['sessions.late_teacher_min'] * MINUTE;
-  if (s.stage === 'scheduled' && now > starts + late && now <= ends) codes.push('late');
+  if (zoomTracked) {
+    // With Zoom, lateness and no-shows come from who is in the meeting.
+    codes.push(...zoomFlags(s, now, st));
+  } else if (s.stage === 'scheduled' && now > starts + late && now <= ends) {
+    codes.push('late');
+  }
   if (s.activatedAt && s.activatedAt.getTime() > starts + late) codes.push('late_activation');
   if (
     (s.stage === 'ended' || s.stage === 'taken') &&
@@ -130,6 +139,7 @@ export class SessionPresenter {
     private readonly settings: SettingsService,
     private readonly clock: Clock,
     private readonly machine: SessionStateMachine,
+    private readonly zoom: ZoomConfig,
   ) {}
 
   async one(row: SessionRow, viewer: AuthUser | null): Promise<SessionDto> {
@@ -143,6 +153,17 @@ export class SessionPresenter {
     const actor = viewer ? await Actor.of(this.prisma, viewer) : null;
     const teacherIds = [...new Set(rows.map((r) => r.teacherId))];
 
+    // Z1: teachers whose meeting Zoom reports on (PMI mapped, tracking on).
+    const tracked = new Set(
+      this.zoom.enabled
+        ? (
+            await this.prisma.zoomHost.findMany({
+              where: { teacherId: { in: teacherIds }, pmiMeetingId: { not: null }, isActive: true },
+              select: { teacherId: true },
+            })
+          ).map((h) => h.teacherId)
+        : [],
+    );
     const [running, blocks, marks] = await Promise.all([
       this.prisma.classSession.findMany({
         where: { teacherId: { in: teacherIds }, deletedAt: null, stage: { in: [...RUNNING] } },
@@ -187,6 +208,7 @@ export class SessionPresenter {
                 now,
                 st,
                 blocks.filter((b) => b.teacherId === s.teacherId),
+                tracked.has(s.teacherId),
               ),
           allowedActions: live ? await this.machine.allowedActions(s, actor, ctx) : [],
           upcomingActions: live ? this.machine.upcomingActions(s, actor, ctx) : [],

@@ -163,9 +163,11 @@ describe('OpenAPI (docs/17 §5)', () => {
       if (!op.tags?.length) untagged.push(r.route);
       expect((op as unknown as Record<string, unknown>)['x-access']).toBe(r.access);
     }
-    // Provider webhooks (Stripe, PayPal, Meta) are hidden on purpose (`@ApiExcludeController`):
-    // they are called by those services, never by an app.
-    expect(missing.filter((r) => !/^(GET|POST) webhooks\//.test(r))).toEqual([]);
+    // Provider webhooks (Stripe, PayPal, Meta, Zoom) are hidden on purpose
+    // (`@ApiExcludeController`): they are called by those services, never by an app.
+    expect(
+      missing.filter((r) => !/^(GET|POST) (webhooks|integrations\/zoom\/webhook)/.test(r)),
+    ).toEqual([]);
     expect(untagged).toEqual([]);
     const tasks = doc.paths['/api/v1/tasks']!.post!;
     expect(tasks.requestBody).toBeDefined();
