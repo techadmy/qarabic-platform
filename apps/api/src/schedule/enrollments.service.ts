@@ -337,7 +337,10 @@ export class EnrollmentsService {
   /** New version of a slot from `effectiveFrom` (docs/14 §2.3). */
   async versionSlot(
     slotId: number,
-    changes: z.output<typeof updateSlotSchema>,
+    changes: z.output<typeof updateSlotSchema> & {
+      /** D148 series edit ("this and following" with another teacher); not on the public route. */
+      teacherId?: number;
+    },
     actor: AuthUser,
   ): Promise<{ slotId: number; affected: SessionDto[] }> {
     const slot = await this.prisma.scheduleSlot.findUnique({
@@ -352,8 +355,9 @@ export class EnrollmentsService {
       throw invalid('effectiveFrom', 'The change cannot start before the slot itself.');
     }
     const st = await this.settings.all();
+    const teacherId = changes.teacherId ?? slot.teacherId;
     const candidate: SlotCandidate = {
-      teacherId: slot.teacherId,
+      teacherId,
       studentId: enrollment.studentId,
       weekday: changes.weekday ?? slot.weekday,
       localStartTime: changes.localStartTime ?? slot.localStartTime,
@@ -365,7 +369,7 @@ export class EnrollmentsService {
       excludeSlotIds: [slot.id],
     };
     const newId = await this.checker.locked(
-      [slot.teacherId],
+      [...new Set([slot.teacherId, teacherId])],
       [enrollment.studentId],
       async (tx) => {
         (await this.checker.checkSlot(tx, candidate, st)).assertPasses(changes.acknowledgeWarnings);

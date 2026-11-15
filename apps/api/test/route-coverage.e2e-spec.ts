@@ -442,6 +442,9 @@ describe('route permission coverage', () => {
       'GET announcements': 'all:announcements.view',
       'GET announcements/:id': 'all:announcements.view',
       'GET dashboard/summary': 'all:reports.view',
+      // C1 (docs/42): staff with schedule.view, or a teacher for their own; parents refused.
+      'GET calendar/events': 'any:schedule.view|sessions.conduct',
+      'GET calendar/background': 'any:schedule.view|sessions.conduct',
       // D1 (docs/40): each widget is further gated by DASHBOARD_WIDGET_PERMISSIONS.
       'GET dashboard/metrics': 'all:reports.view',
       'GET task-templates': 'all:tasks.manage',
