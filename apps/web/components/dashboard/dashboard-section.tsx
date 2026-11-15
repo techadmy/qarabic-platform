@@ -349,15 +349,11 @@ export function DashboardSection() {
         }))
           .filter((p) => p.value > 0)
           .sort((a, b) => b.value - a.value);
-        // Series colours in rank order; «other» always the neutral one.
-        let next = 0;
+        // A fixed colour per source (the same source keeps its colour whatever the range).
         const config = Object.fromEntries(
-          data.map((p) => [
-            p.key,
-            {
-              label: t(`chart.leads_by_source.${p.key}`),
-              color: p.key === 'other' ? 'var(--chart-cancelled)' : `var(--chart-${++next})`,
-            },
+          LEAD_SOURCES.map((src) => [
+            src,
+            { label: t(`chart.leads_by_source.${src}`), color: SOURCE_COLOURS[src] },
           ]),
         ) satisfies ChartConfig;
         return (
@@ -365,7 +361,9 @@ export function DashboardSection() {
             <Donut
               data={data}
               config={config}
-              totalLabel={t('chart.leads_by_source.total')}
+              totalLabel={t('chart.leads_by_source.total', {
+                count: data.reduce((a, p) => a + p.value, 0),
+              })}
               summary={categorySummary(config, data, locale)}
             />
           </ChartCard>
@@ -402,14 +400,17 @@ export function DashboardSection() {
         const payrollTotal = payroll.some((x) => x === null)
           ? null
           : payroll.reduce<number>((a, x) => a + (x ?? 0), 0);
-        const missing = pts.filter((p) => p.payroll.missingRate).map((p) => label(p.bucket));
+        // Payroll is monthly: one point per pay month whatever the range's bucket (API).
+        const missing = pts
+          .filter((p) => p.payroll.missingRate)
+          .map((p) => bucketLabel(p.bucket, 'month', locale, t('chart.week')));
         return (
           <ChartCard key={widget} {...common} empty={!pts.length} missingRate={missing}>
             <SeriesChart
               kind="bar"
               data={data}
               config={config}
-              bucket={range.bucket}
+              bucket="month"
               summary={summaryOf(config, data, locale)}
             />
             <p className="text-sm text-muted-foreground">
@@ -474,6 +475,16 @@ function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] })
     </Alert>
   );
 }
+
+/** Lead sources' fixed colours: five series colours, «other» the neutral one. */
+const SOURCE_COLOURS: Record<(typeof LEAD_SOURCES)[number], string> = {
+  web_form: 'var(--chart-1)',
+  whatsapp: 'var(--chart-2)',
+  referral: 'var(--chart-3)',
+  phone: 'var(--chart-4)',
+  walk_in: 'var(--chart-5)',
+  other: 'var(--chart-cancelled)',
+};
 
 /** «السعر: 12 · المواعيد: 7»: a category chart said once. */
 function categorySummary(
