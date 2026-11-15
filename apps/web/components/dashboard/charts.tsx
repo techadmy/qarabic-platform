@@ -26,8 +26,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
+  Label,
+  LabelList,
   Line,
   LineChart,
+  Pie,
+  PieChart,
   XAxis,
   YAxis,
 } from 'recharts';
@@ -268,6 +273,181 @@ export function SeriesChart({
           </BarChart>
         )}
       </ChartContainer>
+    </div>
+  );
+}
+
+/** One category's value: a reason, a source or an ageing band. */
+export type CategoryPoint = { key: string; value: number | null };
+
+/**
+ * Categories as horizontal bars (shadcn «bar chart – horizontal»), one colour: lost reasons and the
+ * overdue ageing. The labels sit at the inline start and the bars grow toward the inline end, in
+ * both languages.
+ */
+export function CategoryBars({
+  data,
+  config,
+  summary,
+  money = false,
+  color = 'var(--chart-1)',
+}: {
+  data: CategoryPoint[];
+  config: ChartConfig;
+  summary: string;
+  money?: boolean;
+  color?: string;
+}) {
+  const locale = useUiLocale();
+  const rtl = locale === 'ar';
+  const summaryId = useId();
+  const valueText = (v: number) =>
+    `${money ? '$' : ''}${new Intl.NumberFormat(intlLocale(locale), {
+      maximumFractionDigits: 0,
+    }).format(v)}`;
+  const rows = data.map((p) => ({
+    ...p,
+    label: String(config[p.key]?.label ?? p.key),
+  }));
+  return (
+    <div aria-describedby={summaryId}>
+      <p id={summaryId} className="sr-only">
+        {summary}
+      </p>
+      <ChartContainer
+        config={{ value: { label: '', color } }}
+        className="aspect-auto w-full"
+        style={{ height: Math.max(rows.length * 40 + 16, 120) }}
+        dir="ltr"
+      >
+        <BarChart
+          accessibilityLayer
+          data={rows}
+          layout="vertical"
+          // Room for the value at the bar's end.
+          margin={{ top: 0, left: rtl ? 56 : 0, right: rtl ? 0 : 56 }}
+        >
+          <XAxis type="number" dataKey="value" hide reversed={rtl} />
+          <YAxis
+            type="category"
+            dataKey="label"
+            tickLine={false}
+            axisLine={false}
+            width={112}
+            orientation={rtl ? 'right' : 'left'}
+          />
+          <ChartTooltip
+            cursor={false}
+            content={
+              <ChartTooltipContent
+                hideLabel
+                formatter={(value, _name, item) => (
+                  <div className="flex w-full items-center justify-between gap-3">
+                    <span className="text-muted-foreground">{item.payload.label}</span>
+                    <span className="font-medium text-foreground tabular-nums">
+                      {value === null || value === undefined ? '—' : valueText(Number(value))}
+                    </span>
+                  </div>
+                )}
+              />
+            }
+          />
+          <Bar dataKey="value" isAnimationActive={false} fill="var(--color-value)" radius={4}>
+            <LabelList
+              dataKey="value"
+              position="right"
+              offset={8}
+              className="fill-foreground tabular-nums"
+              fontSize={12}
+              formatter={(v: unknown) => (typeof v === 'number' ? valueText(v) : '—')}
+            />
+          </Bar>
+        </BarChart>
+      </ChartContainer>
+    </div>
+  );
+}
+
+/**
+ * Shares of a whole as a donut (shadcn «pie chart – donut with text»): the total in the middle,
+ * the legend under it in the UI's direction. Leads by source.
+ */
+export function Donut({
+  data,
+  config,
+  summary,
+  totalLabel,
+}: {
+  data: CategoryPoint[];
+  config: ChartConfig;
+  summary: string;
+  totalLabel: string;
+}) {
+  const locale = useUiLocale();
+  const summaryId = useId();
+  const total = data.reduce((a, p) => a + (p.value ?? 0), 0);
+  const fmt = new Intl.NumberFormat(intlLocale(locale));
+  return (
+    <div aria-describedby={summaryId}>
+      <p id={summaryId} className="sr-only">
+        {summary}
+      </p>
+      <ChartContainer config={config} className="mx-auto aspect-square h-56" dir="ltr">
+        <PieChart accessibilityLayer>
+          <ChartTooltip cursor={false} content={<ChartTooltipContent nameKey="key" hideLabel />} />
+          <Pie
+            data={data}
+            dataKey="value"
+            nameKey="key"
+            innerRadius={56}
+            strokeWidth={2}
+            stroke="var(--card)"
+            isAnimationActive={false}
+          >
+            {data.map((p) => (
+              <Cell key={p.key} fill={`var(--color-${p.key})`} />
+            ))}
+            <Label
+              content={({ viewBox }) =>
+                viewBox && 'cx' in viewBox && 'cy' in viewBox ? (
+                  <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                    <tspan
+                      x={viewBox.cx}
+                      y={viewBox.cy}
+                      className="fill-foreground text-2xl font-bold tabular-nums"
+                    >
+                      {fmt.format(total)}
+                    </tspan>
+                    <tspan
+                      x={viewBox.cx}
+                      y={(viewBox.cy ?? 0) + 22}
+                      className="fill-muted-foreground text-xs"
+                    >
+                      {totalLabel}
+                    </tspan>
+                  </text>
+                ) : null
+              }
+            />
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+      <ul
+        dir={locale === 'ar' ? 'rtl' : 'ltr'}
+        className="mt-2 flex flex-wrap justify-center gap-x-4 gap-y-1 text-xs"
+      >
+        {data.map((p) => (
+          <li key={p.key} className="flex items-center gap-1.5">
+            <span
+              aria-hidden
+              className="size-2.5 shrink-0 rounded-[2px]"
+              style={{ background: config[p.key]?.color }}
+            />
+            <span className="text-muted-foreground">{config[p.key]?.label}</span>
+            <span className="font-medium tabular-nums">{fmt.format(p.value ?? 0)}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
