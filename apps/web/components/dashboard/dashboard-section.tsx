@@ -1,28 +1,36 @@
 'use client';
 
-import type { DashboardMetricsDto, UsdMoney } from '@qarabic/shared';
+import {
+  AGEING_BANDS,
+  LEAD_SOURCES,
+  LOST_REASONS,
+  type DashboardMetricsDto,
+  type UsdMoney,
+} from '@qarabic/shared';
 import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import type { ChartConfig } from '@qarabic/ui/components/chart';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
 import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { academyToday } from '@/lib/accounting/forms';
+import { can } from '@/lib/auth/use-me';
 import { dashboardKeys, fetchDashboardMetrics } from '@/lib/api/dashboard';
 import { paramsOf, rangeFromParams } from '@/lib/dashboard/range';
 import {
   dashboardLayout,
   kpiHref,
   usdOf,
+  type ChartWidget,
   type KpiWidget,
-  type MainChart,
 } from '@/lib/dashboard/widgets';
 import { useListParams } from '@/lib/list-params';
 import { intlLocale } from '@/lib/time';
-import { bucketLabel, ChartCard, SeriesChart } from './charts';
+import { bucketLabel, CategoryBars, ChartCard, Donut, SeriesChart } from './charts';
 import { Change, Count, CurrencyParts, KpiCard, Pct, Usd, UsdTotal } from './kpi-card';
 import { RangeBar } from './range-bar';
 
@@ -114,8 +122,10 @@ export function DashboardSection() {
           />
         );
       }
-      case 'attendance_rate': {
-        const v = k?.attendance_rate;
+      case 'attendance_rate':
+      case 'collection_rate': {
+        const v = k?.[widget];
+        // D146: no rate for a month of the period → the share is unknown (null), said by the banner.
         return (
           <KpiCard
             key={key}
@@ -174,7 +184,7 @@ export function DashboardSection() {
   };
 
   const s = d?.series;
-  const chart = (widget: MainChart) => {
+  const chart = (widget: ChartWidget) => {
     const common = {
       id: `dash-${widget}`,
       title: t(`chart.${widget}.title`),
@@ -307,6 +317,113 @@ export function DashboardSection() {
           </ChartCard>
         );
       }
+      case 'ageing': {
+        const ageing = s?.collections?.ageing;
+        const data = AGEING_BANDS.map((b) => ({ key: b, value: ageing ? usdOf(ageing[b]) : null }));
+        const config = Object.fromEntries(
+          AGEING_BANDS.map((b) => [b, { label: t(`chart.ageing.${b}`) }]),
+        ) satisfies ChartConfig;
+        const missing = AGEING_BANDS.filter((b) => ageing?.[b].missingRate).map((b) =>
+          t(`chart.ageing.${b}`),
+        );
+        return (
+          <ChartCard
+            key={widget}
+            {...common}
+            empty={!ageing || data.every((p) => !p.value)}
+            missingRate={missing}
+          >
+            <CategoryBars
+              data={data}
+              config={config}
+              money
+              color="var(--chart-3)"
+              summary={categorySummary(config, data, locale, true)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'leads_by_source': {
+        const rows = s?.leads_by_source ?? [];
+        const data = LEAD_SOURCES.map((src) => ({
+          key: src,
+          value: rows.find((r) => r.source === src)?.count ?? 0,
+        }))
+          .filter((p) => p.value > 0)
+          .sort((a, b) => b.value - a.value);
+        // A fixed colour per source (the same source keeps its colour whatever the range).
+        const config = Object.fromEntries(
+          LEAD_SOURCES.map((src) => [
+            src,
+            { label: t(`chart.leads_by_source.${src}`), color: SOURCE_COLOURS[src] },
+          ]),
+        ) satisfies ChartConfig;
+        return (
+          <ChartCard key={widget} {...common} empty={!data.length}>
+            <Donut
+              data={data}
+              config={config}
+              totalLabel={t('chart.leads_by_source.total', {
+                count: data.reduce((a, p) => a + p.value, 0),
+              })}
+              summary={categorySummary(config, data, locale)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'lost_reasons': {
+        const rows = s?.lost_reasons ?? [];
+        const data = LOST_REASONS.map((r) => ({
+          key: r,
+          value: rows.find((x) => x.reason === r)?.count ?? 0,
+        }))
+          .filter((p) => p.value > 0)
+          .sort((a, b) => b.value - a.value);
+        const config = Object.fromEntries(
+          LOST_REASONS.map((r) => [r, { label: t(`chart.lost_reasons.${r}`) }]),
+        ) satisfies ChartConfig;
+        return (
+          <ChartCard key={widget} {...common} empty={!data.length}>
+            <CategoryBars
+              data={data}
+              config={config}
+              summary={categorySummary(config, data, locale)}
+            />
+          </ChartCard>
+        );
+      }
+      case 'teacher_hours': {
+        const pts = s?.teacher_hours ?? [];
+        const data = pts.map((p) => ({ bucket: p.bucket, hours: p.hours }));
+        const config = {
+          hours: { label: t('chart.teacher_hours.hours'), color: 'var(--chart-1)' },
+        } satisfies ChartConfig;
+        const payroll = pts.map((p) => usdOf(p.payroll));
+        const payrollTotal = payroll.some((x) => x === null)
+          ? null
+          : payroll.reduce<number>((a, x) => a + (x ?? 0), 0);
+        // Payroll is monthly: one point per pay month whatever the range's bucket (API).
+        const missing = pts
+          .filter((p) => p.payroll.missingRate)
+          .map((p) => bucketLabel(p.bucket, 'month', locale, t('chart.week')));
+        return (
+          <ChartCard key={widget} {...common} empty={!pts.length} missingRate={missing}>
+            <SeriesChart
+              kind="bar"
+              data={data}
+              config={config}
+              bucket="month"
+              summary={summaryOf(config, data, locale)}
+            />
+            <p className="text-sm text-muted-foreground">
+              {t.rich('chart.teacher_hours.payroll', {
+                amount: () =>
+                  payrollTotal === null ? '—' : <Usd amount={payrollTotal.toFixed(2)} />,
+              })}
+            </p>
+          </ChartCard>
+        );
+      }
     }
   };
 
@@ -324,7 +441,10 @@ export function DashboardSection() {
       {live.stale && <RefreshFailed onRetry={retry} />}
       {d && d.missingRates.length > 0 && <MissingRates rates={d.missingRates} />}
       {kpis.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3" aria-busy={loading || undefined}>
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
+          aria-busy={loading || undefined}
+        >
           {kpis.map(kpiCard)}
         </div>
       )}
@@ -337,6 +457,8 @@ export function DashboardSection() {
 function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] }) {
   const t = useTranslations('dashboard');
   const locale = useUiLocale();
+  const me = useCurrentUser();
+  const first = rates[0];
   const month = (m: string) =>
     new Intl.DateTimeFormat(intlLocale(locale), {
       month: 'long',
@@ -353,9 +475,46 @@ function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] })
             rates.map((r) => `${r.currency} · ${month(r.month)}`),
           ),
         })}
+        {/* Who keeps the rates goes straight to the form for the first missing one. */}
+        {first && (can(me, 'accounting.manage') || can(me, 'accounting.rates')) && (
+          <Link
+            href={`/accounting/rates?new=1&currency=${first.currency}&month=${first.month}&year=${first.month.slice(0, 4)}`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            {t('missingRates.link')}
+          </Link>
+        )}
       </AlertDescription>
     </Alert>
   );
+}
+
+/** Lead sources' fixed colours: five series colours, «other» the neutral one. */
+const SOURCE_COLOURS: Record<(typeof LEAD_SOURCES)[number], string> = {
+  web_form: 'var(--chart-1)',
+  whatsapp: 'var(--chart-2)',
+  referral: 'var(--chart-3)',
+  phone: 'var(--chart-4)',
+  walk_in: 'var(--chart-5)',
+  other: 'var(--chart-cancelled)',
+};
+
+/** «السعر: 12 · المواعيد: 7»: a category chart said once. */
+function categorySummary(
+  config: ChartConfig,
+  data: { key: string; value: number | null }[],
+  locale: 'ar' | 'en',
+  money = false,
+): string {
+  const fmt = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
+  return data
+    .map(
+      (p) =>
+        `${String(config[p.key]?.label ?? p.key)}: ${
+          p.value === null ? '—' : `${money ? '$' : ''}${fmt.format(p.value)}`
+        }`,
+    )
+    .join(' · ');
 }
 
 /** Teacher pay + other expenses in USD, or null when either lacks a rate. */

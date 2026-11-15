@@ -28,10 +28,8 @@ describe('sidebar «+» (D141 §6)', () => {
       'href',
       '/families?new=1',
     );
-    expect(menu.getByRole('link', { name: 'إضافة في «العملاء المحتملون»' })).toHaveAttribute(
-      'href',
-      '/leads?new=1',
-    );
+    // D150: leads left the sidebar, so no «+» for them.
+    expect(menu.queryByRole('link', { name: 'إضافة في «العملاء المحتملون»' })).toBeNull();
     // No create action on Today.
     expect(menu.queryByRole('link', { name: /«حصص اليوم»/ })).toBeNull();
   });

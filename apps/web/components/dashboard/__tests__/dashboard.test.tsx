@@ -20,6 +20,7 @@ describe('D2 management dashboard (docs/40, D144)', () => {
       'الحصص التجريبية',
       'المُحصّل',
       'المستحق',
+      'نسبة التحصيل',
       'إجمالي الربح',
       'نسبة الحضور',
     ]) {
@@ -33,6 +34,10 @@ describe('D2 management dashboard (docs/40, D144)', () => {
       'التحصيل والفواتير الجديدة',
       'الطلاب الجدد والحصص التجريبية',
       'نتائج الحصص',
+      'أعمار الديون المتأخرة',
+      'العملاء المحتملون حسب المصدر',
+      'أسباب فقد العملاء',
+      'ساعات التدريس',
     ]) {
       expect(screen.getByRole('heading', { level: 3, name: title })).toBeInTheDocument();
     }
@@ -75,6 +80,11 @@ describe('D2 management dashboard (docs/40, D144)', () => {
     expect(collected).toHaveTextContent('—');
     expect(collected).toHaveTextContent(/£/);
     expect(collected).not.toHaveTextContent(/\$0\b/);
+    // Who keeps the rates goes straight to the form for the missing month.
+    expect(screen.getByRole('link', { name: 'أضف السعر الناقص' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/accounting\/rates\?new=1&currency=GBP&month=\d{4}-\d{2}/),
+    );
   });
 
   it('billing staff see the money widgets only; a monitor the classes only', async () => {
@@ -83,6 +93,10 @@ describe('D2 management dashboard (docs/40, D144)', () => {
     expect(await screen.findByRole('link', { name: /^المُحصّل/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /^الطلاب النشطون/ })).toBeNull();
     expect(screen.queryByRole('heading', { name: 'نتائج الحصص' })).toBeNull();
+    // D146: accounts get the collection rate and the ageing, never teacher pay.
+    expect(screen.getByRole('link', { name: /^نسبة التحصيل/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'أعمار الديون المتأخرة' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'ساعات التدريس' })).toBeNull();
     unmount();
     renderPage(<StaffHomeView />, { as: 'monitor@qarabic.test', path: '/' });
     await kpis();
@@ -97,7 +111,7 @@ describe('D2 management dashboard (docs/40, D144)', () => {
     );
     renderPage(<StaffHomeView />, { path: '/' });
     await kpis();
-    expect((await screen.findAllByText('تعذّر تحميل الرسم.')).length).toBe(4);
+    expect((await screen.findAllByText('تعذّر تحميل الرسم.')).length).toBe(8);
     expect(screen.getAllByRole('button', { name: 'أعد المحاولة' }).length).toBeGreaterThan(0);
   });
 
@@ -201,5 +215,38 @@ describe('D2 management dashboard (docs/40, D144)', () => {
       'href',
       '/invoices?status=paid&period=2026-09',
     );
+    expect(screen.getByRole('link', { name: /^نسبة التحصيل/ })).toHaveAttribute(
+      'href',
+      '/invoices?period=2026-09',
+    );
+  });
+
+  it('D3: lead sources, lost reasons and the ageing are said in words; teacher pay is totalled', async () => {
+    renderPage(<StaffHomeView />, { path: '/?range=custom&from=2026-09-01&to=2026-09-30' });
+    await kpis();
+    const card = (name: string) =>
+      screen.getByRole('heading', { level: 3, name }).closest('[data-slot="card"]') as HTMLElement;
+    await waitFor(() =>
+      expect(
+        within(card('أسباب فقد العملاء')).getByText(/لا يرد: 14 · السعر: 9/),
+      ).toBeInTheDocument(),
+    );
+    // The donut's spoken summary (jsdom draws no chart).
+    const sources = within(card('العملاء المحتملون حسب المصدر'));
+    expect(sources.getByText(/الموقع: 41/)).toBeInTheDocument();
+    expect(
+      within(card('أعمار الديون المتأخرة')).getByText(/حتى 30 يومًا: \$1,900/),
+    ).toBeInTheDocument();
+    expect(within(card('ساعات التدريس')).getByText(/رواتب المعلمين في الفترة:/)).toHaveTextContent(
+      '$',
+    );
+  });
+
+  it('a collection rate the API cannot compute (missing rate) is «—», never 0%', async () => {
+    renderPage(<StaffHomeView />, { path: '/?range=last_12_months' });
+    await kpis();
+    const rate = await screen.findByRole('link', { name: /^نسبة التحصيل/ });
+    await waitFor(() => expect(rate).toHaveTextContent('—'));
+    expect(rate).not.toHaveTextContent('0%');
   });
 });

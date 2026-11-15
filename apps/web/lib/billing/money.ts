@@ -114,6 +114,20 @@ const ARABIC_INDIC = '٠١٢٣٤٥٦٧٨٩';
 const EXTENDED_ARABIC_INDIC = '۰۱۲۳۴۵۶۷۸۹';
 
 /**
+ * A typed number in Latin digits: Arabic-Indic digits and the Arabic decimal mark accepted,
+ * thousands separators and spaces dropped («١٫٢٧» → "1.27").
+ */
+export function normalizeNumberInput(input: string): string {
+  return input
+    .trim()
+    .replace(/[٠-٩]/g, (d) => String(ARABIC_INDIC.indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String(EXTENDED_ARABIC_INDIC.indexOf(d)))
+    .replace('٫', '.')
+    .replace(/[,٬\s]/g, '')
+    .replace(/^−/, '-');
+}
+
+/**
  * What a person typed → integer minor units, or null when it is not a valid amount: at most 2
  * decimals, Arabic-Indic digits and the Arabic decimal mark accepted, thousands commas ignored.
  * Zero is never an amount; a minus sign only with `allowNegative` (adjustments).
@@ -122,13 +136,7 @@ export function parseAmount(
   input: string,
   { allowNegative = false }: { allowNegative?: boolean } = {},
 ): number | null {
-  const normalized = input
-    .trim()
-    .replace(/[٠-٩]/g, (d) => String(ARABIC_INDIC.indexOf(d)))
-    .replace(/[۰-۹]/g, (d) => String(EXTENDED_ARABIC_INDIC.indexOf(d)))
-    .replace('٫', '.')
-    .replace(/[,٬\s]/g, '')
-    .replace(/^−/, '-');
+  const normalized = normalizeNumberInput(input);
   const m = /^(-?)(\d{1,9})(?:\.(\d{1,2}))?$/.exec(normalized);
   if (!m) return null;
   if (m[1] && !allowNegative) return null;

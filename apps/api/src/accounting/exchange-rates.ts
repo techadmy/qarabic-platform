@@ -1,4 +1,4 @@
-import { Controller, Delete, Get, Injectable, Param, Put } from '@nestjs/common';
+import { Controller, Delete, Get, HttpStatus, Injectable, Param, Put } from '@nestjs/common';
 import { ApiBody, ApiTags } from '@nestjs/swagger';
 import {
   deleteExchangeRateSchema,
@@ -11,12 +11,12 @@ import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { CanAny, CurrentUser } from '../auth/decorators.js';
 import { Clock } from '../common/clock.js';
-import { notFound } from '../common/errors.js';
+import { ApiException, notFound } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
 import { jsonSchema } from '../common/openapi.js';
 import { ZodBody } from '../common/zod.pipe.js';
 import { ZodQuery } from '../common/zod-query.pipe.js';
-import type { ExchangeRate } from '../generated/prisma/client.js';
+import { type ExchangeRate, Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { RateBook, type UsdTotal } from './fx.js';
 
@@ -87,7 +87,52 @@ export class ExchangeRatesController {
   ): Promise<{ data: ExchangeRateDto }> {
     const now = this.clock.now();
     const key = { currency: body.currency, month: body.month };
+    const after = { ...key, rateToUsd: body.rateToUsd };
+
+    if (!body.replace) {
+      // A plain insert: the (currency, month) key also stops two first writes racing.
+      try {
+        const row = await this.prisma.$transaction(async (tx) => {
+          const created = await tx.exchangeRate.create({
+            data: {
+              ...key,
+              rateToUsd: body.rateToUsd,
+              note: body.note ?? null,
+              updatedById: actor.id,
+              createdAt: now,
+              updatedAt: now,
+            },
+          });
+          await this.audit.record(
+            {
+              actorId: actor.id,
+              action: 'exchange_rate_set',
+              subjectType: 'exchange_rate',
+              subjectId: created.id,
+              after,
+            },
+            tx,
+          );
+          return created;
+        });
+        return { data: (await this.dtos([row]))[0]! };
+      } catch (error) {
+        if (!(error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002')) {
+          throw error;
+        }
+        const current = await this.prisma.exchangeRate.findUniqueOrThrow({
+          where: { currency_month: key },
+        });
+        throw new ApiException(HttpStatus.CONFLICT, {
+          message: 'This month already has a rate. Send replace with a reason to change it.',
+          code: 'rate_exists',
+          data: (await this.dtos([current]))[0],
+        });
+      }
+    }
+
     const row = await this.prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "exchange_rates" WHERE currency = ${key.currency} AND month = ${key.month} FOR UPDATE`;
       const before = await tx.exchangeRate.findUnique({ where: { currency_month: key } });
       const saved = await tx.exchangeRate.upsert({
         where: { currency_month: key },
@@ -109,11 +154,12 @@ export class ExchangeRatesController {
       await this.audit.record(
         {
           actorId: actor.id,
-          action: before ? 'exchange_rate_changed' : 'exchange_rate_set',
+          action: before ? 'exchange_rate_replaced' : 'exchange_rate_set',
           subjectType: 'exchange_rate',
           subjectId: saved.id,
           before: before ? { ...key, rateToUsd: before.rateToUsd.toString() } : null,
-          after: { ...key, rateToUsd: saved.rateToUsd.toString() },
+          after,
+          reason: body.reason ?? null,
         },
         tx,
       );
