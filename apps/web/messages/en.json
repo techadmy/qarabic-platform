@@ -135,7 +135,7 @@
     "chartOfAccounts": "Chart of accounts",
     "financialReports": "Financial reports",
     "periods": "Accounting periods",
-    "trialsToday": "Today’s trial classes",
+    "trialsToday": "Trial classes",
     "familyCredits": "Family credits",
     "paymentsReview": "Payments to review",
     "exchangeRates": "Exchange rates"
@@ -4392,7 +4392,7 @@
       "leads_by_source": {
         "title": "Leads by source",
         "description": "Where this period’s leads came from.",
-        "total": "leads",
+        "total": "{count, plural, one {lead} other {leads}}",
         "web_form": "Website",
         "phone": "Phone",
         "whatsapp": "WhatsApp",
