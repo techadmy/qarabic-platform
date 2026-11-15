@@ -206,6 +206,10 @@ export class SessionsController {
     @ZodBody(updateSessionSchema) body: Out<typeof updateSessionSchema>,
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: SessionDto }> {
+    // D148 C1 adds "this and following"; until then it is refused rather than read as `this`.
+    if (body.scope === 'following') {
+      throw validationError({ scope: ['Moving the following classes is not available yet.'] });
+    }
     await this.reads.find(id, actor);
     await this.stale(id, actor, async () =>
       this.sessions.reschedule(
