@@ -1,4 +1,15 @@
-import { Controller, Delete, Get, HttpCode, Param, Patch, Post, Put } from '@nestjs/common';
+import {
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  Put,
+  Res,
+} from '@nestjs/common';
 import { ApiBody, ApiOperation, ApiTags } from '@nestjs/swagger';
 import {
   addSlotSchema,
@@ -29,7 +40,12 @@ import {
   updateSlotSchema,
   updateTeacherBlockSchema,
   type WorkHourDto,
+  approveAvailabilityChangeSchema,
+  type AvailabilityChangeDto,
+  availabilityChangeQuerySchema,
+  rejectAvailabilityChangeSchema,
 } from '@qarabic/shared';
+import type { Response } from 'express';
 import type { z } from 'zod';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Can, CanAny, CurrentUser } from '../auth/decorators.js';
@@ -42,6 +58,7 @@ import { ZodQuery } from '../common/zod-query.pipe.js';
 import { isParentViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { SettingsService } from '../settings/settings.service.js';
+import { AvailabilityChangesService } from './availability-changes.js';
 import { AvailabilityService } from './availability.service.js';
 import { CalendarService } from './calendar.service.js';
 import { ConflictChecker } from './conflicts.js';
@@ -309,7 +326,10 @@ export class HolidaysController {
 @ApiTags('schedule')
 @Controller('teachers/:teacherId')
 export class TeacherScheduleController {
-  constructor(private readonly calendar: CalendarService) {}
+  constructor(
+    private readonly calendar: CalendarService,
+    private readonly changes: AvailabilityChangesService,
+  ) {}
 
   @CanAny('schedule.view', 'sessions.conduct')
   @Get('timetable')
@@ -330,18 +350,28 @@ export class TeacherScheduleController {
     return { data: await this.calendar.blocks(teacherId, viewer) };
   }
 
-  @Can('schedule.manage')
+  /** Staff: applied at once. The teacher themself (A1, B131): 202 with a pending change. */
+  @CanAny('schedule.manage', 'sessions.conduct')
   @Post('blocks')
   @ApiBody({ schema: jsonSchema(createTeacherBlockSchema) })
   async createBlock(
     @Param('teacherId', IdPipe) teacherId: number,
     @ZodBody(createTeacherBlockSchema) body: Out<typeof createTeacherBlockSchema>,
     @CurrentUser() actor: AuthUser,
-  ): Promise<{ data: TeacherBlockDto }> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ data: TeacherBlockDto } | { data: AvailabilityChangeDto; pending: true }> {
+    if (await this.changes.isOwnRequest(teacherId, actor)) {
+      res.status(HttpStatus.ACCEPTED);
+      return {
+        data: await this.changes.requestBlock(teacherId, 'block_create', null, body, actor),
+        pending: true,
+      };
+    }
+    if (!actor.permissions.has('schedule.manage')) throw forbidden();
     return { data: await this.calendar.createBlock(teacherId, body, actor) };
   }
 
-  @Can('schedule.manage')
+  @CanAny('schedule.manage', 'sessions.conduct')
   @Patch('blocks/:blockId')
   @ApiBody({ schema: jsonSchema(updateTeacherBlockSchema) })
   async updateBlock(
@@ -349,18 +379,36 @@ export class TeacherScheduleController {
     @Param('blockId', IdPipe) blockId: number,
     @ZodBody(updateTeacherBlockSchema) body: Out<typeof updateTeacherBlockSchema>,
     @CurrentUser() actor: AuthUser,
-  ): Promise<{ data: TeacherBlockDto }> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ data: TeacherBlockDto } | { data: AvailabilityChangeDto; pending: true }> {
+    if (await this.changes.isOwnRequest(teacherId, actor)) {
+      res.status(HttpStatus.ACCEPTED);
+      return {
+        data: await this.changes.requestBlock(teacherId, 'block_update', blockId, body, actor),
+        pending: true,
+      };
+    }
+    if (!actor.permissions.has('schedule.manage')) throw forbidden();
     return { data: await this.calendar.updateBlock(teacherId, blockId, body, actor) };
   }
 
-  @Can('schedule.manage')
+  @CanAny('schedule.manage', 'sessions.conduct')
   @Delete('blocks/:blockId')
   @HttpCode(204)
   async deleteBlock(
     @Param('teacherId', IdPipe) teacherId: number,
     @Param('blockId', IdPipe) blockId: number,
     @CurrentUser() actor: AuthUser,
-  ): Promise<void> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<void | { data: AvailabilityChangeDto; pending: true }> {
+    if (await this.changes.isOwnRequest(teacherId, actor)) {
+      res.status(HttpStatus.ACCEPTED);
+      return {
+        data: await this.changes.requestBlock(teacherId, 'block_delete', blockId, null, actor),
+        pending: true,
+      };
+    }
+    if (!actor.permissions.has('schedule.manage')) throw forbidden();
     await this.calendar.deleteBlock(teacherId, blockId, actor);
   }
 
@@ -373,6 +421,7 @@ export class TeacherScheduleController {
     return { data: await this.calendar.workHours(teacherId, viewer) };
   }
 
+  /** Staff: applied at once. The teacher themself (A1, B131): 202 with a pending change. */
   @CanAny('schedule.manage', 'sessions.conduct')
   @Put('work-hours')
   @ApiBody({ schema: jsonSchema(replaceWorkHoursSchema) })
@@ -380,7 +429,72 @@ export class TeacherScheduleController {
     @Param('teacherId', IdPipe) teacherId: number,
     @ZodBody(replaceWorkHoursSchema) body: Out<typeof replaceWorkHoursSchema>,
     @CurrentUser() actor: AuthUser,
-  ): Promise<{ data: WorkHourDto[] }> {
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ data: WorkHourDto[] } | { data: AvailabilityChangeDto; pending: true }> {
+    if (await this.changes.isOwnRequest(teacherId, actor)) {
+      res.status(HttpStatus.ACCEPTED);
+      return { data: await this.changes.requestWorkHours(teacherId, body, actor), pending: true };
+    }
     return { data: await this.calendar.replaceWorkHours(teacherId, body, actor) };
+  }
+}
+
+/** `/availability-changes` (A1, B131): teachers' requests; staff with schedule.manage decide. */
+@ApiTags('schedule')
+@Controller('availability-changes')
+export class AvailabilityChangesController {
+  constructor(private readonly changes: AvailabilityChangesService) {}
+
+  @CanAny('schedule.view', 'sessions.conduct')
+  @Get()
+  async list(
+    @ZodQuery(availabilityChangeQuerySchema) q: Out<typeof availabilityChangeQuerySchema>,
+    @CurrentUser() viewer: AuthUser,
+  ): Promise<{ data: AvailabilityChangeDto[] }> {
+    return { data: await this.changes.list(q, viewer) };
+  }
+
+  @CanAny('schedule.view', 'sessions.conduct')
+  @Get(':id')
+  async show(
+    @Param('id', IdPipe) id: number,
+    @CurrentUser() viewer: AuthUser,
+  ): Promise<{ data: AvailabilityChangeDto }> {
+    return { data: await this.changes.show(id, viewer) };
+  }
+
+  @Can('schedule.manage')
+  @Post(':id/approve')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(approveAvailabilityChangeSchema) })
+  async approve(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(approveAvailabilityChangeSchema) body: Out<typeof approveAvailabilityChangeSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: AvailabilityChangeDto }> {
+    return { data: await this.changes.approve(id, body, actor) };
+  }
+
+  @Can('schedule.manage')
+  @Post(':id/reject')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(rejectAvailabilityChangeSchema) })
+  async reject(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(rejectAvailabilityChangeSchema) body: Out<typeof rejectAvailabilityChangeSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: AvailabilityChangeDto }> {
+    return { data: await this.changes.reject(id, body.reason, actor) };
+  }
+
+  /** The teacher withdraws their own pending request. */
+  @CanAny('schedule.view', 'sessions.conduct')
+  @Post(':id/withdraw')
+  @HttpCode(200)
+  async withdraw(
+    @Param('id', IdPipe) id: number,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: AvailabilityChangeDto }> {
+    return { data: await this.changes.withdraw(id, actor) };
   }
 }
