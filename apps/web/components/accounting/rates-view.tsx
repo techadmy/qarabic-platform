@@ -1,6 +1,7 @@
 'use client';
 
-import { CURRENCIES, type ExchangeRateDto } from '@qarabic/shared';
+import { CURRENCIES, type ExchangeRateDto, type UpsertExchangeRateInput } from '@qarabic/shared';
+import { Alert, AlertDescription, AlertTitle } from '@qarabic/ui/components/alert';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { Input } from '@qarabic/ui/components/input';
@@ -29,6 +30,7 @@ import {
   PencilIcon,
   PlusIcon,
   Trash2Icon,
+  TriangleAlertIcon,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
@@ -50,8 +52,9 @@ import {
 import { isApiError } from '@/lib/api/client';
 import { can } from '@/lib/auth/use-me';
 import { monthLabel } from '@/lib/billing/labels';
+import { normalizeNumberInput } from '@/lib/billing/money';
 import { useListParams } from '@/lib/list-params';
-import { formatInstant } from '@/lib/time';
+import { formatInstant, intlLocale } from '@/lib/time';
 import { FormRow, NUMBER_INPUT, useAccountingError } from './accounting-bits';
 
 /** Every billing currency but USD (the reporting currency, always 1). */
@@ -59,7 +62,7 @@ const RATE_CURRENCIES = CURRENCIES.filter((c) => c !== 'USD');
 const RATE = /^\d{1,6}(\.\d{1,8})?$/;
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
-type Draft = { currency: string; month: string; rateToUsd: string; note: string };
+type Draft = { currency: string; month: string; rateToUsd: string; note: string; edit?: boolean };
 
 /**
  * «أسعار الصرف» (D144, D146): the monthly rate of each currency to USD that every dashboard and
@@ -241,9 +244,7 @@ export function RatesView() {
                       <bdi>{r.currency}</bdi>
                     </TableCell>
                     <TableCell className="text-end whitespace-nowrap tabular-nums">
-                      <bdi dir="ltr">
-                        1 {r.currency} = ${r.rateToUsd}
-                      </bdi>
+                      <RateLine currency={r.currency} rate={r.rateToUsd} />
                     </TableCell>
                     <TableCell className="hidden max-w-64 truncate text-sm text-muted-foreground md:table-cell">
                       {r.note ?? '—'}
@@ -268,6 +269,7 @@ export function RatesView() {
                               month: r.month,
                               rateToUsd: r.rateToUsd,
                               note: r.note ?? '',
+                              edit: true,
                             })
                           }
                         >
@@ -300,9 +302,8 @@ export function RatesView() {
       )}
       {draft && (
         <RateDialog
-          key={`${draft.currency}-${draft.month}`}
+          key={`${draft.edit ? 'edit' : 'add'}-${draft.currency}-${draft.month}`}
           initial={draft}
-          existing={rows.some((r) => r.currency === draft.currency && r.month === draft.month)}
           onClose={closeForm}
         />
       )}
@@ -336,35 +337,62 @@ export function RatesView() {
   );
 }
 
-/** Set or change one month's rate. A changed rate re-prices every report of that month. */
-function RateDialog({
-  initial,
-  existing,
-  onClose,
-}: {
-  initial: Draft;
-  existing: boolean;
-  onClose: () => void;
-}) {
+/** «1 GBP = 1.2700 USD»: at least 4 decimals, up to the 8 the API keeps. */
+export function formatRate(rate: string | number, locale: 'ar' | 'en') {
+  return new Intl.NumberFormat(intlLocale(locale), {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 8,
+  }).format(Number(rate));
+}
+
+function RateLine({ currency, rate }: { currency: string; rate: string | number }) {
+  const locale = useUiLocale();
+  return (
+    <bdi dir="ltr" className="tabular-nums">
+      1 {currency} = {formatRate(rate, locale)} USD
+    </bdi>
+  );
+}
+
+/**
+ * Set or change one month's rate. A month that already has one (opened from its row, or chosen
+ * while adding) shows the current value and a warning, and needs «استبدال السعر» with a reason:
+ * every report and the dashboard of that month change (ui-ux P1 on #109).
+ */
+function RateDialog({ initial, onClose }: { initial: Draft; onClose: () => void }) {
   const t = useTranslations('accounting.rates');
   const locale = useUiLocale();
   const queryClient = useQueryClient();
   const message = useAccountingError();
-  const ids = { currency: useId(), month: useId(), rate: useId(), note: useId() };
+  const ids = {
+    currency: useId(),
+    month: useId(),
+    rate: useId(),
+    note: useId(),
+    reason: useId(),
+  };
   const [form, setForm] = useState(initial);
+  const [reason, setReason] = useState('');
   const [touched, setTouched] = useState(false);
   // Editing a row keeps its currency and month (another month is another rate).
-  const locked = existing && initial.rateToUsd !== '';
-  const rate = form.rateToUsd.trim();
+  const locked = !!initial.edit;
+  const lookup = { currency: form.currency, from: form.month, to: form.month };
+  const current = useQuery({
+    queryKey: accountingKeys.rates(lookup),
+    queryFn: ({ signal }) => fetchExchangeRates(lookup, signal),
+    enabled: MONTH.test(form.month),
+  });
+  const existing = current.data?.find(
+    (r) => r.currency === form.currency && r.month === form.month,
+  );
+  const rate = normalizeNumberInput(form.rateToUsd);
+  const rateOk = RATE.test(rate) && Number(rate) > 0;
   const errors = {
     month: MONTH.test(form.month) ? null : t('errors.month'),
-    rateToUsd: !rate
-      ? t('errors.rateRequired')
-      : !RATE.test(rate) || Number(rate) <= 0
-        ? t('errors.rate')
-        : null,
+    rateToUsd: !rate ? t('errors.rateRequired') : !rateOk ? t('errors.rate') : null,
+    reason: existing && reason.trim().length < 3 ? t('errors.reason') : null,
   };
-  const valid = !errors.month && !errors.rateToUsd;
+  const valid = !errors.month && !errors.rateToUsd && !errors.reason && !current.isFetching;
   const save = useMutation({
     mutationFn: saveExchangeRate,
     onSuccess: (r) => {
@@ -373,28 +401,35 @@ function RateDialog({
       toast.success(t('saved', { currency: r.currency, month: monthLabel(r.month, locale) }));
       onClose();
     },
+    // Someone set this month meanwhile (409 rate_exists): show it and ask again.
+    onError: () => void current.refetch(),
   });
   const err = (k: keyof typeof errors) => (touched ? errors[k] : null);
+  const set = (patch: Partial<Draft>) => {
+    save.reset();
+    setForm((f) => ({ ...f, ...patch }));
+  };
   return (
     <FormDialog
       open
       onOpenChange={(o) => !o && onClose()}
       title={locked ? t('editTitle') : t('addTitle')}
       description={t('formHint')}
-      submitLabel={t('save')}
+      submitLabel={existing ? t('replace') : t('save')}
       busy={save.isPending}
       error={save.isError ? message(save.error) : null}
       summary={touched && !valid ? t('errors.fix') : null}
       onSubmit={() => {
         setTouched(true);
-        if (valid) {
-          save.mutate({
-            currency: form.currency,
-            month: form.month,
-            rateToUsd: rate,
-            note: form.note.trim() || null,
-          });
-        }
+        if (!valid) return;
+        save.mutate({
+          currency: form.currency,
+          month: form.month,
+          rateToUsd: rate,
+          note: form.note.trim() || null,
+          // The API refuses to overwrite silently (409 rate_exists) unless asked, with a reason.
+          ...(existing ? { replace: true, reason: reason.trim() } : {}),
+        } as UpsertExchangeRateInput);
       }}
     >
       <div className="grid gap-4 sm:grid-cols-2">
@@ -402,7 +437,7 @@ function RateDialog({
           <Select
             value={form.currency}
             disabled={locked}
-            onValueChange={(currency) => setForm((f) => ({ ...f, currency }))}
+            onValueChange={(currency) => set({ currency })}
           >
             <SelectTrigger id={ids.currency} className="h-10! w-full bg-card md:text-body">
               <SelectValue />
@@ -428,18 +463,47 @@ function RateDialog({
             <MonthPicker
               id={ids.month}
               value={form.month}
-              onChange={(month) => setForm((f) => ({ ...f, month }))}
+              onChange={(month) => set({ month })}
               invalid={!!err('month')}
             />
           )}
         </FormRow>
       </div>
+      {existing && (
+        <Alert variant="warning">
+          <TriangleAlertIcon />
+          <AlertTitle>
+            {t('existsTitle', {
+              currency: existing.currency,
+              month: monthLabel(existing.month, locale),
+            })}
+          </AlertTitle>
+          <AlertDescription>
+            <span>
+              {t('existsCurrent')}{' '}
+              <RateLine currency={existing.currency} rate={existing.rateToUsd} />
+            </span>
+            <span>{t('existsHint')}</span>
+          </AlertDescription>
+        </Alert>
+      )}
       <FormRow
         id={ids.rate}
         label={t('rateLabel', { currency: form.currency })}
         required
         error={err('rateToUsd')}
-        hint={t('rateHint', { currency: form.currency })}
+        hint={
+          rateOk ? (
+            <span className="flex flex-col">
+              <RateLine currency={form.currency} rate={rate} />
+              <bdi dir="ltr" className="tabular-nums">
+                100 {form.currency} = {formatRate(Number(rate) * 100, locale)} USD
+              </bdi>
+            </span>
+          ) : (
+            t('rateHint', { currency: form.currency })
+          )
+        }
       >
         <Input
           id={ids.rate}
@@ -449,16 +513,29 @@ function RateDialog({
           value={form.rateToUsd}
           aria-invalid={!!err('rateToUsd')}
           aria-describedby={err('rateToUsd') ? `${ids.rate}-error` : undefined}
-          onChange={(e) => setForm((f) => ({ ...f, rateToUsd: e.target.value }))}
+          onChange={(e) => set({ rateToUsd: e.target.value })}
           className={NUMBER_INPUT}
         />
       </FormRow>
+      {existing && (
+        <FormRow id={ids.reason} label={t('replaceReason')} required error={err('reason')}>
+          <Textarea
+            id={ids.reason}
+            maxLength={500}
+            value={reason}
+            aria-invalid={!!err('reason')}
+            aria-describedby={err('reason') ? `${ids.reason}-error` : undefined}
+            onChange={(e) => setReason(e.target.value)}
+            className="md:text-body"
+          />
+        </FormRow>
+      )}
       <FormRow id={ids.note} label={t('note')}>
         <Textarea
           id={ids.note}
           maxLength={500}
           value={form.note}
-          onChange={(e) => setForm((f) => ({ ...f, note: e.target.value }))}
+          onChange={(e) => set({ note: e.target.value })}
           className="md:text-body"
         />
       </FormRow>

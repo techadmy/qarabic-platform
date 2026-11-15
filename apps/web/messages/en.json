@@ -4249,8 +4249,14 @@
         "month": "Choose the month.",
         "rateRequired": "Enter the rate.",
         "rate": "Enter a positive number with up to 8 decimals.",
-        "fix": "Fix the highlighted fields."
-      }
+        "fix": "Fix the highlighted fields.",
+        "reason": "Write why the rate is replaced (at least 3 characters)."
+      },
+      "replace": "Replace rate",
+      "replaceReason": "Why replace it",
+      "existsTitle": "\u2068{currency}\u2069 already has a rate for \u2068{month}\u2069",
+      "existsCurrent": "Current rate:",
+      "existsHint": "A new rate changes this month’s amounts in every report and on the dashboard."
     }
   },
   "dashboard": {

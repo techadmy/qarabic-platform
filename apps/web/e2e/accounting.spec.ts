@@ -145,5 +145,5 @@ test('accounts (D146): the exchange rates without the ledger; a rate is added an
   await page.getByRole('option', { name: 'PKR' }).click();
   await dialog.getByRole('button', { name: 'حفظ السعر' }).click();
   await expect(dialog).toBeHidden();
-  await expect(page.getByText('1 PKR = $0.0201')).toBeVisible();
+  await expect(page.getByText('1 PKR = 0.0201 USD')).toBeVisible();
 });

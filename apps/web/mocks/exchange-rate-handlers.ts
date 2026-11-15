@@ -5,7 +5,7 @@ import {
   type ExchangeRateDto,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
-import { guardAny, notFound, validationFailed } from './session';
+import { apiError, guardAny, notFound, validationFailed } from './session';
 
 /**
  * The mock `…/accounting/exchange-rates` (D144, D146): read with `accounting.view` or
@@ -70,12 +70,17 @@ export const exchangeRateHandlers: HttpHandler[] = [
   http.put(API, async ({ request }) => {
     const g = guardAny(request, 'accounting.manage', 'accounting.rates');
     if ('error' in g) return g.error;
-    const body = upsertExchangeRateSchema.safeParse(await request.json());
+    const json = (await request.json()) as Record<string, unknown>;
+    const body = upsertExchangeRateSchema.safeParse(json);
     if (!body.success) return validationFailed(body.error.issues);
     const { currency, month, rateToUsd, note } = body.data;
     const at = new Date().toISOString();
     const by = { id: g.me.id, name: g.me.name };
     const found = rates.find((r) => r.currency === currency && r.month === month);
+    // As the API (#109 P1): an existing month is replaced only when asked, with a reason.
+    if (found && (json.replace !== true || String(json.reason ?? '').trim().length < 3)) {
+      return apiError(409, 'rate_exists', 'This month already has a rate.');
+    }
     const row: ExchangeRateDto = found
       ? {
           ...found,
