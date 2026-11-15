@@ -112,7 +112,7 @@ export class AvailabilityChangesService {
       teacherId,
       kind,
       blockId,
-      (input ?? {}),
+      input ?? {},
       localDate(this.clock.nowMs(), teacher.timezone),
       null,
       actor,
@@ -361,12 +361,7 @@ export class AvailabilityChangesService {
         );
         break;
       case 'block_update':
-        await this.calendar.updateBlock(
-          row.teacherId,
-          row.blockId!,
-          payload,
-          approver,
-        );
+        await this.calendar.updateBlock(row.teacherId, row.blockId!, payload, approver);
         break;
       case 'block_delete':
         // Already gone (deleted by staff meanwhile): nothing to do.
