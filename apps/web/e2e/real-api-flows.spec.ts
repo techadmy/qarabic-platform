@@ -448,8 +448,8 @@ test('real API (N7): payroll run → review → approve → record the payment �
   await expect(page.locator('main h1')).toContainText('مسودة');
   await expectLoaded(page);
 
-  // P0-3 (B116): the reviewer is not the approver. A senior manager reviews in a second browser
-  // context; the admin approves.
+  // P0-3 (B116): the reviewer is not the approver. An accountant (D147: payroll is the accounts'
+  // and the owner's) reviews in a second browser context; the owner approves.
   const runUrl = page.url();
   const reviewerContext = await browser.newContext();
   const reviewer = await reviewerContext.newPage();

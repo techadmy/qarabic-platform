@@ -85,7 +85,7 @@ describe('sessions API (SessionsApiTest)', () => {
         'evidence',
         'report',
         // N7: the pay snapshot, for `payroll.view` / `sessions.manage` viewers.
-        'pay',
+        // D147: no `pay` for a monitor (payroll data is the accounts' and the owner's).
         'attention',
         'pendingRequests',
         'allowedActions',

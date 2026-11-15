@@ -140,7 +140,8 @@ describe('P0-3 payroll run', () => {
   it('the reviewer cannot approve; nobody approves a run holding their own payslip', async () => {
     const { user: accountant, client: accounts } = await userWithRole(ctx, 'accounts');
     const { client: admin } = await userWithRole(ctx, 'admin');
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
+    // D147: payroll is the accounts' (and the owner's); a second accountant reviews.
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
     const { user: teacher } = await userWithRole(ctx, 'teacher');
     await m6Profile(ctx, teacher.id);
     m6At(ctx, '2026-12-02T08:00:00Z');
@@ -157,12 +158,36 @@ describe('P0-3 payroll run', () => {
     // The accountant is paid in this run: they may not approve it either.
     await m6Profile(ctx, accountant.id);
     expect((await accounts.post(`/payroll/runs/${id}/recompute`, {})).status).toBe(200);
-    expect((await senior.post(`/payroll/runs/${id}/review`, {})).status).toBe(200);
+    expect((await reviewer.post(`/payroll/runs/${id}/review`, {})).status).toBe(200);
+    // The screen offers no Approve button to the reviewer or to someone paid in the run.
+    expect((await reviewer.get(`/payroll/runs/${id}`)).body.data.can.approve).toBe(false);
+    expect((await accounts.get(`/payroll/runs/${id}`)).body.data.can.approve).toBe(false);
+    expect((await admin.get(`/payroll/runs/${id}`)).body.data.can.approve).toBe(true);
     const ownSlip = await accounts.post(`/payroll/runs/${id}/approve`, {});
     expect(ownSlip.status).toBe(403);
     expect(ownSlip.body.code).toBe('own_payslip_in_run');
 
     // The admin: neither the reviewer now nor paid in it.
     expect((await admin.post(`/payroll/runs/${id}/approve`, {})).status).toBe(200);
+  });
+});
+
+describe("D147: payroll is the accounts' and the owner's", () => {
+  it('two accountants: one reviews, the other approves; no other staff preset sees payroll', async () => {
+    const { client: first } = await userWithRole(ctx, 'accounts');
+    const { client: second } = await userWithRole(ctx, 'accounts');
+    const { user: teacher } = await userWithRole(ctx, 'teacher');
+    await m6Profile(ctx, teacher.id);
+    m6At(ctx, '2026-12-02T08:00:00Z');
+    const id = (await first.post('/payroll/runs', { period: '2026-11' })).body.data.id;
+    expect((await first.post(`/payroll/runs/${id}/review`, {})).status).toBe(200);
+    expect((await second.post(`/payroll/runs/${id}/approve`, {})).status).toBe(200);
+
+    for (const role of ['senior_manager', 'manager', 'monitor', 'csr', 'billing']) {
+      const { client } = await userWithRole(ctx, role);
+      for (const path of ['/payroll/runs', `/payroll/runs/${id}`, '/wallets', '/salary-profiles']) {
+        expect((await client.get(path)).status, `${role} ${path}`).toBe(403);
+      }
+    }
   });
 });

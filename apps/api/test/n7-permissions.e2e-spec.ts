@@ -44,8 +44,9 @@ beforeEach(async () => {
 });
 
 async function approveRun(): Promise<void> {
-  const { client: senior } = await userWithRole(ctx, 'senior_manager');
-  expect((await senior.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
+  // D147: a second accountant reviews; the first approves (P0-3: never the same person).
+  const { client: reviewer } = await userWithRole(ctx, 'accounts');
+  expect((await reviewer.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
   expect((await accounts.post(`/payroll/runs/${runId}/approve`)).status).toBe(200);
 }
 
@@ -71,14 +72,16 @@ describe('payroll permissions (docs/21 §9)', () => {
     ['billing (D87)', 403, 403, 403, 403],
     ['monitor', 403, 403, 403, 403],
     ['manager', 403, 403, 403, 403],
-    ['senior manager reviews only', 200, 403, 200, 403],
-    ['accounts prepares and approves', 200, 201, 403, 409],
+    // D147: salaries are the accounts' only.
+    ['senior manager', 403, 403, 403, 403],
+    // Reviews, then cannot approve what they reviewed (P0-3).
+    ['accounts prepares, reviews and approves', 200, 201, 200, 403],
   ])('keeps payroll runs to payroll roles: %s', async (label, list, create, review, approve) => {
     const role =
       {
         'billing (D87)': 'billing',
-        'senior manager reviews only': 'senior_manager',
-        'accounts prepares and approves': 'accounts',
+        'senior manager': 'senior_manager',
+        'accounts prepares, reviews and approves': 'accounts',
       }[label] ?? label;
     const { client } = await userWithRole(ctx, role);
     expect((await client.get('/payroll/runs')).status).toBe(list);
@@ -124,11 +127,11 @@ describe('payroll permissions (docs/21 §9)', () => {
   });
 
   it('lets payroll staff see every payslip with its warnings', async () => {
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
-    const res = await senior.get(`/payslips/${theirs}`);
+    const { client: payrollStaff } = await userWithRole(ctx, 'accounts');
+    const res = await payrollStaff.get(`/payslips/${theirs}`);
     expect(res.status).toBe(200);
     expect(res.body.data.user.id).toBe(other.userId);
-    expect((await senior.get('/payslips/999999')).status).toBe(404);
+    expect((await payrollStaff.get('/payslips/999999')).status).toBe(404);
   });
 
   it('lets accounts manage salary profiles with validation and an audit trail', async () => {

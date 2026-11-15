@@ -101,9 +101,9 @@ describe('fines (D91)', () => {
 
     const locked = (await manager.post('/payroll/adjustments', fine())).body.data.id;
     const { client: accounts } = await userWithRole(ctx, 'accounts');
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
     const runId = (await accounts.post('/payroll/runs', { period: '2026-10' })).body.data.id;
-    expect((await senior.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
+    expect((await reviewer.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
     expect((await accounts.post(`/payroll/runs/${runId}/approve`)).status).toBe(200);
 
     const waived = await manager.post(`/payroll/adjustments/${locked}/cancel`, {
@@ -134,9 +134,9 @@ describe('fines (D91)', () => {
     const bonus = (
       await accounts.post('/payroll/adjustments', fine({ type: 'bonus', reason: 'Good month' }))
     ).body.data.id;
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
     const runId = (await accounts.post('/payroll/runs', { period: '2026-10' })).body.data.id;
-    await senior.post(`/payroll/runs/${runId}/review`);
+    await reviewer.post(`/payroll/runs/${runId}/review`);
     await accounts.post(`/payroll/runs/${runId}/approve`);
     const res = await accounts.post(`/payroll/adjustments/${bonus}/cancel`, {
       note: 'Changed mind',

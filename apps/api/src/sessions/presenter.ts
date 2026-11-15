@@ -261,7 +261,8 @@ export class SessionPresenter {
           }
         : { actualStartedAt: null, teacherJoinedAt: null, studentJoinedAt: null },
       report: { submitted: s.report !== null, editableUntil: isoZ(reportEditableUntil(s, st)) },
-      ...(viewer?.permissions.has('payroll.view') || viewer?.permissions.has('sessions.manage')
+      // D147: pay hours and the pay rule are payroll data (accounts, the owner, a teacher's own).
+      ...(viewer?.permissions.has('payroll.view')
         ? {
             pay: {
               hours: s.payHours?.toFixed(2) ?? null,

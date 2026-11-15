@@ -48,14 +48,22 @@ async function main(): Promise<void> {
       console.log('SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD not set: no dev admin.');
     }
 
-    // P0-3 (B116): the reviewer of a payroll run is not its approver. A second dev login (senior
-    // manager: payroll.review) lets the real-API e2e review as one person and approve as another.
+    // P0-3 (B116): the reviewer of a payroll run is not its approver. A second dev login (accounts,
+    // D147: payroll is the accounts' and the owner's) lets the real-API e2e review as one person
+    // and approve as another.
     const reviewerEmail = process.env.SEED_REVIEWER_EMAIL?.trim().toLowerCase();
     const reviewerPassword = process.env.SEED_REVIEWER_PASSWORD;
     if (env.NODE_ENV !== 'production' && reviewerEmail && reviewerPassword) {
-      const role = await prisma.role.findUniqueOrThrow({ where: { name: 'senior_manager' } });
-      if (await prisma.user.findUnique({ where: { email: reviewerEmail } })) {
-        console.log('Dev reviewer already exists (left unchanged).');
+      const role = await prisma.role.findUniqueOrThrow({ where: { name: 'accounts' } });
+      const existing = await prisma.user.findUnique({ where: { email: reviewerEmail } });
+      if (existing) {
+        // An older dev DB made it a senior manager, who no longer sees payroll (D147).
+        if (existing.roleId !== role.id) {
+          await prisma.user.update({ where: { id: existing.id }, data: { roleId: role.id } });
+          console.log('Dev reviewer moved to the accounts role.');
+        } else {
+          console.log('Dev reviewer already exists (left unchanged).');
+        }
       } else {
         await prisma.user.create({
           data: {
@@ -65,7 +73,7 @@ async function main(): Promise<void> {
             roleId: role.id,
           },
         });
-        console.log('Dev reviewer (senior manager) created from SEED_REVIEWER_EMAIL.');
+        console.log('Dev reviewer (accounts) created from SEED_REVIEWER_EMAIL.');
       }
     }
 

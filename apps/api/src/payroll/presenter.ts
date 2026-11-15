@@ -287,6 +287,7 @@ export const runInclude = {
   approvedBy: nameSelect,
   payslips: {
     select: {
+      userId: true,
       currency: true,
       earnings: true,
       deductions: true,
@@ -326,7 +327,12 @@ export function runDto(r: RunRow, viewer: AuthUser): PayrollRunDto {
     can: {
       recompute: open && p.has('payroll.manage'),
       review: status === 'draft' && p.has('payroll.review'),
-      approve: status === 'reviewed' && p.has('payroll.approve'),
+      // P0-3: not the reviewer, and never a run holding the viewer's own payslip.
+      approve:
+        status === 'reviewed' &&
+        p.has('payroll.approve') &&
+        r.reviewedBy?.id !== viewer.id &&
+        !slips.some((s) => s.userId === viewer.id),
       reopen: status === 'approved' && p.has('payroll.approve'),
       pay: status === 'approved' && p.has('payroll.manage'),
       adjust: open && p.has('payroll.manage'),
