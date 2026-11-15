@@ -438,7 +438,10 @@ export function DashboardSection() {
       {live.stale && <RefreshFailed onRetry={retry} />}
       {d && d.missingRates.length > 0 && <MissingRates rates={d.missingRates} />}
       {kpis.length > 0 && (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3" aria-busy={loading || undefined}>
+        <div
+          className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-5"
+          aria-busy={loading || undefined}
+        >
           {kpis.map(kpiCard)}
         </div>
       )}

@@ -355,7 +355,7 @@ export function CategoryBars({
           <Bar dataKey="value" isAnimationActive={false} fill="var(--color-value)" radius={4}>
             <LabelList
               dataKey="value"
-              position={rtl ? 'left' : 'right'}
+              position="right"
               offset={8}
               className="fill-foreground tabular-nums"
               fontSize={12}
