@@ -38,19 +38,23 @@ import {
   TableHeader,
   TableRow,
 } from '@qarabic/ui/components/table';
+import { Textarea } from '@qarabic/ui/components/textarea';
 import { ToggleGroup, ToggleGroupItem } from '@qarabic/ui/components/toggle-group';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircleIcon, CalendarXIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { TimeSelect } from '@/components/forms/date-time';
+import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { PageHeader } from '@/components/page-header';
 import { ProfileSkeleton } from '@/components/people/detail';
+import { AvailabilityChanges } from '@/components/schedule/availability-changes';
+import { AvailabilityGrid, type HourRow } from '@/components/schedule/availability-grid';
 import { ReasonDialog } from '@/components/sessions/reason-dialog';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
+import { availabilityKeys } from '@/lib/api/availability';
 import { isApiError } from '@/lib/api/client';
 import {
   createBlock,
@@ -207,6 +211,11 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
           </Table>
         </div>
       </Card>
+      <AvailabilityChanges
+        teacherId={id}
+        title={mine ? t('requestsMine') : t('requests')}
+        description={t('requestsHint')}
+      />
       <div className="grid items-start gap-4 lg:grid-cols-2">
         <WorkHoursCard
           // Saved hours come back from the server: start the editor again from them.
@@ -215,30 +224,33 @@ export function TimetableView({ id, mine }: { id: number; mine?: boolean }) {
           hours={data.workHours}
           timezone={data.teacher.timezone}
           editable={canManage || !!mine}
+          asRequest={!!mine && !canManage}
         />
         <BlocksCard
           teacherId={id}
           blocks={data.blocks}
           timezone={data.teacher.timezone}
-          editable={canManage}
+          editable={canManage || !!mine}
+          asRequest={!!mine && !canManage}
         />
       </div>
     </>
   );
 }
 
-type HourRow = { weekday: number; localStartTime: string; localEndTime: string };
-
 function WorkHoursCard({
   teacherId,
   hours,
   timezone,
   editable,
+  asRequest,
 }: {
   teacherId: number;
   hours: WorkHourDto[];
   timezone: string;
   editable: boolean;
+  /** The teacher's own change: a request with a start date and a note (A1, B131). */
+  asRequest: boolean;
 }) {
   const t = useTranslations('timetable');
   const locale = useUiLocale();
@@ -252,6 +264,13 @@ function WorkHoursCard({
     })),
   );
   const [error, setError] = useState<string | null>(null);
+  const [from, setFrom] = useState(() => dateKeyIn(timezone));
+  const [requestNote, setRequestNote] = useState('');
+  const original = hours.map(({ weekday, localStartTime, localEndTime }) => ({
+    weekday,
+    localStartTime,
+    localEndTime,
+  }));
   const dirty =
     JSON.stringify(rows) !==
     JSON.stringify(
@@ -264,10 +283,26 @@ function WorkHoursCard({
   const invalid = rows.some((r) => r.localStartTime === r.localEndTime);
   const save = useMutation({
     mutationFn: () =>
-      replaceWorkHours(teacherId, { workHours: rows.map((r) => ({ ...r, timezone })) }),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
+      replaceWorkHours(teacherId, {
+        workHours: rows.map((r) => ({ ...r, timezone })),
+        ...(asRequest
+          ? {
+              effectiveFrom: from,
+              ...(requestNote.trim() ? { requestNote: requestNote.trim() } : {}),
+            }
+          : {}),
+      }),
+    onSuccess: (r) => {
       setError(null);
+      if (r.pending) {
+        // Nothing changes until staff approve: the grid goes back to the hours in force.
+        void queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
+        setRows(original);
+        setRequestNote('');
+        toast.success(t('hoursRequested'));
+        return;
+      }
+      void queryClient.invalidateQueries({ queryKey: scheduleKeys.all });
       toast.success(t('hoursSaved'));
     },
     onError: (e) => setError(message(e)),
@@ -282,6 +317,7 @@ function WorkHoursCard({
         <CardDescription>{t('workHoursHint', { city: cityOf(timezone, locale) })}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
+        <AvailabilityGrid rows={rows} onChange={setRows} timezone={timezone} editable={editable} />
         {rows.length === 0 && <p className="text-muted-foreground">{t('noHours')}</p>}
         {rows.map((r, i) => (
           <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
@@ -345,6 +381,25 @@ function WorkHoursCard({
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         )}
+        {asRequest && dirty && (
+          <FieldGroup className="gap-3">
+            <Field>
+              <FieldLabel htmlFor="wh-from">{t('effectiveFrom')}</FieldLabel>
+              <DatePicker id="wh-from" value={from} onChange={setFrom} min={dateKeyIn(timezone)} />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="wh-note">{t('requestNote')}</FieldLabel>
+              <Textarea
+                id="wh-note"
+                rows={2}
+                maxLength={500}
+                value={requestNote}
+                onChange={(e) => setRequestNote(e.target.value)}
+              />
+            </Field>
+            <p className="text-sm text-muted-foreground">{t('requestHint')}</p>
+          </FieldGroup>
+        )}
         {editable && (
           <div className="flex flex-wrap gap-2">
             <Button
@@ -362,7 +417,7 @@ function WorkHoursCard({
             </Button>
             <Button disabled={!dirty || invalid || save.isPending} onClick={() => save.mutate()}>
               {save.isPending && <Spinner />}
-              {t('saveHours')}
+              {asRequest ? t('requestHours') : t('saveHours')}
             </Button>
           </div>
         )}
@@ -376,11 +431,13 @@ function BlocksCard({
   blocks,
   timezone,
   editable,
+  asRequest,
 }: {
   teacherId: number;
   blocks: TeacherBlockDto[];
   timezone: string;
   editable: boolean;
+  asRequest: boolean;
 }) {
   const t = useTranslations('timetable');
   const locale = useUiLocale();
@@ -399,9 +456,14 @@ function BlocksCard({
   const [endsAt, setEndsAt] = useState('');
   const remove = useMutation({
     mutationFn: (b: TeacherBlockDto) => deleteBlock(teacherId, b.id),
-    onSuccess: () => {
-      refreshClasses(queryClient);
+    onSuccess: (r) => {
       setRemoving(null);
+      if (r.pending) {
+        void queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
+        toast.success(t('blockRequested'));
+        return;
+      }
+      refreshClasses(queryClient);
       toast.success(t('blockRemoved'));
     },
     onError: (e) => setError(message(e)),
@@ -416,9 +478,14 @@ function BlocksCard({
           ? { weekday, localStartTime: time, durationMinutes: minutes, timezone }
           : { startsAt: new Date(startsAt).toISOString(), endsAt: new Date(endsAt).toISOString() }),
       }),
-    onSuccess: () => {
-      refreshClasses(queryClient);
+    onSuccess: (r) => {
       setAdding(false);
+      if (r.pending) {
+        void queryClient.invalidateQueries({ queryKey: availabilityKeys.all });
+        toast.success(t('blockRequested'));
+        return;
+      }
+      refreshClasses(queryClient);
       toast.success(t('blockAdded'));
     },
     onError: (e) => setError(message(e)),
@@ -451,6 +518,9 @@ function BlocksCard({
         )}
       </CardHeader>
       <CardContent>
+        {asRequest && (
+          <p className="pb-2 text-sm text-muted-foreground">{t('blocksRequestHint')}</p>
+        )}
         {blocks.length === 0 ? (
           <p className="py-2 text-muted-foreground">{t('noBlocks')}</p>
         ) : (

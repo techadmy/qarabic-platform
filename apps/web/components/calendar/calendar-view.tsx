@@ -23,7 +23,14 @@ import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
 import { cn } from '@qarabic/ui/lib/utils';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ar, enUS } from '@qarabic/ui/lib/date-locales';
-import { ListFilterIcon, ListIcon, RefreshCwIcon, StarIcon, TriangleAlertIcon } from 'lucide-react';
+import {
+  ClockIcon,
+  ListFilterIcon,
+  ListIcon,
+  RefreshCwIcon,
+  StarIcon,
+  TriangleAlertIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -243,12 +250,20 @@ export function CalendarView() {
         description={t('description')}
         actions={
           can(me, 'schedule.view') && !isTeacher ? (
-            <Button asChild variant="outline" className="h-10">
-              <Link href="/schedule/enrollments">
-                <ListIcon />
-                {t('enrollments')}
-              </Link>
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button asChild variant="outline" className="h-10">
+                <Link href="/schedule/availability-requests">
+                  <ClockIcon />
+                  {t('availabilityRequests')}
+                </Link>
+              </Button>
+              <Button asChild variant="outline" className="h-10">
+                <Link href="/schedule/enrollments">
+                  <ListIcon />
+                  {t('enrollments')}
+                </Link>
+              </Button>
+            </div>
           ) : undefined
         }
       />
