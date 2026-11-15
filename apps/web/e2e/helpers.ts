@@ -43,3 +43,13 @@ export async function expectNoSeriousA11yViolations(page: Page) {
   );
   expect(serious, JSON.stringify(serious, null, 2)).toEqual([]);
 }
+
+/**
+ * A sentence as a pattern that ignores the bidi isolates around interpolated values (docs/39
+ * P1-10): `sentence('حذف الدور «Admin»')` matches the same sentence with isolates around «Admin». Whole-string by default.
+ */
+export function sentence(text: string, { exact = true } = {}): RegExp {
+  const iso = '[\\u2066-\\u2069]*';
+  const body = [...text].map((c) => c.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join(iso);
+  return new RegExp(exact ? `^${iso}${body}${iso}$` : body);
+}

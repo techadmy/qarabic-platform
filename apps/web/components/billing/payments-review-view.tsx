@@ -1,6 +1,6 @@
 'use client';
 
-import { PAYMENT_METHOD_LABELS, type PaymentDto } from '@qarabic/shared';
+import { PAYMENT_METHOD_LABELS, type PaymentReviewItemDto as PaymentDto } from '@qarabic/shared';
 import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
@@ -25,6 +25,9 @@ import { billingKeys, fetchPaymentsToReview, reviewPayment } from '@/lib/api/bil
 import { can } from '@/lib/auth/use-me';
 import { formatInstant } from '@/lib/time';
 import { Money, PaymentStatusBadge, useBillingError } from './billing-bits';
+
+/** The invoice's number (INV-…, #95); its id only for a draft without one. */
+const invoiceLabel = (p: PaymentDto) => p.invoiceNumber ?? `#${p.invoiceId}`;
 
 /** The API returns at most this many (no paging yet): say so when the list is full. */
 const MAX_ROWS = 500;
@@ -88,7 +91,7 @@ export function PaymentsReviewView() {
         <Link href="/billing/credits">
           <PiggyBankIcon />
           {t('reviewAsCredit')}
-          <span className="sr-only">: {t('invoice', { id: p.invoiceId })}</span>
+          <span className="sr-only">: {t('invoice', { id: invoiceLabel(p) })}</span>
         </Link>
       </Button>
     ) : manage ? (
@@ -103,7 +106,7 @@ export function PaymentsReviewView() {
       >
         <CircleCheckIcon />
         {t('markReviewed')}
-        <span className="sr-only">: {t('invoice', { id: p.invoiceId })}</span>
+        <span className="sr-only">: {t('invoice', { id: invoiceLabel(p) })}</span>
       </Button>
     ) : null;
 
@@ -117,7 +120,7 @@ export function PaymentsReviewView() {
             href={`/invoices/${row.original.invoiceId}`}
             className="font-semibold text-primary hover:underline"
           >
-            {t('invoice', { id: row.original.invoiceId })}
+            {t('invoice', { id: invoiceLabel(row.original) })}
           </Link>
         ),
       },
@@ -207,7 +210,7 @@ export function PaymentsReviewView() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-start justify-between gap-2">
                   <Link href={`/invoices/${p.invoiceId}`} className="font-semibold text-primary">
-                    {t('invoice', { id: p.invoiceId })}
+                    {t('invoice', { id: invoiceLabel(p) })}
                   </Link>
                 </div>
                 <span className="text-sm">
@@ -233,7 +236,7 @@ export function PaymentsReviewView() {
       <ReasonDialog
         open={!!reviewing}
         onOpenChange={(o) => !o && setReviewing(null)}
-        title={t('reviewTitle', { id: reviewing?.invoiceId ?? 0 })}
+        title={t('reviewTitle', { id: reviewing ? invoiceLabel(reviewing) : '' })}
         description={reviewing ? reason(reviewing) : undefined}
         confirmLabel={t('markReviewed')}
         textLabel={t('note')}

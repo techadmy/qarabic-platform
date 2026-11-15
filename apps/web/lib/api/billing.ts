@@ -12,7 +12,9 @@ import {
   invoiceListResponseSchema,
   invoiceRunPreviewResponseSchema,
   invoiceRunResultSchema,
+  paymentReviewItemSchema,
   paymentSchema,
+  type PaymentReviewItemDto,
   remindResultSchema,
   splitResultSchema,
   type AddInvoiceLineInput,
@@ -185,10 +187,10 @@ export async function recordPayment(
 }
 
 /** P1-3: payments held for staff (amount/currency mismatch) or paid beyond the invoice. */
-export async function fetchPaymentsToReview(signal?: AbortSignal): Promise<PaymentDto[]> {
+export async function fetchPaymentsToReview(signal?: AbortSignal): Promise<PaymentReviewItemDto[]> {
   return (
     await apiFetch('/billing/payments/review', {
-      schema: z.object({ data: z.array(paymentSchema) }),
+      schema: z.object({ data: z.array(paymentReviewItemSchema) }),
       signal,
     })
   ).data;

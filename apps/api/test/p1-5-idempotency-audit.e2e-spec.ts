@@ -84,6 +84,35 @@ describe('P1-5 manual payment idempotency', () => {
     expect(await ctx.prisma.payment.count({ where: { invoiceId } })).toBe(1);
   });
 
+  it('the same key with an edited body is refused with 409; the same body (any amount form) replays', async () => {
+    const a = await pay('edit-retry-key-01');
+    expect(a.status).toBe(201);
+    const edited = await billing.post(
+      `/invoices/${invoiceId}/payments`,
+      { method: 'cash', amount: '25', receivedOn: '2026-12-02' },
+      { headers: { 'Idempotency-Key': 'edit-retry-key-01' } },
+    );
+    expect(edited.status).toBe(409);
+    expect(edited.body.code).toBe('idempotency_conflict');
+    const same = await billing.post(
+      `/invoices/${invoiceId}/payments`,
+      { method: 'cash', amount: '20.00', receivedOn: '2026-12-02', note: '' },
+      { headers: { 'Idempotency-Key': 'edit-retry-key-01' } },
+    );
+    expect(same.status).toBe(201);
+    expect(same.body.data.id).toBe(a.body.data.id);
+    expect(await ctx.prisma.payment.count({ where: { invoiceId } })).toBe(1);
+    const invoice = await ctx.prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+    expect(invoice.paid.toFixed(2)).toBe('20.00');
+  });
+
+  it('accepts the longest allowed key', async () => {
+    const key = 'k'.repeat(64);
+    const a = await pay(key);
+    expect(a.status).toBe(201);
+    expect((await pay(key)).body.data.id).toBe(a.body.data.id);
+  });
+
   it('refuses a malformed key', async () => {
     expect((await pay('bad key!')).status).toBe(422);
   });

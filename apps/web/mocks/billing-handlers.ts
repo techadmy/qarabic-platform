@@ -835,12 +835,17 @@ export const billingHandlers: HttpHandler[] = [
     if (key !== null && !/^[A-Za-z0-9_-]{8,64}$/.test(key)) {
       return validationFailed([{ path: ['idempotencyKey'], message: 'Use 8–64 letters.' }]);
     }
-    const seen = key ? bdb.idempotency.get(key) : undefined;
-    const first = seen ? bdb.payments.find((p) => p.id === seen) : undefined;
-    if (first) return HttpResponse.json({ data: paymentDto(first, true) }, { status: 201 });
     const parsed = manualPaymentSchema.safeParse(await body(request));
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const v = parsed.data;
+    // #96: the same key with other details is refused; the same details replay the payment.
+    const details = JSON.stringify({ ...v, amount: fromMinor(toMinor(v.amount)) });
+    const seen = key ? bdb.idempotency.get(key) : undefined;
+    if (seen && seen.details !== details) {
+      return apiError(409, 'idempotency_conflict', 'This key was used for a different payment.');
+    }
+    const first = seen ? bdb.payments.find((p) => p.id === seen.paymentId) : undefined;
+    if (first) return HttpResponse.json({ data: paymentDto(first, true) }, { status: 201 });
     if (v.receivedOn > academyToday()) {
       return apiError(422, 'validation_failed', 'The given data was invalid.', {
         receivedOn: ['The date received cannot be in the future.'],
@@ -868,7 +873,7 @@ export const billingHandlers: HttpHandler[] = [
       recordedBy: { id: g.me.id, name: g.me.name },
     };
     bdb.payments.push(row);
-    if (key) bdb.idempotency.set(key, row.id);
+    if (key) bdb.idempotency.set(key, { paymentId: row.id, details });
     recalculate(bdb, inv);
     return HttpResponse.json({ data: paymentDto(row, true) }, { status: 201 });
   }),
@@ -878,7 +883,12 @@ export const billingHandlers: HttpHandler[] = [
     const g = guardAny(request, 'invoices.manage', 'reports.financial');
     if ('error' in g) return g.error;
     const rows = bdb.payments.filter((p) => p.needsReview).sort((a, b) => b.id - a.id);
-    return HttpResponse.json({ data: rows.map((p) => paymentDto(p, true)) });
+    return HttpResponse.json({
+      data: rows.map((p) => ({
+        ...paymentDto(p, true),
+        invoiceNumber: bdb.invoices.find((i) => i.id === p.invoiceId)?.number ?? null,
+      })),
+    });
   }),
   http.post(`${API}/billing/payments/:id/reviewed`, async ({ request, params }) => {
     const g = guard(request, 'invoices.manage');

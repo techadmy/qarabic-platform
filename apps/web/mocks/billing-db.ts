@@ -126,7 +126,7 @@ export interface BillingDb {
   payments: PaymentRow[];
   credits: CreditRow[];
   /** P1-5: Idempotency-Key → the manual payment it recorded. */
-  idempotency: Map<string, number>;
+  idempotency: Map<string, { paymentId: number; details: string }>;
   settings: BillingSettingsDto;
   /** Online providers the mock reports as configured (tests can switch one off). */
   online: ('stripe' | 'paypal')[];

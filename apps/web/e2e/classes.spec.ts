@@ -1,5 +1,10 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /**
  * N2 schedule and classes against the MSW mocks (production build, mocks on). The mock data is
@@ -57,10 +62,10 @@ test('staff: Today board → mark a class → undo', async ({ page }) => {
   await expect(row.getByText('مجدولة')).toBeVisible();
   await row.getByRole('button', { name: `إجراءات أخرى: ${name}` }).click();
   await page.getByRole('menuitem', { name: 'تسجيل إجازة' }).click();
-  const dialog = page.getByRole('dialog', { name: `تسجيل إجازة ${name}` });
+  const dialog = page.getByRole('dialog', { name: sentence(`تسجيل إجازة ${name}`) });
   await dialog.getByLabel(/ملاحظة/).fill('Family trip');
   await dialog.getByRole('button', { name: 'تسجيل إجازة' }).click();
-  await expect(page.getByText(`سُجّلت إجازة ${name}`)).toBeVisible();
+  await expect(page.getByText(sentence(`سُجّلت إجازة ${name}`))).toBeVisible();
   await expect(row.getByText('إجازة', { exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'تراجع' }).click();
   await expect(page.getByText('أُعيدت الحالة السابقة')).toBeVisible();
@@ -153,7 +158,7 @@ test('parent requests a leave → staff approves it', async ({ page }) => {
   const card = page.getByRole('listitem').filter({ hasText: 'Fever since the morning' });
   await expect(card).toBeVisible();
   await card.getByRole('button', { name: new RegExp(`^موافقة\\s*:\\s*${name}$`) }).click();
-  const approve = page.getByRole('dialog', { name: `موافقة على طلب إجازة — ${name}` });
+  const approve = page.getByRole('dialog', { name: sentence(`موافقة على طلب إجازة — ${name}`) });
   await approve.getByRole('button', { name: 'وافق على الطلب' }).click();
   await expect(page.getByText('اعتُمد الطلب')).toBeVisible();
   await expect(card).toBeHidden();

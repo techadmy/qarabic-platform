@@ -7,11 +7,29 @@ import { Toaster } from '@qarabic/ui/components/sonner';
 import { TooltipProvider } from '@qarabic/ui/components/tooltip';
 import ar from '@/messages/ar.json';
 import en from '@/messages/en.json';
+import { stripIsolates } from '@/i18n/bidi';
+
+/**
+ * The messages without the bidi isolates (docs/39 P1-10), so assertions read as plain sentences.
+ * `i18n/bidi.test.ts` checks the real files, and `bidi: true` renders them as shipped.
+ */
+function plain<T>(node: T): T {
+  if (typeof node === 'string') return stripIsolates(node) as T;
+  if (node && typeof node === 'object') {
+    return Object.fromEntries(Object.entries(node).map(([k, v]) => [k, plain(v)])) as T;
+  }
+  return node;
+}
+const PLAIN = { ar: plain(ar), en: plain(en) };
 
 /** Renders with the same providers as the app (Arabic RTL by default) and a fresh query cache. */
 export function renderWithProviders(
   ui: ReactElement,
-  { locale = 'ar', ...options }: RenderOptions & { locale?: 'ar' | 'en' } = {},
+  {
+    locale = 'ar',
+    bidi = false,
+    ...options
+  }: RenderOptions & { locale?: 'ar' | 'en'; bidi?: boolean } = {},
 ) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -22,7 +40,7 @@ export function renderWithProviders(
     return (
       <NextIntlClientProvider
         locale={locale}
-        messages={locale === 'ar' ? ar : en}
+        messages={bidi ? (locale === 'ar' ? ar : en) : PLAIN[locale]}
         timeZone="Africa/Cairo"
       >
         <DirectionProvider dir={locale === 'ar' ? 'rtl' : 'ltr'}>

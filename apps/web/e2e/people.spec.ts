@@ -1,5 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
-import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+import {
+  expectNoHorizontalScroll,
+  expectNoSeriousA11yViolations,
+  login,
+  sentence,
+} from './helpers';
 
 /** N1 people and roles against the MSW mocks (production build, mocks on). */
 
@@ -59,7 +64,7 @@ test('family: add → in the list → profile → edit → status with reason �
 
   // Status with a reason (deactivated needs one).
   await page.getByRole('button', { name: 'تغيير الحالة' }).click();
-  const status = page.getByRole('dialog', { name: 'تغيير حالة E2E Parent' });
+  const status = page.getByRole('dialog', { name: sentence('تغيير حالة E2E Parent') });
   await status.getByRole('radio', { name: 'غير نشطة' }).click();
   await status.getByRole('button', { name: 'ألغِ تفعيل الحساب' }).click();
   await expect(status.getByText('اكتب السبب (3 أحرف على الأقل)')).toBeVisible();
@@ -73,7 +78,7 @@ test('family: add → in the list → profile → edit → status with reason �
   // Archive with a reason → read-only banner → restore.
   await page.getByRole('button', { name: 'إجراءات أخرى' }).click();
   await page.getByRole('menuitem', { name: 'حذف' }).click();
-  const archive = page.getByRole('alertdialog', { name: 'حذف E2E Parent؟' });
+  const archive = page.getByRole('alertdialog', { name: sentence('حذف E2E Parent؟') });
   await archive.getByLabel(/سبب الحذف/).fill('Test record');
   await archive.getByRole('button', { name: 'احذف' }).click();
   await expect(page.getByText('سجل محذوف (في الأرشيف)')).toBeVisible();

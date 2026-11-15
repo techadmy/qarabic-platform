@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { login } from './helpers';
+import { login, sentence } from './helpers';
 
 /**
  * N3 review screenshots (Arabic, light): report form, report view, reports list, student
@@ -71,7 +71,7 @@ for (const [size, viewport] of Object.entries(sizes)) {
     await page.getByRole('button', { name: 'حسابي' }).click();
     await page.getByRole('menuitem', { name: 'تسجيل الخروج' }).click();
     await login(page, 'teacher@qarabic.test');
-    await expect(page.getByRole('heading', { name: 'مرحبًا، معلم تجريبي' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: sentence('مرحبًا، معلم تجريبي') })).toBeVisible();
     await page.goto('/my-classes');
     await expect(page.getByRole('heading', { level: 1, name: 'حصصي' })).toBeVisible();
     await expect(page.locator('tr[data-session-id], ul[aria-label] li').first()).toBeVisible();

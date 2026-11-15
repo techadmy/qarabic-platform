@@ -22,6 +22,8 @@ describe('P1-3 payments to review (held mismatch, overpayment)', () => {
     expect(table).toHaveTextContent(held().capturedCurrency === 'USD' ? '$' : '€');
     expect(table).toHaveTextContent('حُفظت رصيدًا للأسرة');
     expect(table).toHaveTextContent('قيد المراجعة');
+    // Invoices by their number (#95), not their id.
+    expect(table).toHaveTextContent(/INV-\d{4}-\d{6}/);
     // An overpayment is reviewed once, as the family's credit.
     expect(within(table).getByRole('link', { name: /^راجعه في الأرصدة الدائنة/ })).toHaveAttribute(
       'href',
@@ -74,6 +76,27 @@ describe('P1-5 Idempotency-Key on a manual payment', () => {
     const b = await recordPayment(inv.id, body, 'pay_test_same_key_1');
     expect(b.id).toBe(a.id);
     expect(bdb.payments.length).toBe(before + 1);
+  });
+
+  it('the same key with other details is refused (409), said in plain words', async () => {
+    mockSignIn('admin@qarabic.test');
+    const inv = bdb.invoices.find((i) => i.status === 'issued' && i.number)!;
+    const day = new Date().toISOString().slice(0, 10);
+    await recordPayment(
+      inv.id,
+      { method: 'cash', amount: '1.00', receivedOn: day },
+      'pay_conflict_1',
+    );
+    await expect(
+      recordPayment(inv.id, { method: 'cash', amount: '2.00', receivedOn: day }, 'pay_conflict_1'),
+    ).rejects.toMatchObject({ status: 409, code: 'idempotency_conflict' });
+    // «1» and «1.00» are the same payment: a replay, not a conflict.
+    const again = await recordPayment(
+      inv.id,
+      { method: 'cash', amount: '1', receivedOn: day },
+      'pay_conflict_1',
+    );
+    expect(again.amount).toBe('1.00');
   });
 
   it('a retry of the same details reuses the key; edited details get a new one', async () => {

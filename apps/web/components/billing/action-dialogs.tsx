@@ -35,6 +35,7 @@ import { AlertCircleIcon, PlusIcon, Trash2Icon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { toast } from 'sonner';
+import { isApiError } from '@/lib/api/client';
 import { useUiLocale } from '@/components/sessions/times';
 import {
   addInvoiceLine,
@@ -183,7 +184,12 @@ export function RecordPaymentDialog({
     return keyRef.current.key;
   };
   const save = useInvoiceMutation(
-    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body, keyFor(body)),
+    (body: Parameters<typeof recordPayment>[1]) =>
+      recordPayment(invoice.id, body, keyFor(body)).catch((e: unknown) => {
+        // The API saw this key with other details (409): the next submit gets a fresh key.
+        if (isApiError(e) && e.code === 'idempotency_conflict') keyRef.current = null;
+        throw e;
+      }),
     tp('saved'),
     () => {
       keyRef.current = null;

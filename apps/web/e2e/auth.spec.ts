@@ -1,6 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
-import { expectNoHorizontalScroll, login } from './helpers';
+import { expectNoHorizontalScroll, login, sentence } from './helpers';
 
 test('Arabic RTL by default', async ({ page }) => {
   await page.goto('/login');
@@ -14,7 +14,7 @@ test('login → home, and a signed-in user visiting /login goes home', async ({ 
   await expect(page).toHaveURL(/\/login$/);
   await login(page);
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence('مرحبًا، مدير النظام') })).toBeVisible();
   await page.goto('/login');
   await expect(page).toHaveURL(/\/$/);
 });
@@ -59,7 +59,7 @@ test('a teacher sees only their own pages: «حصصي», «طلابي», «جد�
 }) => {
   await page.goto('/login');
   await login(page, 'teacher@qarabic.test');
-  await expect(page.getByRole('heading', { name: 'مرحبًا، معلم تجريبي' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence('مرحبًا، معلم تجريبي') })).toBeVisible();
   await expect(page.locator('[data-sidebar="content"]').getByRole('link')).toHaveText([
     'الرئيسية',
     'حصصي',
@@ -86,10 +86,10 @@ test('language switch on the login page flips to English LTR', async ({ page }) 
 test('language switch in the top bar flips the app shell', async ({ page }) => {
   await page.goto('/login');
   await login(page);
-  await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence('مرحبًا، مدير النظام') })).toBeVisible();
   await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
-  await expect(page.getByRole('heading', { name: 'Welcome, مدير النظام' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: sentence('Welcome, مدير النظام') })).toBeVisible();
   await expect(page.locator('[data-slot="sidebar"][data-side="left"]')).toBeAttached();
 });
 
@@ -113,7 +113,7 @@ test.describe('mobile 375 px', () => {
     await page.goto('/login');
     await expectNoHorizontalScroll(page);
     await login(page);
-    await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: sentence('مرحبًا، مدير النظام') })).toBeVisible();
     await expectNoHorizontalScroll(page);
     await page.getByRole('button', { name: 'إظهار القائمة الجانبية أو إخفاؤها' }).click();
     const sheet = page.getByRole('dialog');
@@ -142,7 +142,7 @@ test.describe('accessibility (axe)', () => {
   test('the app shell has no serious or critical violations', async ({ page }) => {
     await page.goto('/login');
     await login(page);
-    await expect(page.getByRole('heading', { name: 'مرحبًا، مدير النظام' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: sentence('مرحبًا، مدير النظام') })).toBeVisible();
     const results = await new AxeBuilder({ page })
       .withTags(['wcag2a', 'wcag2aa', 'wcag21aa', 'wcag22aa'])
       .analyze();

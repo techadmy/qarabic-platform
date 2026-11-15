@@ -120,6 +120,8 @@ export function useBillingError() {
   return (error: unknown): string => {
     if (!isApiError(error)) return t('generic');
     const code = error.code ?? '';
+    // P1-5: said in the staff's words (the dialog starts a fresh submit on the next click).
+    if (code === 'idempotency_conflict') return t('paymentChanged');
     if (code in BILLING_ERROR_MESSAGES) {
       return BILLING_ERROR_MESSAGES[code as keyof typeof BILLING_ERROR_MESSAGES][locale];
     }

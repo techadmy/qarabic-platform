@@ -288,6 +288,10 @@ export const BILLING_ERROR_MESSAGES = {
     en: 'The amount is more than the balance due.',
     ar: 'المبلغ أكبر من الرصيد المستحق.',
   },
+  idempotency_conflict: {
+    en: 'This Idempotency-Key was already used for a different payment. Use a new key.',
+    ar: 'استُخدم مفتاح منع التكرار هذا لدفعة مختلفة. استخدم مفتاحًا جديدًا.',
+  },
   payment_not_voidable: {
     en: 'Only a recorded manual payment can be voided here.',
     ar: 'لا يمكن هنا إلغاء إلا دفعة يدوية مسجلة.',
@@ -880,3 +884,9 @@ export const reviewFamilyCreditSchema = z.object({
 
 /** `POST /billing/payments/:id/reviewed` (`invoices.manage`): staff looked at it (and refunded it at the provider, moved it, …). */
 export const reviewPaymentSchema = z.object({ note: z.string().trim().min(3).max(1000) });
+
+/** `GET /billing/payments/review`: a held payment plus its invoice number (`INV-…`, null for a draft). */
+export const paymentReviewItemSchema = paymentSchema.extend({
+  invoiceNumber: z.string().nullable().default(null),
+});
+export type PaymentReviewItemDto = z.infer<typeof paymentReviewItemSchema>;
