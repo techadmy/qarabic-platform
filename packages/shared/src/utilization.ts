@@ -84,6 +84,18 @@ export const utilizationReportSchema = z.object({
   /** Most loaded first. */
   teachers: z.array(teacherUtilizationSchema),
   totals: periodNumbers,
+  /**
+   * One row per academy-local date in [from, to], summed over the same teachers with the same
+   * rules (busiest and emptiest days; the client ranks and groups by weekday).
+   */
+  days: z.array(
+    periodNumbers.extend({
+      date: z.string(),
+      /** 1 = Monday … 7 = Sunday. */
+      weekday: z.number().int().min(1).max(7),
+      classes: z.number().int(),
+    }),
+  ),
 });
 export type UtilizationReportDto = z.infer<typeof utilizationReportSchema>;
 

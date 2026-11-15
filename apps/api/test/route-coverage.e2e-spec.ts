@@ -454,6 +454,8 @@ describe('route permission coverage', () => {
       // R1 (docs/42 §5): staff with reports.view, or a teacher for their own numbers.
       'GET reports/teacher-utilization': 'any:reports.view|sessions.conduct',
       'GET reports/free-capacity': 'any:reports.view|sessions.conduct',
+      // docs/40 §3: each event kind is further gated like its widget.
+      'GET dashboard/events': 'all:reports.view',
       'GET task-templates': 'all:tasks.manage',
       'GET tasks': 'all:tasks.view',
       'GET tasks/:id': 'all:tasks.view',
