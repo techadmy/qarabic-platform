@@ -178,6 +178,10 @@ export const ATTENTION_CODES = [
   'pending_request',
   'dst_adjusted',
   'deleted',
+  // Z1 (with Zoom tracking, B132 thresholds).
+  'teacher_no_show',
+  'student_no_show',
+  'short_class',
 ] as const;
 export type AttentionCode = (typeof ATTENTION_CODES)[number];
 export const ATTENTION_LABELS: Labels<AttentionCode> = {
@@ -191,6 +195,9 @@ export const ATTENTION_LABELS: Labels<AttentionCode> = {
   pending_request: { ar: 'طلب قيد المراجعة', en: 'Pending request' },
   dst_adjusted: { ar: 'عُدّل بسبب التوقيت الصيفي', en: 'DST adjusted' },
   deleted: { ar: 'حُذفت', en: 'Removed' },
+  teacher_no_show: { ar: 'المعلم لم يحضر', en: 'Teacher no-show' },
+  student_no_show: { ar: 'الطالب لم يحضر', en: 'Student no-show' },
+  short_class: { ar: 'حصة أقصر من المقرر', en: 'Class too short' },
 };
 
 /** Today board counters, in the old dashboard's order (docs/15 §3.1 K1). */
@@ -215,6 +222,10 @@ export const BOARD_COUNTERS = [
   'zoom_failed',
   'needs_review',
   'pending_requests',
+  // Z1 (with Zoom tracking).
+  'teacher_no_show',
+  'student_no_show',
+  'short_class',
 ] as const;
 export type BoardCounter = (typeof BOARD_COUNTERS)[number];
 export const BOARD_COUNTER_LABELS: Labels<BoardCounter> = {
@@ -238,6 +249,9 @@ export const BOARD_COUNTER_LABELS: Labels<BoardCounter> = {
   zoom_failed: { ar: 'تعذّر الاجتماع', en: 'Meeting failed' },
   needs_review: { ar: 'تحتاج مراجعة', en: 'Needs review' },
   pending_requests: { ar: 'طلبات قيد المراجعة', en: 'Pending requests' },
+  teacher_no_show: { ar: 'غياب المعلم', en: 'Teacher no-show' },
+  student_no_show: { ar: 'غياب الطالب', en: 'Student no-show' },
+  short_class: { ar: 'حصص قصيرة', en: 'Short classes' },
 };
 
 /**
@@ -522,6 +536,8 @@ export const zoomHostSchema = z.object({
   email: z.string(),
   label: z.string().nullable(),
   teacherId: z.number().int().nullable(),
+  /** Z1: the teacher's personal meeting id (PMI) their classes use; matches Zoom's events. */
+  pmiMeetingId: z.string().nullable(),
   isActive: z.boolean(),
 });
 export type ZoomHostDto = z.infer<typeof zoomHostSchema>;
@@ -530,6 +546,16 @@ export const createZoomHostSchema = z.object({
   email: z.email().max(255),
   label: z.string().trim().max(100).nullable().optional(),
   teacherId: id.nullable().optional(),
+  /** Z1: digits only (spaces and dashes as shown in Zoom are removed). */
+  pmiMeetingId: z
+    .preprocess(
+      (v) => (typeof v === 'string' ? v.replace(/[\s-]/g, '') || null : v),
+      z
+        .string()
+        .regex(/^\d{9,11}$/, { message: 'Use the 9–11 digit meeting ID.' })
+        .nullable(),
+    )
+    .optional(),
   isActive: z.boolean().optional(),
 });
 export type CreateZoomHostInput = z.input<typeof createZoomHostSchema>;
@@ -552,6 +578,11 @@ export const SESSION_SETTING_RULES = {
   'sessions.min_duration_min': z.number().int().min(0).max(180),
   'sessions.leave_notice_hours': z.number().int().min(0).max(72),
   'sessions.late_teacher_min': z.number().int().min(0).max(60),
+  /** B132: Zoom thresholds (used once the Zoom driver lands, Z1). */
+  'sessions.teacher_no_show_min': z.number().int().min(1).max(120),
+  'sessions.student_no_show_min': z.number().int().min(1).max(120),
+  /** A class shorter than this share of its duration is "too short" (percent). */
+  'sessions.short_class_pct': z.number().int().min(1).max(100),
   'sessions.report_due_hours': z.number().int().min(1).max(168),
   'sessions.report_edit_hours': z.number().int().min(0).max(720),
   'sessions.makeup_window_days': z.number().int().min(1).max(90),

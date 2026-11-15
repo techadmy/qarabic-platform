@@ -116,6 +116,7 @@ const ELSEWHERE = [
   '/accounting/accounts/4',
   '/accounting/reports',
   '/accounting/periods',
+  '/accounting/rates',
   '/',
   '/today',
   '/families',

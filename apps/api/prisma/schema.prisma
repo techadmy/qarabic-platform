@@ -719,16 +719,46 @@ model TeacherWorkHour {
 }
 
 /// A licensed Zoom user that may host class meetings (D43). No real Zoom calls until B7.
+/// Z1 (docs/42 §6): every Zoom webhook event, stored once (idempotent on `event_key`) and processed
+/// in the background; `source` = webhook or report (the past-meeting participants pulled after a
+/// meeting ends). Events matching no class stay here as `unmatched`.
+model ZoomWebhookEvent {
+  id           Int       @id @default(autoincrement())
+  eventKey     String    @unique @map("event_key") @db.Char(64)
+  event        String    @db.VarChar(64)
+  source       String    @default("webhook") @db.VarChar(16)
+  meetingId    String?   @map("meeting_id") @db.VarChar(32)
+  meetingUuid  String?   @map("meeting_uuid") @db.VarChar(128)
+  hostId       String?   @map("host_id") @db.VarChar(64)
+  payload      Json
+  eventAt      DateTime  @map("event_at") @db.Timestamptz(6)
+  /// received | processed | unmatched | ignored | failed
+  status       String    @default("received") @db.VarChar(16)
+  sessionId    Int?      @map("session_id")
+  error        String?   @db.VarChar(500)
+  receivedAt   DateTime  @default(now()) @map("received_at") @db.Timestamptz(6)
+  processedAt  DateTime? @map("processed_at") @db.Timestamptz(6)
+  /// meeting.ended only: when the participant report was pulled.
+  reconciledAt DateTime? @map("reconciled_at") @db.Timestamptz(6)
+
+  @@index([status, receivedAt])
+  @@index([sessionId])
+  @@index([event, reconciledAt])
+  @@map("zoom_webhook_events")
+}
+
 model ZoomHost {
-  id         Int      @id @default(autoincrement())
-  zoomUserId String   @unique @map("zoom_user_id") @db.VarChar(64)
-  email      String   @db.VarChar(255)
-  label      String?  @db.VarChar(100)
+  id           Int      @id @default(autoincrement())
+  zoomUserId   String   @unique @map("zoom_user_id") @db.VarChar(64)
+  email        String   @db.VarChar(255)
+  label        String?  @db.VarChar(100)
   /// A teacher's dedicated host; null = pool host.
-  teacherId  Int?     @map("teacher_id")
-  isActive   Boolean  @default(true) @map("is_active")
-  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  teacherId    Int?     @map("teacher_id")
+  /// Z1 (docs/42 §6): the teacher's personal meeting id (PMI) their classes use, digits only.
+  pmiMeetingId String?  @unique @map("pmi_meeting_id") @db.VarChar(20)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   teacher  Teacher?       @relation(fields: [teacherId], references: [id], onDelete: SetNull)
   sessions ClassSession[]

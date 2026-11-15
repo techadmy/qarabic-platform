@@ -546,6 +546,7 @@ const hostDto = (h: ZoomHost): ZoomHostDto => ({
   email: h.email,
   label: h.label,
   teacherId: h.teacherId,
+  pmiMeetingId: h.pmiMeetingId,
   isActive: h.isActive,
 });
 
@@ -579,6 +580,7 @@ export class ZoomHostsController {
           email: body.email,
           label: body.label ?? null,
           teacherId: body.teacherId ?? null,
+          pmiMeetingId: body.pmiMeetingId ?? null,
           isActive: body.isActive ?? true,
         },
       })
@@ -612,6 +614,7 @@ export class ZoomHostsController {
           ...(body.email !== undefined ? { email: body.email } : {}),
           ...(body.label !== undefined ? { label: body.label } : {}),
           ...(body.teacherId !== undefined ? { teacherId: body.teacherId } : {}),
+          ...(body.pmiMeetingId !== undefined ? { pmiMeetingId: body.pmiMeetingId } : {}),
           ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
         },
       })
@@ -636,6 +639,10 @@ export class ZoomHostsController {
 
 function rethrowZoomUserTaken(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    const target = (error.meta?.target as string[] | string | undefined)?.toString() ?? '';
+    if (target.includes('pmi')) {
+      throw validationError({ pmiMeetingId: ['This meeting ID belongs to another host.'] });
+    }
     throw validationError({ zoomUserId: ['The Zoom user is already in the pool.'] });
   }
   throw error;
