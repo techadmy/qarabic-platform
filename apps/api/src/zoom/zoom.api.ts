@@ -7,6 +7,7 @@ const TOKEN_URL = 'https://zoom.us/oauth/token';
 /** Refresh a token this long before Zoom's expiry (tokens live one hour). */
 const TOKEN_MARGIN_MS = 5 * 60_000;
 const MAX_TRIES = 4;
+const MAX_PAGES = 20;
 
 export interface ZoomResponse {
   status: number;
@@ -167,7 +168,13 @@ export class ZoomApi {
       meetingUuid.startsWith('/') || meetingUuid.includes('//') ? encodeURIComponent(once) : once;
     const out: PastParticipant[] = [];
     let next = '';
+    let pages = 0;
     do {
+      // A 1-to-1 class has a handful of rows; a runaway paging loop stops here.
+      if (++pages > MAX_PAGES) {
+        this.logger.warn(`Zoom participants of a meeting passed ${MAX_PAGES} pages; stopped.`);
+        break;
+      }
       const page = (await this.get(
         `/past_meetings/${id}/participants?page_size=300${next ? `&next_page_token=${encodeURIComponent(next)}` : ''}`,
       )) as {

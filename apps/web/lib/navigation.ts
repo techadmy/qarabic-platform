@@ -1,5 +1,6 @@
 import type { Me } from '@qarabic/shared';
 import {
+  ArrowLeftRightIcon,
   BadgeCheckIcon,
   CalendarCheckIcon,
   CalendarClockIcon,
@@ -91,6 +92,7 @@ export type NavKey =
   | 'chartOfAccounts'
   | 'financialReports'
   | 'periods'
+  | 'exchangeRates'
   | 'ticket'
   | 'account';
 
@@ -118,7 +120,15 @@ export type NavItem = {
 
 export type NavGroup = {
   /** Message key under `nav.groups`. */
-  group: 'users' | 'billing' | 'payroll' | 'accounting' | 'settings';
+  group:
+    | 'users'
+    | 'reports'
+    | 'support'
+    | 'tasksAnnouncements'
+    | 'billing'
+    | 'payroll'
+    | 'accounting'
+    | 'settings';
   icon: LucideIcon;
   items: NavItem[];
 };
@@ -151,9 +161,9 @@ const MY_REQUESTS: NavItem = {
 };
 
 /**
- * Staff sidebar, grouped like the current app (and the developer admin it copies): top items
- * («حصص اليوم», «الجدول», «طلبات الحصص» with its pending count), then «المستخدمون» and
- * «الحسابات» (invoices, fee packages; docs/20 §12) and «الإعدادات» (holidays, class rules, roles). Unbuilt modules are not listed (docs/15 §5.1, D34).
+ * Staff sidebar (D150): top items («الرئيسية», «حصص اليوم», «الجدول», «طلبات الحصص», «الحصص التجريبية»),
+ * then the sections «المستخدمون», «التقارير», «الدعم», «المهام والإعلانات», «الحسابات», «الرواتب والحضور»,
+ * «المحاسبة», «الإعدادات». Unbuilt modules are not listed (docs/15 §5.1, D34).
  */
 export const STAFF_NAV: NavEntry[] = [
   HOME,
@@ -167,50 +177,12 @@ export const STAFF_NAV: NavEntry[] = [
     badge: 'pendingRequests',
   },
   {
-    key: 'leads',
-    href: '/leads',
-    icon: UserSearchIcon,
-    permission: 'leads.view',
-    create: 'leads.manage',
-    badge: 'leads',
-  },
-  {
-    // T4 (docs/33 §3.5): today's trial classes for monitors and customer service.
+    // T4 (docs/33 §3.5): trial classes for monitors and customer service (the page opens on today).
     key: 'trialsToday',
     href: '/trials',
     icon: UserCheckIcon,
     anyPermission: ['sessions.manage', 'leads.manage'],
   },
-  {
-    key: 'lessonReports',
-    href: '/lesson-reports',
-    icon: ClipboardCheckIcon,
-    permission: 'sessions.view',
-  },
-  { key: 'tests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
-  {
-    key: 'supportInbox',
-    href: '/support',
-    icon: InboxIcon,
-    permission: 'support.view',
-    badge: 'supportOpen',
-  },
-  {
-    key: 'feedbackTriage',
-    href: '/feedback',
-    icon: ListChecksIcon,
-    permission: 'feedback.review',
-    badge: 'triageNew',
-  },
-  {
-    key: 'myRequests',
-    href: '/my-requests',
-    icon: MessagesSquareIcon,
-    permission: 'feedback.request',
-    badge: 'mineUpdates',
-  },
-  { key: 'tasks', href: '/tasks', icon: ListTodoIcon, permission: 'tasks.view' },
-  ANNOUNCEMENTS,
   {
     group: 'users',
     icon: UsersIcon,
@@ -243,6 +215,57 @@ export const STAFF_NAV: NavEntry[] = [
         permission: 'users.view',
         create: 'users.manage',
       },
+    ],
+  },
+  {
+    // D150 (Ahmed, 2026-11-15): lesson reports and tests live under «التقارير».
+    group: 'reports',
+    icon: ChartColumnIcon,
+    items: [
+      {
+        key: 'lessonReports',
+        href: '/lesson-reports',
+        icon: ClipboardCheckIcon,
+        permission: 'sessions.view',
+      },
+      { key: 'tests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
+    ],
+  },
+  {
+    // D150: support requests, bug triage and the user's own reports under «الدعم».
+    group: 'support',
+    icon: HeadsetIcon,
+    items: [
+      {
+        key: 'supportInbox',
+        href: '/support',
+        icon: InboxIcon,
+        permission: 'support.view',
+        badge: 'supportOpen',
+      },
+      {
+        key: 'feedbackTriage',
+        href: '/feedback',
+        icon: ListChecksIcon,
+        permission: 'feedback.review',
+        badge: 'triageNew',
+      },
+      {
+        key: 'myRequests',
+        href: '/my-requests',
+        icon: MessagesSquareIcon,
+        permission: 'feedback.request',
+        badge: 'mineUpdates',
+      },
+    ],
+  },
+  {
+    // D150: tasks and announcements in their own section.
+    group: 'tasksAnnouncements',
+    icon: ListTodoIcon,
+    items: [
+      { key: 'tasks', href: '/tasks', icon: ListTodoIcon, permission: 'tasks.view' },
+      ANNOUNCEMENTS,
     ],
   },
   {
@@ -336,6 +359,13 @@ export const STAFF_NAV: NavEntry[] = [
         href: '/accounting/periods',
         icon: LockKeyholeIcon,
         permission: 'accounting.view',
+      },
+      {
+        // D146: accounts keep the rates without the ledger; billing reads them.
+        key: 'exchangeRates',
+        href: '/accounting/rates',
+        icon: ArrowLeftRightIcon,
+        anyPermission: ['accounting.view', 'reports.financial'],
       },
     ],
   },
@@ -435,6 +465,8 @@ export const PARENT_NAV: NavEntry[] = [
 
 /** Pages outside the sidebar that still name the top bar. */
 const OTHER_PAGES: NavItem[] = [
+  // D150: «العملاء المحتملون» left the sidebar; the pages stay reachable (links from trials).
+  { key: 'leads', href: '/leads', icon: UserSearchIcon },
   { key: 'account', href: '/account', icon: UserCogIcon },
   { key: 'ticket', href: '/tickets', icon: MessagesSquareIcon },
 ];
