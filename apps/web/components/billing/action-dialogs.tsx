@@ -173,10 +173,16 @@ export function RecordPaymentDialog({
   const [reference, setReference] = useState('');
   const [note, setNote] = useState('');
   const [touched, setTouched] = useState(false);
+  // P1-5: one Idempotency-Key per payment being entered: a double click or a retry after a
+  // timeout returns the first payment; the next payment gets a new key.
+  const [idempotencyKey, setIdempotencyKey] = useState(newPaymentKey);
   const save = useInvoiceMutation(
-    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body),
+    (body: Parameters<typeof recordPayment>[1]) => recordPayment(invoice.id, body, idempotencyKey),
     tp('saved'),
-    () => onOpenChange(false),
+    () => {
+      setIdempotencyKey(newPaymentKey());
+      onOpenChange(false);
+    },
   );
   const balance = minorOf(invoice.balance);
   const check = validatePayment(
@@ -659,4 +665,9 @@ export function ManualInvoiceDialog({
       </FormRow>
     </FormDialog>
   );
+}
+
+/** A fresh Idempotency-Key (8–64 of A–Z a–z 0–9 _ -). */
+export function newPaymentKey(): string {
+  return `pay_${crypto.randomUUID().replace(/-/g, '')}`;
 }
