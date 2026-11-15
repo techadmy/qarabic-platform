@@ -80,7 +80,7 @@ test('staff: Today board → mark a class → undo', async ({ page }) => {
 });
 
 test('staff: create an enrollment with weekly times (warning acknowledged)', async ({ page }) => {
-  await signIn(page, 'admin@qarabic.test', '/schedule');
+  await signIn(page, 'admin@qarabic.test', '/schedule/enrollments');
   // D141: «اشتراك جديد» is the ListActions create link.
   await page.getByRole('link', { name: 'اشتراك جديد' }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'اشتراك جديد' })).toBeVisible();
@@ -228,4 +228,23 @@ test('accessibility: board, class detail, enrollment and requests', async ({ pag
   await page.goto('/requests');
   await expect(page.getByRole('list', { name: 'طلبات الحصص' })).toBeVisible();
   await expectNoSeriousA11yViolations(page);
+});
+
+test('board v2 (D148): opens on the «الآن» line; course, kind, state and problems filter in the URL', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await signIn(page, 'admin@qarabic.test', '/today');
+  const divider = page.getByRole('separator', { name: 'الآن' });
+  await expect(divider).toBeInViewport();
+  await expect(page.getByRole('columnheader', { name: /^الوقت \(.?القاهرة.?\)$/ })).toBeVisible();
+  const filters = page.getByRole('group', { name: 'تصفية الحصص' });
+  await filters.getByRole('switch', { name: 'المشكلات فقط' }).click();
+  await expect(page).toHaveURL(/problems=1/);
+  for (const row of await page.locator('tr[data-session-id]').all()) {
+    await expect(row).toHaveAttribute('data-tone', /^(urgent|attention)$/);
+  }
+  await filters.getByRole('combobox', { name: 'الحالة' }).click();
+  await page.getByRole('option', { name: 'مجدولة' }).click();
+  await expect(page).toHaveURL(/stage=scheduled/);
 });

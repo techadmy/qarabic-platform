@@ -32,7 +32,7 @@ import { Textarea } from '@qarabic/ui/components/textarea';
 import { cn } from '@qarabic/ui/lib/utils';
 import { CheckIcon, ChevronsUpDownIcon, XIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { useState, type ComponentProps, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode, type Ref } from 'react';
 import {
   Controller,
   type Control,
@@ -408,75 +408,110 @@ export function ComboboxField<T extends FieldValues>({
   );
 }
 
-/** Several choices (a teacher's courses): Popover + Command with checkmarks, chosen ones listed. */
+/**
+ * Several choices: Popover + Command with checkmarks, the chosen ones listed on the button. With
+ * `onSearch` the list comes from the server (students), and chosen ones stay labelled.
+ */
+export function MultiCombobox({
+  id,
+  values,
+  onChange,
+  options,
+  placeholder,
+  ariaLabel,
+  invalid,
+  onBlur,
+  buttonRef,
+  onSearch,
+  className,
+}: {
+  id?: string;
+  values: string[];
+  onChange: (values: string[]) => void;
+  options: Option[];
+  placeholder?: string;
+  ariaLabel?: string;
+  invalid?: boolean;
+  onBlur?: () => void;
+  buttonRef?: Ref<HTMLButtonElement>;
+  onSearch?: (text: string) => void;
+  className?: string;
+}) {
+  const t = useTranslations('form');
+  const [open, setOpen] = useState(false);
+  const chosen = options.filter((o) => values.includes(o.value));
+  const toggle = (v: string) =>
+    onChange(values.includes(v) ? values.filter((x) => x !== v) : [...values, v]);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          ref={buttonRef}
+          id={id}
+          type="button"
+          variant="outline"
+          role="combobox"
+          aria-label={ariaLabel}
+          aria-expanded={open}
+          aria-invalid={invalid}
+          onBlur={onBlur}
+          className={cn(
+            'h-auto min-h-10 w-full justify-between bg-transparent px-3 py-2 font-normal whitespace-normal md:text-body',
+            className,
+          )}
+        >
+          <span className={cn('text-start', !chosen.length && 'text-muted-foreground')}>
+            {chosen.length ? chosen.map((o) => o.label).join('، ') : (placeholder ?? t('choose'))}
+          </span>
+          <ChevronsUpDownIcon className="text-muted-foreground" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent className="w-(--radix-popover-trigger-width) min-w-64 p-0" align="start">
+        <Command label={t('search')} shouldFilter={!onSearch}>
+          <CommandInput placeholder={t('search')} onValueChange={onSearch} />
+          <CommandList label={t('options')}>
+            <CommandEmpty>{t('noMatch')}</CommandEmpty>
+            <CommandGroup>
+              {options.map((o) => (
+                <CommandItem
+                  key={o.value}
+                  value={o.value}
+                  keywords={[o.label]}
+                  onSelect={() => toggle(o.value)}
+                >
+                  <CheckIcon
+                    className={cn('size-4', values.includes(o.value) ? 'opacity-100' : 'opacity-0')}
+                  />
+                  {o.label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+/** Several choices in a form (a teacher's courses): ids as numbers. */
 export function MultiComboboxField<T extends FieldValues>({
   options,
   ...props
 }: Base<T> & { options: Option[] }) {
-  const t = useTranslations('form');
-  const [open, setOpen] = useState(false);
   return (
     <FieldShell
       {...props}
-      render={(field, state, id) => {
-        const values = ((field.value as number[] | null | undefined) ?? []).map(String);
-        const chosen = options.filter((o) => values.includes(o.value));
-        const toggle = (v: string) => {
-          const next = values.includes(v) ? values.filter((x) => x !== v) : [...values, v];
-          field.onChange(next.map(Number));
-        };
-        return (
-          <Popover open={open} onOpenChange={setOpen}>
-            <PopoverTrigger asChild>
-              <Button
-                ref={field.ref}
-                id={id}
-                type="button"
-                variant="outline"
-                role="combobox"
-                aria-expanded={open}
-                aria-invalid={state.invalid}
-                onBlur={field.onBlur}
-                className="h-auto min-h-10 w-full justify-between bg-transparent px-3 py-2 font-normal whitespace-normal md:text-body"
-              >
-                <span className={cn('text-start', !chosen.length && 'text-muted-foreground')}>
-                  {chosen.length ? chosen.map((o) => o.label).join('، ') : t('choose')}
-                </span>
-                <ChevronsUpDownIcon className="text-muted-foreground" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent
-              className="w-(--radix-popover-trigger-width) min-w-64 p-0"
-              align="start"
-            >
-              <Command label={t('search')}>
-                <CommandInput placeholder={t('search')} />
-                <CommandList label={t('options')}>
-                  <CommandEmpty>{t('noMatch')}</CommandEmpty>
-                  <CommandGroup>
-                    {options.map((o) => (
-                      <CommandItem
-                        key={o.value}
-                        value={o.value}
-                        keywords={[o.label]}
-                        onSelect={() => toggle(o.value)}
-                      >
-                        <CheckIcon
-                          className={cn(
-                            'size-4',
-                            values.includes(o.value) ? 'opacity-100' : 'opacity-0',
-                          )}
-                        />
-                        {o.label}
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </CommandList>
-              </Command>
-            </PopoverContent>
-          </Popover>
-        );
-      }}
+      render={(field, state, id) => (
+        <MultiCombobox
+          id={id}
+          buttonRef={field.ref}
+          values={((field.value as number[] | null | undefined) ?? []).map(String)}
+          onChange={(next) => field.onChange(next.map(Number))}
+          options={options}
+          invalid={state.invalid}
+          onBlur={field.onBlur}
+        />
+      )}
     />
   );
 }
