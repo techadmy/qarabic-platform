@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import type { forgotPasswordSchema, loginSchema, Me, resetPasswordSchema } from '@qarabic/shared';
 import type { z } from 'zod';
 import { validationError } from '../common/errors.js';
@@ -51,6 +51,8 @@ export function toMe(user: AuthUser): Me {
 
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly passwords: PasswordsService,
@@ -96,12 +98,19 @@ export class AuthService {
     ]);
     const link = new URL('/reset-password', this.env.APP_URL);
     link.searchParams.set('token', token);
-    await this.mailer.send({
-      kind: 'password_reset',
-      to: user.email,
-      subject: 'Reset your Qarabic password',
-      text: `Use this link within 60 minutes to choose a new password:\n${link.toString()}\n\nIf you did not ask for this, ignore this message.`,
-    });
+    try {
+      await this.mailer.send({
+        kind: 'password_reset',
+        to: user.email,
+        subject: 'Reset your Qarabic password',
+        text: `Use this link within 60 minutes to choose a new password:\n${link.toString()}\n\nIf you did not ask for this, ignore this message.`,
+      });
+    } catch (error) {
+      // Same answer as for an unknown email: a mail failure must not reveal that the account exists.
+      this.logger.error(
+        `Mail failed (password_reset): ${error instanceof Error ? error.name : 'error'}`,
+      );
+    }
   }
 
   /** Emails are stored lower-case; the lookup is case-insensitive for rows carried over in N8. */

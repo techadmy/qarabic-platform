@@ -7,6 +7,8 @@ const optionalSecret = z.preprocess(
   z.string().min(1).optional(),
 );
 
+const SMTP_KEYS = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM'] as const;
+
 export const envSchema = z
   .object({
     NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
@@ -88,6 +90,35 @@ export const envSchema = z
     WHATSAPP_APP_SECRET: optionalSecret,
     /** The token Meta echoes on the GET subscription check. */
     WHATSAPP_VERIFY_TOKEN: optionalSecret,
+    /**
+     * Mail (B31): SMTP via Nodemailer when all five are set (Hostinger: `smtp.hostinger.com`,
+     * 465 = implicit TLS; 587 = STARTTLS, required). Not set = the in-memory mailer (nothing leaves).
+     */
+    SMTP_HOST: optionalSecret,
+    SMTP_PORT: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z.coerce.number().int().min(1).max(65535).optional(),
+    ),
+    SMTP_USER: optionalSecret,
+    SMTP_PASS: optionalSecret,
+    /** e.g. `Qarabic Academy <no-reply@qarabic.com>`. */
+    MAIL_FROM: optionalSecret,
+    /**
+     * D140 safety: comma-separated addresses (`a@x.com`) and domains (`x.com` or `@x.com`). When
+     * set, mail to anyone else is not sent (logged by kind only). Empty = no restriction.
+     */
+    MAIL_ALLOWED_RECIPIENTS: z.preprocess(
+      (v) => (v === '' ? undefined : v),
+      z
+        .string()
+        .transform((v) =>
+          v
+            .split(',')
+            .map((e) => e.trim().toLowerCase().replace(/^@/, ''))
+            .filter(Boolean),
+        )
+        .optional(),
+    ),
     LOG_LEVEL: z
       .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
       .default('info'),
@@ -177,6 +208,16 @@ export const envSchema = z
         if (!env[key]) {
           ctx.addIssue({ code: 'custom', path: [key], message: 'Required with PUSH_DRIVER=fcm.' });
         }
+      }
+    }
+    const smtp = SMTP_KEYS.filter((k) => env[k] !== undefined);
+    if (smtp.length > 0 && smtp.length < SMTP_KEYS.length) {
+      for (const key of SMTP_KEYS.filter((k) => env[k] === undefined)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: [key],
+          message: 'Set all of SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS and MAIL_FROM, or none.',
+        });
       }
     }
     if (env.FORMS_CAPTCHA_DRIVER === 'turnstile' && !env.TURNSTILE_SECRET_KEY) {
