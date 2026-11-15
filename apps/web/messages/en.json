@@ -87,7 +87,10 @@
       "billing": "Accounts",
       "settings": "Settings",
       "payroll": "Payroll & attendance",
-      "accounting": "Accounting"
+      "accounting": "Accounting",
+      "reports": "Reports",
+      "support": "Support",
+      "tasksAnnouncements": "Tasks & announcements"
     },
     "today": "Today's classes",
     "schedule": "Schedule",
@@ -132,9 +135,10 @@
     "chartOfAccounts": "Chart of accounts",
     "financialReports": "Financial reports",
     "periods": "Accounting periods",
-    "trialsToday": "Today’s trial classes",
+    "trialsToday": "Trial classes",
     "familyCredits": "Family credits",
-    "paymentsReview": "Payments to review"
+    "paymentsReview": "Payments to review",
+    "exchangeRates": "Exchange rates"
   },
   "home": {
     "title": "Home",
@@ -4239,6 +4243,51 @@
       "attempts": "{count, plural, one {# attempt} other {# attempts}}, last {when}",
       "failureReason": "The automatic entry for this event could not be made. Check its accounts, then post again.",
       "technicalDetails": "Technical details"
+    },
+    "rates": {
+      "title": "Exchange rates",
+      "description": "Each currency’s rate to US dollars for each month; dashboards and reports convert with it.",
+      "add": "Add rate",
+      "prevYear": "Previous year",
+      "nextYear": "Next year",
+      "currency": "Currency",
+      "allCurrencies": "All currencies",
+      "month": "Month",
+      "rate": "Rate",
+      "note": "Note",
+      "updated": "Last changed",
+      "updatedLine": "\u2068{name}\u2069 · \u2068{when}\u2069",
+      "actions": "Actions",
+      "tableLabel": "Exchange rates for \u2068{year}\u2069",
+      "empty": "No exchange rates for \u2068{year}\u2069",
+      "emptyHint": "Add each currency’s rate for each month so its amounts show in US dollars in reports.",
+      "editRow": "Edit the rate for \u2068{row}\u2069",
+      "deleteRow": "Delete the rate for \u2068{row}\u2069",
+      "addTitle": "Add exchange rate",
+      "editTitle": "Edit exchange rate",
+      "formHint": "Every report for this month is recalculated with the new rate.",
+      "rateLabel": "Value of 1 \u2068{currency}\u2069 in USD",
+      "rateHint": "For example, if 1 \u2068{currency}\u2069 is 1.27 dollars, enter 1.27.",
+      "save": "Save rate",
+      "saved": "Saved the \u2068{currency}\u2069 rate for \u2068{month}\u2069.",
+      "deleteTitle": "Delete the \u2068{currency}\u2069 rate for \u2068{month}\u2069?",
+      "deleteHint": "This currency’s amounts in this month will show without a USD value in every report until a new rate is added.",
+      "delete": "Delete rate",
+      "reason": "Reason",
+      "deleted": "Deleted the \u2068{currency}\u2069 rate for \u2068{month}\u2069.",
+      "errors": {
+        "month": "Choose the month.",
+        "rateRequired": "Enter the rate.",
+        "rate": "Enter a positive number with up to 8 decimals.",
+        "fix": "Fix the highlighted fields.",
+        "reason": "Write why the rate is replaced (at least 3 characters).",
+        "exists": "A rate for this month was just saved; check the current rate, then replace it if needed."
+      },
+      "replace": "Replace rate",
+      "replaceReason": "Why replace it",
+      "existsTitle": "\u2068{currency}\u2069 already has a rate for \u2068{month}\u2069",
+      "existsCurrent": "Current rate:",
+      "existsHint": "A new rate changes this month’s amounts in every report and on the dashboard."
     }
   },
   "dashboard": {
@@ -4362,7 +4411,8 @@
     },
     "missingRates": {
       "title": "Missing exchange rates",
-      "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency."
+      "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency.",
+      "link": "Add the missing rate"
     }
   }
 }

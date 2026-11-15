@@ -2,6 +2,7 @@ import {
   accountingPeriodSchema,
   accountStatementSchema,
   balanceSheetSchema,
+  exchangeRateSchema,
   cashReportSchema,
   journalEntrySchema,
   journalListResponseSchema,
@@ -20,6 +21,7 @@ import {
   type CreateAccountInput,
   type CreateJournalEntryInput,
   type CreateVoucherInput,
+  type ExchangeRateDto,
   type JournalEntryDto,
   type JournalEntryRowDto,
   type JournalListQuery,
@@ -30,6 +32,7 @@ import {
   type ProfitAndLossDto,
   type ReverseEntryInput,
   type TrialBalanceDto,
+  type UpsertExchangeRateInput,
   type UpdateAccountInput,
   type VoucherDto,
   type VoucherListQuery,
@@ -262,4 +265,40 @@ export const accountingKeys = {
   periods: (year: number) => ['accounting', 'periods', year] as const,
   outbox: ['accounting', 'outbox'] as const,
   report: (name: string, query: object) => ['accounting', 'report', name, query] as const,
+  rates: (query: object) => ['accounting', 'rates', query] as const,
 };
+
+// ------------------------------------------------------------------ exchange rates (D144, D146)
+
+/** `GET /accounting/exchange-rates` (`accounting.view` or `reports.financial`): newest month first. */
+export async function fetchExchangeRates(
+  query: { currency?: string; from?: string; to?: string } = {},
+  signal?: AbortSignal,
+): Promise<ExchangeRateDto[]> {
+  return (
+    await apiFetch(`${BASE}/exchange-rates${qs(query)}`, {
+      schema: one(z.array(exchangeRateSchema)),
+      signal,
+    })
+  ).data;
+}
+
+/** `PUT` (`accounting.manage` or `accounting.rates`): sets or changes a month's rate. */
+export async function saveExchangeRate(body: UpsertExchangeRateInput): Promise<ExchangeRateDto> {
+  return (
+    await apiFetch(`${BASE}/exchange-rates`, {
+      method: 'PUT',
+      body,
+      schema: one(exchangeRateSchema),
+    })
+  ).data;
+}
+
+/** `DELETE /:id` with a reason (every report of that month changes). */
+export async function deleteExchangeRate(id: number, reason: string): Promise<void> {
+  await apiFetch(`${BASE}/exchange-rates/${id}`, {
+    method: 'DELETE',
+    body: { reason },
+    schema: one(z.object({ id: z.number() })),
+  });
+}
