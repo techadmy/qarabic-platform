@@ -1378,7 +1378,13 @@
       "invalid": "Check the email and the user id.",
       "failed": "Could not save. Try again.",
       "empty": "No Zoom accounts",
-      "emptyHint": "Add an account to create class meetings from it."
+      "emptyHint": "Add an account to create class meetings from it.",
+      "pmi": "Personal Meeting ID (PMI)",
+      "pmiHint": "9–11 digits, as in the host’s Zoom account; optional.",
+      "pmiInvalid": "Enter 9 to 11 digits.",
+      "editPmi": "Edit the Personal Meeting ID of \u2068{label}\u2069",
+      "savePmi": "Save ID",
+      "pmiSaved": "Personal Meeting ID saved."
     }
   },
   "reports": {

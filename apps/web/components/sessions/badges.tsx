@@ -34,7 +34,9 @@ import {
   PlaneIcon,
   RefreshCwIcon,
   StarIcon,
+  TimerIcon,
   TriangleAlertIcon,
+  UserXIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { useLocale } from 'next-intl';
@@ -136,7 +138,16 @@ export function KindBadge({ kind, showRegular }: { kind: SessionKind; showRegula
   return <ToneBadge tone={style.tone} icon={style.icon} label={label[locale]} title={label.en} />;
 }
 
+/** Z1 (Zoom attendance): no-shows in the absent colour, a short class in orange (D35). */
+const ATTENTION_ICON: Partial<Record<AttentionCode, LucideIcon>> = {
+  pending_request: HourglassIcon,
+  teacher_no_show: UserXIcon,
+  student_no_show: UserXIcon,
+  short_class: TimerIcon,
+};
+
 const ATTENTION_TONE: Partial<Record<AttentionCode, Tone>> = {
+  short_class: 'orange',
   late: 'orange',
   late_activation: 'orange',
   report_missing: 'orange',
@@ -153,7 +164,7 @@ export function AttentionBadge({ code }: { code: string }) {
   return (
     <ToneBadge
       tone={ATTENTION_TONE[code as AttentionCode] ?? 'red'}
-      icon={code === 'pending_request' ? HourglassIcon : TriangleAlertIcon}
+      icon={ATTENTION_ICON[code as AttentionCode] ?? TriangleAlertIcon}
       label={label[locale]}
       title={label.en}
     />
