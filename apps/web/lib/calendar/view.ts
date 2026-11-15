@@ -15,7 +15,8 @@ import { addDays, isDateKey, weekStart, zonedInstant } from '@/lib/schedule-time
 /** `teachers`: one day, one column per chosen teacher (ReUI's resource view, D149). */
 export const CALENDAR_VIEWS = ['month', 'week', 'day', 'list', 'teachers'] as const;
 export type CalendarView = (typeof CALENDAR_VIEWS)[number];
-export const CALENDAR_ZONES = ['academy', 'mine', 'teacher', 'student'] as const;
+/** The viewer's own zone first (docs/42 §3.2, D30); the academy's, the teacher's, the student's. */
+export const CALENDAR_ZONES = ['mine', 'academy', 'teacher', 'student'] as const;
 export type CalendarZone = (typeof CALENDAR_ZONES)[number];
 
 export interface CalendarState {
@@ -51,7 +52,7 @@ export function calendarState(get: (k: string) => string | null, today: string):
     courseId: Number(get('course')) || null,
     kind: SESSION_KINDS.includes(kind) ? kind : null,
     stage: SESSION_STAGES.includes(stage) ? stage : null,
-    zone: CALENDAR_ZONES.includes(zone) ? zone : 'academy',
+    zone: CALENDAR_ZONES.includes(zone) ? zone : 'mine',
   };
 }
 
@@ -70,7 +71,7 @@ export function calendarParams(
   if ('courseId' in patch) out.course = patch.courseId ? String(patch.courseId) : null;
   if ('kind' in patch) out.kind = patch.kind ?? null;
   if ('stage' in patch) out.stage = patch.stage ?? null;
-  if ('zone' in patch) out.zone = patch.zone === 'academy' ? null : patch.zone!;
+  if ('zone' in patch) out.zone = patch.zone === 'mine' ? null : patch.zone!;
   return out;
 }
 
@@ -128,7 +129,7 @@ export function eventsQuery(s: CalendarState, tz: string): CalendarEventsQuery {
 
 /**
  * The zone to draw in. The teacher's (student's) zone needs exactly one teacher (student) chosen;
- * otherwise it falls back to the academy's, and the switch says why.
+ * otherwise it falls back to the viewer's own, and the switch says why.
  */
 export function zoneOf(
   zone: CalendarZone,
@@ -137,5 +138,6 @@ export function zoneOf(
   if (zone === 'mine') return ctx.mine;
   if (zone === 'teacher' && ctx.teacherTz) return ctx.teacherTz;
   if (zone === 'student' && ctx.studentTz) return ctx.studentTz;
-  return ctx.academy;
+  if (zone === 'academy') return ctx.academy;
+  return ctx.mine;
 }

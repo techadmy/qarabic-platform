@@ -4417,7 +4417,11 @@
     },
     "filtersOpen": "Filters",
     "calendarLabel": "Class calendar",
-    "availabilityRequests": "Availability requests"
+    "availabilityRequests": "Availability requests",
+    "legend": "Colour key",
+    "pickTeachers": "Choose a teacher (up to 3) to see the week clearly; every teacher’s classes together are too narrow to read.",
+    "pickTeachersAction": "Choose teachers",
+    "teachersCap": "The first 12 teachers are shown; choose teachers in the filters to see others."
   },
   "availability": {
     "empty": "No requests.",

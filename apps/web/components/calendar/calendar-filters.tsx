@@ -90,6 +90,7 @@ export function CalendarFilters({
     >
       {showTeachers && (
         <MultiCombobox
+          id="calendar-teachers"
           ariaLabel={t('teachers')}
           placeholder={t('allTeachers')}
           className="w-full bg-card sm:w-56"

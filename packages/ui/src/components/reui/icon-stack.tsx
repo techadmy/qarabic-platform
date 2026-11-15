@@ -1,8 +1,6 @@
 // Vendored from ReUI Event Calendar (https://reui.io, MIT licence, Radix "radix-nova" flavour),
 // via Ahmed's Janna project (apps/web/src/components/reui), D149. See ./LICENSE.md. Local changes:
 // import aliases, lucide icons instead of IconPlaceholder, colour presets on our tokens.
-/* eslint-disable qarabic/design-tokens -- an illustration placed on its SVG geometry: physical
-   position on purpose */
 // Title: Icon Stack
 // Description: Layered icon illustration container
 
@@ -51,6 +49,7 @@ function IconStack({ className, children, style, ...props }: IconStackProps) {
       {children ? (
         <div
           data-slot="icon-stack-content"
+          // eslint-disable-next-line qarabic/design-tokens -- placed on the SVG's geometry (physical on purpose)
           className="text-muted-foreground pointer-events-none absolute top-[var(--icon-stack-content-y)] left-[var(--icon-stack-content-x)] flex -translate-x-1/2 -translate-y-1/2 scale-x-90 -skew-y-26 items-center justify-center"
         >
           {children}

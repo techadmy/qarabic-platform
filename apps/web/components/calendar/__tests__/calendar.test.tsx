@@ -10,10 +10,14 @@ describe('calendar (C2, docs/42 §3)', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'الجدول' })).toBeInTheDocument();
     const filters = screen.getByRole('group', { name: 'تصفية التقويم' });
     expect(within(filters).getByRole('combobox', { name: 'توقيت العرض' })).toHaveTextContent(
-      'توقيت الأكاديمية (القاهرة)',
+      'توقيتي (القاهرة)',
     );
-    // The mock's classes this week, each labelled with its student.
-    await waitFor(() => expect(screen.getAllByText(/ · /).length).toBeGreaterThan(0));
+    // Each class says its stage in words (D35), and the legend names the colours.
+    await waitFor(() =>
+      expect(screen.getAllByText(/ · (مجدولة|منعقدة) · /).length).toBeGreaterThan(0),
+    );
+    const legend = screen.getByRole('list', { name: 'دليل الألوان' });
+    expect(within(legend).getByText('منعقدة')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /الاشتراكات/ })).toHaveAttribute(
       'href',
       '/schedule/enrollments',
@@ -31,6 +35,12 @@ describe('calendar (C2, docs/42 §3)', () => {
     expect(
       await screen.findByRole('option', { name: 'توقيت المعلم (اختر معلمًا واحدًا)' }),
     ).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it('a week of every teacher asks to choose teachers first', async () => {
+    renderPage(<CalendarView />, { path: '/schedule?view=week' });
+    expect(await screen.findByText(/اختر معلمًا \(حتى 3\)/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'اختر المعلمين' })).toBeInTheDocument();
   });
 
   it('a parent cannot open the staff calendar', async () => {

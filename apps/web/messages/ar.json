@@ -4417,7 +4417,11 @@
     },
     "filtersOpen": "تصفية",
     "calendarLabel": "تقويم الحصص",
-    "availabilityRequests": "طلبات الإتاحة"
+    "availabilityRequests": "طلبات الإتاحة",
+    "legend": "دليل الألوان",
+    "pickTeachers": "اختر معلمًا (حتى 3) لعرض الأسبوع بوضوح؛ حصص كل المعلمين معًا تضيق عن القراءة.",
+    "pickTeachersAction": "اختر المعلمين",
+    "teachersCap": "يُعرض أول 12 معلمًا؛ اختر المعلمين من التصفية لعرض غيرهم."
   },
   "availability": {
     "empty": "لا طلبات.",

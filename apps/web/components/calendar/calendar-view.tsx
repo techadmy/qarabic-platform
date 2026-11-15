@@ -1,12 +1,22 @@
 'use client';
 
-import type { CalendarBackgroundDto, CalendarEventDto, SessionStage } from '@qarabic/shared';
+import {
+  SESSION_KIND_LABELS,
+  SESSION_STAGE_LABELS,
+  type CalendarBackgroundDto,
+  type CalendarEventDto,
+  type SessionStage,
+} from '@qarabic/shared';
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Badge } from '@qarabic/ui/components/badge';
 import { Button } from '@qarabic/ui/components/button';
 import { EventCalendar } from '@qarabic/ui/components/reui/event-calendar/event-calendar';
 import { EventCalendarContent } from '@qarabic/ui/components/reui/event-calendar/event-calendar-content';
 import { EventCalendarNav } from '@qarabic/ui/components/reui/event-calendar/event-calendar-nav';
+import {
+  EventCalendarDayView,
+  EventCalendarWeekView,
+} from '@qarabic/ui/components/reui/event-calendar/event-calendar-time-grid';
 import type {
   CalendarEvent,
   CalendarView as ReuiView,
@@ -25,6 +35,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { ar, enUS } from '@qarabic/ui/lib/date-locales';
 import {
   ClockIcon,
+  InfoIcon,
   ListFilterIcon,
   ListIcon,
   RefreshCwIcon,
@@ -91,6 +102,52 @@ const STAGE_COLOUR: Record<SessionStage, string> = {
   cancelled: 'var(--muted-foreground)',
   moved_out: 'var(--muted-foreground)',
 };
+
+/** Classes have no all-day events: the empty «طوال اليوم» row is hidden. */
+const WeekNoAllDay = () => <EventCalendarWeekView showAllDay={false} />;
+const DayNoAllDay = () => <EventCalendarDayView showAllDay={false} />;
+
+/** The stage colours in words, above the grid (D35: never colour alone). */
+const LEGEND: SessionStage[] = [
+  'scheduled',
+  'in_progress',
+  'ended',
+  'taken',
+  'absent',
+  'leave',
+  'declined',
+  'cancelled',
+];
+function StageLegend() {
+  const t = useTranslations('calendar');
+  const locale = useUiLocale();
+  return (
+    <ul aria-label={t('legend')} className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+      {LEGEND.map((st) => (
+        <li key={st} className="flex items-center gap-1.5">
+          <span
+            aria-hidden
+            className="size-3 shrink-0 rounded-sm"
+            style={{ background: STAGE_COLOUR[st] }}
+          />
+          {SESSION_STAGE_LABELS[st][locale]}
+        </li>
+      ))}
+      <li className="flex items-center gap-1.5">
+        <StarIcon aria-hidden className="size-3.5" />
+        {SESSION_KIND_LABELS.trial[locale]}
+      </li>
+      <li className="flex items-center gap-1.5">
+        <RefreshCwIcon aria-hidden className="size-3.5" />
+        {SESSION_KIND_LABELS.rescheduled[locale]}
+      </li>
+      <li className="flex items-center gap-1.5">
+        <TriangleAlertIcon aria-hidden className="size-3.5" />
+        {t('needsAttention')}
+      </li>
+    </ul>
+  );
+}
 
 type Move = { event: CalendarEventDto; startsAt: string; durationMinutes: number };
 
@@ -187,7 +244,19 @@ export function CalendarView() {
         const course = e.course ? (locale === 'ar' ? e.course.nameAr : e.course.nameEn) : null;
         return {
           id: String(e.id),
-          title: [e.student.name, course].filter(Boolean).join(' · '),
+          // D35: the stage in words (never by colour alone), then kind and follow-up; this is
+          // also the chip's tooltip and accessible name.
+          title: [
+            e.student.name,
+            SESSION_STAGE_LABELS[e.stage][locale],
+            e.kind === 'trial' || e.kind === 'rescheduled'
+              ? SESSION_KIND_LABELS[e.kind][locale]
+              : null,
+            e.attention.length ? t('needsAttention') : null,
+            course,
+          ]
+            .filter(Boolean)
+            .join(' · '),
           start: new Date(e.startsAt),
           end: new Date(e.endsAt),
           color: STAGE_COLOUR[e.stage],
@@ -198,7 +267,7 @@ export function CalendarView() {
           data: e,
         };
       }),
-    [events.data, manage, locale, now],
+    [events.data, manage, locale, now, t],
   );
   // The teachers view: the chosen teachers (or the first 12), one column each.
   const resources = (background.data?.teachers ?? [])
@@ -206,6 +275,13 @@ export function CalendarView() {
     .slice(0, 12)
     .map((x) => ({ id: String(x.teacherId), title: x.name }));
   const holidays = background.data?.holidays ?? [];
+  const capped = !state.teacherIds.length && (background.data?.teachers.length ?? 0) > 12;
+  // A week of every teacher packs the classes too narrow: ask for teachers first.
+  const weekOfEveryone =
+    !isTeacher &&
+    (state.view === 'week' || state.view === 'day') &&
+    !state.teacherIds.length &&
+    !state.studentIds.length;
   const shaded =
     state.teacherIds.length === 1
       ? background.data?.teachers.find((x) => x.teacherId === state.teacherIds[0])
@@ -300,6 +376,25 @@ export function CalendarView() {
         <ErrorState onRetry={() => void events.refetch()} />
       ) : (
         <TooltipProvider>
+          {weekOfEveryone && (
+            <Alert>
+              <InfoIcon />
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                {t('pickTeachers')}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => document.getElementById('calendar-teachers')?.click()}
+                >
+                  {t('pickTeachersAction')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          {state.view === 'teachers' && capped && (
+            <p className="text-sm text-muted-foreground">{t('teachersCap')}</p>
+          )}
+          <StageLegend />
           {/* The calendar's own day headings are h3 (agenda): an h2 above keeps the order. */}
           <h2 className="sr-only">{t('calendarLabel')}</h2>
           <div
@@ -332,7 +427,11 @@ export function CalendarView() {
               interactions={{ drag: manage, resize: manage, selectSlot: false }}
               offDays={{ weekendDays: [], isOffDay, className: 'bg-muted' }}
               // «+N أخرى» is a 24 px target at least (WCAG 2.2 target size).
-              classNames={{ moreIndicator: 'inline-flex min-h-6 items-center' }}
+              classNames={{
+                moreIndicator: 'inline-flex min-h-6 items-center',
+                // The day number at the top-start of a month cell (ui-ux), not the bottom.
+                monthCellFooter: 'order-first justify-start pt-1.5 pb-0',
+              }}
               i18n={{
                 labels: {
                   today: t('nav.today'),
@@ -435,11 +534,9 @@ export function CalendarView() {
                         className="size-3 shrink-0"
                       />
                     )}
-                    {e.kind === 'trial' && (
-                      <StarIcon aria-label={t('trial')} className="size-3 shrink-0" />
-                    )}
+                    {e.kind === 'trial' && <StarIcon aria-hidden className="size-3 shrink-0" />}
                     {e.kind === 'rescheduled' && (
-                      <RefreshCwIcon aria-label={t('rescheduled')} className="size-3 shrink-0" />
+                      <RefreshCwIcon aria-hidden className="size-3 shrink-0" />
                     )}
                     <span className="truncate">{occurrence.event.title}</span>
                   </span>
@@ -459,7 +556,7 @@ export function CalendarView() {
               }
             >
               <EventCalendarNav />
-              <EventCalendarContent />
+              <EventCalendarContent components={{ week: WeekNoAllDay, day: DayNoAllDay }} />
             </EventCalendar>
           </div>
         </TooltipProvider>

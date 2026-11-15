@@ -338,6 +338,7 @@ function EventCalendarEvent<TData = unknown>({
     return view === "agenda"
       ? viewConfig.renderAgendaEvent?.(renderProps)
       : viewConfig.renderEvent?.(renderProps)
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- upstream: keyed on the render fns, not the whole view config
   }, [
     occurrence,
     segment,

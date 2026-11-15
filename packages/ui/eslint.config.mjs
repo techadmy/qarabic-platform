@@ -23,13 +23,11 @@ export default tseslint.config(
   // documented exceptions carry an eslint-disable comment).
   designTokens,
   // Vendored ReUI Event Calendar (D149, src/components/reui/LICENSE.md): kept close to upstream so
-  // it can be compared and updated; its unused parameters and ref-sync patterns are upstream's.
+  // it can be compared and updated; its unused parameters are upstream's (hook-rule exceptions are line-level, with reasons).
   {
     files: ['src/components/reui/**'],
     rules: {
       '@typescript-eslint/no-unused-vars': 'off',
-      'react-hooks/refs': 'off',
-      'react-hooks/exhaustive-deps': 'off',
     },
   },
   { ignores: ['dist/**', 'node_modules/**'] },
