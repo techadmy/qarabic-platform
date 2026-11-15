@@ -139,7 +139,12 @@ describe('money in USD (D144)', () => {
       month: '2026-11',
       rateToUsd: '1.25',
     });
-    const after = (await accounts.get(NOV)).body.data;
+    // Profit and loss is the owner's only (D145): accounts see collections, not profit.
+    const forAccounts = (await accounts.get(NOV)).body.data;
+    expect(forAccounts.kpis.gross_profit).toBeUndefined();
+    expect(forAccounts.series.revenue_expenses).toBeUndefined();
+    const { client: owner } = await signedIn(ctx, 'admin');
+    const after = (await owner.get(NOV)).body.data;
     expect(after.missingRates).toEqual([]);
     expect(after.kpis.collected.value.usd).toBe('122.50'); // 60 + 50 × 1.25
 
