@@ -102,6 +102,8 @@ const PAYMENT: Record<PaymentStatus, { icon: LucideIcon; tone: Tone }> = {
   failed: { icon: CircleXIcon, tone: 'red' },
   cancelled: { icon: CircleMinusIcon, tone: 'grey' },
   refunded: { icon: Undo2Icon, tone: 'purple' },
+  // P1-3: captured but held for staff (amount or currency did not match).
+  needs_review: { icon: HourglassIcon, tone: 'orange' },
 };
 
 export function PaymentStatusBadge({ status }: { status: PaymentStatus }) {

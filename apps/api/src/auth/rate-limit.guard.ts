@@ -47,6 +47,8 @@ const POLICIES: Record<
   login: (req) => [
     [`login:${emailOf(req)}|${req.ip}`, 5],
     [`login-ip:${req.ip}`, 20],
+    // P2-3 (RBAC-4): one account across every IP — a distributed guess is capped too.
+    [`login-account:${emailOf(req)}`, 10, 15 * MINUTE],
   ],
   password: (req) => [[`password:${req.ip}`, 5]],
   // Instant-search lists fire as the user types (debounced): Laravel `throttle:120,1`.
@@ -73,13 +75,13 @@ export class RateLimitGuard implements CanActivate {
     private readonly limiter: RateLimiterService,
   ) {}
 
-  canActivate(ctx: ExecutionContext): boolean {
+  async canActivate(ctx: ExecutionContext): Promise<boolean> {
     const policy = this.reflector.get<Policy | undefined>(RATE_LIMIT_KEY, ctx.getHandler());
     if (!policy) return true;
     const req = ctx.switchToHttp().getRequest<Request>();
     let wait = 0;
     for (const [key, max, windowMs] of POLICIES[policy](req)) {
-      wait = Math.max(wait, this.limiter.hit(key, max, windowMs ?? MINUTE));
+      wait = Math.max(wait, await this.limiter.hit(key, max, windowMs ?? MINUTE));
     }
     if (wait > 0) {
       ctx.switchToHttp().getResponse<Response>().setHeader('Retry-After', String(wait));
