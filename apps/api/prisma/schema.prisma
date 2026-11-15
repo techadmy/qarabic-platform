@@ -631,6 +631,7 @@ model Enrollment {
   @@index([studentId, status])
   @@index([teacherId, status])
   @@index([courseId])
+  @@index([kind, studentId, startsOn])
   @@map("enrollments")
 }
 
@@ -1418,6 +1419,7 @@ model Lead {
   @@index([familyId])
   @@index([nextFollowUpAt])
   @@index([ipHash, createdAt])
+  @@index([convertedAt])
   @@map("leads")
 }
 
@@ -1641,6 +1643,7 @@ model Invoice {
   @@index([status, dueDate])
   @@index([periodStart])
   @@index([splitFromId])
+  @@index([issueDate])
   @@map("invoices")
 }
 

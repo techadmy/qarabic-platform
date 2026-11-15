@@ -4,6 +4,7 @@ import { ScheduleModule as CronModule } from '@nestjs/schedule';
 import { LoggerModule } from 'nestjs-pino';
 import { AccountModule } from './account/account.module.js';
 import { AccountingModule } from './accounting/accounting.module.js';
+import { DashboardModule } from './dashboard/dashboard.module.js';
 import { NotificationCentreModule } from './operations/notification-centre.js';
 import { OperationsModule } from './operations/operations.module.js';
 import { AuditModule } from './audit/audit.service.js';
@@ -80,6 +81,7 @@ export const REDACT = [
     BillingModule,
     PayrollModule,
     AccountingModule,
+    DashboardModule,
     NotificationCentreModule,
     OperationsModule,
     DevicesModule,
