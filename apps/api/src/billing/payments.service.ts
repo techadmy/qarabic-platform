@@ -1,5 +1,5 @@
-import { randomUUID } from 'node:crypto';
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { createHash, randomUUID } from 'node:crypto';
+import { HttpStatus, Inject, Injectable, Logger } from '@nestjs/common';
 import {
   invoicePath,
   isOpenInvoice,
@@ -77,13 +77,22 @@ export class PaymentService {
     idempotencyKey?: string,
   ): Promise<number> {
     // P1-5 (docs/39 BIL-10): the same key on the same invoice is the same payment.
+    // Same key with another body (an edited retry) is refused, never silently answered.
     const scoped = idempotencyKey ? `manual:${invoiceId}:${idempotencyKey}` : null;
-    if (scoped) {
+    const hash = scoped ? requestHash(input) : null;
+    const replay = async (): Promise<number | null> => {
+      if (!scoped) return null;
       const seen = await this.prisma.payment.findUnique({ where: { idempotencyKey: scoped } });
-      if (seen) return seen.id;
-    }
+      if (!seen) return null;
+      if (seen.requestHash !== hash) {
+        throw billingError('idempotency_conflict', 'idempotencyKey', HttpStatus.CONFLICT);
+      }
+      return seen.id;
+    };
+    const seen = await replay();
+    if (seen !== null) return seen;
     try {
-      return await this.recordManualOnce(invoiceId, input, actor, scoped);
+      return await this.recordManualOnce(invoiceId, input, actor, scoped, hash);
     } catch (error) {
       // A parallel request with the same key won the insert: answer with its payment.
       if (
@@ -91,8 +100,8 @@ export class PaymentService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        const seen = await this.prisma.payment.findUnique({ where: { idempotencyKey: scoped } });
-        if (seen) return seen.id;
+        const won = await replay();
+        if (won !== null) return won;
       }
       throw error;
     }
@@ -103,6 +112,7 @@ export class PaymentService {
     input: ManualPaymentInput,
     actor: AuthUser,
     idempotencyKey: string | null,
+    requestHash: string | null,
   ): Promise<number> {
     const zone = await this.settings.get('academy.timezone');
     if (input.receivedOn > localDate(this.clock.nowMs(), zone)) {
@@ -128,6 +138,7 @@ export class PaymentService {
           receivedAt: new Date(toUtc(input.receivedOn, '12:00', zone)),
           recordedById: actor.id,
           idempotencyKey,
+          requestHash,
           createdAt: now,
         },
       });
@@ -573,4 +584,19 @@ export class PaymentService {
     await tx.$queryRaw`SELECT id FROM "payments" WHERE id = ${id} FOR UPDATE`;
     return tx.payment.findUniqueOrThrow({ where: { id } });
   }
+}
+
+/**
+ * sha256 of the validated manual-payment body (P1-5: same key → same body). A fixed field list, so
+ * a missing and an empty optional field match, and `20` equals `20.00`.
+ */
+function requestHash(input: ManualPaymentInput): string {
+  const canonical = JSON.stringify([
+    input.method,
+    toMinor(input.amount),
+    input.receivedOn,
+    input.reference ?? null,
+    input.note ?? null,
+  ]);
+  return createHash('sha256').update(canonical).digest('hex');
 }

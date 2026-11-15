@@ -288,6 +288,10 @@ export const BILLING_ERROR_MESSAGES = {
     en: 'The amount is more than the balance due.',
     ar: 'المبلغ أكبر من الرصيد المستحق.',
   },
+  idempotency_conflict: {
+    en: 'This Idempotency-Key was already used for a different payment. Use a new key.',
+    ar: 'استُخدم مفتاح منع التكرار هذا لدفعة مختلفة. استخدم مفتاحًا جديدًا.',
+  },
   payment_not_voidable: {
     en: 'Only a recorded manual payment can be voided here.',
     ar: 'لا يمكن هنا إلغاء إلا دفعة يدوية مسجلة.',
