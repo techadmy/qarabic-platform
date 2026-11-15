@@ -315,11 +315,12 @@ describe('scheduling API (SchedulingApiTest)', () => {
     expect(tt.body.data.sessions).toHaveLength(1);
     expect(tt.body.data.slots[0].label).toContain(student.name);
 
-    // the teacher may edit their own work hours and see their own timetable, not another teacher's
+    // the teacher may ask to change their own work hours (A1: waits for approval, 202) and see
+    // their own timetable, not another teacher's
     const asTeacher = await signInAs(ctx, teacher.user);
     expect(
       (await asTeacher.put(`/teachers/${teacher.id}/work-hours`, { workHours: [] })).status,
-    ).toBe(200);
+    ).toBe(202);
     const other = await m2Teacher(ctx);
     expect(
       (await asTeacher.put(`/teachers/${other.id}/work-hours`, { workHours: [] })).status,
@@ -336,7 +337,7 @@ describe('scheduling API (SchedulingApiTest)', () => {
           durationMinutes: 60,
         })
       ).status,
-    ).toBe(403);
+    ).toBe(202); // A1: a request for staff approval
   });
 
   it('manages holidays and writes the audit log', async () => {

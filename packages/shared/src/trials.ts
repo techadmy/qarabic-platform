@@ -27,8 +27,11 @@ const trialMinutes = z
 // ------------------------------------------------------------------ T2 eligibility + ranking
 
 /**
- * Why a teacher is not eligible for a trial (docs/33 §4.1). Every reason but `busy` can be
- * overridden when booking, with a reason (`overrideReason`); `busy` is a schedule clash (409).
+ * Why a teacher is not eligible for a trial (docs/33 §4.1). Every reason but `busy` and `blocked`
+ * can be overridden when booking, with a reason (`overrideReason`); those two are schedule
+ * clashes (409). `outside_work_hours` = outside the teacher's approved work hours (their zone,
+ * DST-exact; a teacher with no hours set counts as available); `blocked` = a block of theirs
+ * covers the time (not shown when `on_leave` already explains it).
  */
 export const TRIAL_INELIGIBLE_REASONS = [
   'course',
@@ -37,6 +40,8 @@ export const TRIAL_INELIGIBLE_REASONS = [
   'gender',
   'audience',
   'on_leave',
+  'outside_work_hours',
+  'blocked',
   'busy',
 ] as const;
 export type TrialIneligibleReason = (typeof TRIAL_INELIGIBLE_REASONS)[number];
@@ -47,6 +52,8 @@ export const TRIAL_INELIGIBLE_LABELS: Labels<TrialIneligibleReason> = {
   gender: { ar: 'لا يطابق جنس المعلم المطلوب', en: 'Not the requested teacher gender' },
   audience: { ar: 'لا يدرّس هذه الفئة العمرية', en: 'Does not teach this age group' },
   on_leave: { ar: 'في إجازة', en: 'On leave' },
+  outside_work_hours: { ar: 'خارج ساعات العمل المعتمدة', en: 'Outside approved work hours' },
+  blocked: { ar: 'غير متاح في هذا الموعد', en: 'Unavailable at this time' },
   busy: { ar: 'مشغول في هذا الموعد', en: 'Busy at this time' },
 };
 
