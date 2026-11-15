@@ -336,3 +336,87 @@ export const dashboardMetricsSchema = z.object({
   generatedAt: z.string(),
 });
 export type DashboardMetricsDto = z.infer<typeof dashboardMetricsSchema>;
+
+// ------------------------------------------------------------------ recent events (docs/40 §3 row 3)
+
+/** Business events on the dashboard's «Recent events» panel. */
+export const DASHBOARD_EVENT_KINDS = [
+  'payment_received',
+  'payment_refunded',
+  'invoice_issued',
+  'invoice_voided',
+  'lead_converted',
+  'trial_booked',
+  'payroll_approved',
+  'payslip_paid',
+  'class_cancelled',
+] as const;
+export type DashboardEventKind = (typeof DASHBOARD_EVENT_KINDS)[number];
+
+/** Same gate as the widget each kind belongs to: a role sees only events of modules it can view. */
+export const DASHBOARD_EVENT_PERMISSIONS: Record<DashboardEventKind, readonly Permission[]> = {
+  payment_received: ['reports.financial', 'invoices.view'],
+  payment_refunded: ['reports.financial', 'invoices.view'],
+  invoice_issued: ['reports.financial', 'invoices.view'],
+  invoice_voided: ['reports.financial', 'invoices.view'],
+  lead_converted: ['leads.view'],
+  trial_booked: ['leads.view'],
+  payroll_approved: ['payroll.view'],
+  payslip_paid: ['payroll.view'],
+  class_cancelled: ['sessions.view'],
+};
+
+export const DASHBOARD_EVENT_LABELS: Record<DashboardEventKind, { ar: string; en: string }> = {
+  payment_received: { ar: 'تحصيل دفعة', en: 'Payment received' },
+  payment_refunded: { ar: 'استرداد دفعة', en: 'Payment refunded' },
+  invoice_issued: { ar: 'إصدار فاتورة', en: 'Invoice issued' },
+  invoice_voided: { ar: 'إلغاء فاتورة', en: 'Invoice voided' },
+  lead_converted: { ar: 'تحويل عميل محتمل إلى طالب', en: 'Lead converted' },
+  trial_booked: { ar: 'حجز حصة تجريبية', en: 'Trial booked' },
+  payroll_approved: { ar: 'اعتماد مسيّر الرواتب', en: 'Payroll approved' },
+  payslip_paid: { ar: 'صرف قسيمة راتب', en: 'Payslip paid' },
+  class_cancelled: { ar: 'إلغاء حصة', en: 'Class cancelled' },
+};
+
+/** `GET /dashboard/events?limit&before` (`reports.view`; staff only). */
+export const dashboardEventsQuerySchema = z.object({
+  limit: z.coerce.number().int().min(1).max(50).default(20),
+  /** The previous page's `nextBefore`: events strictly older than it. */
+  before: z.iso.datetime({ offset: true }).optional(),
+});
+export type DashboardEventsQuery = z.input<typeof dashboardEventsQuerySchema>;
+
+export const dashboardEventSchema = z.object({
+  /** Unique across sources, e.g. `audit:123` or `session:456`. */
+  key: z.string(),
+  kind: z.enum(DASHBOARD_EVENT_KINDS),
+  at: z.string(),
+  /** Who did it (staff viewers only; null = the system, e.g. an online payment). */
+  actor: z
+    .object({ id: z.number().int(), name: z.string(), role: z.string().nullable() })
+    .nullable(),
+  /** What it is about, for the link: `payment` / `invoice` / `lead` / `payroll_run` / `payslip` / `class_session`. */
+  subject: z.object({ type: z.string(), id: z.number().int().nullable() }),
+  /**
+   * A few safe facts per kind (never the raw audit record): amount + currency (+ method,
+   * invoiceId) for payments; number + total + currency for an issued invoice; familyId for a
+   * conversion; startsAt + sessionId for a trial; period for payroll; paidOn for a payslip;
+   * startsAt + reason for a cancelled class.
+   */
+  data: z.record(z.string(), z.union([z.string(), z.number(), z.null()])),
+});
+export type DashboardEventDto = z.infer<typeof dashboardEventSchema>;
+
+export const dashboardEventsSchema = z.object({
+  events: z.array(dashboardEventSchema),
+  /** Send as `before` for the next page; null at the end. */
+  nextBefore: z.string().nullable(),
+});
+export type DashboardEventsDto = z.infer<typeof dashboardEventsSchema>;
+
+/** The event kinds a set of permissions can see. */
+export function visibleEventKinds(granted: ReadonlySet<string>): DashboardEventKind[] {
+  return DASHBOARD_EVENT_KINDS.filter((k) =>
+    DASHBOARD_EVENT_PERMISSIONS[k].every((p) => granted.has(p)),
+  );
+}
