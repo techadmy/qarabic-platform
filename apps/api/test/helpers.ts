@@ -123,8 +123,14 @@ export class Client {
     return this.wrap(this.agent.get(`/api/v1${path}`));
   }
 
-  post(path: string, body?: object, opts: { csrf?: boolean } = {}): Promise<request.Response> {
-    return this.wrap(this.withCsrf(this.agent.post(`/api/v1${path}`), opts.csrf).send(body ?? {}));
+  post(
+    path: string,
+    body?: object,
+    opts: { csrf?: boolean; headers?: Record<string, string> } = {},
+  ): Promise<request.Response> {
+    const req = this.withCsrf(this.agent.post(`/api/v1${path}`), opts.csrf);
+    for (const [k, v] of Object.entries(opts.headers ?? {})) void req.set(k, v);
+    return this.wrap(req.send(body ?? {}));
   }
 
   put(path: string, body?: object, opts: { csrf?: boolean } = {}): Promise<request.Response> {

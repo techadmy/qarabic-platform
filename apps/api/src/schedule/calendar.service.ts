@@ -283,6 +283,8 @@ export class CalendarService {
     input: z.output<typeof replaceWorkHoursSchema>,
     actor: AuthUser,
   ): Promise<WorkHourDto[]> {
+    // Outside scope = 404, as for reading another teacher's calendar (docs/39 P1-6 / P2-3).
+    if (!actor.permissions.has('schedule.manage')) await this.assertCanSee(teacherId, actor);
     const teacher = await this.teacher(teacherId);
     const self = teacher.userId === actor.id && actor.permissions.has('sessions.conduct');
     if (!actor.permissions.has('schedule.manage') && !self) throw forbidden();
