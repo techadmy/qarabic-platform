@@ -880,3 +880,9 @@ export const reviewFamilyCreditSchema = z.object({
 
 /** `POST /billing/payments/:id/reviewed` (`invoices.manage`): staff looked at it (and refunded it at the provider, moved it, …). */
 export const reviewPaymentSchema = z.object({ note: z.string().trim().min(3).max(1000) });
+
+/** `GET /billing/payments/review`: a held payment plus its invoice number (`INV-…`, null for a draft). */
+export const paymentReviewItemSchema = paymentSchema.extend({
+  invoiceNumber: z.string().nullable().default(null),
+});
+export type PaymentReviewItemDto = z.infer<typeof paymentReviewItemSchema>;

@@ -121,6 +121,7 @@ describe('P1-3 amount or currency mismatch', () => {
     expect(list.body.data).toEqual([
       expect.objectContaining({
         id: attempt.id,
+        invoiceNumber: expect.stringMatching(/^INV-\d{4}-\d{6}$/),
         status: 'needs_review',
         reviewReason: 'currency_mismatch',
         capturedAmount: '60.00',
