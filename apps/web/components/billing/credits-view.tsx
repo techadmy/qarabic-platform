@@ -105,9 +105,7 @@ export function CreditsView() {
       >
         {t('fromInvoice', {
           // The invoice number when the API sends it (a draft has none), else its id.
-          id:
-            (c.sourcePayment as { invoiceNumber?: string | null }).invoiceNumber ??
-            `#${c.sourcePayment.invoiceId}`,
+          id: c.sourcePayment.invoiceNumber ?? `#${c.sourcePayment.invoiceId}`,
           method:
             PAYMENT_METHOD_LABELS[c.sourcePayment.method as PaymentMethod]?.[locale] ??
             c.sourcePayment.method,

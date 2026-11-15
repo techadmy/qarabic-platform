@@ -84,7 +84,7 @@ export function leaveDto(r: LeaveRow, viewer: AuthUser): LeaveRequestDto {
     decisionNote: r.decisionNote,
     createdAt: isoZ(r.createdAt)!,
     can: {
-      decide: r.status === 'pending' && leaveCan.decide(viewer),
+      decide: r.status === 'pending' && leaveCan.decide(viewer, r),
       cancel: (r.status === 'pending' || r.status === 'approved') && leaveCan.cancel(viewer, r),
     },
   };

@@ -38,6 +38,14 @@ export function seedAdmin(): Account {
   };
 }
 
+/** P0-3: the second dev login that reviews payroll runs (the admin approves them). */
+export function seedReviewer(): Account {
+  return {
+    email: (setting('E2E_REVIEWER_EMAIL') ?? setting('SEED_REVIEWER_EMAIL'))!,
+    password: (setting('E2E_REVIEWER_PASSWORD') ?? setting('SEED_REVIEWER_PASSWORD'))!,
+  };
+}
+
 /**
  * A made-up demo login of the seed (`parent1` London, `parent2` Toronto, `teacher1`…), with the
  * password `db:seed` set from SEED_DEMO_PASSWORD (E2E_DEMO_PASSWORD wins). Null when not set.

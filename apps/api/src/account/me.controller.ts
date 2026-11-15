@@ -50,7 +50,7 @@ export class MeController {
     const { user, sessionId } = req.auth!;
     let passwordHash: string | undefined;
     if (body.password !== undefined) {
-      if (this.limiter.hit(`me-password:${user.id}`, 5, 60_000) > 0) {
+      if ((await this.limiter.hit(`me-password:${user.id}`, 5, 60_000)) > 0) {
         throw new ApiException(HttpStatus.TOO_MANY_REQUESTS, {
           message: 'Too many attempts. Please try again later.',
           code: 'too_many_requests',

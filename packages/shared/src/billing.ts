@@ -204,6 +204,8 @@ export const PAYMENT_STATUSES = [
   'failed',
   'cancelled',
   'refunded',
+  /** P1-3: captured, but not the amount or currency asked for: held for staff. */
+  'needs_review',
 ] as const;
 export type PaymentStatus = (typeof PAYMENT_STATUSES)[number];
 export const PAYMENT_STATUS_LABELS: Labels<PaymentStatus> = {
@@ -212,6 +214,7 @@ export const PAYMENT_STATUS_LABELS: Labels<PaymentStatus> = {
   failed: { ar: 'فاشلة', en: 'Failed' },
   cancelled: { ar: 'ملغاة', en: 'Cancelled' },
   refunded: { ar: 'مستردة', en: 'Refunded' },
+  needs_review: { ar: 'قيد المراجعة', en: 'Needs review' },
 };
 
 /** Billing day of a family (old `payment_cycle`): the 1st or the 15th. */
@@ -555,9 +558,12 @@ export const paymentSchema = z.object({
   recordedBy: z.object({ id: z.number().int(), name: z.string() }).nullable().optional(),
   /** P1-1: the part not applied to this invoice (kept as the family's credit), decimal string. */
   unapplied: z.string().default('0.00'),
-  /** Staff: look at it (`overpaid` / `invoice_closed`). */
-  needsReview: z.boolean().default(false),
-  reviewReason: z.string().nullable().default(null),
+  /** Staff only: look at it (`overpaid` / `invoice_closed`). */
+  needsReview: z.boolean().optional(),
+  reviewReason: z.string().nullable().optional(),
+  /** Staff only. P1-3: what the provider captured when it did not match (`needs_review`). */
+  capturedAmount: z.string().nullable().optional(),
+  capturedCurrency: z.string().nullable().optional(),
 });
 export type PaymentDto = z.infer<typeof paymentSchema>;
 
@@ -847,7 +853,13 @@ export const familyCreditSchema = z.object({
   remaining: z.string(),
   status: z.enum(FAMILY_CREDIT_STATUSES),
   sourcePayment: z
-    .object({ id: z.number().int(), invoiceId: z.number().int(), method: z.string() })
+    .object({
+      id: z.number().int(),
+      invoiceId: z.number().int(),
+      /** `INV-2026-000123`; null while the invoice is a draft. */
+      invoiceNumber: z.string().nullable().default(null),
+      method: z.string(),
+    })
     .nullable(),
   reviewedAt: z.string().nullable(),
   reviewedBy: z.object({ id: z.number().int(), name: z.string() }).nullable(),
@@ -865,3 +877,6 @@ export const reviewFamilyCreditSchema = z.object({
     )
     .optional(),
 });
+
+/** `POST /billing/payments/:id/reviewed` (`invoices.manage`): staff looked at it (and refunded it at the provider, moved it, …). */
+export const reviewPaymentSchema = z.object({ note: z.string().trim().min(3).max(1000) });

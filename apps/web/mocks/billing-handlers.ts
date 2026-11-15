@@ -141,13 +141,15 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     createdAt: p.createdAt,
     receiptNumber: p.receiptNumber,
     unapplied: fromMinor(p.unappliedMinor ?? 0),
-    // The review flag is for staff only.
-    needsReview: staff && !!p.needsReview,
-    reviewReason: staff ? (p.reviewReason ?? null) : null,
   };
   return staff
     ? {
         ...base,
+        // P1-1: the review flag is for staff only (#92).
+        needsReview: !!p.needsReview,
+        reviewReason: p.reviewReason ?? null,
+        capturedAmount: null,
+        capturedCurrency: null,
         note: p.note,
         failureReason: p.failureReason,
         providerPaymentId: p.providerPaymentId,
@@ -375,7 +377,12 @@ function creditDto(c: CreditRow): FamilyCreditDto {
     remaining: fromMinor(c.remainingMinor),
     status: c.status,
     sourcePayment: source
-      ? { id: source.id, invoiceId: source.invoiceId, method: source.method }
+      ? {
+          id: source.id,
+          invoiceId: source.invoiceId,
+          invoiceNumber: bdb.invoices.find((i) => i.id === source.invoiceId)?.number ?? null,
+          method: source.method,
+        }
       : null,
     reviewedAt: c.reviewedAt,
     reviewedBy: c.reviewedBy,

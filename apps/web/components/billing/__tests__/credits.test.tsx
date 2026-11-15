@@ -26,7 +26,9 @@ describe('P1-1 family credits (B115)', () => {
     const table = await screen.findByRole('table', { name: 'الأرصدة الدائنة للأسر' });
     expect(within(table).getAllByRole('row')).toHaveLength(2);
     expect(table).toHaveTextContent(
-      new RegExp(`الفاتورة\\W*#${payment.invoiceId}\\W* · \\W*تحويل بنكي`),
+      new RegExp(
+        `الفاتورة\\W*${bdb.invoices.find((i) => i.id === payment.invoiceId)!.number}\\W* · \\W*تحويل بنكي`,
+      ),
     );
     expect(table).toHaveTextContent('20.00');
     await user.click(within(table).getByRole('button', { name: /^تمت المراجعة/ }));

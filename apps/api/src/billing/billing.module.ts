@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
-import { FamilyCreditsController } from './credits.controller.js';
+import { FamilyCreditsController, PaymentReviewController } from './credits.controller.js';
 import { BillingConfig } from './billing.config.js';
 import {
   BillingController,
@@ -41,6 +41,7 @@ import { WebhookService } from './webhooks.service.js';
     BillingSettingsController,
     PaymentWebhooksController,
     FamilyCreditsController,
+    PaymentReviewController,
   ],
   providers: [
     BillingConfig,
