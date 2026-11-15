@@ -35,7 +35,9 @@ for (const [size, viewport] of Object.entries(sizes)) {
       .first()
       .click();
     const hub = page.getByRole('dialog', { name: 'تواصل معنا' });
-    await expect(hub.getByRole('link', { name: /#1 · / })).toBeVisible();
+    await expect(
+      hub.getByRole('link', { name: /#[\u2066-\u2069]*1[\u2066-\u2069]* · [\u2066-\u2069]*/ }),
+    ).toBeVisible();
     await shot(page, 'contact-hub', size);
     await hub.getByRole('button', { name: /^الحصص والمواعيد/ }).click();
     await expect(
