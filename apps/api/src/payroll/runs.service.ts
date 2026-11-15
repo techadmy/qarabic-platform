@@ -12,13 +12,13 @@ import {
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
-import { notFound } from '../common/errors.js';
+import { notFound, validationError } from '../common/errors.js';
 import { pageMeta, statusCounts } from '../common/pagination.js';
 import { Prisma, type PayrollRun } from '../generated/prisma/client.js';
 import { MAILER, type Mailer } from '../mail/mailer.js';
 import type { Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { isoZ, toDbDate } from '../schedule/time.js';
+import { isoZ, toDbDate, localDate } from '../schedule/time.js';
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
 import { type ComputedSlip, PayrollCalculator } from './calculator.js';
 import { payrollError } from './errors.js';
@@ -456,6 +456,11 @@ export class PayrollRunsService {
    * record only: no transfer is made (D140). The wallet ledger is debited by the net.
    */
   async recordPayment(slipId: number, input: RecordPaymentInput, by: AuthUser): Promise<void> {
+    // BIL-9 (docs/39 P2-2): the same rule as billing: not after today (academy zone).
+    const zone = await this.settings.get('academy.timezone');
+    if (input.paidOn > localDate(this.clock.nowMs(), zone)) {
+      throw validationError({ paidOn: ['The payment date cannot be in the future.'] });
+    }
     await this.prisma.$transaction(async (tx) => {
       if (!(await lockPayrollRow(tx, 'payslips', slipId))) throw notFound();
       const slip = await tx.payslip.findUniqueOrThrow({
