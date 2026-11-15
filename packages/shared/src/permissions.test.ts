@@ -67,3 +67,23 @@ describe('password reset schema', () => {
     ).toBe('long-enough');
   });
 });
+
+describe('D147: salaries are the accounts’ and the owner’s', () => {
+  it('only accounts hold payroll and wallet permissions among staff presets', () => {
+    for (const role of ['senior_manager', 'manager', 'monitor', 'csr', 'billing'] as const) {
+      const held = permissionsFor(role).filter((p) => /^(payroll|wallet)\./.test(p));
+      expect(held, role).toEqual([]);
+    }
+    expect(permissionsFor('accounts')).toEqual(
+      expect.arrayContaining(['payroll.review', 'payroll.approve', 'payroll.manage']),
+    );
+  });
+
+  it('a teacher keeps only their own pay (row-scoped by the API)', () => {
+    expect(permissionsFor('teacher').filter((p) => /^(payroll|wallet)\./.test(p))).toEqual([
+      'payroll.view',
+      'wallet.view',
+      'wallet.request',
+    ]);
+  });
+});

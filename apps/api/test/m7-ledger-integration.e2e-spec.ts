@@ -84,8 +84,8 @@ describe('ledger from live billing and payroll', () => {
     await m6Session(ctx, await m6Enrollment(ctx, teacher), '2026-10-05T10:00:00Z', 'taken');
     const { client: accounts } = await userWithRole(ctx, 'accounts');
     const runId = (await accounts.post('/payroll/runs', { period: '2026-10' })).body.data.id;
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
-    expect((await senior.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
+    expect((await reviewer.post(`/payroll/runs/${runId}/review`)).status).toBe(200);
     expect((await accounts.post(`/payroll/runs/${runId}/approve`)).status).toBe(200);
     const slip = await ctx.prisma.payslip.findFirstOrThrow({ where: { userId: teacher.userId } });
     const pay = await accounts.post(`/payslips/${slip.id}/payments`, {

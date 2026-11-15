@@ -26,12 +26,12 @@ describe('P1-4 approve vs a new adjustment, at the same time', () => {
       await resetState(ctx);
       m6At(ctx, '2026-12-02T08:00:00Z');
       const { client: accounts } = await userWithRole(ctx, 'accounts');
-      const { client: senior } = await userWithRole(ctx, 'senior_manager');
+      const { client: reviewer } = await userWithRole(ctx, 'accounts');
       const { user: teacher } = await userWithRole(ctx, 'teacher');
       await m6Profile(ctx, teacher.id);
       const run = await accounts.post('/payroll/runs', { period: '2026-11' });
       const id = run.body.data.id;
-      expect((await senior.post(`/payroll/runs/${id}/review`, {})).status).toBe(200);
+      expect((await reviewer.post(`/payroll/runs/${id}/review`, {})).status).toBe(200);
 
       const [approve, bonus] = await Promise.all([
         accounts.post(`/payroll/runs/${id}/approve`, {}),
@@ -58,11 +58,11 @@ describe('P1-4 approve vs a new adjustment, at the same time', () => {
   it('an input to an approved month is refused with 409 period_locked', async () => {
     m6At(ctx, '2026-12-02T08:00:00Z');
     const { client: accounts } = await userWithRole(ctx, 'accounts');
-    const { client: senior } = await userWithRole(ctx, 'senior_manager');
+    const { client: reviewer } = await userWithRole(ctx, 'accounts');
     const { user: teacher } = await userWithRole(ctx, 'teacher');
     await m6Profile(ctx, teacher.id);
     const id = (await accounts.post('/payroll/runs', { period: '2026-11' })).body.data.id;
-    await senior.post(`/payroll/runs/${id}/review`, {});
+    await reviewer.post(`/payroll/runs/${id}/review`, {});
     expect((await accounts.post(`/payroll/runs/${id}/approve`, {})).status).toBe(200);
     const late = await accounts.post('/payroll/adjustments', {
       userId: teacher.id,
