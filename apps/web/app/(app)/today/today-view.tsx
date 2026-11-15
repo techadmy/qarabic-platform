@@ -10,7 +10,16 @@ import {
   type SessionKind,
   type SessionStage,
 } from '@qarabic/shared';
+import { Badge } from '@qarabic/ui/components/badge';
 import { Card } from '@qarabic/ui/components/card';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from '@qarabic/ui/components/sheet';
+import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
 import { Label } from '@qarabic/ui/components/label';
 import {
   Select,
@@ -39,6 +48,7 @@ import {
   ChevronRightIcon,
   EllipsisVerticalIcon,
   InfoIcon,
+  ListFilterIcon,
   RefreshCwIcon,
   SearchIcon,
   SearchXIcon,
@@ -104,6 +114,9 @@ export function TodayView() {
   const stageParam = params.get('stage') as SessionStage;
   const stage = SESSION_STAGES.includes(stageParam) ? stageParam : null;
   const problems = params.get('problems') === '1';
+  const isMobile = useIsMobile();
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const activeFilters = [teacher, course, kind, stage, problems].filter(Boolean).length;
   const [syncing, setSyncing] = useState(false);
   const showAll =
     params.get('statuses') === '1' || (!!tile && STATUS_TILES.includes(tile as never));
@@ -173,6 +186,73 @@ export function TodayView() {
 
   const stopped = board.isError && !!board.data;
   const lastUpdated = board.dataUpdatedAt ? new Date(board.dataUpdatedAt) : null;
+
+  const filterControls = (
+    <>
+      <Combobox
+        id="board-teacher"
+        ariaLabel={t('teacher')}
+        className="w-full sm:w-52"
+        value={teacher ? String(teacher) : null}
+        onChange={(v) => params.set({ teacher: v })}
+        options={teachers.map(([id, name]) => ({ value: String(id), label: name }))}
+        placeholder={t('allTeachers')}
+        searchPlaceholder={t('searchTeacher')}
+        clearable
+      />
+      <Combobox
+        id="board-course"
+        ariaLabel={t('filters.course')}
+        className="w-full sm:w-52"
+        value={course ? String(course) : null}
+        onChange={(v) => params.set({ course: v })}
+        options={courses.map(([id, name]) => ({ value: String(id), label: name }))}
+        placeholder={t('filters.allCourses')}
+        searchPlaceholder={t('filters.searchCourse')}
+        clearable
+      />
+      <Select
+        value={kind ?? 'all'}
+        onValueChange={(v) => params.set({ kind: v === 'all' ? null : v })}
+      >
+        <SelectTrigger aria-label={t('filters.kind')} className="h-10! w-full bg-card sm:w-40">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper">
+          <SelectItem value="all">{t('filters.allKinds')}</SelectItem>
+          {SESSION_KINDS.map((k) => (
+            <SelectItem key={k} value={k}>
+              {SESSION_KIND_LABELS[k][locale]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Select
+        value={stage ?? 'all'}
+        onValueChange={(v) => params.set({ stage: v === 'all' ? null : v })}
+      >
+        <SelectTrigger aria-label={t('filters.stage')} className="h-10! w-full bg-card sm:w-44">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper">
+          <SelectItem value="all">{t('filters.allStages')}</SelectItem>
+          {SESSION_STAGES.filter((st) => st !== 'moved_out').map((st) => (
+            <SelectItem key={st} value={st}>
+              {SESSION_STAGE_LABELS[st][locale]}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <div className="flex h-10 items-center gap-2 px-1">
+        <Switch
+          id="board-problems"
+          checked={problems}
+          onCheckedChange={(on) => params.set({ problems: on ? '1' : null })}
+        />
+        <Label htmlFor="board-problems">{t('filters.problems')}</Label>
+      </div>
+    </>
+  );
 
   return (
     <>
@@ -308,80 +388,55 @@ export function TodayView() {
         }
       />
 
-      <div
-        role="group"
-        aria-label={t('filters.label')}
-        className="flex flex-wrap items-center gap-2"
-      >
-        <Combobox
-          id="board-teacher"
-          ariaLabel={t('teacher')}
-          className="w-full sm:w-52"
-          value={teacher ? String(teacher) : null}
-          onChange={(v) => params.set({ teacher: v })}
-          options={teachers.map(([id, name]) => ({ value: String(id), label: name }))}
-          placeholder={t('allTeachers')}
-          searchPlaceholder={t('searchTeacher')}
-          clearable
-        />
-        <Combobox
-          id="board-course"
-          ariaLabel={t('filters.course')}
-          className="w-full sm:w-52"
-          value={course ? String(course) : null}
-          onChange={(v) => params.set({ course: v })}
-          options={courses.map(([id, name]) => ({ value: String(id), label: name }))}
-          placeholder={t('filters.allCourses')}
-          searchPlaceholder={t('filters.searchCourse')}
-          clearable
-        />
-        <Select
-          value={kind ?? 'all'}
-          onValueChange={(v) => params.set({ kind: v === 'all' ? null : v })}
-        >
-          <SelectTrigger aria-label={t('filters.kind')} className="h-10! w-full bg-card sm:w-40">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            <SelectItem value="all">{t('filters.allKinds')}</SelectItem>
-            {SESSION_KINDS.map((k) => (
-              <SelectItem key={k} value={k}>
-                {SESSION_KIND_LABELS[k][locale]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Select
-          value={stage ?? 'all'}
-          onValueChange={(v) => params.set({ stage: v === 'all' ? null : v })}
-        >
-          <SelectTrigger aria-label={t('filters.stage')} className="h-10! w-full bg-card sm:w-44">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper">
-            <SelectItem value="all">{t('filters.allStages')}</SelectItem>
-            {SESSION_STAGES.filter((st) => st !== 'moved_out').map((st) => (
-              <SelectItem key={st} value={st}>
-                {SESSION_STAGE_LABELS[st][locale]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <div className="flex h-10 items-center gap-2 px-1">
-          <Switch
-            id="board-problems"
-            checked={problems}
-            onCheckedChange={(on) => params.set({ problems: on ? '1' : null })}
-          />
-          <Label htmlFor="board-problems">{t('filters.problems')}</Label>
+      {isMobile ? (
+        // Phones: the filters live in a sheet so the first class shows on the first screen.
+        <div className="flex items-center gap-2">
+          <Sheet open={filtersOpen} onOpenChange={setFiltersOpen}>
+            <SheetTrigger asChild>
+              <Button variant="outline" className="h-10">
+                <ListFilterIcon />
+                {t('filters.open')}
+                {activeFilters > 0 && (
+                  <Badge variant="secondary" className="tabular-nums">
+                    {activeFilters}
+                  </Badge>
+                )}
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" className="max-h-[85svh] overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>{t('filters.label')}</SheetTitle>
+              </SheetHeader>
+              <div
+                role="group"
+                aria-label={t('filters.label')}
+                className="flex flex-col gap-3 px-4 pb-4"
+              >
+                {filterControls}
+              </div>
+            </SheetContent>
+          </Sheet>
+          {filtered && rows.length > 0 && (
+            <Button variant="ghost" className="h-10" onClick={clearAll}>
+              {tl('clearAll')}
+            </Button>
+          )}
         </div>
-        {/* With nothing matching, the empty state offers it instead (one button). */}
-        {filtered && rows.length > 0 && (
-          <Button variant="ghost" className="h-10" onClick={clearAll}>
-            {tl('clearAll')}
-          </Button>
-        )}
-      </div>
+      ) : (
+        <div
+          role="group"
+          aria-label={t('filters.label')}
+          className="flex flex-wrap items-center gap-2"
+        >
+          {filterControls}
+          {/* With nothing matching, the empty state offers it instead (one button). */}
+          {filtered && rows.length > 0 && (
+            <Button variant="ghost" className="h-10" onClick={clearAll}>
+              {tl('clearAll')}
+            </Button>
+          )}
+        </div>
+      )}
 
       <Card className="gap-0 py-0 shadow-none">
         {board.isError && !board.data ? (

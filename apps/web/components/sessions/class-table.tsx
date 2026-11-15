@@ -78,10 +78,10 @@ function Meeting({ s }: { s: SessionDto }) {
   );
 }
 
-function NowDivider({ now }: { now: Date }) {
+/** The «الآن» line, its time in the zone the rows show (the academy's on the board). */
+function NowDivider({ now, tz }: { now: Date; tz: string }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
-  const tz = useViewerTz();
   return (
     <div
       role="separator"
@@ -91,21 +91,35 @@ function NowDivider({ now }: { now: Date }) {
     >
       <span className="h-0.5 flex-1 bg-destructive" />
       <span className="text-xs font-bold">
-        {t('now')} <bdi>{clock(now.toISOString(), tz, locale)}</bdi>
+        {t('now')} <bdi>{clock(now.toISOString(), tz, locale)}</bdi> ({cityOf(tz, locale)})
       </span>
       <span className="h-0.5 flex-1 bg-destructive" />
     </div>
   );
 }
 
-/** Row tint by state (D148, docs/42 §2.3): status tokens only. */
-const TONE: Record<RowTone, string> = {
-  urgent: 'bg-status-red dark:bg-status-red/60',
-  attention: 'bg-status-orange/70 dark:bg-status-orange/40',
-  running: 'bg-status-green/70 dark:bg-status-green/40',
-  done: 'bg-muted',
-  off: 'bg-muted',
-  plain: '',
+/**
+ * Row look by state (D148, docs/42 §2.3; colours D35: running yellow): a 4 px inline-start bar in
+ * the state's emphasis colour plus its fill for the rows that need eyes (urgent, follow-up,
+ * running); finished and off rows are quiet (no fill, muted text). Tinted rows keep their tint on
+ * hover. Status tokens only.
+ */
+const TONE: Record<RowTone, { fill: string; bar: string }> = {
+  urgent: {
+    fill: 'bg-status-red hover:bg-status-red hover:brightness-95',
+    bar: 'border-s-status-red-emphasis',
+  },
+  attention: {
+    fill: 'bg-status-orange hover:bg-status-orange hover:brightness-95',
+    bar: 'border-s-status-orange-emphasis',
+  },
+  running: {
+    fill: 'bg-status-amber hover:bg-status-amber hover:brightness-95',
+    bar: 'border-s-status-amber-emphasis',
+  },
+  done: { fill: 'text-muted-foreground hover:bg-subtle', bar: 'border-s-transparent' },
+  off: { fill: 'text-muted-foreground hover:bg-subtle', bar: 'border-s-transparent' },
+  plain: { fill: 'hover:bg-subtle', bar: 'border-s-transparent' },
 };
 
 /**
@@ -222,14 +236,18 @@ export function ClassTable({
           <Fragment key={s.id}>
             {i === nowIndex && (
               <li>
-                <NowDivider now={now} />
+                <NowDivider now={now} tz={timeTz} />
               </li>
             )}
             <li>
               <Card
                 onClick={(e) => open(e, s)}
                 data-tone={rowTone(s)}
-                className={cn('cursor-pointer gap-1.5 px-4 py-3 shadow-none', TONE[rowTone(s)])}
+                className={cn(
+                  'cursor-pointer gap-1.5 border-s-4 px-4 py-3 shadow-none',
+                  TONE[rowTone(s)].fill,
+                  TONE[rowTone(s)].bar,
+                )}
               >
                 <div className="flex items-start justify-between gap-2">
                   {when(s)}
@@ -259,7 +277,7 @@ export function ClassTable({
         ))}
         {nowIndex === rows.length && (
           <li>
-            <NowDivider now={now} />
+            <NowDivider now={now} tz={timeTz} />
           </li>
         )}
       </ul>
@@ -309,7 +327,7 @@ export function ClassTable({
               {i === nowIndex && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={columns} className="border-0 p-0 px-3">
-                    <NowDivider now={now} />
+                    <NowDivider now={now} tz={timeTz} />
                   </TableCell>
                 </TableRow>
               )}
@@ -317,9 +335,16 @@ export function ClassTable({
                 data-session-id={s.id}
                 onClick={(e) => open(e, s)}
                 data-tone={rowTone(s)}
-                className={cn('cursor-pointer hover:bg-subtle', TONE[rowTone(s)])}
+                className={cn('cursor-pointer', TONE[rowTone(s)].fill)}
               >
-                <TableCell className="h-14 px-3 py-1.5 whitespace-nowrap">{when(s)}</TableCell>
+                <TableCell
+                  className={cn(
+                    'h-14 border-s-4 px-3 py-1.5 whitespace-nowrap',
+                    TONE[rowTone(s)].bar,
+                  )}
+                >
+                  {when(s)}
+                </TableCell>
                 <TableCell className="px-3 py-1.5">
                   <span className="flex flex-col">
                     {name(s)}
@@ -375,7 +400,7 @@ export function ClassTable({
           {nowIndex === rows.length && (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns} className="border-0 p-0 px-3">
-                <NowDivider now={now} />
+                <NowDivider now={now} tz={timeTz} />
               </TableCell>
             </TableRow>
           )}
