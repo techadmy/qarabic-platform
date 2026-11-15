@@ -1,5 +1,6 @@
 import { Inject, Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
+import { AvailabilityChangesService } from '../schedule/availability-changes.js';
 import { OCCUPYING_STAGES } from '@qarabic/shared';
 import { CronJob } from 'cron';
 import { AuditService } from '../audit/audit.service.js';
@@ -25,7 +26,8 @@ export interface Overlap {
  * - `sessions:generate` hourly at :05 (idempotent, self-healing; one run at a time);
  * - `session-requests:expire` hourly at :15;
  * - `zoom:ensure-upcoming` every 10 minutes (a no-op while `ZOOM_DRIVER=none`);
- * - `sessions:audit-overlaps` daily at 03:10 (safety net: should always find 0).
+ * - `sessions:audit-overlaps` daily at 03:10 (safety net: should always find 0);
+ * - `availability:apply` hourly at :20 (A1: approved work hours whose date has come).
  * Times are in the academy zone (`academy.timezone`, Africa/Cairo). Only one API process may run
  * the cron (`SCHEDULER_ENABLED`); the generator also holds a database lock.
  */
@@ -43,6 +45,7 @@ export class SessionJobs implements OnApplicationBootstrap {
     private readonly generator: SessionGenerator,
     private readonly requests: SessionRequestsService,
     private readonly zoom: ZoomMeetings,
+    private readonly availability: AvailabilityChangesService,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -53,6 +56,7 @@ export class SessionJobs implements OnApplicationBootstrap {
       ['session-requests:expire', '0 15 * * * *', () => this.expireRequests()],
       ['zoom:ensure-upcoming', '0 */10 * * * *', () => this.ensureZoom()],
       ['sessions:audit-overlaps', '0 10 3 * * *', () => this.auditOverlaps()],
+      ['availability:apply', '0 20 * * * *', () => this.availability.applyDue()],
     ];
     for (const [name, expr, run] of jobs) {
       const job = CronJob.from({
