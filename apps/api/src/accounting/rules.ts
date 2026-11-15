@@ -159,6 +159,15 @@ export function billingEntry(e: BillingEventInput): DraftEntry | null {
         ),
       };
     }
+    case 'payment.held': {
+      // P1-3: money captured but not matching its attempt: on suspense until staff resolve it.
+      const method = str(e.payload.method, 'other');
+      return {
+        ...base,
+        memo: `Payment #${e.subjectId} held for review (${str(e.payload.reason, 'mismatch')})`,
+        lines: [dr(paymentAccount(method), amount), cr('suspense', amount, party)],
+      };
+    }
     case 'payment.refunded': {
       const method = str(e.payload.method, 'other');
       return {

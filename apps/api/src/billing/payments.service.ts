@@ -269,15 +269,70 @@ export class PaymentService {
         const found = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
         const invoice = await this.invoices.lock(tx, found.invoiceId);
         const payment = await this.lockPayment(tx, paymentId);
-        if (payment.status === 'succeeded' || payment.status === 'refunded') return payment;
-        if (amountMinor !== minor(payment.amount) || currency.toUpperCase() !== payment.currency) {
+        if (['succeeded', 'refunded', 'needs_review'].includes(payment.status)) return payment;
+        const cur = currency.toUpperCase();
+        if (amountMinor !== minor(payment.amount) || cur !== payment.currency) {
+          // P1-3 (docs/39 BIL-5): the provider took this money: never `failed`. Held for staff,
+          // with what was captured, on the suspense account; nothing is applied to the invoice.
+          const reason = cur !== payment.currency ? 'currency_mismatch' : 'amount_mismatch';
+          const now = this.clock.now();
           this.logger.error(
-            `Payment ${payment.id} amount mismatch: expected ${dec(minor(payment.amount))} ${payment.currency}`,
+            `Payment ${payment.id} ${reason}: expected ${dec(minor(payment.amount))} ${payment.currency}, captured ${dec(Math.max(0, amountMinor))} ${cur}`,
           );
-          return tx.payment.update({
+          const held = await tx.payment.update({
             where: { id: paymentId },
-            data: { status: 'failed', failureReason: 'amount_mismatch', providerPaymentId },
+            data: {
+              status: 'needs_review',
+              failureReason: reason,
+              providerPaymentId,
+              receivedAt: now,
+              needsReview: true,
+              reviewReason: reason,
+              capturedAmount: dec(Math.max(0, amountMinor)),
+              capturedCurrency: cur.slice(0, 3),
+            },
           });
+          if (amountMinor > 0 && cur.length === 3) {
+            await tx.billingEvent.create({
+              data: {
+                type: BILLING_EVENT.paymentHeld,
+                subjectType: 'payment',
+                subjectId: held.id,
+                familyId: held.familyId,
+                amount: dec(amountMinor),
+                currency: cur,
+                occurredAt: now,
+                payload: {
+                  invoiceId: held.invoiceId,
+                  method: held.method,
+                  reason,
+                  expected: dec(minor(held.amount)),
+                  expectedCurrency: held.currency,
+                  providerRef: held.providerRef,
+                  providerPaymentId,
+                },
+              },
+            });
+          }
+          await this.audit.record(
+            {
+              actorId: null,
+              action: 'payment_held',
+              subjectType: 'payment',
+              subjectId: held.id,
+              before: { status: payment.status },
+              after: {
+                status: 'needs_review',
+                reason,
+                expected: dec(minor(held.amount)),
+                expectedCurrency: held.currency,
+                captured: dec(Math.max(0, amountMinor)),
+                capturedCurrency: cur,
+              },
+            },
+            tx,
+          );
+          return held;
         }
         const now = this.clock.now();
         // P1-1 (BIL-1, B115): the money is kept. What the invoice still owed is applied; the rest

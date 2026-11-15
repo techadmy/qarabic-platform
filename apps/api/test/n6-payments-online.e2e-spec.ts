@@ -525,7 +525,8 @@ describe('PayPal Orders v2', () => {
   it.each([
     ['declined', () => paypalCapture('DECLINED'), 'failed'],
     ['pending', () => paypalCapture('PENDING'), 'pending'],
-    ['wrong amount', () => paypalCapture('COMPLETED', '1.00'), 'failed'],
+    // P1-3: captured money is never `failed`: held for review, the invoice stays unpaid.
+    ['wrong amount', () => paypalCapture('COMPLETED', '1.00'), 'needs_review'],
   ])('does not pay on a %s capture', async (_name, capture, status) => {
     fakePayPal(capture());
     await parent.post(`/invoices/${invoiceId}/checkout`, { provider: 'paypal' });

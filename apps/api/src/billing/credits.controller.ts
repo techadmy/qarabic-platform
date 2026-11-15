@@ -3,7 +3,9 @@ import { ApiBody, ApiTags } from '@nestjs/swagger';
 import {
   familyCreditQuerySchema,
   reviewFamilyCreditSchema,
+  reviewPaymentSchema,
   type FamilyCreditDto,
+  type PaymentDto,
 } from '@qarabic/shared';
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
@@ -17,6 +19,7 @@ import { ZodBody } from '../common/zod.pipe.js';
 import { ZodQuery } from '../common/zod-query.pipe.js';
 import type { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { paymentDto } from './presenter.js';
 
 type Out<S extends z.ZodType> = z.output<S>;
 
@@ -128,5 +131,62 @@ export class FamilyCreditsController {
       note: r.note,
       createdAt: r.createdAt.toISOString(),
     }));
+  }
+}
+
+/**
+ * P1-3 / P1-1 review queue: payments staff must look at — held captures (`needs_review`, amount or
+ * currency not matching) and overpayments kept as credit. Resolving (refund at the provider, a
+ * manual move) is done with the usual tools; `reviewed` records it.
+ */
+@ApiTags('billing')
+@Controller('billing/payments')
+export class PaymentReviewController {
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
+
+  @CanAny('invoices.manage', 'reports.financial')
+  @Get('review')
+  async list(): Promise<{ data: PaymentDto[] }> {
+    const rows = await this.prisma.payment.findMany({
+      where: { needsReview: true },
+      include: { recordedBy: { select: { id: true, name: true } } },
+      orderBy: { id: 'desc' },
+      take: 500,
+    });
+    return { data: rows.map((p) => paymentDto(p, true)) };
+  }
+
+  @Can('invoices.manage')
+  @Post(':id/reviewed')
+  @HttpCode(200)
+  @ApiBody({ schema: jsonSchema(reviewPaymentSchema) })
+  async reviewed(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(reviewPaymentSchema) body: Out<typeof reviewPaymentSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: PaymentDto }> {
+    const found = await this.prisma.payment.findUnique({ where: { id } });
+    if (!found) throw notFound();
+    const row = await this.prisma.payment.update({
+      where: { id },
+      data: {
+        needsReview: false,
+        note: `${found.note ?? ''}\nReviewed: ${body.note}`.trim().slice(0, 1000),
+      },
+      include: { recordedBy: { select: { id: true, name: true } } },
+    });
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'payment_reviewed',
+      subjectType: 'payment',
+      subjectId: id,
+      before: { needsReview: true, reason: found.reviewReason },
+      after: { needsReview: false },
+      reason: body.note,
+    });
+    return { data: paymentDto(row, true) };
   }
 }
