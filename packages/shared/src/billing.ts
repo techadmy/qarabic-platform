@@ -853,7 +853,13 @@ export const familyCreditSchema = z.object({
   remaining: z.string(),
   status: z.enum(FAMILY_CREDIT_STATUSES),
   sourcePayment: z
-    .object({ id: z.number().int(), invoiceId: z.number().int(), method: z.string() })
+    .object({
+      id: z.number().int(),
+      invoiceId: z.number().int(),
+      /** `INV-2026-000123`; null while the invoice is a draft. */
+      invoiceNumber: z.string().nullable().default(null),
+      method: z.string(),
+    })
     .nullable(),
   reviewedAt: z.string().nullable(),
   reviewedBy: z.object({ id: z.number().int(), name: z.string() }).nullable(),

@@ -25,7 +25,9 @@ type Out<S extends z.ZodType> = z.output<S>;
 
 const include = {
   family: { select: { id: true, user: { select: { name: true } } } },
-  sourcePayment: { select: { id: true, invoiceId: true, method: true } },
+  sourcePayment: {
+    select: { id: true, invoiceId: true, method: true, invoice: { select: { number: true } } },
+  },
 } satisfies Prisma.FamilyCreditInclude;
 type Row = Prisma.FamilyCreditGetPayload<{ include: typeof include }>;
 
@@ -116,7 +118,14 @@ export class FamilyCreditsController {
       amount: r.amount.toFixed(2),
       remaining: r.remaining.toFixed(2),
       status: r.status,
-      sourcePayment: r.sourcePayment,
+      sourcePayment: r.sourcePayment
+        ? {
+            id: r.sourcePayment.id,
+            invoiceId: r.sourcePayment.invoiceId,
+            invoiceNumber: r.sourcePayment.invoice.number,
+            method: r.sourcePayment.method,
+          }
+        : null,
       reviewedAt: r.reviewedAt?.toISOString() ?? null,
       reviewedBy: users.find((u) => u.id === r.reviewedById) ?? null,
       note: r.note,
