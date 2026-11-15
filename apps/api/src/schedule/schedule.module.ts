@@ -18,11 +18,13 @@ import {
 import { SessionsService } from '../sessions/sessions.service.js';
 import { SessionStateMachine } from '../sessions/state-machine.js';
 import { ZoomDriver, ZoomMeetings } from '../sessions/zoom.js';
+import { AvailabilityChangesService } from './availability-changes.js';
 import { AvailabilityService } from './availability.service.js';
 import { CalendarService } from './calendar.service.js';
 import { ConflictChecker } from './conflicts.js';
 import { EnrollmentsService } from './enrollments.service.js';
 import {
+  AvailabilityChangesController,
   EnrollmentsController,
   HolidaysController,
   ScheduleSlotsController,
@@ -44,6 +46,7 @@ import {
     ScheduleToolsController,
     HolidaysController,
     TeacherScheduleController,
+    AvailabilityChangesController,
     SessionsController,
     SessionRequestsController,
     SessionSettingsController,
@@ -56,6 +59,7 @@ import {
     SeriesEditService,
     CalendarService,
     AvailabilityService,
+    AvailabilityChangesService,
     ZoomDriver,
     ZoomMeetings,
     SessionStateMachine,

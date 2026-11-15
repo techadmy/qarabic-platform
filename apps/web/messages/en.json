@@ -710,7 +710,8 @@
       "stage": "Status",
       "duration": "Length",
       "meeting": "Meeting",
-      "actions": "Actions"
+      "actions": "Actions",
+      "academyTime": "Time (\u2068{city}\u2069)"
     },
     "meeting": {
       "open": "Open the meeting",
@@ -849,7 +850,8 @@
       "validation_failed": "Check the data you entered.",
       "courseTaken": "The student already has a live enrollment in this course.",
       "zoomOff": "Zoom meetings are off. Use a fixed external link."
-    }
+    },
+    "yourTime": "Your time: \u2068{time}\u2069 (\u2068{city}\u2069)"
   },
   "today": {
     "title": "Today's classes",
@@ -890,6 +892,18 @@
       "confirm": "Create the classes",
       "close": "Close",
       "done": "{count, plural, zero {No classes added} one {# class added} other {# classes added}}"
+    },
+    "filters": {
+      "label": "Filter classes",
+      "course": "Course",
+      "allCourses": "All courses",
+      "searchCourse": "Search by course name",
+      "kind": "Kind",
+      "allKinds": "All kinds",
+      "stage": "Status",
+      "allStages": "All statuses",
+      "problems": "Problems only",
+      "open": "Filters"
     }
   },
   "myClasses": {

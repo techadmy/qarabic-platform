@@ -73,6 +73,10 @@ const REQUIRED_QUERY: Record<string, string> = {
 
 /** Routes a role passes at the guard but the handler refuses to that role outright (403). */
 const HANDLER_DENIES: Record<string, Role[]> = {
+  // A1: availability changes are for staff and the teacher concerned.
+  'GET availability-changes': ['parent'],
+  'GET availability-changes/:id': ['parent'],
+  'POST availability-changes/:id/withdraw': ['parent'],
   // C1: the calendar is for staff and teachers (a parent calendar comes with the portal later).
   'GET calendar/background': ['parent'],
   'GET calendar/events': ['parent'],
@@ -127,6 +131,8 @@ describe('role × route matrix (generated from ROLE_PERMISSIONS)', () => {
 const PARENT_ROUTES = [
   'GET announcements',
   'GET announcements/:id',
+  'GET availability-changes',
+  'GET availability-changes/:id',
   'GET billing/providers',
   'GET calendar/background',
   'GET calendar/events',
@@ -164,6 +170,7 @@ const PARENT_ROUTES = [
   'GET tests/:id',
   'GET tests/summary',
   'POST announcements/:id/read',
+  'POST availability-changes/:id/withdraw',
   'POST feedback/tickets',
   'POST feedback/tickets/:id/comments',
   'POST feedback/tickets/:id/confirm',
@@ -178,10 +185,13 @@ const PARENT_ROUTES = [
 ];
 
 const TEACHER_ROUTES = [
+  'DELETE teachers/:teacherId/blocks/:blockId',
   'GET announcements',
   'GET announcements/:id',
   'GET attendance',
   'GET attendance/today',
+  'GET availability-changes',
+  'GET availability-changes/:id',
   'GET calendar/background',
   'GET calendar/events',
   'GET enrollments',
@@ -222,6 +232,7 @@ const TEACHER_ROUTES = [
   'GET tests/summary',
   'PATCH tests/:id',
   'POST announcements/:id/read',
+  'POST availability-changes/:id/withdraw',
   'POST attendance/check-in',
   'POST attendance/check-out',
   'POST feedback/tickets',
@@ -243,6 +254,8 @@ const TEACHER_ROUTES = [
   'PUT sessions/:id/trial-report',
   'PUT teachers/:teacherId/work-hours',
   'PUT tests/:id/result',
+  'PATCH teachers/:teacherId/blocks/:blockId',
+  'POST teachers/:teacherId/blocks',
   'GET reports/free-capacity',
   'GET reports/teacher-utilization',
 ];
@@ -376,10 +389,31 @@ async function side(tag: 'Alpha' | 'Bravo', pkg: { id: number }) {
       teachers: { create: [{ teacherId: teacher.id, rank: 1 }] },
     },
   });
+  // A1: a block and a pending availability change of this teacher.
+  const block = await ctx.prisma.teacherBlock.create({
+    data: {
+      teacherId: teacher.id,
+      kind: 'one_off',
+      reason: 'other',
+      startsAt: new Date('2026-12-02T10:00:00Z'),
+      endsAt: new Date('2026-12-02T11:00:00Z'),
+    },
+  });
+  const availability = await ctx.prisma.availabilityChange.create({
+    data: {
+      teacherId: teacher.id,
+      kind: 'work_hours',
+      payload: { workHours: [] },
+      effectiveFrom: new Date('2026-12-01T00:00:00Z'),
+      requestedById: teacher.userId,
+    },
+  });
   return {
     teacher,
     family,
     ids: {
+      block: block.id,
+      availability: availability.id,
       family: family.id,
       student: student.id,
       enrollment: enrollment.id,
@@ -474,6 +508,28 @@ const TEACHER_ROWS: Row[] = [
   ],
   ['GET students/:id', id('student')],
   ['GET students/:id/progress', id('student')],
+  ['GET availability-changes/:id', id('availability')],
+  ['POST availability-changes/:id/withdraw', id('availability')],
+  // A1: the teacher's own block change is a request (202); another teacher's: 404.
+  [
+    'POST teachers/:teacherId/blocks',
+    teacherOf,
+    {
+      kind: 'one_off',
+      reason: 'other',
+      startsAt: '2026-12-03T10:00:00Z',
+      endsAt: '2026-12-03T11:00:00Z',
+    },
+  ],
+  [
+    'PATCH teachers/:teacherId/blocks/:blockId',
+    (ids) => ({ teacherId: ids.teacherId!, blockId: ids.block! }),
+    { note: 'E2E' },
+  ],
+  [
+    'DELETE teachers/:teacherId/blocks/:blockId',
+    (ids) => ({ teacherId: ids.teacherId!, blockId: ids.block! }),
+  ],
   ['GET teachers/:teacherId/blocks', teacherOf],
   ['GET teachers/:teacherId/timetable', teacherOf],
   ['GET teachers/:teacherId/work-hours', teacherOf],
@@ -509,6 +565,7 @@ const TEACHER_LISTS = [
   'GET reports/teacher-utilization',
   'GET attendance',
   'GET attendance/today',
+  'GET availability-changes',
   `GET calendar/background${CAL}`,
   `GET calendar/events${CAL}`,
   'GET enrollments',
@@ -536,6 +593,9 @@ const TEACHER_LISTS = [
  * status, and why.
  */
 const PARENT_DENIED: Array<[string, number, string]> = [
+  ['GET availability-changes', 403, 'availability changes are for staff and the teacher'],
+  ['GET availability-changes/:id', 403, 'availability changes are for staff and the teacher'],
+  ['POST availability-changes/:id/withdraw', 403, 'only the teacher who asked withdraws'],
   [`GET calendar/background${CAL}`, 403, 'the calendar is for staff and teachers'],
   [`GET calendar/events${CAL}`, 403, 'the calendar is for staff and teachers'],
   ['GET lesson-reports', 403, 'the reports list is for staff and teachers'],

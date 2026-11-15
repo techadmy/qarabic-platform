@@ -140,4 +140,30 @@ describe('Today board', () => {
     await user.click(within(dialog).getByRole('button', { name: 'إلغاء الحصة' }));
     expect(await within(dialog).findByText(/تغيّرت الحصة على الشاشة الأخرى/)).toBeInTheDocument();
   });
+
+  it('v2 (D148): the academy’s time column; filters by kind, state and problems only in the URL', async () => {
+    const user = userEvent.setup();
+    renderPage(<TodayView />, { path: '/today' });
+    const table = await board();
+    expect(
+      within(table).getByRole('columnheader', { name: 'الوقت (القاهرة)' }),
+    ).toBeInTheDocument();
+    // The late class keeps its place in time and is tinted as urgent.
+    const late = rows(table).find((r) => within(r).queryByText('متأخرة'));
+    expect(late).toHaveAttribute('data-tone', 'urgent');
+    const filters = screen.getByRole('group', { name: 'تصفية الحصص' });
+    await user.click(within(filters).getByRole('combobox', { name: 'النوع' }));
+    await user.click(await screen.findByRole('option', { name: 'تجريبية' }));
+    expect(lastReplacedUrl().searchParams.get('kind')).toBe('trial');
+    await user.click(within(filters).getByRole('switch', { name: 'المشكلات فقط' }));
+    expect(lastReplacedUrl().searchParams.get('problems')).toBe('1');
+  });
+
+  it('problems only keeps the rows that need action, still in time order', async () => {
+    renderPage(<TodayView />, { path: '/today?problems=1' });
+    const table = await board();
+    const shown = rows(table);
+    expect(shown.length).toBeGreaterThan(0);
+    for (const r of shown) expect(r.dataset.tone).toMatch(/^(urgent|attention)$/);
+  });
 });
