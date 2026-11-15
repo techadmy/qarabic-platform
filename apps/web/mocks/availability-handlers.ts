@@ -130,7 +130,8 @@ function affectedBy(teacherId: number, hours: WorkHourDto[], from: string) {
 function present(c: ChangeRow, me: MockUser): AvailabilityChangeDto {
   const t = teacherOf(c.teacherId)!;
   const pending = c.status === 'pending';
-  const own = c.requestedBy.id === me.id;
+  // As the API (#113): the requester, or the teacher whose record it is, never decides it.
+  const own = c.requestedBy.id === me.id || t.userId === me.id || me.teacherId === c.teacherId;
   return {
     ...c,
     teacher: { id: t.id, name: t.name, timezone: t.timezone },
@@ -296,7 +297,8 @@ export const availabilityHandlers: HttpHandler[] = [
       c.status = 'withdrawn';
       return HttpResponse.json({ data: present(c, g.me) });
     }
-    if (c.requestedBy.id === g.me.id) {
+    const ownRecord = teacherOf(c.teacherId)?.userId === g.me.id || g.me.teacherId === c.teacherId;
+    if (c.requestedBy.id === g.me.id || ownRecord) {
       return apiError(403, 'self_decision', 'You cannot decide your own request.');
     }
     const json = await body(req);
