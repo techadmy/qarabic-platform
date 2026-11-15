@@ -51,7 +51,7 @@ export const MODULES = {
   tasks: ['view', 'manage', 'oversee'],
   complaints: ['view', 'manage', 'request'],
   announcements: ['view', 'manage'],
-  reports: ['view', 'financial'],
+  reports: ['view', 'financial', 'profit'],
   users: ['view', 'manage'],
   roles: ['view', 'manage'],
   audit_logs: ['view'],
@@ -75,6 +75,12 @@ export const GROUPS: Record<string, Module[]> = {
   reports: ['reports', 'audit_logs'],
   settings: ['roles', 'settings'],
 };
+
+/**
+ * D145: profit and loss (expenses, gross/net profit, the P&L report) is for the owner only. No
+ * preset holds it and no role can be granted it; the owner has every permission by kind.
+ */
+export const OWNER_ONLY_PERMISSIONS: readonly Permission[] = ['reports.profit'];
 
 type Entry = Permission | `${Module}.*`;
 
