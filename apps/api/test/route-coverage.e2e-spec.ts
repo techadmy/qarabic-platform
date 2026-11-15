@@ -447,6 +447,8 @@ describe('route permission coverage', () => {
       'GET calendar/background': 'any:schedule.view|sessions.conduct',
       // D1 (docs/40): each widget is further gated by DASHBOARD_WIDGET_PERMISSIONS.
       'GET dashboard/metrics': 'all:reports.view',
+      // docs/40 §3: each event kind is further gated like its widget.
+      'GET dashboard/events': 'all:reports.view',
       'GET task-templates': 'all:tasks.manage',
       'GET tasks': 'all:tasks.view',
       'GET tasks/:id': 'all:tasks.view',
