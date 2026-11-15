@@ -3,6 +3,7 @@
 import { ZOOM_STATUS_LABELS, type SessionDto } from '@qarabic/shared';
 import { Card } from '@qarabic/ui/components/card';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@qarabic/ui/components/tooltip';
 import {
   Table,
   TableBody,
@@ -15,8 +16,10 @@ import { useIsMobile } from '@qarabic/ui/hooks/use-mobile';
 import { cn } from '@qarabic/ui/lib/utils';
 import { CheckIcon, MinusIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
-import { Fragment, type MouseEvent } from 'react';
+import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
+import { rowTone, type RowTone } from '@/lib/sessions/board';
 import { clock, dayLabel, dateKeyIn, minutesBetween } from '@/lib/schedule-time';
+import { cityOf } from '@/lib/time';
 import { AttentionBadge, KindBadge, StageBadge } from './badges';
 import { RowActions } from './row-actions';
 import { OtherTime, useUiLocale, useViewerTz } from './times';
@@ -75,26 +78,49 @@ function Meeting({ s }: { s: SessionDto }) {
   );
 }
 
-function NowDivider({ now }: { now: Date }) {
+/** The «الآن» line, its time in the zone the rows show (the academy's on the board). */
+function NowDivider({ now, tz }: { now: Date; tz: string }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
-  const tz = useViewerTz();
   return (
     <div
       role="separator"
       aria-label={t('now')}
-      className="flex items-center gap-2 py-1 text-destructive"
+      data-now-divider
+      className="flex scroll-mt-24 items-center gap-2 py-1 text-destructive"
     >
       <span className="h-0.5 flex-1 bg-destructive" />
       <span className="text-xs font-bold">
-        {t('now')} <bdi>{clock(now.toISOString(), tz, locale)}</bdi>
+        {t('now')} <bdi>{clock(now.toISOString(), tz, locale)}</bdi> ({cityOf(tz, locale)})
       </span>
       <span className="h-0.5 flex-1 bg-destructive" />
     </div>
   );
 }
 
-const lateRow = 'bg-status-orange/70 dark:bg-status-orange/40';
+/**
+ * Row look by state (D148, docs/42 §2.3; colours D35: running yellow): a 4 px inline-start bar in
+ * the state's emphasis colour plus its fill for the rows that need eyes (urgent, follow-up,
+ * running); finished and off rows are quiet (no fill, muted text). Tinted rows keep their tint on
+ * hover. Status tokens only.
+ */
+const TONE: Record<RowTone, { fill: string; bar: string }> = {
+  urgent: {
+    fill: 'bg-status-red hover:bg-status-red hover:brightness-95',
+    bar: 'border-s-status-red-emphasis',
+  },
+  attention: {
+    fill: 'bg-status-orange hover:bg-status-orange hover:brightness-95',
+    bar: 'border-s-status-orange-emphasis',
+  },
+  running: {
+    fill: 'bg-status-amber hover:bg-status-amber hover:brightness-95',
+    bar: 'border-s-status-amber-emphasis',
+  },
+  done: { fill: 'text-muted-foreground hover:bg-subtle', bar: 'border-s-transparent' },
+  off: { fill: 'text-muted-foreground hover:bg-subtle', bar: 'border-s-transparent' },
+  plain: { fill: 'hover:bg-subtle', bar: 'border-s-transparent' },
+};
 
 /**
  * Class rows (docs/15 §6.1, the current app's `BoardTable`): the shadcn `Table` from 768 px, one
@@ -112,6 +138,8 @@ export function ClassTable({
   showDate,
   hideTeacher,
   primaryActions,
+  academyTz,
+  scrollToNow,
 }: {
   rows: SessionDto[];
   loading?: boolean;
@@ -124,6 +152,13 @@ export function ClassTable({
   /** The teacher's own list: no teacher column. */
   hideTeacher?: boolean;
   primaryActions?: boolean;
+  /**
+   * The board (D148): the time column is the academy's (Cairo), labelled; the viewer's own time
+   * is in its tooltip when their zone differs (D30).
+   */
+  academyTz?: string;
+  /** Scroll the «الآن» line into view once the rows first show (the board on today). */
+  scrollToNow?: boolean;
 }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
@@ -144,9 +179,38 @@ export function ClassTable({
       {s.student.name}
     </button>
   );
+  const scrolled = useRef(false);
+  useEffect(() => {
+    if (!scrollToNow || loading || scrolled.current || nowIndex < 0) return;
+    scrolled.current = true;
+    document
+      .querySelector('[data-now-divider]')
+      ?.scrollIntoView({ block: 'center', behavior: 'instant' as ScrollBehavior });
+  }, [scrollToNow, loading, nowIndex]);
+  const timeTz = academyTz ?? tz;
+  const own = (s: SessionDto) =>
+    t('yourTime', { time: clock(s.startsAt, tz, locale), city: cityOf(tz, locale) });
   const when = (s: SessionDto) => (
     <span className="flex flex-col">
-      <bdi className="font-bold">{clock(s.startsAt, tz, locale)}</bdi>
+      {academyTz && academyTz !== tz ? (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <bdi
+              tabIndex={0}
+              className="w-fit font-bold underline decoration-dotted underline-offset-4"
+            >
+              {clock(s.startsAt, timeTz, locale)}
+            </bdi>
+          </TooltipTrigger>
+          <TooltipContent>{own(s)}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <bdi className="font-bold">{clock(s.startsAt, timeTz, locale)}</bdi>
+      )}
+      {/* Phones have no column header: the card says whose time it is. */}
+      {academyTz && isMobile && (
+        <span className="text-xs text-muted-foreground">({cityOf(academyTz, locale)})</span>
+      )}
       {showDate && (
         <span className="text-xs text-muted-foreground">
           {dayLabel(dateKeyIn(tz, new Date(s.startsAt)), locale)}
@@ -172,15 +236,17 @@ export function ClassTable({
           <Fragment key={s.id}>
             {i === nowIndex && (
               <li>
-                <NowDivider now={now} />
+                <NowDivider now={now} tz={timeTz} />
               </li>
             )}
             <li>
               <Card
                 onClick={(e) => open(e, s)}
+                data-tone={rowTone(s)}
                 className={cn(
-                  'cursor-pointer gap-1.5 px-4 py-3 shadow-none',
-                  s.attention.includes('late') && lateRow,
+                  'cursor-pointer gap-1.5 border-s-4 px-4 py-3 shadow-none',
+                  TONE[rowTone(s)].fill,
+                  TONE[rowTone(s)].bar,
                 )}
               >
                 <div className="flex items-start justify-between gap-2">
@@ -211,7 +277,7 @@ export function ClassTable({
         ))}
         {nowIndex === rows.length && (
           <li>
-            <NowDivider now={now} />
+            <NowDivider now={now} tz={timeTz} />
           </li>
         )}
       </ul>
@@ -246,6 +312,8 @@ export function ClassTable({
               >
                 {c === 'actions' ? (
                   <span className="sr-only">{t('columns.actions')}</span>
+                ) : c === 'time' && academyTz ? (
+                  t('columns.academyTime', { city: cityOf(academyTz, locale) })
                 ) : (
                   t(`columns.${c}`)
                 )}
@@ -259,19 +327,24 @@ export function ClassTable({
               {i === nowIndex && (
                 <TableRow className="hover:bg-transparent">
                   <TableCell colSpan={columns} className="border-0 p-0 px-3">
-                    <NowDivider now={now} />
+                    <NowDivider now={now} tz={timeTz} />
                   </TableCell>
                 </TableRow>
               )}
               <TableRow
                 data-session-id={s.id}
                 onClick={(e) => open(e, s)}
-                className={cn(
-                  'cursor-pointer hover:bg-subtle',
-                  s.attention.includes('late') && lateRow,
-                )}
+                data-tone={rowTone(s)}
+                className={cn('cursor-pointer', TONE[rowTone(s)].fill)}
               >
-                <TableCell className="h-14 px-3 py-1.5 whitespace-nowrap">{when(s)}</TableCell>
+                <TableCell
+                  className={cn(
+                    'h-14 border-s-4 px-3 py-1.5 whitespace-nowrap',
+                    TONE[rowTone(s)].bar,
+                  )}
+                >
+                  {when(s)}
+                </TableCell>
                 <TableCell className="px-3 py-1.5">
                   <span className="flex flex-col">
                     {name(s)}
@@ -327,7 +400,7 @@ export function ClassTable({
           {nowIndex === rows.length && (
             <TableRow className="hover:bg-transparent">
               <TableCell colSpan={columns} className="border-0 p-0 px-3">
-                <NowDivider now={now} />
+                <NowDivider now={now} tz={timeTz} />
               </TableCell>
             </TableRow>
           )}
