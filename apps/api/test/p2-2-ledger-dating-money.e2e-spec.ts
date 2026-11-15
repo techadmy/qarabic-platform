@@ -32,7 +32,7 @@ describe('BIL-8 a manual payment is posted on the day the money came in', () => 
       receivedOn: '2026-12-01',
     });
     expect(paid.status).toBe(201);
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     const run = await accounts.post('/accounting/outbox/process');
     expect(run.body.data).toMatchObject({ failed: 0 });
     const entry = await ctx.prisma.journalEntry.findFirstOrThrow({
@@ -44,7 +44,7 @@ describe('BIL-8 a manual payment is posted on the day the money came in', () => 
 
 describe('BIL-9 a payslip payment date is not in the future', () => {
   it('tomorrow → 422 on paidOn', async () => {
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     const res = await accounts.post('/payslips/1/payments', {
       method: 'cash',
       paidOn: '2026-12-03',
@@ -106,7 +106,7 @@ describe('BIL-7 an invoice run keeps its audit and emails when a family fails', 
 describe('BIL-12 closing a month waits for an entry being posted to it', () => {
   it('the close blocks while a posting holds the month', async () => {
     clock(ctx).set('2026-12-10T09:00:00Z');
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     let closedAt = 0;
     const holder = ctx.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT pg_advisory_xact_lock_shared(hashtext('ledger_period:2026-11'))`;

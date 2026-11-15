@@ -28,7 +28,8 @@ afterAll(async () => {
 beforeEach(async () => {
   await resetState(ctx);
   clock(ctx).set('2026-11-15T08:00:00Z');
-  accounts = (await signedIn(ctx, 'accounts')).client;
+  // D146: the books are the owner's by default (or an admin they grant accounting.* to).
+  accounts = (await signedIn(ctx, 'admin')).client;
   const rows = await ctx.prisma.ledgerAccount.findMany({ select: { id: true, code: true } });
   ids = Object.fromEntries(rows.map((r) => [r.code, r.id]));
 });
@@ -64,30 +65,18 @@ async function billingEvent(
   });
 }
 
-describe('permissions (docs/07 §ب)', () => {
-  it('lets the senior manager read but not post; other roles get 403', async () => {
-    const { client: senior } = await signedIn(ctx, 'senior_manager');
-    expect((await senior.get('/accounting/accounts')).status).toBe(200);
-    expect(
-      (
-        await senior.get(
-          '/accounting/reports/trial-balance?currency=USD&from=2026-11-01&to=2026-11-30',
-        )
-      ).status,
-    ).toBe(200);
-    expect(
-      (
-        await senior.post(
-          '/accounting/journal',
-          entry([
-            ['1110', '10', null],
-            ['3100', null, '10'],
-          ]),
-        )
-      ).status,
-    ).toBe(403);
-    expect((await senior.post('/accounting/outbox/process')).status).toBe(403);
-    for (const role of ['manager', 'monitor', 'csr', 'billing', 'teacher', 'parent']) {
+describe('permissions (docs/07 §ب, D146)', () => {
+  it('only the owner keeps the ledger: every other preset, accounts included, gets 403', async () => {
+    for (const role of [
+      'senior_manager',
+      'manager',
+      'monitor',
+      'csr',
+      'billing',
+      'accounts',
+      'teacher',
+      'parent',
+    ]) {
       const { client } = await signedIn(ctx, role);
       for (const path of [
         '/accounting/accounts',
@@ -96,10 +85,14 @@ describe('permissions (docs/07 §ب)', () => {
         '/accounting/periods?year=2026',
         '/accounting/outbox',
         '/accounting/reports/cash?from=2026-11-01&to=2026-11-30',
+        '/accounting/reports/trial-balance?currency=USD&from=2026-11-01&to=2026-11-30',
+        '/accounting/reports/balance-sheet?currency=USD&asOf=2026-11-30',
+        `/accounting/accounts/${ids['5110']}/statement?currency=USD&from=2026-11-01&to=2026-11-30`,
       ]) {
         expect((await client.get(path)).status, `${role} ${path}`).toBe(403);
       }
       expect((await client.post('/accounting/vouchers', {})).status, role).toBe(403);
+      expect((await client.post('/accounting/outbox/process')).status, role).toBe(403);
     }
   });
 });
@@ -586,9 +579,10 @@ describe('reports', () => {
   it('profit and loss, balance sheet (balanced, with the result in equity) and cash per currency', async () => {
     // D145: the P&L report is the owner's only; accounts keep the books but do not see it.
     const { client: owner } = await signedIn(ctx, 'admin');
+    const { client: accountsRole } = await signedIn(ctx, 'accounts');
     expect(
       (
-        await accounts.get(
+        await accountsRole.get(
           '/accounting/reports/profit-and-loss?currency=USD&from=2026-11-01&to=2026-11-30',
         )
       ).status,

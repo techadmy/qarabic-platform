@@ -222,6 +222,7 @@ export class DashboardMetricsService {
       const { total, overdue } = await this.outstanding(r.to, r.end);
       out.outstanding = { total, overdue };
     }
+    if (has('collection_rate')) out.collection_rate = await this.collectionRate(r);
     if (has('gross_profit') || has('net_profit')) {
       const gross = new UsdTotal();
       const net = new UsdTotal();
@@ -456,6 +457,32 @@ export class DashboardMetricsService {
     return { total, overdue, ageing };
   }
 
+  /**
+   * D146: of the billed invoices due in the range, the share paid by its end (USD, at each
+   * invoice's issue-month rate). Resolved to a ratio after conversion.
+   */
+  private async collectionRate(r: Range): Promise<UsdRatio> {
+    const rows = await this.prisma.$queryRaw<
+      Array<{ currency: string; month: string; total: Prisma.Decimal; paid: Prisma.Decimal }>
+    >`
+      SELECT i.currency, to_char(i.issue_date, 'YYYY-MM') AS month, i.total,
+             least(i.total, coalesce(p.applied, 0)) AS paid
+        FROM invoices i
+        LEFT JOIN (
+          SELECT invoice_id, sum(amount - unapplied) AS applied FROM payments
+           WHERE status = 'succeeded' AND received_at < ${r.end}
+           GROUP BY invoice_id
+        ) p ON p.invoice_id = i.id
+       WHERE i.status NOT IN ('draft', 'void', 'split')
+         AND i.due_date BETWEEN ${r.from}::date AND ${r.to}::date`;
+    const ratio = new UsdRatio();
+    for (const row of rows) {
+      ratio.due.add(row.currency, row.month, row.total);
+      ratio.paid.add(row.currency, row.month, row.paid);
+    }
+    return ratio;
+  }
+
   /** Income and expense lines (credit − debit) by bucket, currency, month and teacher pay. */
   private ledger(r: Range, bucket: DashboardBucket) {
     return this.prisma.$queryRaw<
@@ -523,14 +550,29 @@ export function bucketKeys(from: string, to: string, bucket: DashboardBucket): s
   return keys;
 }
 
+/** paid ÷ due, both in USD; null when nothing was due or a rate is missing. */
+class UsdRatio {
+  readonly paid = new UsdTotal();
+  readonly due = new UsdTotal();
+
+  resolve(money: (t: UsdTotal) => UsdMoney): number | null {
+    const paid = money(this.paid);
+    const due = money(this.due);
+    if (paid.usd === null || due.usd === null || Number(due.usd) === 0) return null;
+    return round4(Number(paid.usd) / Number(due.usd));
+  }
+}
+
 function collect(value: unknown, into: UsdTotal[]): void {
-  if (value instanceof UsdTotal) into.push(value);
+  if (value instanceof UsdRatio) into.push(value.paid, value.due);
+  else if (value instanceof UsdTotal) into.push(value);
   else if (Array.isArray(value)) for (const v of value) collect(v, into);
   else if (value && typeof value === 'object')
     for (const v of Object.values(value)) collect(v, into);
 }
 
 function convert(value: unknown, money: (t: UsdTotal) => UsdMoney): unknown {
+  if (value instanceof UsdRatio) return value.resolve(money);
   if (value instanceof UsdTotal) return money(value);
   if (Array.isArray(value)) return value.map((v) => convert(v, money));
   if (value && typeof value === 'object')
