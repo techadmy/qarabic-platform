@@ -137,12 +137,12 @@ function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     createdAt: p.createdAt,
     receiptNumber: p.receiptNumber,
     unapplied: '0.00',
-    needsReview: false,
-    reviewReason: null,
   };
   return staff
     ? {
         ...base,
+        needsReview: false,
+        reviewReason: null,
         capturedAmount: null,
         capturedCurrency: null,
         note: p.note,
