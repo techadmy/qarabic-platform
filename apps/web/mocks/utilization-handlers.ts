@@ -131,8 +131,26 @@ export const utilizationHandlers: HttpHandler[] = [
     const sum = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>
       round(teachers.reduce((n, t) => n + t[k], 0));
     const available = sum('availableHours');
+    // Per-day totals (#118: busiest and emptiest days).
+    const days = daysBetween(from, to).map((date) => {
+      const each = list.map((t) => numbers(t.id, date, date));
+      const add = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>
+        round(each.reduce((n, x) => n + x[k], 0));
+      const availableHours = add('availableHours');
+      return {
+        date,
+        weekday: isoWeekday(date),
+        availableHours,
+        bookedHours: add('bookedHours'),
+        freeHours: add('freeHours'),
+        outsideHours: add('outsideHours'),
+        utilization: availableHours > 0 ? round(add('bookedHours') / availableHours) : null,
+        classes: each.reduce((n, x) => n + x.classes, 0),
+      };
+    });
     const data: UtilizationReportDto = {
       range: { from, to, previous, timezone: ACADEMY_TZ },
+      days,
       teachers,
       totals: {
         availableHours: available,
