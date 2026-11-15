@@ -4392,18 +4392,29 @@
     "needsAttention": "Needs attention",
     "trial": {
       "title": "Pick a teacher for the trial: \u2068{name}\u2069",
-      "hint": "Only teachers who can take this trial are shown; white time is free. Click a time in a teacher’s column to check the class (\u2068{minutes}\u2069 min) and send them the offer.",
+      "hint": "Only the teachers who suit this trial are shown; white time is free. Click a time in a teacher’s column to check the class (\u2068{minutes}\u2069 min) and send them the offer.",
       "back": "Back to the lead",
       "pickTitle": "Send the trial to a teacher",
       "minutes": "{count, plural, one {# minute} other {# minutes}}",
-      "eligible": "Free and suitable",
+      "eligible": "Suitable and free",
       "notEligible": "Not suitable at this time",
       "teacherTime": "Teacher’s time:",
       "chooseBelow": "Choose one of the teachers suitable at this time.",
       "others": "Other suitable teachers at this time",
       "sent": "Sent the trial offer to \u2068{name}\u2069.",
       "send": "Send offer",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "outsideHours": "Suitable, but outside their working hours",
+      "familyTime": "Family’s time:",
+      "keyboard": "With a keyboard: go back to the booking, pick the time, then «Offer it to the teachers» → «A shortlist I choose».",
+      "loadFailed": "Couldn’t load the suitable teachers.",
+      "retry": "Try again",
+      "none": "No teachers suit this trial (course, gender or age group).",
+      "loading": "Loading the suitable teachers",
+      "reasons": {
+        "outside_work_hours": "Outside their working hours",
+        "blocked": "An unavailable time for them"
+      }
     },
     "rescheduled": "Re-scheduled",
     "outsideHours": "Outside working hours",
