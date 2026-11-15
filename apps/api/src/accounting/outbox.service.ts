@@ -212,11 +212,14 @@ export class OutboxService {
   }
 
   /** Unconsumed events that happened before `before` (period close refuses while any are left). */
-  async pendingBefore(before: Date): Promise<number> {
+  async pendingBefore(
+    before: Date,
+    db: Pick<Tx, 'billingEvent' | 'payrollEvent'> = this.prisma,
+  ): Promise<number> {
     const where = { consumedAt: null, occurredAt: { lt: before } };
     const [b, p] = await Promise.all([
-      this.prisma.billingEvent.count({ where }),
-      this.prisma.payrollEvent.count({ where }),
+      db.billingEvent.count({ where }),
+      db.payrollEvent.count({ where }),
     ]);
     return b + p;
   }
