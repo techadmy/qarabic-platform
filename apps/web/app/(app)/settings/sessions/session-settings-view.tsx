@@ -56,7 +56,8 @@ import { applyServerErrors } from '@/lib/forms/server-errors';
 import { useValidationMessages } from '@/lib/forms/validation-messages';
 
 /** Unit of each number rule (its key's suffix). */
-function unitOf(key: string): 'minutes' | 'hours' | 'days' {
+function unitOf(key: string): 'minutes' | 'hours' | 'days' | 'percent' {
+  if (key.endsWith('_pct')) return 'percent';
   if (key.endsWith('_min')) return 'minutes';
   if (key.endsWith('_hours')) return 'hours';
   return 'days';

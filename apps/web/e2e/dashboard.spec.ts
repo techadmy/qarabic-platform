@@ -58,3 +58,42 @@ test('the range bar writes the URL; compare names the API’s period (1440, Engl
     /report=profit-and-loss&from=/,
   );
 });
+
+test('D3 widgets at 375 (Arabic): the owner sees every chart and the teacher pay total', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/login?next=%2F');
+  await login(page);
+  await page.waitForURL((u) => u.pathname === '/');
+  const dash = page.getByRole('region', { name: 'لوحة المؤشرات' });
+  for (const title of [
+    'أعمار الديون المتأخرة',
+    'العملاء المحتملون حسب المصدر',
+    'أسباب فقد العملاء',
+    'ساعات التدريس',
+  ]) {
+    await expect(dash.getByRole('heading', { level: 3, name: title })).toBeVisible();
+  }
+  await expect(dash.getByText(/رواتب المعلمين في الفترة: \$/)).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+});
+
+test('D3 at 375 (Arabic): accounts see the ageing and the collection rate, never teacher pay', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await page.goto('/login?next=%2F');
+  await login(page, 'accounts@qarabic.test');
+  await page.waitForURL((u) => u.pathname === '/');
+  const dash = page.getByRole('region', { name: 'لوحة المؤشرات' });
+  await page.waitForURL((u) => u.pathname === '/');
+  await expect(
+    dash.getByRole('heading', { level: 3, name: 'أعمار الديون المتأخرة' }),
+  ).toBeVisible();
+  await expect(dash.getByRole('link', { name: /^نسبة التحصيل/ })).toBeVisible();
+  await expect(dash.getByRole('heading', { level: 3, name: 'ساعات التدريس' })).toHaveCount(0);
+  await expect(dash.getByText(/رواتب المعلمين/)).toHaveCount(0);
+});

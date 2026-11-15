@@ -6,6 +6,7 @@ import { AccountModule } from './account/account.module.js';
 import { AccountingModule } from './accounting/accounting.module.js';
 import { CalendarModule } from './calendar/calendar.module.js';
 import { DashboardModule } from './dashboard/dashboard.module.js';
+import { ZoomModule } from './zoom/zoom.module.js';
 import { NotificationCentreModule } from './operations/notification-centre.js';
 import { OperationsModule } from './operations/operations.module.js';
 import { AuditModule } from './audit/audit.service.js';
@@ -83,6 +84,7 @@ export const REDACT = [
     PayrollModule,
     AccountingModule,
     DashboardModule,
+    ZoomModule,
     CalendarModule,
     NotificationCentreModule,
     OperationsModule,
