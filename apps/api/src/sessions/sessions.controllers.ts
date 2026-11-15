@@ -27,6 +27,7 @@ import {
   reportListQuerySchema,
   type RequestCountsDto,
   rejectSessionRequestSchema,
+  type SeriesChangeDto,
   SESSION_SETTING_RULES,
   type SessionDetailDto,
   type SessionDto,
@@ -62,6 +63,7 @@ import { SessionReads } from './board.js';
 import { fail } from './errors.js';
 import { SessionGenerator } from './generator.js';
 import { SessionRequestsService } from './requests.service.js';
+import { SeriesEditService } from './series.js';
 import { SessionsService } from './sessions.service.js';
 import { Actor, SessionStateMachine, StaleSessionError } from './state-machine.js';
 import { ZoomDriver, ZoomMeetings } from './zoom.js';
@@ -94,6 +96,7 @@ export class SessionsController {
     private readonly meetings: ZoomMeetings,
     private readonly crypto: Crypto,
     private readonly reports: LessonReportsService,
+    private readonly series: SeriesEditService,
   ) {}
 
   @Can('sessions.view')
@@ -197,7 +200,10 @@ export class SessionsController {
     return { data: await this.reads.detail(id, viewer) };
   }
 
-  /** Shift a scheduled class or change its teacher (it becomes detached). */
+  /**
+   * Shift a scheduled class or change its teacher: `scope=this` detaches it; `scope=following`
+   * also moves its weekly slot from the next week on (D148).
+   */
   @Can('sessions.manage')
   @Patch(':id')
   @ApiBody({ schema: jsonSchema(updateSessionSchema) })
@@ -205,8 +211,13 @@ export class SessionsController {
     @Param('id', IdPipe) id: number,
     @ZodBody(updateSessionSchema) body: Out<typeof updateSessionSchema>,
     @CurrentUser() actor: AuthUser,
-  ): Promise<{ data: SessionDto }> {
+  ): Promise<{ data: SessionDto; series?: SeriesChangeDto }> {
     await this.reads.find(id, actor);
+    // D148: "this class and the following ones" versions its weekly slot too.
+    if (body.scope === 'following') {
+      const series = await this.stale(id, actor, () => this.series.following(id, body, actor));
+      return { data: await this.reads.dto(id, actor), series };
+    }
     await this.stale(id, actor, async () =>
       this.sessions.reschedule(
         id,

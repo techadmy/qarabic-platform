@@ -4260,7 +4260,8 @@
       "down": "down from the previous period",
       "flat": "no change from the previous period",
       "net_profit": "Net profit",
-      "points": "\u2068{value}\u2069 pts"
+      "points": "\u2068{value}\u2069 pts",
+      "collection_rate": "Collection rate"
     },
     "chart": {
       "week": "Week of",
@@ -4297,7 +4298,43 @@
         "declined": "Declined",
         "cancelled": "Cancelled"
       },
-      "incomplete": "incomplete: no exchange rate"
+      "incomplete": "incomplete: no exchange rate",
+      "ageing": {
+        "title": "Overdue ageing",
+        "description": "Overdue balance at the end of the period by days past due, in US dollars.",
+        "d0_30": "Up to 30 days",
+        "d31_60": "31–60 days",
+        "d61_90": "61–90 days",
+        "d90_plus": "Over 90 days"
+      },
+      "leads_by_source": {
+        "title": "Leads by source",
+        "description": "Where this period’s leads came from.",
+        "total": "leads",
+        "web_form": "Website",
+        "phone": "Phone",
+        "whatsapp": "WhatsApp",
+        "walk_in": "Walk-in",
+        "referral": "Referral",
+        "other": "Other"
+      },
+      "lost_reasons": {
+        "title": "Why leads were lost",
+        "description": "Why sign-up didn’t happen, most common first.",
+        "not_interested": "Not interested",
+        "no_response": "No response",
+        "price": "Price",
+        "schedule": "Schedule",
+        "duplicate": "Duplicate",
+        "other": "Other",
+        "teacher": "Teacher"
+      },
+      "teacher_hours": {
+        "title": "Teaching hours",
+        "description": "Paid teacher hours in each period (rounded per class).",
+        "hours": "Hours",
+        "payroll": "Teacher pay in the period: <amount></amount>"
+      }
     },
     "missingRates": {
       "title": "Missing exchange rates",
