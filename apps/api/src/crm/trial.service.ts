@@ -266,7 +266,8 @@ export class LeadTrialService {
         st,
         [input.teacherId],
       );
-      overridden = (judged?.reasons ?? []).filter((r) => r !== 'busy');
+      // Clashes (busy, blocked) are refused by the schedule check (409), never overridden.
+      overridden = (judged?.reasons ?? []).filter((r) => r !== 'busy' && r !== 'blocked');
       if (overridden.length && !input.overrideReason) {
         throw crmError(HttpStatus.UNPROCESSABLE_ENTITY, 'teacher_not_eligible', {
           errors: { overrideReason: ['Give a reason to book a teacher who is not eligible.'] },
