@@ -41,6 +41,10 @@ const PUBLIC_ROUTES = [
   'POST auth/forgot-password',
   'POST auth/login',
   'POST auth/reset-password',
+  // Z1 (docs/42 §6): Zoom's webhook. 404 until ZOOM_DRIVER=s2s with the keys; every request needs
+  // a valid x-zm-signature (HMAC-SHA256 over the raw body) under 5 minutes old, else 401;
+  // idempotent per event. Covered by test/z1-zoom.e2e-spec.ts.
+  'POST integrations/zoom/webhook',
   'POST public/trial-requests',
   'POST public/web-leads/wpforms',
   // N6: payment provider webhooks (404 while the provider has no keys; Stripe signed over the raw
@@ -450,6 +454,8 @@ describe('route permission coverage', () => {
       // R1 (docs/42 §5): staff with reports.view, or a teacher for their own numbers.
       'GET reports/teacher-utilization': 'any:reports.view|sessions.conduct',
       'GET reports/free-capacity': 'any:reports.view|sessions.conduct',
+      // docs/40 §3: each event kind is further gated like its widget.
+      'GET dashboard/events': 'all:reports.view',
       'GET task-templates': 'all:tasks.manage',
       'GET tasks': 'all:tasks.view',
       'GET tasks/:id': 'all:tasks.view',
