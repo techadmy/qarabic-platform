@@ -29,14 +29,23 @@ describe('Financial reports', () => {
     );
   });
 
-  it('profit and loss shows income, expenses and the net result', async () => {
+  it('profit and loss (owner only, D145) shows income, expenses and the net result', async () => {
     renderPage(<ReportsView />, {
-      as: ACCOUNTS,
+      as: 'admin@qarabic.test',
       path: `/accounting/reports?report=profit-and-loss&currency=USD&${WIDE}`,
     });
     expect(await screen.findByRole('table', { name: 'الإيرادات' })).toBeInTheDocument();
     expect(screen.getByRole('table', { name: 'المصروفات' })).toBeInTheDocument();
     expect(screen.getByText(/صافي (الربح|الخسارة)/)).toBeInTheDocument();
+  });
+
+  it('accounts staff have no profit and loss tab, even from a link (D145)', async () => {
+    renderPage(<ReportsView />, {
+      as: ACCOUNTS,
+      path: `/accounting/reports?report=profit-and-loss&currency=USD&${WIDE}`,
+    });
+    expect(await screen.findByRole('table', { name: 'ميزان المراجعة' })).toBeInTheDocument();
+    expect(screen.queryByRole('tab', { name: 'قائمة الدخل' })).toBeNull();
   });
 
   it('balance sheet balances (earnings to date in equity)', async () => {

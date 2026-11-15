@@ -558,7 +558,8 @@ export const accountingHandlers: HttpHandler[] = [
   }),
 
   http.get(`${API}/reports/profit-and-loss`, ({ request }) => {
-    const g = guard(request, 'accounting.view');
+    // D145: profit and loss is for the owner only.
+    const g = guard(request, 'reports.profit');
     if ('error' in g) return g.error;
     const parsed = reportRangeQuerySchema.safeParse(queryOf(request));
     if (!parsed.success) return validationFailed(parsed.error.issues);
