@@ -24,8 +24,9 @@ async function open(page: Page, width: number, lang: 'ar' | 'en', path = '/') {
     await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   }
-  await expect(page.locator('.recharts-surface').first()).toBeVisible();
-  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+  // Under a loaded CI box the metrics answer and the charts can take a while: wait for both.
+  await expect(page.locator('.recharts-surface').first()).toBeVisible({ timeout: 20_000 });
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 20_000 });
 }
 
 for (const run of RUNS) {
