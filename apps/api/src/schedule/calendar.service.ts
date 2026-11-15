@@ -191,7 +191,7 @@ export class CalendarService {
   async createBlock(
     teacherId: number,
     input: z.output<typeof createTeacherBlockSchema>,
-    actor: AuthUser,
+    actor: Pick<AuthUser, 'id'>,
   ): Promise<TeacherBlockDto> {
     const teacher = await this.teacher(teacherId);
     const row = await this.prisma.$transaction(async (tx) => {
@@ -223,7 +223,7 @@ export class CalendarService {
     teacherId: number,
     blockId: number,
     input: z.output<typeof updateTeacherBlockSchema>,
-    actor: AuthUser,
+    actor: Pick<AuthUser, 'id'>,
   ): Promise<TeacherBlockDto> {
     const teacher = await this.teacher(teacherId);
     const before = await this.prisma.teacherBlock.findFirst({ where: { id: blockId, teacherId } });
@@ -251,7 +251,11 @@ export class CalendarService {
     return blockDto(row);
   }
 
-  async deleteBlock(teacherId: number, blockId: number, actor: AuthUser): Promise<void> {
+  async deleteBlock(
+    teacherId: number,
+    blockId: number,
+    actor: Pick<AuthUser, 'id'>,
+  ): Promise<void> {
     const before = await this.prisma.teacherBlock.findFirst({ where: { id: blockId, teacherId } });
     if (!before) throw notFound();
     await this.prisma.$transaction(async (tx) => {
@@ -285,15 +289,34 @@ export class CalendarService {
   ): Promise<WorkHourDto[]> {
     // Outside scope = 404, as for reading another teacher's calendar (docs/39 P1-6 / P2-3).
     if (!actor.permissions.has('schedule.manage')) await this.assertCanSee(teacherId, actor);
+    // A teacher's own change goes through AvailabilityChangesService (B131): only staff write here.
+    if (!actor.permissions.has('schedule.manage')) throw forbidden();
+    await this.teacher(teacherId);
+    return this.writeWorkHours(teacherId, input.workHours, actor.id);
+  }
+
+  /**
+   * Replaces the weekly set (no permission check: callers decide). Also used to apply an approved
+   * availability change (A1), with the approver as the actor.
+   */
+  async writeWorkHours(
+    teacherId: number,
+    workHours: Array<{
+      weekday: number;
+      localStartTime: string;
+      localEndTime: string;
+      timezone?: string | null;
+    }>,
+    actorId: number | null,
+    extra: Record<string, unknown> = {},
+  ): Promise<WorkHourDto[]> {
     const teacher = await this.teacher(teacherId);
-    const self = teacher.userId === actor.id && actor.permissions.has('sessions.conduct');
-    if (!actor.permissions.has('schedule.manage') && !self) throw forbidden();
     const before = await this.workHoursOf(teacherId);
     await this.prisma.$transaction(async (tx) => {
       await tx.teacherWorkHour.deleteMany({ where: { teacherId } });
-      if (input.workHours.length) {
+      if (workHours.length) {
         await tx.teacherWorkHour.createMany({
-          data: input.workHours.map((w) => ({
+          data: workHours.map((w) => ({
             teacherId,
             weekday: w.weekday,
             localStartTime: w.localStartTime,
@@ -304,12 +327,12 @@ export class CalendarService {
       }
       await this.audit.record(
         {
-          actorId: actor.id,
+          actorId,
           action: 'work_hours_replaced',
           subjectType: 'teacher',
           subjectId: teacherId,
           before: { workHours: before },
-          after: { workHours: input.workHours },
+          after: { workHours, ...extra },
         },
         tx,
       );
@@ -393,7 +416,7 @@ export class CalendarService {
   }
 
   /** Staff with `schedule.view`, or the teacher themself (another teacher: 404); never a family. */
-  private async assertCanSee(teacherId: number, viewer: AuthUser): Promise<void> {
+  async assertCanSee(teacherId: number, viewer: AuthUser): Promise<void> {
     assertStaffOrTeacher(viewer, 'schedule.view');
     if (isTeacherViewer(viewer)) {
       const scope = await viewerScope(this.prisma, viewer);
