@@ -17,7 +17,7 @@ const LISTS: Record<string, { path: string; open: number | null }> = {
   staff: { path: '/staff', open: 12 },
   requests: { path: '/requests', open: null },
   support: { path: '/support', open: 1 },
-  schedule: { path: '/schedule', open: 1 },
+  schedule: { path: '/schedule/enrollments', open: 1 },
   invoices: { path: '/invoices', open: 1 },
   packages: { path: '/packages', open: null },
   payroll: { path: '/payroll', open: 1 },
