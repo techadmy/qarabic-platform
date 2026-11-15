@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { ScheduleView } from './schedule-view';
+import { CalendarView } from '@/components/calendar/calendar-view';
 
 export async function generateMetadata(): Promise<Metadata> {
-  return { title: (await getTranslations('schedule'))('title') };
+  return { title: (await getTranslations('calendar'))('title') };
 }
 
 export default function Page() {
-  return <ScheduleView />;
+  return <CalendarView />;
 }

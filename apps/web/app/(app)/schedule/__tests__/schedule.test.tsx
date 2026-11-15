@@ -25,7 +25,7 @@ const clean = () =>
 
 describe('Enrollments list', () => {
   it('shows status tabs with counts and each enrollment’s weekly times', async () => {
-    renderPage(<ScheduleView />, { path: '/schedule' });
+    renderPage(<ScheduleView />, { path: '/schedule/enrollments' });
     const table = await screen.findByRole('table', { name: 'الاشتراكات' });
     await waitFor(() => expect(table).not.toHaveAttribute('aria-busy'));
     const tabs = screen.getByRole('radiogroup', { name: 'تصفية حسب الحالة' });

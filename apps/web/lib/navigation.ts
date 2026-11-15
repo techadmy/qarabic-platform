@@ -1,6 +1,7 @@
 import type { Me } from '@qarabic/shared';
 import {
   GaugeIcon,
+  ArrowLeftRightIcon,
   BadgeCheckIcon,
   CalendarCheckIcon,
   CalendarClockIcon,
@@ -93,6 +94,7 @@ export type NavKey =
   | 'chartOfAccounts'
   | 'financialReports'
   | 'periods'
+  | 'exchangeRates'
   | 'ticket'
   | 'account';
 
@@ -366,6 +368,13 @@ export const STAFF_NAV: NavEntry[] = [
         href: '/accounting/periods',
         icon: LockKeyholeIcon,
         permission: 'accounting.view',
+      },
+      {
+        // D146: accounts keep the rates without the ledger; billing reads them.
+        key: 'exchangeRates',
+        href: '/accounting/rates',
+        icon: ArrowLeftRightIcon,
+        anyPermission: ['accounting.view', 'reports.financial'],
       },
     ],
   },

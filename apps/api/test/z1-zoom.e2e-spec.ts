@@ -1,9 +1,10 @@
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { ZoomApi, ZoomHttp, type ZoomResponse } from '../src/zoom/zoom.api.js';
 import { ZoomAttendance } from '../src/zoom/zoom.attendance.js';
 import { ZoomConfig } from '../src/zoom/zoom.config.js';
+import { FAILURES_PER_MINUTE } from '../src/zoom/zoom.webhook.js';
 import {
   type Client,
   clock,
@@ -56,7 +57,8 @@ function post(body: object, opts: { ts?: number; sig?: string } = {}) {
   const raw = JSON.stringify(body);
   const ts = String(opts.ts ?? Math.floor(clock(ctx).nowMs() / 1000));
   const sig =
-    opts.sig ?? `v0=${createHmac('sha256', SECRET).update(`v0:${ts}:${raw}`).digest('hex')}`;
+    opts.sig ??
+    `v0=${createHmac('sha256', SECRET).update(`v0:${ts}:`).update(Buffer.from(raw, 'utf8')).digest('hex')}`;
   return request(ctx.app.getHttpServer())
     .post('/api/v1/integrations/zoom/webhook')
     .set('Content-Type', 'application/json')
@@ -71,11 +73,7 @@ const participant = (id: string, userId: string, time: string, left = false) => 
   user_name: id ? 'Teacher' : 'Student',
   ...(left ? { leave_time: at(time) } : { join_time: at(time) }),
 });
-const event = (
-  name: string,
-  p?: ReturnType<typeof participant>,
-  extra: Record<string, unknown> = {},
-) => ({
+const event = (name: string, p?: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   event: name,
   event_ts: Date.parse(at('09:00')),
   payload: {
@@ -334,5 +332,184 @@ describe('reconciliation after the meeting ends', () => {
     })) as { id: string };
     expect(user.id).toBe('u1');
     expect(waits).toEqual([1000]);
+  });
+});
+
+describe('security review follow-ups', () => {
+  beforeEach(on);
+
+  it('keeps no names, hashes the email, and stores other events as metadata only', async () => {
+    await post({
+      ...event('meeting.participant_joined'),
+      payload: {
+        object: {
+          id: PMI,
+          uuid: 'u',
+          host_id: HOST,
+          participant: {
+            user_id: 'p-9',
+            user_name: 'Student Name',
+            email: 'Kid@Example.test',
+            join_time: at('10:01'),
+          },
+        },
+      },
+    });
+    await post({
+      event: 'meeting.chat_message_sent',
+      payload: { object: { id: PMI, uuid: 'u', chat_message: { message: 'private words' } } },
+    });
+    await drain();
+    const rows = await ctx.prisma.zoomWebhookEvent.findMany({ orderBy: { id: 'asc' } });
+    const joined = JSON.stringify(rows[0]!.payload);
+    expect(joined).not.toContain('Student Name');
+    expect(joined).not.toContain('Kid@Example');
+    expect(joined).toContain(createHash('sha256').update('kid@example.test').digest('hex'));
+    expect(rows[1]).toMatchObject({ status: 'ignored' });
+    expect(JSON.stringify(rows[1]!.payload)).not.toContain('private words');
+  });
+
+  it('prunes processed, unmatched and ignored rows after 60 days; failed ones stay', async () => {
+    const old = new Date(clock(ctx).nowMs() - 61 * 86_400_000);
+    const recent = new Date(clock(ctx).nowMs() - 59 * 86_400_000);
+    const row = (key: string, status: string, receivedAt: Date) => ({
+      eventKey: key.padEnd(64, '0'),
+      event: 'meeting.started',
+      payload: {},
+      eventAt: receivedAt,
+      status,
+      receivedAt,
+    });
+    await ctx.prisma.zoomWebhookEvent.createMany({
+      data: [
+        row('a', 'processed', old),
+        row('b', 'unmatched', old),
+        row('c', 'ignored', old),
+        row('d', 'failed', old),
+        row('e', 'processed', recent),
+      ],
+    });
+    expect(await ctx.app.get(ZoomAttendance).prune()).toBe(3);
+    expect((await ctx.prisma.zoomWebhookEvent.findMany()).map((r) => r.status).sort()).toEqual([
+      'failed',
+      'processed',
+    ]);
+  });
+
+  it('counts only failed signatures per IP; a signed request still gets through', async () => {
+    for (let i = 0; i < FAILURES_PER_MINUTE; i++) {
+      expect((await post(event('meeting.started'), { sig: 'v0=bad' })).status).toBe(401);
+    }
+    expect((await post(event('meeting.started'), { sig: 'v0=bad' })).status).toBe(429);
+    expect((await post(event('meeting.started'))).status).toBe(200);
+  });
+
+  it('signs over the raw bytes (non-ASCII bodies)', async () => {
+    const body = event('meeting.participant_joined', {
+      ...participant('', 'p-ar', '10:02'),
+      user_name: 'محمد عبد الله',
+    });
+    expect((await post(body)).status).toBe(200);
+  });
+
+  it('the Zoom user id decides who the host is; an email alone does not override it', async () => {
+    const teacher = await trackedTeacher();
+    const s = await m2Session(
+      ctx,
+      await m2Enrollment(ctx, await m2Student(ctx), teacher),
+      at('10:00'),
+    );
+    // Another Zoom user who happens to give the teacher's email: a student.
+    await post(
+      event('meeting.participant_joined', {
+        id: 'someone-else',
+        user_id: 'x',
+        user_name: 'X',
+        join_time: at('10:01'),
+        email: 'teacher@zoom.example.test',
+      }),
+    );
+    await drain();
+    const row = await ctx.prisma.classSession.findUniqueOrThrow({ where: { id: s.id } });
+    expect(row.teacherJoinedAt).toBeNull();
+    expect(row.studentJoinedAt).not.toBeNull();
+  });
+
+  it('checks a saved PMI against the Zoom user', async () => {
+    ctx.app
+      .get(ZoomHttp)
+      .use((req) =>
+        Promise.resolve(
+          req.url.startsWith('https://zoom.us/oauth/token')
+            ? { status: 200, headers: {}, json: { access_token: 'tok', expires_in: 3600 } }
+            : { status: 200, headers: {}, json: { id: HOST, email: 'h@x.test', pmi: 1234567890 } },
+        ),
+      );
+    const { client: admin } = await signedIn(ctx, 'admin');
+    const wrong = await admin.post('/zoom-hosts', {
+      zoomUserId: HOST,
+      email: 'h@x.test',
+      pmiMeetingId: '9999999999',
+    });
+    expect(wrong.status).toBe(422);
+    expect(wrong.body.errors).toHaveProperty('pmiMeetingId');
+    const ok = await admin.post('/zoom-hosts', {
+      zoomUserId: HOST,
+      email: 'h@x.test',
+      pmiMeetingId: '123 456 7890',
+    });
+    expect(ok.status).toBe(201);
+    expect(ok.body.data.pmiMeetingId).toBe(PMI);
+  });
+
+  it('the queue coalesces runs, takes back stuck rows and retries failed ones with backoff', async () => {
+    const teacher = await trackedTeacher();
+    const s = await m2Session(
+      ctx,
+      await m2Enrollment(ctx, await m2Student(ctx), teacher),
+      at('10:00'),
+    );
+    const attendance = ctx.app.get(ZoomAttendance);
+    for (const t of ['10:01', '10:02', '10:03']) {
+      await attendance.store(event('meeting.participant_joined', participant('', `s-${t}`, t)));
+    }
+    // Three overlapping calls: one run (plus its dirty pass), each event once.
+    await Promise.all([
+      attendance.processPending(),
+      attendance.processPending(),
+      attendance.processPending(),
+    ]);
+    expect(
+      await ctx.prisma.sessionEvent.count({
+        where: { sessionId: s.id, type: 'participant_joined' },
+      }),
+    ).toBe(3);
+
+    // A row a crashed run left behind is taken back after 10 minutes.
+    await attendance.store(
+      event('meeting.participant_left', participant('', 's-x', '10:20', true)),
+    );
+    await ctx.prisma.zoomWebhookEvent.updateMany({
+      where: { status: 'received' },
+      data: { status: 'processing', claimedAt: new Date(clock(ctx).nowMs() - 11 * 60_000) },
+    });
+    await attendance.processPending();
+    expect(await ctx.prisma.zoomWebhookEvent.count({ where: { status: 'processing' } })).toBe(0);
+
+    // A failed row waits for its backoff, then runs again.
+    await attendance.store(event('meeting.participant_joined', participant('', 's-y', '10:25')));
+    await ctx.prisma.zoomWebhookEvent.updateMany({
+      where: { status: 'received' },
+      data: {
+        status: 'failed',
+        attempts: 1,
+        nextAttemptAt: new Date(clock(ctx).nowMs() + 60_000),
+      },
+    });
+    await attendance.processPending();
+    expect(await ctx.prisma.zoomWebhookEvent.count({ where: { status: 'failed' } })).toBe(1);
+    clock(ctx).set(new Date(clock(ctx).nowMs() + 2 * 60_000).toISOString());
+    await attendance.processPending();
+    expect(await ctx.prisma.zoomWebhookEvent.count({ where: { status: 'failed' } })).toBe(0);
   });
 });

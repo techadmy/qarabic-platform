@@ -48,7 +48,8 @@ export function ScheduleView() {
   const me = useCurrentUser();
   const params = useListParams();
   const slotsText = useSlotsText();
-  const split = useSplitView('/schedule');
+  // The list lives at /schedule/enrollments (the calendar is /schedule); an enrollment at /schedule/:id.
+  const split = useSplitView('/schedule/enrollments', '/schedule');
   const [columnVisibility, setColumnVisibility] = useColumnVisibility(`enrollments:${me.id}`);
   const status = params.get('status');
   const allowed = can(me, 'schedule.view') || can(me, 'sessions.conduct');

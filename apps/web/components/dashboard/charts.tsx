@@ -305,10 +305,7 @@ export function CategoryBars({
     `${money ? '$' : ''}${new Intl.NumberFormat(intlLocale(locale), {
       maximumFractionDigits: 0,
     }).format(v)}`;
-  const rows = data.map((p) => ({
-    ...p,
-    label: String(config[p.key]?.label ?? p.key),
-  }));
+  const rows = data.map((p) => ({ ...p, label: String(config[p.key]?.label ?? p.key) }));
   return (
     <div aria-describedby={summaryId}>
       <p id={summaryId} className="sr-only">
@@ -335,6 +332,20 @@ export function CategoryBars({
             axisLine={false}
             width={112}
             orientation={rtl ? 'right' : 'left'}
+            // The SVG is LTR: an Arabic label that starts with digits («31–60 يومًا») is drawn
+            // with its own direction so it reads in order (ui-ux P2 on #108).
+            tick={({ x, y, payload }) => (
+              <text
+                x={Number(x)}
+                y={Number(y)}
+                dy={4}
+                textAnchor="end"
+                direction={rtl ? 'rtl' : 'ltr'}
+                className="fill-muted-foreground text-xs"
+              >
+                {rtl ? `\u2067${String(payload?.value ?? '')}\u2069` : String(payload?.value ?? '')}
+              </text>
+            )}
           />
           <ChartTooltip
             cursor={false}

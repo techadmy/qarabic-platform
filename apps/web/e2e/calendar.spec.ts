@@ -1,0 +1,72 @@
+import { expect, test, type Page } from '@playwright/test';
+import { expectNoHorizontalScroll, expectNoSeriousA11yViolations, login } from './helpers';
+
+/**
+ * C2 calendar on the mock API (docs/42 §3, D148/D149): every view at 375/768/1440 in Arabic and
+ * English passes axe with no sideways scroll; a class opens the board's sheet; empty time starts a
+ * new enrollment at that time; the enrollments list moved to /schedule/enrollments.
+ */
+async function open(page: Page, width: number, lang: 'ar' | 'en', path: string) {
+  await page.setViewportSize({ width, height: 900 });
+  await page.goto(`/login?next=${encodeURIComponent(path)}`);
+  await login(page);
+  await page.waitForURL((u) => u.pathname === '/schedule');
+  if (lang === 'en') {
+    await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    await page.reload();
+  }
+  await expect(page.locator('[data-slot="event-calendar-nav"]')).toBeVisible();
+  await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+}
+
+for (const width of [375, 768, 1440]) {
+  for (const lang of ['ar', 'en'] as const) {
+    test(`calendar ${width}px ${lang}: views fit and pass axe`, async ({ page }) => {
+      test.slow();
+      // Week and day as staff use them: one teacher chosen (a week of every teacher packs the
+      // classes too narrow; the default for staff is the teachers view).
+      const views =
+        width === 375
+          ? ['list', 'day&teachers=1']
+          : ['week&teachers=1', 'month', 'list', 'teachers', 'day&teachers=1'];
+      await open(page, width, lang, `/schedule?view=${views[0]}`);
+      const failures: string[] = [];
+      for (const view of views) {
+        await test.step(view, async () => {
+          try {
+            await page.goto(`/schedule?view=${view}`);
+            await expect(page.locator('[data-slot="event-calendar-nav"]')).toBeVisible();
+            await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
+            await expectNoHorizontalScroll(page);
+            await expectNoSeriousA11yViolations(page);
+          } catch (e) {
+            const ids = [...new Set((e as Error).message.match(/"id": "[a-z-]+"/g) ?? [])];
+            failures.push(`${view}: ${ids.join(' ') || (e as Error).message.split('\n')[0]}`);
+          }
+        });
+      }
+      expect(failures).toEqual([]);
+    });
+  }
+}
+
+test('a class opens the board’s class sheet (1440, Arabic)', async ({ page }) => {
+  await open(page, 1440, 'ar', '/schedule?view=list');
+  await page
+    .locator('[data-slot="event-calendar"] [role="button"], [data-slot="event-calendar"] button')
+    .filter({ hasText: ' · ' })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/session=\d+/);
+  await expect(page.getByRole('dialog', { name: 'تفاصيل الحصة' })).toBeVisible();
+});
+
+test('the enrollments list lives at /schedule/enrollments and links back to the calendar', async ({
+  page,
+}) => {
+  await open(page, 1440, 'ar', '/schedule');
+  await page.getByRole('link', { name: /الاشتراكات/ }).click();
+  await expect(page).toHaveURL(/\/schedule\/enrollments$/);
+  await expect(page.getByRole('table', { name: 'الاشتراكات' })).toBeVisible();
+});

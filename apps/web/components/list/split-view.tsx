@@ -24,16 +24,17 @@ export const SPLIT_VIEW_QUERY = '(min-width: 1024px)';
 /**
  * Split-view state for a list at `basePath` (D141 §1): the open record is `?id=` in the URL (with
  * the list's filters kept), so a link, Back and reload restore it. Below `lg` a row opens the
- * record's own page, as before.
+ * record's own page, as before. `detailBase`: where a record's own page lives when it is not under
+ * the list's path.
  */
-export function useSplitView(basePath: string) {
+export function useSplitView(basePath: string, detailBase = basePath) {
   const params = useListParams();
   const search = useSearchParams();
   const wide = useMediaQuery(SPLIT_VIEW_QUERY);
   const raw = params.get('id');
   const selectedId = /^\d+$/.test(raw) ? raw : null;
   const hrefFor = (id: string | number) => {
-    if (!wide) return `${basePath}/${id}`;
+    if (!wide) return `${detailBase}/${id}`;
     const next = new URLSearchParams(search.toString());
     next.set('id', String(id));
     return `${basePath}?${next.toString()}`;
@@ -42,7 +43,7 @@ export function useSplitView(basePath: string) {
     wide,
     selectedId,
     hrefFor,
-    fullHref: selectedId ? `${basePath}/${selectedId}` : '',
+    fullHref: selectedId ? `${detailBase}/${selectedId}` : '',
     close: () => params.set({ id: null }, { resetPage: false }),
   };
 }

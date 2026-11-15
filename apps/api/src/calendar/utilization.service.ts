@@ -237,11 +237,41 @@ export class UtilizationService {
         (b.utilization ?? -1) - (a.utilization ?? -1) ||
         a.teacher.name.localeCompare(b.teacher.name),
     );
+    // Per academy-local day: the same numbers, each teacher's spans cut to that day.
+    const days: UtilizationReportDto['days'] = [];
+    for (let date = from; date <= to; date = addDays(date, 1)) {
+      const [dStart, dEnd] = range(date, date);
+      const cut = (spans: Span[]) =>
+        spans.flatMap((x) => {
+          const a = Math.max(x.start, dStart);
+          const b = Math.min(x.end, dEnd);
+          return a < b ? [{ start: a, end: b }] : [];
+        });
+      let classes = 0;
+      const parts = teachers.map((t) => {
+        const mine = booked.get(t.id) ?? [];
+        classes += mine.filter((x) => x.start >= dStart && x.start < dEnd).length;
+        return this.numbers(cut(avail.get(t.id) ?? []), cut(mine));
+      });
+      const total = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>
+        Math.round(parts.reduce((x, p) => x + p[k], 0) * 100) / 100;
+      days.push({
+        date,
+        weekday: isoWeekday(date),
+        classes,
+        availableHours: total('availableHours'),
+        bookedHours: total('bookedHours'),
+        freeHours: total('freeHours'),
+        outsideHours: total('outsideHours'),
+        utilization: ratio(total('bookedHours'), total('availableHours')),
+      });
+    }
     const sum = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>
       Math.round(rows.reduce((t, r) => t + r[k], 0) * 100) / 100;
     return {
       range: { from, to, previous: { from: prevFrom, to: prevTo }, timezone: academy },
       teachers: rows,
+      days,
       totals: {
         availableHours: sum('availableHours'),
         bookedHours: sum('bookedHours'),

@@ -17,7 +17,7 @@ const LISTS = [
 /** Operations lists whose record link is not in a table (support) or opens its own route. */
 const OPS = [
   {
-    path: '/schedule',
+    path: '/schedule/enrollments',
     // A table row from 768 px, a card on phones.
     link: (page: Page) =>
       page
