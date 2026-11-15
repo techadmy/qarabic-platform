@@ -97,6 +97,9 @@ export interface PaymentRow {
   unappliedMinor?: number;
   needsReview?: boolean;
   reviewReason?: string | null;
+  /** P1-3: what the provider captured when it did not match the attempt (held, `needs_review`). */
+  capturedMinor?: number | null;
+  capturedCurrency?: string | null;
 }
 
 /** P1-1: money a family paid beyond an invoice, kept and used on the next one. */
@@ -122,6 +125,8 @@ export interface BillingDb {
   invoices: InvoiceRow[];
   payments: PaymentRow[];
   credits: CreditRow[];
+  /** P1-5: Idempotency-Key → the manual payment it recorded. */
+  idempotency: Map<string, number>;
   settings: BillingSettingsDto;
   /** Online providers the mock reports as configured (tests can switch one off). */
   online: ('stripe' | 'paypal')[];
@@ -383,6 +388,7 @@ function build(): BillingDb {
     invoices: [],
     payments: [],
     credits: [],
+    idempotency: new Map(),
     settings: structuredClone(BILLING_DEFAULTS),
     online: ['stripe', 'paypal'],
     reminded: new Map(),
@@ -488,7 +494,7 @@ function build(): BillingDb {
     providerRef: 'cs_test_mock_0001',
   });
   // 3: overdue (due 5 days ago).
-  add(2, {
+  const overdue = add(2, {
     status: 'issued',
     month: thisMonth,
     issue: addDays(today, -12),
@@ -613,6 +619,21 @@ function build(): BillingDb {
     meta: null,
     createdAt: instantOf(addDays(today, -9), 9),
   });
+  // (Seeded last so the ids of the payments above stay as they were.)
+  // P1-3: a card capture in the wrong currency, held for staff (nothing applied to the invoice).
+  const held = pay(overdue, 'stripe', totalsOf(bdb, overdue).total, addDays(today, -1), {
+    providerPaymentId: 'pi_mock_held_1',
+  });
+  Object.assign(held, {
+    status: 'needs_review',
+    failureReason: 'currency_mismatch',
+    needsReview: true,
+    reviewReason: 'currency_mismatch',
+    capturedMinor: held.amountMinor,
+    capturedCurrency: held.currency === 'EUR' ? 'USD' : 'EUR',
+    receiptNumber: null,
+  });
+  recalculate(bdb, overdue);
   return bdb;
 }
 
