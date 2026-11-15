@@ -49,7 +49,7 @@ import { Can, CanAny, CurrentUser } from '../auth/decorators.js';
 import { RateLimit } from '../auth/rate-limit.guard.js';
 import { Clock } from '../common/clock.js';
 import { Crypto } from '../common/crypto.js';
-import { notFound, validationError } from '../common/errors.js';
+import { ApiException, notFound, validationError } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
 import { jsonSchema } from '../common/openapi.js';
 import { ZodBody, ZodPipe } from '../common/zod.pipe.js';
@@ -63,6 +63,8 @@ import { SessionReads } from './board.js';
 import { fail } from './errors.js';
 import { SessionGenerator } from './generator.js';
 import { SessionRequestsService } from './requests.service.js';
+import { ZoomApi } from '../zoom/zoom.api.js';
+import { ZoomConfig } from '../zoom/zoom.config.js';
 import { SeriesEditService } from './series.js';
 import { SessionsService } from './sessions.service.js';
 import { Actor, SessionStateMachine, StaleSessionError } from './state-machine.js';
@@ -546,6 +548,7 @@ const hostDto = (h: ZoomHost): ZoomHostDto => ({
   email: h.email,
   label: h.label,
   teacherId: h.teacherId,
+  pmiMeetingId: h.pmiMeetingId,
   isActive: h.isActive,
 });
 
@@ -556,6 +559,8 @@ export class ZoomHostsController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly zoomConfig: ZoomConfig,
+    private readonly zoomApi: ZoomApi,
   ) {}
 
   @Can('settings.manage')
@@ -572,6 +577,7 @@ export class ZoomHostsController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: ZoomHostDto }> {
     await this.assertTeacher(body.teacherId);
+    await this.assertPmi(body.zoomUserId, body.pmiMeetingId);
     const host = await this.prisma.zoomHost
       .create({
         data: {
@@ -579,6 +585,7 @@ export class ZoomHostsController {
           email: body.email,
           label: body.label ?? null,
           teacherId: body.teacherId ?? null,
+          pmiMeetingId: body.pmiMeetingId ?? null,
           isActive: body.isActive ?? true,
         },
       })
@@ -604,6 +611,12 @@ export class ZoomHostsController {
     const before = await this.prisma.zoomHost.findUnique({ where: { id } });
     if (!before) throw notFound();
     await this.assertTeacher(body.teacherId);
+    if (body.pmiMeetingId !== undefined || body.zoomUserId !== undefined) {
+      await this.assertPmi(
+        body.zoomUserId ?? before.zoomUserId,
+        body.pmiMeetingId !== undefined ? body.pmiMeetingId : before.pmiMeetingId,
+      );
+    }
     const host = await this.prisma.zoomHost
       .update({
         where: { id },
@@ -612,6 +625,7 @@ export class ZoomHostsController {
           ...(body.email !== undefined ? { email: body.email } : {}),
           ...(body.label !== undefined ? { label: body.label } : {}),
           ...(body.teacherId !== undefined ? { teacherId: body.teacherId } : {}),
+          ...(body.pmiMeetingId !== undefined ? { pmiMeetingId: body.pmiMeetingId } : {}),
           ...(body.isActive !== undefined ? { isActive: body.isActive } : {}),
         },
       })
@@ -627,6 +641,28 @@ export class ZoomHostsController {
     return { data: hostDto(host) };
   }
 
+  /**
+   * Z1 review P3: with tracking on, a saved PMI must be the Zoom user's own (Zoom's `pmi`), so
+   * events are never matched to the wrong teacher.
+   */
+  private async assertPmi(zoomUserId: string, pmi: string | null | undefined): Promise<void> {
+    if (!pmi || !this.zoomConfig.enabled) return;
+    let actual: string | null;
+    try {
+      actual = (await this.zoomApi.user(zoomUserId)).pmi;
+    } catch {
+      throw new ApiException(HttpStatus.SERVICE_UNAVAILABLE, {
+        message: 'Zoom could not be reached to confirm the meeting ID. Try again.',
+        code: 'zoom_unavailable',
+      });
+    }
+    if (actual !== pmi) {
+      throw validationError({
+        pmiMeetingId: ["This is not the Zoom user's personal meeting ID."],
+      });
+    }
+  }
+
   private async assertTeacher(id: number | null | undefined): Promise<void> {
     if (id && !(await this.prisma.teacher.findUnique({ where: { id } }))) {
       throw validationError({ teacherId: ['The selected teacher is invalid.'] });
@@ -636,6 +672,10 @@ export class ZoomHostsController {
 
 function rethrowZoomUserTaken(error: unknown): never {
   if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+    const target = (error.meta?.target as string[] | string | undefined)?.toString() ?? '';
+    if (target.includes('pmi')) {
+      throw validationError({ pmiMeetingId: ['This meeting ID belongs to another host.'] });
+    }
     throw validationError({ zoomUserId: ['The Zoom user is already in the pool.'] });
   }
   throw error;

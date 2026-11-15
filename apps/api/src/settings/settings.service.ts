@@ -44,8 +44,14 @@ export const SETTING_DEFAULTS = {
   'sessions.min_duration_min': 25,
   /** A teacher-recorded or auto-approved leave needs N hours' notice. */
   'sessions.leave_notice_hours': 2,
-  /** A class not activated N minutes after its start is "late". */
+  /** A class not activated N minutes after its start is "late" (B132: 5). */
   'sessions.late_teacher_min': 5,
+  /** B132 (Z1, with Zoom): the teacher not in the meeting N minutes after the start = no-show. */
+  'sessions.teacher_no_show_min': 10,
+  /** B132 (Z1): the teacher in, the student not, N minutes after the start = student no-show. */
+  'sessions.student_no_show_min': 10,
+  /** B132 (Z1): a meeting shorter than this percent of the class duration is "too short". */
+  'sessions.short_class_pct': 80,
   /** Report due N hours after the end (the board flags `report_missing`). */
   'sessions.report_due_hours': 24,
   /** The teacher may edit a lesson report (and correct a test result) for N hours (D70, B29). */

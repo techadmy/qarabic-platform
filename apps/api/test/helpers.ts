@@ -17,6 +17,8 @@ import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom
 import { MailGateway, MemoryMailer } from '../src/mail/mailer.js';
 import { DashboardMetricsService } from '../src/dashboard/metrics.service.js';
 import { WhatsAppConfig } from '../src/support/whatsapp.js';
+import { ZoomApi, ZoomHttp } from '../src/zoom/zoom.api.js';
+import { ZoomConfig } from '../src/zoom/zoom.config.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
 
@@ -69,6 +71,10 @@ export async function resetState(ctx: TestContext): Promise<void> {
   ctx.app.get(Clock).set(null);
   ctx.app.get(ZoomDriver).use(new NoneZoomClient());
   ctx.app.get(WhatsAppConfig).reset();
+  // Z1: Zoom tracking off, no network, no cached token.
+  ctx.app.get(ZoomConfig).reset();
+  ctx.app.get(ZoomHttp).use(null);
+  ctx.app.get(ZoomApi).forgetToken();
   // No push leaves a test unless it swaps in the fake driver.
   ctx.app.get(PushGateway).use(new NonePush());
 }

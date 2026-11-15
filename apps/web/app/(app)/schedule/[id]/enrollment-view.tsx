@@ -139,7 +139,7 @@ export function EnrollmentView({ id }: { id: number }) {
   return (
     <>
       <PageHeader
-        back={{ href: '/schedule', label: t('back') }}
+        back={{ href: '/schedule/enrollments', label: t('back') }}
         title={
           <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
             <span>{t('detailTitle', { student: e.student.name, course })}</span>
