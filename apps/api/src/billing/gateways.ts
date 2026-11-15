@@ -177,6 +177,31 @@ export class StripeGateway implements PaymentGateway {
     return { ref: id, url };
   }
 
+  /** P1-2 reconciliation: the Checkout Session as Stripe sees it now (sandbox keys only). */
+  async session(ref: string): Promise<{
+    status: string | null;
+    paymentStatus: string | null;
+    paymentIntent: string | null;
+    amountMinor: number;
+    currency: string;
+  }> {
+    const res = await this.http.send({
+      method: 'GET',
+      url: `${StripeGateway.API}/checkout/sessions/${encodeURIComponent(ref)}`,
+      headers: { Authorization: `Bearer ${this.config.stripeSecret ?? ''}` },
+    });
+    if (res.status >= 300)
+      throw new GatewayError(`Stripe session lookup failed: HTTP ${res.status}`);
+    const total = pick(res.json, 'amount_total');
+    return {
+      status: str(pick(res.json, 'status')) ?? null,
+      paymentStatus: str(pick(res.json, 'payment_status')) ?? null,
+      paymentIntent: str(pick(res.json, 'payment_intent')) ?? null,
+      amountMinor: typeof total === 'number' ? total : -1,
+      currency: str(pick(res.json, 'currency')) ?? '',
+    };
+  }
+
   async expire(ref: string): Promise<void> {
     const res = await this.http.send({
       method: 'POST',

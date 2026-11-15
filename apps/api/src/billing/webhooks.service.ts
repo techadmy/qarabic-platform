@@ -18,6 +18,9 @@ const str = (v: unknown): string =>
  * has already checked the signature. Every event is stored by (provider, event id): a duplicate that
  * was processed or ignored is a no-op; one that failed is retried.
  */
+/** A claim not finished after this long is taken to be dead (a crash between claim and update). */
+export const LEASE_MINUTES = 5;
+
 @Injectable()
 export class WebhookService {
   private readonly logger = new Logger(WebhookService.name);
@@ -71,7 +74,25 @@ export class WebhookService {
     const existing = await this.prisma.paymentWebhookEvent.findUnique({
       where: { provider_eventId: { provider, eventId } },
     });
-    if (existing) return existing.status === 'failed' ? existing.id : null;
+    if (existing) {
+      // P1-2 (docs/39 BIL-3): a failed row, or a `received` row whose handler died (no update for
+      // LEASE_MINUTES), is taken again by one conditional update; a live claim stays a duplicate.
+      const now = this.clock.now();
+      const taken = await this.prisma.paymentWebhookEvent.updateMany({
+        where: {
+          id: existing.id,
+          OR: [
+            { status: 'failed' },
+            {
+              status: 'received',
+              updatedAt: { lt: new Date(now.getTime() - LEASE_MINUTES * 60_000) },
+            },
+          ],
+        },
+        data: { status: 'received', error: null, updatedAt: now },
+      });
+      return taken.count === 1 ? existing.id : null;
+    }
     try {
       const row = await this.prisma.paymentWebhookEvent.create({
         data: {
@@ -80,6 +101,7 @@ export class WebhookService {
           type: type.slice(0, 96),
           payload: event as Prisma.InputJsonValue,
           createdAt: this.clock.now(),
+          updatedAt: this.clock.now(),
         },
       });
       return row.id;
