@@ -26,6 +26,7 @@ const PAGES = [
   '/accounting/reports?report=balance-sheet',
   '/accounting/reports?report=cash',
   '/accounting/periods',
+  '/accounting/rates',
 ] as const;
 
 async function signIn(page: Page, path: string) {
@@ -125,4 +126,24 @@ test('accounts: reports switch by tab and keep the currency in the URL', async (
   await expect(page.getByText(/صافي (الربح|الخسارة)/)).toBeVisible();
   await page.getByRole('tab', { name: 'النقدية' }).click();
   await expect(page.getByRole('table', { name: /النقدية بعملة/ }).first()).toBeVisible();
+});
+
+test('accounts (D146): the exchange rates without the ledger; a rate is added and shown', async ({
+  page,
+}) => {
+  await page.goto(`/login?next=${encodeURIComponent('/accounting/rates')}`);
+  await login(page, 'accounts@qarabic.test');
+  await expect(page.getByRole('heading', { level: 1, name: 'أسعار الصرف' })).toBeVisible();
+  // The sidebar's «المحاسبة» has the rates only.
+  const nav = page.getByRole('navigation').first();
+  await expect(nav.getByRole('link', { name: 'أسعار الصرف' })).toBeVisible();
+  await expect(nav.getByRole('link', { name: 'القيود اليومية' })).toHaveCount(0);
+  await page.getByRole('button', { name: 'إضافة سعر' }).click();
+  const dialog = page.getByRole('dialog', { name: 'إضافة سعر صرف' });
+  await dialog.getByRole('textbox', { name: /بالدولار/ }).fill('0.0201');
+  await dialog.getByRole('combobox', { name: /العملة/ }).click();
+  await page.getByRole('option', { name: 'PKR' }).click();
+  await dialog.getByRole('button', { name: 'حفظ السعر' }).click();
+  await expect(dialog).toBeHidden();
+  await expect(page.getByText('1 PKR = $0.0201')).toBeVisible();
 });

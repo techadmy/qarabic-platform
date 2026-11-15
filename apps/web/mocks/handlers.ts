@@ -19,6 +19,7 @@ import {
 } from './data';
 import { accountingHandlers } from './accounting-handlers';
 import { resetAccountingDb } from './accounting-db';
+import { exchangeRateHandlers, resetExchangeRates } from './exchange-rate-handlers';
 import { billingHandlers } from './billing-handlers';
 import { dashboardHandlers } from './dashboard-handlers';
 import { operationsHandlers } from './operations-handlers';
@@ -77,6 +78,7 @@ export function resetMockState() {
   resetBillingDb();
   resetOperationsDb();
   resetAccountingDb();
+  resetExchangeRates();
   resetPayrollDb();
 }
 
@@ -318,6 +320,7 @@ export const handlers: HttpHandler[] = [
   ...billingHandlers,
   ...operationsHandlers,
   ...dashboardHandlers,
+  ...exchangeRateHandlers,
   ...accountingHandlers,
   ...payrollHandlers,
   ...peopleHandlers,

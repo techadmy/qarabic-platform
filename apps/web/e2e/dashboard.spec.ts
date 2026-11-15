@@ -23,6 +23,10 @@ async function open(page: Page, width: number, lang: 'ar' | 'en', path = '/') {
   if (lang === 'en') {
     await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
     await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
+    // The switch refreshes the page in place and the streamed <title> can be gone for a moment;
+    // axe then reports «document-title». Load the English page whole (the choice is a cookie).
+    await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   }
   // Under a loaded CI box the metrics answer and the charts can take a while: wait for both.
   await expect(page.locator('.recharts-surface').first()).toBeVisible({ timeout: 20_000 });

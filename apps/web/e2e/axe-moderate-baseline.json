@@ -9,6 +9,7 @@
     "/accounting/journal/:id region",
     "/accounting/journal/new region",
     "/accounting/periods region",
+    "/accounting/rates region",
     "/accounting/reports region",
     "/accounting/vouchers region",
     "/accounting/vouchers/:id region",

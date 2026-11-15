@@ -6,11 +6,13 @@ import type { ChartConfig } from '@qarabic/ui/components/chart';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { TriangleAlertIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { RefreshFailed, refreshState } from '@/components/list/refresh-failed';
 import { useUiLocale } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { academyToday } from '@/lib/accounting/forms';
+import { can } from '@/lib/auth/use-me';
 import { dashboardKeys, fetchDashboardMetrics } from '@/lib/api/dashboard';
 import { paramsOf, rangeFromParams } from '@/lib/dashboard/range';
 import {
@@ -337,6 +339,8 @@ export function DashboardSection() {
 function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] }) {
   const t = useTranslations('dashboard');
   const locale = useUiLocale();
+  const me = useCurrentUser();
+  const first = rates[0];
   const month = (m: string) =>
     new Intl.DateTimeFormat(intlLocale(locale), {
       month: 'long',
@@ -353,6 +357,15 @@ function MissingRates({ rates }: { rates: DashboardMetricsDto['missingRates'] })
             rates.map((r) => `${r.currency} · ${month(r.month)}`),
           ),
         })}
+        {/* Who keeps the rates goes straight to the form for the first missing one. */}
+        {first && (can(me, 'accounting.manage') || can(me, 'accounting.rates')) && (
+          <Link
+            href={`/accounting/rates?new=1&currency=${first.currency}&month=${first.month}&year=${first.month.slice(0, 4)}`}
+            className="font-medium text-foreground underline underline-offset-4"
+          >
+            {t('missingRates.link')}
+          </Link>
+        )}
       </AlertDescription>
     </Alert>
   );

@@ -75,6 +75,11 @@ describe('D2 management dashboard (docs/40, D144)', () => {
     expect(collected).toHaveTextContent('—');
     expect(collected).toHaveTextContent(/£/);
     expect(collected).not.toHaveTextContent(/\$0\b/);
+    // Who keeps the rates goes straight to the form for the missing month.
+    expect(screen.getByRole('link', { name: 'أضف السعر الناقص' })).toHaveAttribute(
+      'href',
+      expect.stringMatching(/^\/accounting\/rates\?new=1&currency=GBP&month=\d{4}-\d{2}/),
+    );
   });
 
   it('billing staff see the money widgets only; a monitor the classes only', async () => {
