@@ -14,26 +14,35 @@ export const KPI_WIDGETS = [
   'attendance_rate',
   'collected',
   'outstanding',
+  'collection_rate',
   'gross_profit',
   'net_profit',
 ] as const satisfies readonly DashboardWidget[];
 export type KpiWidget = (typeof KPI_WIDGETS)[number];
 
-/** D2: the four main charts (the rest come in D3). */
-export const MAIN_CHARTS = [
+/**
+ * The charts in display order (docs/40 §3 row 2). The overdue ageing is part of the `collections`
+ * widget (same permissions) but gets its own card.
+ */
+export const CHARTS = [
   'revenue_expenses',
   'collections',
+  'ageing',
   'students_trials',
   'class_outcomes',
-] as const satisfies readonly DashboardWidget[];
-export type MainChart = (typeof MAIN_CHARTS)[number];
+  'leads_by_source',
+  'lost_reasons',
+  'teacher_hours',
+] as const;
+export type ChartWidget = (typeof CHARTS)[number];
+const widgetOf = (c: ChartWidget): DashboardWidget => (c === 'ageing' ? 'collections' : c);
 
 export function dashboardLayout(permissions: readonly string[]) {
   if (!permissions.includes('reports.view')) return { kpis: [], charts: [] };
   const visible = visibleWidgets(new Set(permissions));
   return {
     kpis: KPI_WIDGETS.filter((w) => visible.includes(w)),
-    charts: MAIN_CHARTS.filter((w) => visible.includes(w)),
+    charts: CHARTS.filter((c) => visible.includes(widgetOf(c))),
   };
 }
 
@@ -63,6 +72,8 @@ export function kpiHref(widget: KpiWidget, range: { from: string; to: string }):
         : '/invoices?status=paid';
     case 'outstanding':
       return '/invoices?status=overdue';
+    case 'collection_rate':
+      return oneMonth ? `/invoices?period=${range.from.slice(0, 7)}` : '/invoices';
     case 'gross_profit':
     case 'net_profit':
       return `/accounting/reports?report=profit-and-loss&${span}`;
