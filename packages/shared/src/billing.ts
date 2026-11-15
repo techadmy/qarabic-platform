@@ -558,9 +558,9 @@ export const paymentSchema = z.object({
   recordedBy: z.object({ id: z.number().int(), name: z.string() }).nullable().optional(),
   /** P1-1: the part not applied to this invoice (kept as the family's credit), decimal string. */
   unapplied: z.string().default('0.00'),
-  /** Staff: look at it (`overpaid` / `invoice_closed`). */
-  needsReview: z.boolean().default(false),
-  reviewReason: z.string().nullable().default(null),
+  /** Staff only: look at it (`overpaid` / `invoice_closed`). */
+  needsReview: z.boolean().optional(),
+  reviewReason: z.string().nullable().optional(),
   /** Staff only. P1-3: what the provider captured when it did not match (`needs_review`). */
   capturedAmount: z.string().nullable().optional(),
   capturedCurrency: z.string().nullable().optional(),

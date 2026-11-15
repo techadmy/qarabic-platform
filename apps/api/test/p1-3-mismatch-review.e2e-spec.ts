@@ -147,7 +147,7 @@ describe('P1-3 amount or currency mismatch', () => {
     const payments = res.body.data.payments as Record<string, unknown>[];
     expect(payments.map((p) => p.id)).not.toContain(attempt.id);
     for (const p of payments) {
-      for (const key of ['capturedAmount', 'capturedCurrency']) {
+      for (const key of ['capturedAmount', 'capturedCurrency', 'needsReview', 'reviewReason']) {
         expect(p).not.toHaveProperty(key);
       }
     }

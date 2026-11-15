@@ -78,11 +78,13 @@ export function paymentDto(p: PaymentRow, staff: boolean): PaymentDto {
     refundedAt: iso(p.refundedAt),
     createdAt: p.createdAt.toISOString(),
     receiptNumber: p.status === 'succeeded' ? `RC-${String(p.id).padStart(6, '0')}` : null,
+    // The family's own money: what went to their credit instead of this invoice.
     unapplied: amountOf(p.unapplied),
-    needsReview: p.needsReview,
-    reviewReason: p.reviewReason,
+    // Staff only (docs/39 P1-1): the review flag and its reason are back-office state.
     ...(staff
       ? {
+          needsReview: p.needsReview,
+          reviewReason: p.reviewReason,
           capturedAmount: p.capturedAmount ? amountOf(p.capturedAmount) : null,
           capturedCurrency: p.capturedCurrency,
           note: p.note,
