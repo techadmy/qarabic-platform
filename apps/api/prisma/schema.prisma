@@ -631,6 +631,7 @@ model Enrollment {
   @@index([studentId, status])
   @@index([teacherId, status])
   @@index([courseId])
+  @@index([kind, studentId, startsOn])
   @@map("enrollments")
 }
 
@@ -1418,6 +1419,7 @@ model Lead {
   @@index([familyId])
   @@index([nextFollowUpAt])
   @@index([ipHash, createdAt])
+  @@index([convertedAt])
   @@map("leads")
 }
 
@@ -1641,6 +1643,7 @@ model Invoice {
   @@index([status, dueDate])
   @@index([periodStart])
   @@index([splitFromId])
+  @@index([issueDate])
   @@map("invoices")
 }
 
@@ -2326,6 +2329,22 @@ model VoucherLine {
 }
 
 /// A closed month (no row = open). Reopening deletes nothing: it sets `closed = false` with a reason.
+/// D144 (B124): reports are in USD. USD for one unit of `currency` in `month` (`YYYY-MM`), kept by
+/// accounts. Every amount converts at the rate of the month it happened; USD is never stored.
+model ExchangeRate {
+  id          Int      @id @default(autoincrement())
+  currency    String   @db.Char(3)
+  month       String   @db.Char(7)
+  rateToUsd   Decimal  @map("rate_to_usd") @db.Decimal(18, 8)
+  note        String?  @db.VarChar(500)
+  updatedById Int?     @map("updated_by")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([currency, month])
+  @@map("exchange_rates")
+}
+
 model AccountingPeriod {
   period       String    @id @db.Char(7)
   closed       Boolean   @default(true)

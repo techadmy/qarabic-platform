@@ -15,6 +15,7 @@ import { Crypto } from '../src/common/crypto.js';
 import type { SessionKind, SessionStage, ZoomStatus } from '../src/generated/prisma/enums.js';
 import { FakeZoomClient, NoneZoomClient, ZoomDriver } from '../src/sessions/zoom.js';
 import { MailGateway, MemoryMailer } from '../src/mail/mailer.js';
+import { DashboardMetricsService } from '../src/dashboard/metrics.service.js';
 import { WhatsAppConfig } from '../src/support/whatsapp.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { syncRolesAndPermissions } from '../src/rbac/sync-roles.js';
@@ -64,6 +65,7 @@ export async function resetState(ctx: TestContext): Promise<void> {
   ctx.limiter.reset();
   ctx.mailer.clear();
   ctx.app.get(MailGateway).reset();
+  ctx.app.get(DashboardMetricsService).clearCache();
   ctx.app.get(Clock).set(null);
   ctx.app.get(ZoomDriver).use(new NoneZoomClient());
   ctx.app.get(WhatsAppConfig).reset();

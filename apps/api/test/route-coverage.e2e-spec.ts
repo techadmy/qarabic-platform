@@ -425,6 +425,10 @@ describe('route permission coverage', () => {
       'POST accounting/periods/:period/reopen': 'all:accounting.manage',
       'POST accounting/vouchers': 'all:accounting.manage',
       'POST accounting/vouchers/:id/void': 'all:accounting.manage',
+      // D1 (D144): monthly rates to USD; billing and the owner read them via reports.financial.
+      'GET accounting/exchange-rates': 'any:accounting.view|reports.financial',
+      'PUT accounting/exchange-rates': 'all:accounting.manage',
+      'DELETE accounting/exchange-rates/:id': 'all:accounting.manage',
     });
   });
 
@@ -438,6 +442,8 @@ describe('route permission coverage', () => {
       'GET announcements': 'all:announcements.view',
       'GET announcements/:id': 'all:announcements.view',
       'GET dashboard/summary': 'all:reports.view',
+      // D1 (docs/40): each widget is further gated by DASHBOARD_WIDGET_PERMISSIONS.
+      'GET dashboard/metrics': 'all:reports.view',
       'GET task-templates': 'all:tasks.manage',
       'GET tasks': 'all:tasks.view',
       'GET tasks/:id': 'all:tasks.view',
