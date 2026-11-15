@@ -120,9 +120,10 @@ test('accounts: the chart opens a statement', async ({ page }) => {
 test('accounts: reports switch by tab and keep the currency in the URL', async ({ page }) => {
   await signIn(page, '/accounting/reports');
   await expect(page.getByRole('table', { name: 'ميزان المراجعة' })).toBeVisible();
-  await page.getByRole('tab', { name: 'قائمة الدخل' }).click();
-  await expect(page).toHaveURL(/report=profit-and-loss/);
-  await expect(page.getByText(/صافي (الربح|الخسارة)/)).toBeVisible();
+  // D145: the income statement is the owner's; accounts staff do not get the tab.
+  await expect(page.getByRole('tab', { name: 'قائمة الدخل' })).toHaveCount(0);
+  await page.getByRole('tab', { name: 'الميزانية العمومية' }).click();
+  await expect(page).toHaveURL(/report=balance-sheet/);
   await page.getByRole('tab', { name: 'النقدية' }).click();
   await expect(page.getByRole('table', { name: /النقدية بعملة/ }).first()).toBeVisible();
 });
