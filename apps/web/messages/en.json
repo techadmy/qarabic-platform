@@ -1249,7 +1249,8 @@
     "units": {
       "minutes": "minutes",
       "hours": "hours",
-      "days": "days"
+      "days": "days",
+      "percent": "percent"
     },
     "save": "Save changes",
     "discard": "Discard changes",
@@ -1291,6 +1292,18 @@
       "sessions__late_teacher_min": {
         "label": "A teacher counts as late after",
         "help": "The class shows as Late on the Today board."
+      },
+      "sessions__teacher_no_show_min": {
+        "label": "A teacher counts as absent (no-show) after",
+        "help": "With Zoom: not in the meeting by then."
+      },
+      "sessions__student_no_show_min": {
+        "label": "A student counts as absent (no-show) after",
+        "help": "With Zoom: the teacher is in, the student is not."
+      },
+      "sessions__short_class_pct": {
+        "label": "A class counts as too short below",
+        "help": "Of its planned duration, with Zoom."
       },
       "sessions__report_due_hours": {
         "label": "A lesson report is late after",

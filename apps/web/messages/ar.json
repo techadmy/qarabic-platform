@@ -1249,7 +1249,8 @@
     "units": {
       "minutes": "دقيقة",
       "hours": "ساعة",
-      "days": "يوم"
+      "days": "يوم",
+      "percent": "٪"
     },
     "save": "احفظ التغييرات",
     "discard": "تجاهل التغييرات",
@@ -1291,6 +1292,18 @@
       "sessions__late_teacher_min": {
         "label": "يُعدّ المعلم متأخرًا بعد",
         "help": "تظهر الحصة في «متأخرة» على لوحة اليوم."
+      },
+      "sessions__teacher_no_show_min": {
+        "label": "يُعدّ المعلم غائبًا عن الحصة بعد",
+        "help": "مع Zoom: إذا لم يدخل الاجتماع حتى ذلك الوقت."
+      },
+      "sessions__student_no_show_min": {
+        "label": "يُعدّ الطالب غائبًا عن الحصة بعد",
+        "help": "مع Zoom: المعلم في الاجتماع والطالب لم يدخل."
+      },
+      "sessions__short_class_pct": {
+        "label": "تُعدّ الحصة قصيرة إذا قلّت عن",
+        "help": "من مدتها المقررة، مع Zoom."
       },
       "sessions__report_due_hours": {
         "label": "يُعدّ تقرير الحصة متأخرًا بعد",

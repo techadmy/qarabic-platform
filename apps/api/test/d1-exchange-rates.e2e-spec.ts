@@ -36,11 +36,30 @@ describe('exchange rates', () => {
       updatedBy: { name: expect.any(String) },
     });
 
-    const changed = await accounts.put('/accounting/exchange-rates', {
+    // A rate already set is never overwritten silently: 409 with the current rate.
+    const again = await accounts.put('/accounting/exchange-rates', {
       currency: 'GBP',
       month: '2026-11',
       rateToUsd: '1.2712',
     });
+    expect(again.status).toBe(409);
+    expect(again.body).toMatchObject({ code: 'rate_exists', data: { rateToUsd: '1.27' } });
+    const noReason = await accounts.put('/accounting/exchange-rates', {
+      currency: 'GBP',
+      month: '2026-11',
+      rateToUsd: '1.2712',
+      replace: true,
+    });
+    expect(noReason.status).toBe(422);
+    expect(noReason.body.errors).toHaveProperty('reason');
+    const changed = await accounts.put('/accounting/exchange-rates', {
+      currency: 'GBP',
+      month: '2026-11',
+      rateToUsd: '1.2712',
+      replace: true,
+      reason: 'Bank statement average',
+    });
+    expect(changed.status).toBe(200);
     expect(changed.body.data).toMatchObject({ id: set.body.data.id, rateToUsd: '1.2712' });
     expect(changed.body.data.note).toBe('Monthly average');
     expect(await ctx.prisma.exchangeRate.count()).toBe(1);
@@ -50,8 +69,11 @@ describe('exchange rates', () => {
     );
     expect(list.body.data).toHaveLength(1);
 
-    const noReason = await accounts.delete(`/accounting/exchange-rates/${set.body.data.id}`, {});
-    expect(noReason.status).toBe(422);
+    const noDeleteReason = await accounts.delete(
+      `/accounting/exchange-rates/${set.body.data.id}`,
+      {},
+    );
+    expect(noDeleteReason.status).toBe(422);
     const gone = await accounts.delete(`/accounting/exchange-rates/${set.body.data.id}`, {
       reason: 'Entered for the wrong month',
     });
@@ -68,10 +90,13 @@ describe('exchange rates', () => {
     });
     expect(audit.map((a) => a.action)).toEqual([
       'exchange_rate_set',
-      'exchange_rate_changed',
+      'exchange_rate_replaced',
       'exchange_rate_deleted',
     ]);
     expect(audit[1]!.before).toMatchObject({ rateToUsd: '1.27' });
+    expect(audit[1]!.after).toMatchObject({ rateToUsd: '1.2712' });
+    expect(audit[1]!.reason).toBe('Bank statement average');
+    expect(audit[1]!.actorId).toEqual(expect.any(Number));
     expect(audit[2]!.reason).toBe('Entered for the wrong month');
   });
 
