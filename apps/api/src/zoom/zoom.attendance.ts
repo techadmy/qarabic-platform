@@ -16,6 +16,11 @@ const MINUTE = 60_000;
 const WINDOW_MS = 15 * MINUTE;
 /** Zoom signs with a timestamp; older requests are replays. */
 export const SIGNATURE_MAX_AGE_MS = 5 * MINUTE;
+/** A row left `processing` this long (a crashed run) is taken back. */
+const STUCK_MS = 10 * MINUTE;
+const MAX_ATTEMPTS = 5;
+/** Event log retention (docs/42 §6.1). */
+export const RETENTION_DAYS = 60;
 const HANDLED = new Set([
   'meeting.started',
   'meeting.ended',
@@ -26,8 +31,12 @@ const HANDLED = new Set([
 // ------------------------------------------------------------------ signatures
 
 /** `x-zm-signature`: `v0=` + HMAC-SHA256(secret, `v0:{timestamp}:{raw body}`), hex. */
+/** Over the raw bytes as received (never a re-encoded string). */
 export function zoomSignature(secret: string, timestamp: string, rawBody: Buffer | string): string {
-  return `v0=${createHmac('sha256', secret).update(`v0:${timestamp}:${rawBody.toString()}`).digest('hex')}`;
+  return `v0=${createHmac('sha256', secret)
+    .update(`v0:${timestamp}:`)
+    .update(rawBody)
+    .digest('hex')}`;
 }
 
 export function signatureValid(
@@ -64,6 +73,8 @@ interface Participant {
   participant_uuid?: string;
   user_name?: string;
   email?: string;
+  /** Stored instead of the email (review P2): sha256 of the lower-cased address. */
+  email_hash?: string;
   join_time?: string;
   leave_time?: string;
 }
@@ -93,7 +104,15 @@ function eventTime(body: ZoomBody): number {
 }
 
 const participantKey = (p: Participant | undefined) =>
-  p ? (p.user_id ?? p.participant_uuid ?? p.id ?? p.email ?? p.user_name ?? '') : '';
+  p
+    ? (p.user_id ??
+      p.participant_uuid ??
+      p.id ??
+      p.email_hash ??
+      (p.email ? emailHash(p.email) : null) ??
+      p.user_name ??
+      '')
+    : '';
 
 /** One row per real-world happening, whether it came from the webhook (or its retry) or the report. */
 export function eventKey(body: ZoomBody): string {
@@ -108,14 +127,64 @@ export function eventKey(body: ZoomBody): string {
 }
 
 /** The host is the teacher (1-to-1 classes, D134): anyone else in the meeting is the student. */
+export const emailHash = (email: string) =>
+  createHash('sha256').update(email.trim().toLowerCase()).digest('hex');
+
+/**
+ * The host is the teacher (1-to-1 classes, D134): anyone else in the meeting is the student. The
+ * Zoom user id decides; the (hashed) email only when the event carries no user id.
+ */
 function isHost(
   p: Participant | undefined,
   host: { zoomUserId: string; email: string },
   hostId: string | null,
 ): boolean {
   if (!p) return false;
-  if (p.id && (p.id === host.zoomUserId || p.id === hostId)) return true;
-  return !!p.email && p.email.toLowerCase() === host.email.toLowerCase();
+  if (p.id) return p.id === host.zoomUserId || p.id === hostId;
+  const hash = p.email_hash ?? (p.email ? emailHash(p.email) : null);
+  return hash !== null && hash === emailHash(host.email);
+}
+
+/**
+ * What is kept of an event (review P2): handled events without names and with the email hashed;
+ * any other event as metadata only.
+ */
+function storedPayload(body: ZoomBody, handled: boolean): Prisma.InputJsonValue {
+  const o = body.payload?.object;
+  if (!handled) {
+    return {
+      event: body.event ?? null,
+      event_ts: body.event_ts ?? null,
+      payload: {
+        object: { id: o?.id ?? null, uuid: o?.uuid ?? null, host_id: o?.host_id ?? null },
+      },
+    };
+  }
+  const p = o?.participant;
+  const participant = p
+    ? {
+        ...(p.id ? { id: p.id } : {}),
+        ...(p.user_id ? { user_id: p.user_id } : {}),
+        ...(p.participant_uuid ? { participant_uuid: p.participant_uuid } : {}),
+        ...(p.email || p.email_hash ? { email_hash: p.email_hash ?? emailHash(p.email!) } : {}),
+        ...(p.join_time ? { join_time: p.join_time } : {}),
+        ...(p.leave_time ? { leave_time: p.leave_time } : {}),
+      }
+    : undefined;
+  return {
+    event: body.event,
+    event_ts: body.event_ts ?? null,
+    payload: {
+      object: {
+        id: o?.id ?? null,
+        uuid: o?.uuid ?? null,
+        host_id: o?.host_id ?? null,
+        ...(o?.start_time ? { start_time: o.start_time } : {}),
+        ...(o?.end_time ? { end_time: o.end_time } : {}),
+        ...(participant ? { participant } : {}),
+      },
+    },
+  };
 }
 
 const ACTIVE_STAGES: Prisma.EnumSessionStageFilter = { notIn: ['cancelled', 'moved_out'] };
@@ -151,6 +220,14 @@ export class ZoomAttendance implements OnApplicationBootstrap {
     });
     this.registry.addCronJob('zoom:attendance', job);
     job.start();
+    const prune = CronJob.from({
+      cronTime: '0 40 3 * * *',
+      onTick: () => {
+        this.prune().catch((e: unknown) => this.logger.error('zoom:prune failed', e as Error));
+      },
+    });
+    this.registry.addCronJob('zoom:prune', prune);
+    prune.start();
   }
 
   /** Every minute: pending events, finished meetings' reports, then the review flags. */
@@ -208,7 +285,7 @@ export class ZoomAttendance implements OnApplicationBootstrap {
       meetingId: o?.id !== undefined ? String(o.id).slice(0, 32) : null,
       meetingUuid: o?.uuid?.slice(0, 128) ?? null,
       hostId: o?.host_id?.slice(0, 64) ?? null,
-      payload: body as Prisma.InputJsonValue,
+      payload: storedPayload(body, HANDLED.has(String(body.event))),
       eventAt: new Date(at || this.clock.nowMs()),
       status: HANDLED.has(String(body.event)) ? 'received' : 'ignored',
       receivedAt: this.clock.now(),
@@ -217,29 +294,58 @@ export class ZoomAttendance implements OnApplicationBootstrap {
     return created.count === 1;
   }
 
-  private queue: Promise<unknown> = Promise.resolve();
+  private running: Promise<number> | null = null;
+  private dirty = false;
 
   /**
-   * Processes received events in time order, one run at a time in this process (each row is also
-   * claimed once, and its class row locked, for several processes).
+   * Processes due events in time order. One run at a time in this process: a call during a run
+   * marks it dirty and the run goes round again (coalesced), so a burst of webhooks costs one
+   * pass. Rows are also claimed once and their class row locked, for several processes.
    */
   processPending(limit = 500): Promise<number> {
-    const run = this.queue.then(() => this.processBatch(limit));
-    this.queue = run.catch(() => undefined);
+    if (this.running) {
+      this.dirty = true;
+      return this.running;
+    }
+    const run = (async () => {
+      let total = 0;
+      try {
+        do {
+          this.dirty = false;
+          total += await this.processBatch(limit);
+        } while (this.dirty);
+      } finally {
+        this.running = null;
+      }
+      return total;
+    })();
+    this.running = run;
     return run;
   }
 
   private async processBatch(limit: number): Promise<number> {
+    const now = this.clock.now();
+    // A run that died mid-row leaves it `processing`: take it back after a while.
+    await this.prisma.zoomWebhookEvent.updateMany({
+      where: { status: 'processing', claimedAt: { lt: new Date(now.getTime() - STUCK_MS) } },
+      data: { status: 'received' },
+    });
     const rows = await this.prisma.zoomWebhookEvent.findMany({
-      where: { status: 'received' },
+      where: {
+        OR: [
+          { status: 'received' },
+          // Failed rows are retried with backoff, a few times.
+          { status: 'failed', attempts: { lt: MAX_ATTEMPTS }, nextAttemptAt: { lte: now } },
+        ],
+      },
       orderBy: [{ eventAt: 'asc' }, { id: 'asc' }],
       take: limit,
     });
     let done = 0;
     for (const row of rows) {
       const claim = await this.prisma.zoomWebhookEvent.updateMany({
-        where: { id: row.id, status: 'received' },
-        data: { status: 'processing' },
+        where: { id: row.id, status: row.status },
+        data: { status: 'processing', claimedAt: this.clock.now() },
       });
       if (claim.count !== 1) continue;
       try {
@@ -255,11 +361,15 @@ export class ZoomAttendance implements OnApplicationBootstrap {
         });
         done++;
       } catch (error) {
-        this.logger.error(`zoom event ${row.id} failed`, error as Error);
+        const attempts = row.attempts + 1;
+        this.logger.error(`zoom event ${row.id} failed (attempt ${attempts})`, error as Error);
         await this.prisma.zoomWebhookEvent.update({
           where: { id: row.id },
           data: {
             status: 'failed',
+            attempts,
+            // 1, 2, 4, 8 minutes.
+            nextAttemptAt: new Date(this.clock.nowMs() + 2 ** (attempts - 1) * MINUTE),
             error: (error as Error).message.slice(0, 500),
             processedAt: this.clock.now(),
           },
@@ -267,6 +377,17 @@ export class ZoomAttendance implements OnApplicationBootstrap {
       }
     }
     return done;
+  }
+
+  /** Daily: processed, unmatched and ignored events older than the retention are deleted. */
+  async prune(): Promise<number> {
+    const { count } = await this.prisma.zoomWebhookEvent.deleteMany({
+      where: {
+        status: { in: ['processed', 'unmatched', 'ignored'] },
+        receivedAt: { lt: new Date(this.clock.nowMs() - RETENTION_DAYS * 24 * 60 * MINUTE) },
+      },
+    });
+    return count;
   }
 
   // ---------------------------------------------------------------- matching + applying
@@ -431,7 +552,6 @@ export class ZoomAttendance implements OnApplicationBootstrap {
           const participant = {
             id: p.userId ?? undefined,
             user_id: p.participantUuid ?? undefined,
-            user_name: p.name,
             email: p.email ?? undefined,
             join_time: p.joinTime,
             leave_time: p.leaveTime ?? undefined,
