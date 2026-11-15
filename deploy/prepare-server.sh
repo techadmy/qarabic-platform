@@ -102,7 +102,7 @@ install_node() {
     fi
     run rm -rf "$QARABIC_NODE_DIR.new"
     run mkdir -p "$QARABIC_NODE_DIR.new"
-    run tar -xJf "$tmp/$tar" -C "$QARABIC_NODE_DIR.new" --strip-components=1
+    run tar -xJf "$tmp/$tar" -C "$QARABIC_NODE_DIR.new" --strip-components=1 --no-same-owner
     run rm -rf "$QARABIC_NODE_DIR"
     run mv "$QARABIC_NODE_DIR.new" "$QARABIC_NODE_DIR"
     run rm -rf "$tmp"

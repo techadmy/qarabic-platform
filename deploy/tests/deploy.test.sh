@@ -336,6 +336,8 @@ if command -v node >/dev/null; then
       && by["qarabic-web"].args === "start -p 4000 -H 127.0.0.1"
       && by["qarabic-web-rehearsal"].args === "start -p 4001 -H 127.0.0.1"
       && by["qarabic-web-rehearsal"].env.NEXT_DIST_DIR === ".next-rehearsal"
+      && by["qarabic-web"].env.NEXT_PUBLIC_BASE_PATH === "/app"
+      && by["qarabic-web-rehearsal"].env.NEXT_PUBLIC_API_URL === "http://localhost:4200"
       && by["qarabic-api"].node_args[0].endsWith("/api.env")
       && by["qarabic-api-rehearsal"].node_args[1].endsWith("/api-rehearsal.env") && by["qarabic-api-rehearsal"].node_args[0].endsWith("/api.env")
       && !JSON.stringify(c).match(/SECRET|PASSWORD|DATABASE_URL=/);
