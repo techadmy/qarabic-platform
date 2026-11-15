@@ -476,8 +476,16 @@ export const workHourSchema = z.object({
 });
 export type WorkHourDto = z.infer<typeof workHourSchema>;
 
-/** `PUT /teachers/:id/work-hours`: replaces the weekly set (an end before the start crosses midnight). */
+/**
+ * `PUT /teachers/:id/work-hours`: replaces the weekly set (an end before the start crosses
+ * midnight). Staff: applied at once. The teacher themself (A1, B131): answered 202 with a pending
+ * availability change, applied from `effectiveFrom` once staff approve.
+ */
 export const replaceWorkHoursSchema = z.object({
+  /** Teacher requests only: the teacher's local date the new hours start (default today). */
+  effectiveFrom: dateOnlySchema.optional(),
+  /** Teacher requests only: a note for the approver. */
+  requestNote: z.string().trim().max(500).optional(),
   workHours: z
     .array(
       z
