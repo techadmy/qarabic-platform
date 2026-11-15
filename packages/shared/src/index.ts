@@ -1,6 +1,7 @@
 export * from './accounting.js';
 export * from './auth.js';
 export * from './billing.js';
+export * from './calendar.js';
 export * from './countries.js';
 export * from './crm.js';
 export * from './dashboard.js';

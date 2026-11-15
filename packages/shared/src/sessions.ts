@@ -348,6 +348,8 @@ export const sessionListQuerySchema = z.object({
   teacherId: queryId.optional(),
   studentId: queryId.optional(),
   enrollmentId: queryId.optional(),
+  /** D148 T1: one or more courses (`courseIds=1,2`). */
+  courseIds: queryList(queryId).optional(),
   stage: queryList(sessionStageSchema).optional(),
   kind: queryList(z.enum(SESSION_KINDS)).optional(),
   attention: z.enum(['needs_review', 'zoom_failed', 'pending_request']).optional(),
@@ -372,8 +374,13 @@ export const createSessionSchema = z.object({
 });
 export type CreateSessionInput = z.input<typeof createSessionSchema>;
 
-/** `PATCH /sessions/:id`: shift a scheduled class or change its teacher (it becomes detached). */
+/**
+ * `PATCH /sessions/:id`: shift a scheduled class or change its teacher. `scope` (D148): `this`
+ * detaches the class (default); `following` moves its weekly slot from this class on (see
+ * `SESSION_EDIT_SCOPES`, answered with `series`).
+ */
 export const updateSessionSchema = z.object({
+  scope: z.enum(['this', 'following']).default('this'),
   startsAt: instantSchema.optional(),
   durationMinutes: durationMinutesSchema.optional(),
   teacherId: id.optional(),
@@ -410,6 +417,9 @@ export type TransitionInput = z.input<typeof transitionSchema>;
 export const boardQuerySchema = z.object({
   date: dateOnlySchema.optional(),
   tz: timeZoneSchema.optional(),
+  /** D148 T1 filters (`courseIds=1,2`, `kinds=trial,regular`); counters follow them. */
+  courseIds: queryList(queryId).optional(),
+  kinds: queryList(z.enum(SESSION_KINDS)).optional(),
   /** The previous answer's `cursor`: only rows changed since (removed ones included). */
   since: z.string().max(40).optional(),
 });
