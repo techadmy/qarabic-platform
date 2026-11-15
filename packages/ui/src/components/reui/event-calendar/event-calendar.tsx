@@ -950,6 +950,7 @@ function useEventCalendarState<TData = unknown>(
   const [store] = useState(() => createEventCalendarStore<TData>(options))
   const changed = store.setOptions(options)
   const changedRef = useRef(false)
+  // eslint-disable-next-line react-hooks/refs -- upstream: flag a store change seen during render; notified in the layout effect below
   if (changed) changedRef.current = true
   useLayoutEffect(() => {
     if (changedRef.current) {
@@ -998,6 +999,7 @@ function useEventCalendarSelector<TData = unknown, TSelected = unknown>(
   const isEqual = options?.isEqual ?? Object.is
   const lastRef = useRef<{ value: TSelected } | null>(null)
   const selectorRef = useRef(selector)
+  // eslint-disable-next-line react-hooks/refs -- upstream: the latest selector for useSyncExternalStore's getSnapshot
   selectorRef.current = selector
 
   const getSnapshot = () => {

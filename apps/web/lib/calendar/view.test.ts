@@ -16,13 +16,13 @@ const from = (q: Record<string, string>) => (k: string) => q[k] ?? null;
 describe('calendar URL state (C2)', () => {
   it('reads defaults and ignores what it cannot use', () => {
     const s = calendarState(from({ view: 'year', kind: 'x', teachers: '3,abc,-1,4' }), TODAY);
-    expect(s).toMatchObject({ view: 'week', date: TODAY, kind: null, zone: 'academy' });
+    expect(s).toMatchObject({ view: 'week', date: TODAY, kind: null, zone: 'mine' });
     expect(s.teacherIds).toEqual([3, 4]);
   });
 
   it('writes only what differs from the defaults', () => {
     expect(
-      calendarParams({ view: 'week', date: TODAY, teacherIds: [], zone: 'academy' }, TODAY),
+      calendarParams({ view: 'week', date: TODAY, teacherIds: [], zone: 'mine' }, TODAY),
     ).toEqual({ view: null, date: null, teachers: null, zone: null });
     expect(calendarParams({ view: 'month', teacherIds: [1, 2], stage: 'taken' }, TODAY)).toEqual({
       view: 'month',
@@ -58,14 +58,15 @@ describe('calendar ranges', () => {
     expect(stepDate('day', TODAY, -1)).toBe('2026-11-14');
   });
 
-  it('the teacher’s zone needs one teacher; otherwise the academy’s', () => {
+  it('the teacher’s zone needs one teacher; otherwise the viewer’s own', () => {
     const ctx = {
       academy: 'Africa/Cairo',
       mine: 'Europe/London',
       teacherTz: null,
       studentTz: null,
     };
-    expect(zoneOf('teacher', ctx)).toBe('Africa/Cairo');
+    expect(zoneOf('teacher', ctx)).toBe('Europe/London');
+    expect(zoneOf('academy', ctx)).toBe('Africa/Cairo');
     expect(zoneOf('teacher', { ...ctx, teacherTz: 'Asia/Karachi' })).toBe('Asia/Karachi');
     expect(zoneOf('mine', ctx)).toBe('Europe/London');
   });
