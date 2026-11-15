@@ -444,7 +444,8 @@ describe('dashboard', () => {
 
     const acc = (await accounts.client.get('/dashboard/summary')).body.data;
     expect(acc.people).toBeNull();
-    expect(acc.finance.ledgerPending).toBe(0);
+    // D146: accounts no longer keep the ledger, so the ledger counter is hidden.
+    expect(acc.finance.ledgerPending).toBeNull();
 
     for (const role of ['teacher', 'parent']) {
       const { client } = await signedIn(ctx, role);

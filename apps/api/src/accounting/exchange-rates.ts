@@ -9,7 +9,7 @@ import {
 import type { z } from 'zod';
 import { AuditService } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
-import { Can, CanAny, CurrentUser } from '../auth/decorators.js';
+import { CanAny, CurrentUser } from '../auth/decorators.js';
 import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
@@ -47,7 +47,8 @@ export class ExchangeRatesService {
 
 /**
  * `/accounting/exchange-rates` (D144, B124): the monthly rate of each billing currency to USD.
- * Accounts maintain it; billing and the owner read it (`reports.financial`).
+ * Accounts maintain it (`accounting.rates`, D146: without the ledger); billing and the owner read it
+ * (`reports.financial`).
  */
 @ApiTags('accounting')
 @Controller('accounting/exchange-rates')
@@ -77,7 +78,7 @@ export class ExchangeRatesController {
   }
 
   /** Sets (or changes) the rate of a currency for a month; audited with the old value. */
-  @Can('accounting.manage')
+  @CanAny('accounting.manage', 'accounting.rates')
   @Put()
   @ApiBody({ schema: jsonSchema(upsertExchangeRateSchema) })
   async upsert(
@@ -122,7 +123,7 @@ export class ExchangeRatesController {
   }
 
   /** Removes a wrong rate (reason required: every report of that month changes). */
-  @Can('accounting.manage')
+  @CanAny('accounting.manage', 'accounting.rates')
   @Delete(':id')
   @ApiBody({ schema: jsonSchema(deleteExchangeRateSchema) })
   async remove(

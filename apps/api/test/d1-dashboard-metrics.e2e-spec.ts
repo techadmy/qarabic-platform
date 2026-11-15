@@ -38,7 +38,7 @@ beforeEach(async () => {
 const NOV = '/dashboard/metrics?from=2026-11-01&to=2026-11-30';
 
 /** A USD family paying 60.00 and a GBP family paying 50.00 in November; GBP has no rate yet. */
-async function seedMoney(accounts: Client, billing: Client) {
+async function seedMoney(books: Client, billing: Client) {
   const usd = await billingFamily(ctx, 'USD', [await makeFeePackage(ctx, { USD: '60.00' })]);
   const gbp = await billingFamily(ctx, 'GBP', [await makeFeePackage(ctx, { GBP: '50.00' })]);
   const unpaid = await billingFamily(ctx, 'GBP', [await makeFeePackage(ctx, { GBP: '40.00' })]);
@@ -56,7 +56,7 @@ async function seedMoney(accounts: Client, billing: Client) {
     });
     expect(paid.status).toBe(201);
   }
-  expect((await accounts.post('/accounting/outbox/process')).status).toBe(200);
+  expect((await books.post('/accounting/outbox/process')).status).toBe(200);
 }
 
 describe('GET /dashboard/metrics: who sees which widget', () => {
@@ -92,7 +92,7 @@ describe('GET /dashboard/metrics: who sees which widget', () => {
     const { client: admin } = await signedIn(ctx, 'admin');
     const res = await admin.get('/dashboard/metrics');
     expect(res.status).toBe(200);
-    expect(res.body.data.widgets).toHaveLength(16);
+    expect(res.body.data.widgets).toHaveLength(17);
     expect(res.body.data.range).toEqual({
       from: '2026-11-01',
       to: '2026-11-30',
@@ -119,7 +119,8 @@ describe('money in USD (D144)', () => {
   it('a missing GBP rate is flagged, never 0; once set, totals match the rows behind them', async () => {
     const { client: accounts } = await signedIn(ctx, 'accounts');
     const { client: billing } = await signedIn(ctx, 'billing');
-    await seedMoney(accounts, billing);
+    const { client: owner } = await signedIn(ctx, 'admin');
+    await seedMoney(owner, billing);
 
     // No GBP rate for November yet.
     const before = (await accounts.get(NOV)).body.data;
@@ -132,6 +133,7 @@ describe('money in USD (D144)', () => {
       ],
     });
     expect(before.missingRates).toEqual([{ currency: 'GBP', month: '2026-11' }]);
+    expect(before.kpis.collection_rate.value).toBeNull(); // GBP has no rate yet
 
     // Accounts set the rate: the next request shows it (no 5-minute wait).
     await accounts.put('/accounting/exchange-rates', {
@@ -143,7 +145,15 @@ describe('money in USD (D144)', () => {
     const forAccounts = (await accounts.get(NOV)).body.data;
     expect(forAccounts.kpis.gross_profit).toBeUndefined();
     expect(forAccounts.series.revenue_expenses).toBeUndefined();
-    const { client: owner } = await signedIn(ctx, 'admin');
+    // D146: accounts see collections and the collection rate, nothing of the ledger.
+    expect(forAccounts.widgets).toEqual([
+      'collected',
+      'outstanding',
+      'collection_rate',
+      'collections',
+    ]);
+    // Due in November: 60 USD + 50 GBP + 40 GBP = 172.50 USD; paid 60 + 50 GBP = 122.50 USD.
+    expect(forAccounts.kpis.collection_rate.value).toBeCloseTo(122.5 / 172.5, 4);
     const after = (await owner.get(NOV)).body.data;
     expect(after.missingRates).toEqual([]);
     expect(after.kpis.collected.value.usd).toBe('122.50'); // 60 + 50 × 1.25

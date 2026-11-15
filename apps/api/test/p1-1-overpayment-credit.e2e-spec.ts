@@ -141,7 +141,7 @@ describe('P1-1 overpayment kept as the family’s credit', () => {
     ]);
 
     // In the ledger: the surplus is a customer-credits liability, not a receivable credit.
-    const { client: accounts } = await signedIn(ctx, 'accounts');
+    const { client: accounts } = await signedIn(ctx, 'admin'); // D146: the owner keeps the books
     expect((await accounts.post('/accounting/outbox/process')).status).toBe(200);
     const credits = await ctx.prisma.journalLine.aggregate({
       where: { account: { systemKey: 'customer_credits' } },

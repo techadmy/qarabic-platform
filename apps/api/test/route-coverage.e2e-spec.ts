@@ -427,8 +427,8 @@ describe('route permission coverage', () => {
       'POST accounting/vouchers/:id/void': 'all:accounting.manage',
       // D1 (D144): monthly rates to USD; billing and the owner read them via reports.financial.
       'GET accounting/exchange-rates': 'any:accounting.view|reports.financial',
-      'PUT accounting/exchange-rates': 'all:accounting.manage',
-      'DELETE accounting/exchange-rates/:id': 'all:accounting.manage',
+      'PUT accounting/exchange-rates': 'any:accounting.manage|accounting.rates',
+      'DELETE accounting/exchange-rates/:id': 'any:accounting.manage|accounting.rates',
     });
   });
 

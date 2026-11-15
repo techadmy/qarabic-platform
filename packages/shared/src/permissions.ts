@@ -47,7 +47,7 @@ export const MODULES = {
   invoices: ['view', 'manage', 'request', 'pay'],
   payroll: ['view', 'manage', 'review', 'approve'],
   wallet: ['view', 'manage', 'request'],
-  accounting: ['view', 'manage'],
+  accounting: ['view', 'manage', 'rates'],
   tasks: ['view', 'manage', 'oversee'],
   complaints: ['view', 'manage', 'request'],
   announcements: ['view', 'manage'],
@@ -105,7 +105,6 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, 'admin'>, Entry[]> = {
     'invoices.manage',
     'payroll.view',
     'payroll.review',
-    'accounting.view',
     'tasks.*',
     'complaints.*',
     'announcements.*',
@@ -216,7 +215,9 @@ export const ROLE_PERMISSIONS: Record<Exclude<Role, 'admin'>, Entry[]> = {
     'payroll.approve',
     'wallet.view',
     'wallet.manage',
-    'accounting.*',
+    // D146: collections only; the ledger, statements and expenses are the owner's (or an admin
+    // they grant). Accounts still keep the monthly exchange rates (D144).
+    'accounting.rates',
     'tasks.view',
     'tasks.manage',
     'announcements.view',
