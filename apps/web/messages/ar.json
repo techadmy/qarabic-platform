@@ -87,7 +87,10 @@
       "billing": "الحسابات",
       "settings": "الإعدادات",
       "payroll": "الرواتب والحضور",
-      "accounting": "المحاسبة"
+      "accounting": "المحاسبة",
+      "reports": "التقارير",
+      "support": "الدعم",
+      "tasksAnnouncements": "المهام والإعلانات"
     },
     "today": "حصص اليوم",
     "schedule": "الجدول",
@@ -132,7 +135,7 @@
     "chartOfAccounts": "دليل الحسابات",
     "financialReports": "التقارير المالية",
     "periods": "الفترات المحاسبية",
-    "trialsToday": "الحصص التجريبية اليوم",
+    "trialsToday": "الحصص التجريبية",
     "familyCredits": "الأرصدة الدائنة",
     "paymentsReview": "مدفوعات تحتاج مراجعة"
   },
