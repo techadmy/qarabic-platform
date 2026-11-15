@@ -54,6 +54,14 @@ for path in $CHECK_PATHS; do
   done
 done
 
+# The app's entry URLs must land on a page (no redirect loop between nginx and Next's basePath).
+: "${CHECK_ENTRY_PATHS:=/app /app/}"
+for path in $CHECK_ENTRY_PATHS; do
+  out="$(curl -s -o /dev/null -L --max-redirs 3 -w '%{http_code} %{num_redirects}' --max-time 10 "$@" "$BASE$path" || true)"
+  printf '%s redirects=%s %s\n' "${out% *}" "${out#* }" "$path"
+  [[ ${out% *} == 200 ]] || miss "$path" "does not reach a 200 page within 3 redirects (got '${out}')"
+done
+
 if ((FAILS)); then
   echo "security headers: $FAILS problem(s)" >&2
   exit 1
