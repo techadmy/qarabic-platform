@@ -10,7 +10,7 @@ function as(role: Role) {
 }
 
 describe('navFor', () => {
-  it('groups the staff sidebar by section (D150): top items, then users, reports, support, tasks, money, settings', () => {
+  it('groups the staff sidebar by section (D150): top items, then users, reports, tasks, money, settings, support last (Ahmed, 2026-11-16)', () => {
     const nav = navFor(as('admin'));
     expect(nav.map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
@@ -20,12 +20,12 @@ describe('navFor', () => {
       'trialsToday',
       'users',
       'reports',
-      'support',
       'tasksAnnouncements',
       'billing',
       'payroll',
       'accounting',
       'settings',
+      'support',
     ]);
     expect(navItemsFor(as('admin')).map((i) => i.key)).toEqual([
       'home',
@@ -40,9 +40,6 @@ describe('navFor', () => {
       'lessonReports',
       'tests',
       'utilization',
-      'supportInbox',
-      'feedbackTriage',
-      'myRequests',
       'tasks',
       'announcements',
       'invoices',
@@ -67,6 +64,9 @@ describe('navFor', () => {
       'billingSettings',
       'payRules',
       'roles',
+      'supportInbox',
+      'feedbackTriage',
+      'myRequests',
     ]);
   });
 
@@ -86,14 +86,14 @@ describe('navFor', () => {
       'lessonReports',
       'tests',
       'utilization',
-      'supportInbox',
-      'myRequests',
       'tasks',
       'announcements',
       'packages',
       'attendance',
       'fines',
       'holidays',
+      'supportInbox',
+      'myRequests',
     ]);
     // Accounts (N6, N7, D146): the invoices under «الحسابات»; attendance, pay items, runs, salary
     // profiles and wallets under «الرواتب والحضور»; of «المحاسبة» only the exchange rates (the
@@ -101,17 +101,15 @@ describe('navFor', () => {
     expect(navFor(as('accounts')).map((e) => (isGroup(e) ? e.group : e.key))).toEqual([
       'home',
       'reports',
-      'support',
       'tasksAnnouncements',
       'billing',
       'payroll',
       'accounting',
+      'support',
     ]);
     expect(navItemsFor(as('accounts')).map((i) => i.key)).toEqual([
       'home',
       'utilization',
-      'supportInbox',
-      'myRequests',
       'tasks',
       'announcements',
       'invoices',
@@ -123,6 +121,8 @@ describe('navFor', () => {
       'salaryProfiles',
       'wallets',
       'exchangeRates',
+      'supportInbox',
+      'myRequests',
     ]);
   });
 

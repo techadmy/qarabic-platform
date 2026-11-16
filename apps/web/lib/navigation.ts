@@ -241,34 +241,6 @@ export const STAFF_NAV: NavEntry[] = [
     ],
   },
   {
-    // D150: support requests, bug triage and the user's own reports under «الدعم».
-    group: 'support',
-    icon: HeadsetIcon,
-    items: [
-      {
-        key: 'supportInbox',
-        href: '/support',
-        icon: InboxIcon,
-        permission: 'support.view',
-        badge: 'supportOpen',
-      },
-      {
-        key: 'feedbackTriage',
-        href: '/feedback',
-        icon: ListChecksIcon,
-        permission: 'feedback.review',
-        badge: 'triageNew',
-      },
-      {
-        key: 'myRequests',
-        href: '/my-requests',
-        icon: MessagesSquareIcon,
-        permission: 'feedback.request',
-        badge: 'mineUpdates',
-      },
-    ],
-  },
-  {
     // D150: tasks and announcements in their own section.
     group: 'tasksAnnouncements',
     icon: ListTodoIcon,
@@ -414,6 +386,34 @@ export const STAFF_NAV: NavEntry[] = [
         permission: 'settings.view',
       },
       { key: 'roles', href: '/roles', icon: ShieldCheckIcon, permission: 'roles.view' },
+    ],
+  },
+  {
+    // D150 (moved last by Ahmed, 2026-11-16): support requests, bug triage and the user's own reports under «الدعم».
+    group: 'support',
+    icon: HeadsetIcon,
+    items: [
+      {
+        key: 'supportInbox',
+        href: '/support',
+        icon: InboxIcon,
+        permission: 'support.view',
+        badge: 'supportOpen',
+      },
+      {
+        key: 'feedbackTriage',
+        href: '/feedback',
+        icon: ListChecksIcon,
+        permission: 'feedback.review',
+        badge: 'triageNew',
+      },
+      {
+        key: 'myRequests',
+        href: '/my-requests',
+        icon: MessagesSquareIcon,
+        permission: 'feedback.request',
+        badge: 'mineUpdates',
+      },
     ],
   },
 ];
