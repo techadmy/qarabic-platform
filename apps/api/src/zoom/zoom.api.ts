@@ -68,6 +68,17 @@ export interface PastParticipant {
   leaveTime: string | null;
 }
 
+/** Zoom user type 2 = licensed. */
+const LICENSED = 2;
+
+export interface ZoomAccountUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  pmi: string | null;
+  personalMeetingUrl: string | null;
+}
+
 /**
  * Z1: a minimal Server-to-Server OAuth client (account_credentials). The token is cached for under
  * an hour; 429 and 5xx answers back off (Retry-After or 1 s, 2 s, 4 s). Keys never reach a log.
@@ -156,6 +167,53 @@ export class ZoomApi {
       pmi?: number | string;
     };
     return { id: u.id, email: u.email, pmi: u.pmi !== undefined ? String(u.pmi) : null };
+  }
+
+  /**
+   * D151 (b): the account's active users of type 2 (licensed), every page (`GET /users`), then
+   * each one's PMI and personal meeting link (`GET /users/{id}`). Scopes: `user:read:list_users:admin`
+   * and `user:read:user:admin` (docs/42 §6.1).
+   */
+  async licensedUsers(): Promise<ZoomAccountUser[]> {
+    const ids: string[] = [];
+    let next = '';
+    let pages = 0;
+    do {
+      if (++pages > MAX_PAGES) {
+        this.logger.warn(`Zoom users passed ${MAX_PAGES} pages; stopped.`);
+        break;
+      }
+      const page = (await this.get(
+        `/users?status=active&page_size=300${next ? `&next_page_token=${encodeURIComponent(next)}` : ''}`,
+      )) as { users?: Array<{ id?: string; type?: number }>; next_page_token?: string };
+      for (const u of page.users ?? []) if (u.id && u.type === LICENSED) ids.push(u.id);
+      next = page.next_page_token ?? '';
+    } while (next);
+
+    const out: ZoomAccountUser[] = [];
+    for (const id of ids) {
+      const u = (await this.get(`/users/${encodeURIComponent(id)}`)) as {
+        id: string;
+        email: string;
+        type?: number;
+        status?: string;
+        display_name?: string;
+        first_name?: string;
+        last_name?: string;
+        pmi?: number | string;
+        personal_meeting_url?: string;
+      };
+      if (u.type !== LICENSED || (u.status && u.status !== 'active')) continue;
+      const name = u.display_name || [u.first_name, u.last_name].filter(Boolean).join(' ') || null;
+      out.push({
+        id: u.id,
+        email: u.email,
+        displayName: name,
+        pmi: u.pmi !== undefined && u.pmi !== null ? String(u.pmi) : null,
+        personalMeetingUrl: u.personal_meeting_url || null,
+      });
+    }
+    return out;
   }
 
   /**

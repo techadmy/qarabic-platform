@@ -240,14 +240,18 @@ export class TeachersController {
   @Get()
   list(
     @ZodQuery(teacherListQuerySchema) q: Out<typeof teacherListQuerySchema>,
+    @CurrentUser() viewer: AuthUser,
   ): Promise<Paginated<TeacherDto>> {
-    return this.teachers.list(q);
+    return this.teachers.list(q, viewer);
   }
 
   @Can('staff.view')
   @Get(':id')
-  async show(@Param('id', IdPipe) id: number): Promise<{ data: TeacherDetailDto }> {
-    return { data: await this.teachers.show(id) };
+  async show(
+    @Param('id', IdPipe) id: number,
+    @CurrentUser() viewer: AuthUser,
+  ): Promise<{ data: TeacherDetailDto }> {
+    return { data: await this.teachers.show(id, viewer) };
   }
 
   @Can('staff.manage')
@@ -258,7 +262,7 @@ export class TeachersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: TeacherDetailDto }> {
     const id = await this.teachers.create(body, actor);
-    return { data: await this.teachers.show(id) };
+    return { data: await this.teachers.show(id, actor) };
   }
 
   @Can('staff.manage')
@@ -270,7 +274,7 @@ export class TeachersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: TeacherDetailDto }> {
     await this.teachers.update(id, body, actor);
-    return { data: await this.teachers.show(id) };
+    return { data: await this.teachers.show(id, actor) };
   }
 
   @Can('staff.manage')
@@ -283,7 +287,7 @@ export class TeachersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: TeacherDetailDto }> {
     await this.teachers.changeStatus(id, body, actor);
-    return { data: await this.teachers.show(id) };
+    return { data: await this.teachers.show(id, actor) };
   }
 
   @Can('staff.manage')
@@ -295,7 +299,7 @@ export class TeachersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: TeacherDetailDto }> {
     await this.teachers.archive(id, body.reason, actor);
-    return { data: await this.teachers.show(id) };
+    return { data: await this.teachers.show(id, actor) };
   }
 
   @Can('staff.manage')
@@ -306,7 +310,7 @@ export class TeachersController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: TeacherDetailDto }> {
     await this.teachers.restore(id, actor);
-    return { data: await this.teachers.show(id) };
+    return { data: await this.teachers.show(id, actor) };
   }
 }
 

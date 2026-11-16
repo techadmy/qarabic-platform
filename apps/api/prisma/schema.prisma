@@ -811,6 +811,12 @@ model ZoomHost {
   teacherId    Int?     @map("teacher_id")
   /// Z1 (docs/42 §6): the teacher's personal meeting id (PMI) their classes use, digits only.
   pmiMeetingId String?  @unique @map("pmi_meeting_id") @db.VarChar(20)
+  /// D151 (b): from the account sync — Zoom's display name, the personal meeting link (encrypted
+  /// at rest, never sent in a list), the user type, and when Zoom last listed the user.
+  displayName  String?   @map("display_name") @db.VarChar(255)
+  joinUrl      String?   @map("join_url")
+  licenseType  String?   @map("license_type") @db.VarChar(20)
+  lastSyncedAt DateTime? @map("last_synced_at") @db.Timestamptz(6)
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
