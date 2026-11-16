@@ -57,6 +57,7 @@ import { Slot } from "radix-ui"
 
 import { cn } from "@qarabic/ui/lib/utils"
 import { ScrollArea } from "@qarabic/ui/components/scroll-area"
+import { EventCalendarMoreIndicator } from "@qarabic/ui/components/reui/event-calendar/event-calendar-month-view"
 
 /** Current time, refreshed on an interval and on tab focus. */
 function useNow(intervalMs = 30_000): Date {
@@ -907,6 +908,9 @@ function EventCalendarTimeGutter({
  * one". Consumers opt out with classNames.dayColumn: "[--ec-event-gutter:0px]".
  */
 const EVENT_TRACK_WIDTH = "(100% - var(--ec-event-gutter, 0.75rem))"
+/** Qarabic: the default event gutter (0.75rem) in px, and the narrowest lane (24 px + padding). */
+const EVENT_GUTTER_PX = 12
+const MIN_LANE_PX = 28
 
 /** Absolute overlay block positioned by minutes (ghosts + drafts). */
 function minuteBlockStyle(
@@ -1071,6 +1075,58 @@ function EventCalendarDayColumn({
     return clones
   }, [segments.timed, boundsStartMin, boundsEndMin])
 
+  // Qarabic (WCAG 2.5.8 target size): overlapping classes split a narrow day column (a week at
+  // 768 px is ~40 px a day) into lanes too thin to tap. Measure the column; show side by side
+  // only the lanes that keep >= MIN_LANE_PX, and put the rest behind a "+N" in the last lane,
+  // whose popover lists them (the month view's "+N more"). Unmeasured (SSR, tests): unchanged.
+  const columnRef = useRef<HTMLDivElement>(null)
+  const [columnWidth, setColumnWidth] = useState(0)
+  useEffect(() => {
+    const el = columnRef.current
+    if (!el || typeof ResizeObserver === "undefined") return
+    const observer = new ResizeObserver(() => setColumnWidth(el.clientWidth))
+    observer.observe(el)
+    setColumnWidth(el.clientWidth)
+    return () => observer.disconnect()
+  }, [])
+  const lanesThatFit =
+    columnWidth > 0
+      ? Math.max(1, Math.floor((columnWidth - EVENT_GUTTER_PX) / MIN_LANE_PX))
+      : Number.POSITIVE_INFINITY
+  const { shownTimed, overflowGroups } = useMemo(() => {
+    const shown: EventCalendarSegment[] = []
+    const hidden: EventCalendarSegment[] = []
+    const keep = lanesThatFit - 1 // the last lane holds the "+N"
+    for (const segment of packedTimed) {
+      if ((segment.columnCount ?? 1) <= lanesThatFit) shown.push(segment)
+      else if ((segment.column ?? 0) < keep)
+        shown.push({
+          ...segment,
+          columnCount: lanesThatFit,
+          columnSpan: 1,
+        } as EventCalendarSegment)
+      else hidden.push(segment)
+    }
+    // One "+N" per run of overlapping hidden classes.
+    const groups: {
+      startMin: number
+      endMin: number
+      segments: EventCalendarSegment[]
+    }[] = []
+    for (const segment of [...hidden].sort(
+      (a, b) => (a.startMin ?? 0) - (b.startMin ?? 0)
+    )) {
+      const startMin = Math.max(segment.startMin ?? 0, boundsStartMin)
+      const endMin = Math.min(segment.endMin ?? startMin, boundsEndMin)
+      const last = groups[groups.length - 1]
+      if (last && startMin < last.endMin) {
+        last.endMin = Math.max(last.endMin, endMin)
+        last.segments.push(segment)
+      } else groups.push({ startMin, endMin, segments: [segment] })
+    }
+    return { shownTimed: shown, overflowGroups: groups }
+  }, [packedTimed, lanesThatFit, boundsStartMin, boundsEndMin])
+
   const slotFromPointer = (e: React.MouseEvent): { date: Date; end: Date } => {
     const rect = e.currentTarget.getBoundingClientRect()
     const pxPerMinute = rect.height / boundsMinutes
@@ -1090,6 +1146,7 @@ function EventCalendarDayColumn({
 
   return (
     <div
+      ref={columnRef}
       data-slot="event-calendar-day-column"
       data-today={isToday || undefined}
       data-off={isOff || undefined}
@@ -1139,7 +1196,7 @@ function EventCalendarDayColumn({
           })}
         </div>
       )}
-      {packedTimed.map((segment) => {
+      {shownTimed.map((segment) => {
         const startMin = Math.max(segment.startMin ?? 0, boundsStartMin)
         const endMin = Math.min(segment.endMin ?? startMin, boundsEndMin)
         if (endMin <= boundsStartMin || startMin >= boundsEndMin) return null
@@ -1180,6 +1237,25 @@ function EventCalendarDayColumn({
           </div>
         )
       })}
+      {overflowGroups.map((group) => (
+        <div
+          key={`more-${group.startMin}`}
+          data-slot="event-calendar-lane-more"
+          className="absolute z-20 flex min-h-(--ec-event-min-h,1.5rem) px-0.5 [&>button]:min-h-6 [&>button]:w-full [&>button]:justify-center [&>button]:rounded-md [&>button]:border [&>button]:bg-muted [&>button]:px-0.5 [&>button]:text-foreground"
+          style={{
+            ...minuteBlockStyle(group.startMin, group.endMin, boundsStartMin),
+            insetInlineStart: `calc(${EVENT_TRACK_WIDTH} * ${(lanesThatFit - 1) / lanesThatFit})`,
+            width: `calc(${EVENT_TRACK_WIDTH} / ${lanesThatFit})`,
+          }}
+        >
+          <EventCalendarMoreIndicator
+            day={dayStart}
+            count={group.segments.length}
+            segments={group.segments}
+            compact
+          />
+        </div>
+      ))}
       {/* Drag ghost, standardized (EVENT_CALENDAR_GHOST). Move: a faint
           dashed placeholder at the snapped slot - the cursor-attached carry
           clone owns the visual. Resize: the chip clone with a dashed boundary

@@ -8,7 +8,7 @@ Radix flavour (`radix-nova` registry style). They were copied from Ahmed's Janna
 Local changes: import aliases (`@qarabic/ui/...`), lucide icons in place of ReUI's
 `IconPlaceholder`, and the event colour presets mapped to our tokens (`--chart-*`,
 `--status-*-emphasis`); TypeScript non-null assertions for our `noUncheckedIndexedAccess`; and
-logical `insetInlineStart` instead of `left` for the now-indicator and overlapping events, prev/next chevrons that turn in RTL, and the resource view calling `renderDayColumnBackground` per resource (with `resourceId`).
+logical `insetInlineStart` instead of `left` for the now-indicator and overlapping events, prev/next chevrons that turn in RTL, and the resource view calling `renderDayColumnBackground` per resource (with `resourceId`); in the time grid, overlapping events never get a lane narrower than 28 px (WCAG 2.5.8): the lanes that do not fit go behind a compact «+N» (the month view's more popover).
 
 ## MIT License
 

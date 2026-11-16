@@ -51,6 +51,25 @@ for (const width of [375, 768, 1440]) {
   }
 }
 
+test('overlapping classes in a narrow week column: lanes stay tappable, the rest behind «+N» (768)', async ({
+  page,
+}) => {
+  // The mocks place classes relative to now; at this instant teacher 1 has two classes at the
+  // same hour on one day (a trial over a regular class), which once split a ~40 px day column
+  // into two 18 px lanes (axe target-size, 2026-11-16).
+  await page.clock.setFixedTime(new Date('2026-11-16T07:45:00Z'));
+  await open(page, 768, 'ar', '/schedule?view=week&teachers=1');
+  const more = page.locator('[data-slot="event-calendar-lane-more"] button').first();
+  await expect(more).toBeVisible();
+  const box = (await more.boundingBox())!;
+  expect(box.width).toBeGreaterThanOrEqual(24);
+  expect(box.height).toBeGreaterThanOrEqual(24);
+  await expectNoSeriousA11yViolations(page);
+  await more.click();
+  const list = page.locator('[data-slot="event-calendar-more-popover"]');
+  await expect(list.locator('[data-slot="event-calendar-event"]')).toHaveCount(2);
+});
+
 test('a class opens the board’s class sheet (1440, Arabic)', async ({ page }) => {
   await open(page, 1440, 'ar', '/schedule?view=list');
   await page

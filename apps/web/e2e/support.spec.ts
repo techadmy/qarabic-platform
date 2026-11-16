@@ -244,7 +244,7 @@ test('teacher change (S3): staff propose at 1440 in English, the family accepts 
   await page.locator('header').getByRole('button', { name: 'Switch to English' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
   await page
-    .getByRole('link', { name: /^Support/ })
+    .getByRole('link', { name: /^Support inbox/ })
     .first()
     .click();
   await page

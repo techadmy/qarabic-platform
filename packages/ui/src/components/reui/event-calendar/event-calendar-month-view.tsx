@@ -1110,6 +1110,8 @@ interface EventCalendarMoreIndicatorProps {
    *  the indicator itself becomes the drop placeholder (dashed, event-tinted) so
    *  it reads as "the chip joins the +N more list". */
   dropInto?: { color?: string; valid: boolean }
+  /** Qarabic: "+N" on screen, the full "N more" for screen readers (narrow time-grid lanes). */
+  compact?: boolean
 }
 
 /**
@@ -1121,6 +1123,7 @@ function EventCalendarMoreIndicator({
   count,
   segments,
   dropInto,
+  compact,
 }: EventCalendarMoreIndicatorProps) {
   const settings = useEventCalendarSettings()
   const viewConfig = useEventCalendarViewConfig()
@@ -1177,8 +1180,15 @@ function EventCalendarMoreIndicator({
           }
         }}
       >
-        {viewConfig.renderMoreIndicator?.({ day, count, segments }) ??
-          settings.i18n.labels.more(count)}
+        {compact ? (
+          <>
+            <span aria-hidden>+{count}</span>
+            <span className="sr-only">{settings.i18n.labels.more(count)}</span>
+          </>
+        ) : (
+          (viewConfig.renderMoreIndicator?.({ day, count, segments }) ??
+          settings.i18n.labels.more(count))
+        )}
       </PopoverTrigger>
       <PopoverContent
         data-slot="event-calendar-more-popover"

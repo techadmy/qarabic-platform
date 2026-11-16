@@ -98,17 +98,25 @@ export function instantDayShift(iso: string, viewerTz: string, otherTz: string):
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);
 }
 
+/** One formatter per zone: building an `Intl.DateTimeFormat` costs far more than using it. */
+const offsetFormatters = new Map<string, Intl.DateTimeFormat>();
+
 function offsetMs(tz: string, at: number): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: tz,
-    hourCycle: 'h23',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).formatToParts(new Date(at));
+  let format = offsetFormatters.get(tz);
+  if (!format) {
+    format = new Intl.DateTimeFormat('en-US', {
+      timeZone: tz,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    offsetFormatters.set(tz, format);
+  }
+  const parts = format.formatToParts(new Date(at));
   const get = (type: string) => Number(parts.find((p) => p.type === type)?.value);
   const asUtc = Date.UTC(
     get('year'),
