@@ -393,6 +393,31 @@ export type UpdateStudentInput = z.input<typeof updateStudentSchema>;
 
 // ------------------------------------------------------------------ teachers
 
+/*
+| D151: every teacher has their personal Zoom meeting link, typed in on the teacher profile. Their
+| classes use it unless an enrollment has its own fixed link (external) or the academy created a
+| meeting for the class. The meeting id in the link is the teacher's PMI (Z1 attendance).
+*/
+
+/** `https://zoom.us/j/<9–11 digits>` or a company subdomain (`us02web.zoom.us`), `?pwd=` allowed. */
+const ZOOM_LINK = /^https:\/\/(?:[a-z0-9-]+\.)*zoom\.us\/j\/(\d{9,11})(?:[?#][^\s]*)?$/i;
+
+/** The meeting id (PMI) in a teacher's Zoom link, or null when it is not a Zoom meeting link. */
+export function zoomMeetingIdOf(url: string | null | undefined): string | null {
+  return url ? (ZOOM_LINK.exec(url.trim())?.[1] ?? null) : null;
+}
+
+export const teacherZoomLinkSchema = z
+  .string()
+  .trim()
+  .max(500)
+  .refine((v) => ZOOM_LINK.test(v), {
+    message: 'Use the Zoom meeting link, e.g. https://us02web.zoom.us/j/1234567890?pwd=….',
+  });
+
+/** 409 when another teacher (or another Zoom host, Z1) already uses the same meeting id. */
+export const TEACHER_ZOOM_LINK_TAKEN = 'zoom_link_taken';
+
 export const teacherListQuerySchema = listQueryBaseSchema.extend({
   status: activeStatusSchema.optional(),
   courseId: queryId.optional(),
@@ -427,6 +452,13 @@ export const teacherSchema = z.object({
   experience: z.string().nullable(),
   address: z.string().nullable(),
   skypeId: z.string().nullable(),
+  /**
+   * D151: the teacher's personal Zoom link. Sent only to staff with `staff.manage` (the editors);
+   * other readers get `hasZoomLink` alone. Optional for older clients and mocks.
+   */
+  zoomJoinUrl: z.string().nullable().optional(),
+  /** D151: false → their classes have no link; the profile and the Today board warn. */
+  hasZoomLink: z.boolean().optional(),
   description: z.string().nullable(),
   status: statusInfoSchema(activeStatusSchema),
   archive: archiveInfoSchema,
@@ -463,6 +495,8 @@ const teacherFields = {
   experience: optionalText(2000),
   address: optionalText(500),
   skypeId: optionalText(100),
+  /** D151: the personal Zoom meeting link (null or blank clears it); `409 zoom_link_taken`. */
+  zoomJoinUrl: clearable(teacherZoomLinkSchema),
   description: optionalText(2000),
   /** «يقبل الحصص التجريبية» (T2). */
   acceptsTrials: z.boolean().optional(),

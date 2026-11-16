@@ -102,6 +102,22 @@ export const ZOOM_STATUS_LABELS: Labels<ZoomStatus> = {
   deleted: { ar: 'حُذف', en: 'Deleted' },
 };
 
+/**
+ * D151: where a class's link comes from, resolved when the class is shown or joined: `meeting`
+ * (a Zoom meeting the academy created), `external` (the enrollment's fixed link), `teacher` (the
+ * teacher's personal Zoom link), `missing` (it should be the teacher's link but they have none:
+ * warn), `none` (no link: cancelled, moved or its meeting was deleted).
+ */
+export const SESSION_LINK_SOURCES = ['meeting', 'external', 'teacher', 'missing', 'none'] as const;
+export type SessionLinkSource = (typeof SESSION_LINK_SOURCES)[number];
+export const SESSION_LINK_SOURCE_LABELS: Labels<SessionLinkSource> = {
+  meeting: { ar: 'اجتماع زووم للحصة', en: 'Class Zoom meeting' },
+  external: { ar: 'رابط ثابت للتسجيل', en: 'Fixed enrollment link' },
+  teacher: { ar: 'رابط زووم المعلّم', en: "Teacher's Zoom link" },
+  missing: { ar: 'لا يوجد رابط زووم للمعلّم', en: 'The teacher has no Zoom link' },
+  none: { ar: 'بلا رابط', en: 'No link' },
+};
+
 /** Qualifier of a stage: who took leave, why a class was cancelled or moved. */
 export const LEAVE_REASONS = ['student', 'teacher'] as const;
 export const CANCEL_REASONS = [
@@ -297,7 +313,12 @@ export const sessionSchema = z.object({
   }),
   latenessMinutes: z.number().int(),
   /** Never a URL: links come from `/zoom/start` and `/zoom/join` inside their windows. */
-  zoom: z.object({ status: z.enum(ZOOM_STATUSES), joinAvailable: z.boolean() }),
+  zoom: z.object({
+    status: z.enum(ZOOM_STATUSES),
+    joinAvailable: z.boolean(),
+    /** D151: the link's source (`missing` = warn). Always sent by the API; optional for mocks. */
+    link: z.enum(SESSION_LINK_SOURCES).optional(),
+  }),
   evidence: z.object({
     actualStartedAt: z.string().nullable(),
     teacherJoinedAt: z.string().nullable(),
@@ -529,6 +550,16 @@ export type TimetableDto = z.infer<typeof timetableSchema>;
 export const zoomStartSchema = z.object({ startUrl: z.string() });
 /** `GET /sessions/:id/zoom/join` (anyone who sees the class, from 60 min before). */
 export const zoomJoinSchema = z.object({ joinUrl: z.string() });
+
+/**
+ * `GET /teacher-portal/zoom-link` (D151, the signed-in teacher, read-only; staff 403): the link
+ * staff saved on their profile, and its meeting id. Both null when none is set.
+ */
+export const teacherZoomLinkDtoSchema = z.object({
+  url: z.string().nullable(),
+  meetingId: z.string().nullable(),
+});
+export type TeacherZoomLinkDto = z.infer<typeof teacherZoomLinkDtoSchema>;
 
 export const zoomHostSchema = z.object({
   id: z.number().int(),
