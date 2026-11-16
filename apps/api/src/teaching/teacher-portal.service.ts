@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { TeacherStudentDto, TeacherWeekDto } from '@qarabic/shared';
+import type { TeacherStudentDto, TeacherWeekDto, TeacherZoomLinkDto } from '@qarabic/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
+import { Crypto } from '../common/crypto.js';
 import { isTeacherViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { zoneOr } from '../schedule/conflicts.js';
@@ -26,11 +27,18 @@ export class TeacherPortalService {
     private readonly settings: SettingsService,
     private readonly clock: Clock,
     private readonly presenter: SessionPresenter,
+    private readonly crypto: Crypto,
   ) {}
 
   private async teacherOf(viewer: AuthUser) {
     if (!isTeacherViewer(viewer) || viewer.teacherId === null) throw forbidden();
     return this.prisma.teacher.findUniqueOrThrow({ where: { id: viewer.teacherId } });
+  }
+
+  /** D151: the signed-in teacher's own Zoom link (read-only; staff edit it on the profile). */
+  async zoomLink(viewer: AuthUser): Promise<TeacherZoomLinkDto> {
+    const teacher = await this.teacherOf(viewer);
+    return { url: this.crypto.tryDecrypt(teacher.zoomJoinUrl), meetingId: teacher.zoomMeetingId };
   }
 
   async week(viewer: AuthUser, date?: string): Promise<TeacherWeekDto> {

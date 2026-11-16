@@ -12,6 +12,7 @@ import {
 import type { z } from 'zod';
 import { AuditService, diff } from '../audit/audit.service.js';
 import type { AuthUser } from '../auth/auth.types.js';
+import { Crypto } from '../common/crypto.js';
 import { conflict, notFound, rule } from '../common/errors.js';
 import { pageArgs, pageMeta, statusCounts } from '../common/pagination.js';
 import { contains, phoneDigits, searchId } from '../common/search.js';
@@ -36,6 +37,7 @@ import {
   statusStamp,
   type Tx,
 } from './people.common.js';
+import { rethrowZoomLinkTaken, saveTeacherZoomLink } from './teacher-zoom-link.js';
 
 /** Students that keep a teacher in service: active and not archived. */
 const activeStudentsWhere = {
@@ -80,6 +82,8 @@ function snapshot(row: Row): Record<string, unknown> {
     experience: row.experience,
     address: row.address,
     skypeId: row.skypeId,
+    // D151: the meeting id only (the link carries its passcode).
+    zoomMeetingId: row.zoomMeetingId,
     description: row.description,
     acceptsTrials: row.acceptsTrials,
     maxTrialsPerWeek: row.maxTrialsPerWeek,
@@ -100,9 +104,13 @@ export class TeachersService {
     private readonly accounts: AccountsService,
     private readonly audit: AuditService,
     private readonly settings: SettingsService,
+    private readonly crypto: Crypto,
   ) {}
 
-  async list(q: z.output<typeof teacherListQuerySchema>): Promise<Paginated<TeacherDto>> {
+  async list(
+    q: z.output<typeof teacherListQuerySchema>,
+    viewer: AuthUser,
+  ): Promise<Paginated<TeacherDto>> {
     const and: Prisma.TeacherWhereInput[] = [{ archivedAt: q.archived ? { not: null } : null }];
     if (q.courseId) and.push({ courses: { some: { courseId: q.courseId } } });
     if (q.q) {
@@ -134,17 +142,17 @@ export class TeachersService {
       this.settings.get('payroll.default_currency'),
     ]);
     return {
-      data: rows.map((r) => this.toDto(r, currency)),
+      data: rows.map((r) => this.toDto(r, currency, viewer)),
       meta: pageMeta(q, total, statusCounts(ACTIVE_STATUSES, groups)),
     };
   }
 
-  async show(id: number): Promise<TeacherDetailDto> {
+  async show(id: number, viewer: AuthUser): Promise<TeacherDetailDto> {
     const row = await this.prisma.teacher.findUnique({ where: { id }, include });
     if (!row) throw notFound();
     const currency = await this.settings.get('payroll.default_currency');
     return {
-      ...this.toDto(row, currency),
+      ...this.toDto(row, currency, viewer),
       statusHistory: await statusHistory(this.prisma, 'teacher', id),
     };
   }
@@ -171,6 +179,14 @@ export class TeachersService {
           },
         });
         await syncTeacherPayProfile(tx, this.audit, created, input.hourlyRate, currency, actor.id);
+        if (input.zoomJoinUrl) {
+          await saveTeacherZoomLink(
+            tx,
+            this.crypto,
+            { id: created.id, zoomMeetingId: null, email: input.email },
+            input.zoomJoinUrl,
+          );
+        }
         if (input.courseIds?.length) {
           await tx.teacherCourse.createMany({
             data: input.courseIds.map((courseId) => ({ teacherId: created.id, courseId })),
@@ -189,7 +205,8 @@ export class TeachersService {
         );
         return created.id;
       })
-      .catch(rethrowEmailTaken);
+      .catch(rethrowEmailTaken)
+      .catch(rethrowZoomLinkTaken);
   }
 
   async update(
@@ -215,6 +232,18 @@ export class TeachersService {
           },
         });
         await syncTeacherPayProfile(tx, this.audit, before, input.hourlyRate, currency, actor.id);
+        if (input.zoomJoinUrl !== undefined) {
+          await saveTeacherZoomLink(
+            tx,
+            this.crypto,
+            {
+              id,
+              zoomMeetingId: before.zoomMeetingId,
+              email: input.email ?? before.user.email,
+            },
+            input.zoomJoinUrl,
+          );
+        }
         const nameChanged = input.firstName !== undefined || input.lastName !== undefined;
         await tx.user.update({
           where: { id: before.userId },
@@ -257,7 +286,8 @@ export class TeachersService {
           );
         }
       })
-      .catch(rethrowEmailTaken);
+      .catch(rethrowEmailTaken)
+      .catch(rethrowZoomLinkTaken);
   }
 
   /**
@@ -397,7 +427,7 @@ export class TeachersService {
     if (found !== ids.length) throw invalid('courseIds', 'The selected courses are invalid.');
   }
 
-  private toDto(row: Row, defaultCurrency: string): TeacherDto {
+  private toDto(row: Row, defaultCurrency: string, viewer: AuthUser): TeacherDto {
     return {
       id: row.id,
       userId: row.userId,
@@ -422,6 +452,11 @@ export class TeachersService {
       experience: row.experience,
       address: row.address,
       skypeId: row.skypeId,
+      // D151: the link itself only for those who edit teachers.
+      ...(viewer.permissions.has('staff.manage')
+        ? { zoomJoinUrl: this.crypto.tryDecrypt(row.zoomJoinUrl) }
+        : {}),
+      hasZoomLink: row.zoomJoinUrl !== null,
       description: row.description,
       status: statusInfo(row),
       archive: archiveInfo(row),

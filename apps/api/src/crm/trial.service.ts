@@ -510,8 +510,12 @@ export class LeadTrialService {
     teacherId: number,
     url: string | null,
     field: string,
-  ): Promise<{ meetingMode: 'zoom' | 'external'; externalMeetingUrl: string | null }> {
+  ): Promise<{ meetingMode: 'teacher' | 'zoom' | 'external'; externalMeetingUrl: string | null }> {
     if (url) return { meetingMode: 'external', externalMeetingUrl: this.crypto.encrypt(url) };
+    // D151: the teacher's personal Zoom link, read when the class is joined.
+    if (await this.hasTeacherLink(tx, teacherId)) {
+      return { meetingMode: 'teacher', externalMeetingUrl: null };
+    }
     if (this.zoom.client.enabled()) return { meetingMode: 'zoom', externalMeetingUrl: null };
     const teacherLink = await tx.enrollment.findFirst({
       where: { teacherId, meetingMode: 'external', externalMeetingUrl: { not: null } },
@@ -520,7 +524,9 @@ export class LeadTrialService {
     });
     if (!teacherLink?.externalMeetingUrl) {
       throw validationError({
-        [field]: ['Zoom is not set up yet: enter the class link (Zoom or Google Meet).'],
+        [field]: [
+          "The teacher has no Zoom link: add it on the teacher's profile, or enter the class link.",
+        ],
       });
     }
     // Stored encrypted: the ciphertext is copied as is.
@@ -747,14 +753,23 @@ export class LeadTrialService {
     return created;
   }
 
+  private async hasTeacherLink(tx: Tx, teacherId: number): Promise<boolean> {
+    const t = await tx.teacher.findUnique({
+      where: { id: teacherId },
+      select: { zoomJoinUrl: true },
+    });
+    return !!t?.zoomJoinUrl;
+  }
+
   /** The regular enrollment's meeting: the given link, Zoom when set up, else the trial's / teacher's link. */
   private async regularMeeting(
     tx: Tx,
     row: { teacherId: number; meetingUrl?: string | null },
     trials: Array<{ teacherId: number; meetingMode: string; externalMeetingUrl: string | null }>,
     field: string,
-  ): Promise<{ meetingMode: 'zoom' | 'external'; url: string | null }> {
+  ): Promise<{ meetingMode: 'teacher' | 'zoom' | 'external'; url: string | null }> {
     if (row.meetingUrl) return { meetingMode: 'external', url: row.meetingUrl };
+    if (await this.hasTeacherLink(tx, row.teacherId)) return { meetingMode: 'teacher', url: null };
     if (this.zoom.client.enabled()) return { meetingMode: 'zoom', url: null };
     const sameTeacher = trials.find(
       (t) => t.teacherId === row.teacherId && t.meetingMode === 'external' && t.externalMeetingUrl,
