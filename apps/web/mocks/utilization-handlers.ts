@@ -131,7 +131,7 @@ export const utilizationHandlers: HttpHandler[] = [
     const sum = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>
       round(teachers.reduce((n, t) => n + t[k], 0));
     const available = sum('availableHours');
-    // Per-day totals (#118: busiest and emptiest days).
+    // R1 follow-up: per-day totals (the busiest and emptiest days).
     const days = daysBetween(from, to).map((date) => {
       const each = list.map((t) => numbers(t.id, date, date));
       const add = (k: 'availableHours' | 'bookedHours' | 'freeHours' | 'outsideHours') =>

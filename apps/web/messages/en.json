@@ -4567,6 +4567,36 @@
     },
     "invalidRange": "Choose a valid period to see the report.",
     "comparedWith": "Change compared with \u2068{span}\u2069.",
-    "span": "\u2068{from}\u2069 – \u2068{to}\u2069"
+    "span": "\u2068{from}\u2069 – \u2068{to}\u2069",
+    "busy": {
+      "title": "Busiest and emptiest days",
+      "description": "Booked vs available hours in the period, by weekday and by date.",
+      "byWeekday": "By weekday",
+      "busiest": "Busiest days",
+      "emptiest": "Emptiest days",
+      "day": "Day",
+      "booked": "Booked",
+      "available": "Available",
+      "utilization": "Utilization",
+      "empty": "No available hours in the period.",
+      "outsideOnly": "Classes booked on a day with no available hours (e.g. Friday) are outside work hours, so there is no utilization for it."
+    },
+    "hiring": {
+      "title": "Do we need a new teacher?",
+      "description": "Can the teachers free this week take new students on the days and hours you choose (in \u2068{city}\u2069 time)? The course, gender and age-group filters above apply.",
+      "students": "New students",
+      "minutes": "Minutes per student a week",
+      "minutesOption": "{count, plural, one {# minute} other {# minutes}}",
+      "from": "From",
+      "to": "To",
+      "midnight": "Midnight",
+      "days": "Days",
+      "invalid": "Enter a valid number of students, choose at least one day, and a start before the end.",
+      "enough": "The free teachers are enough (it would use \u2068{load}\u2069% of their free time in these hours).",
+      "short": "Not enough: about \u2068{hours}\u2069 teaching hours a week short.",
+      "numbers": "Needed \u2068{needed}\u2069 hours a week; free \u2068{free}\u2069 teacher-hours.",
+      "gaps": "Hours with no free teacher:",
+      "caveat": "An estimate from one week; it assumes a student takes any suitable teacher in the chosen hours."
+    }
   }
 }

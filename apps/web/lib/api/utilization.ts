@@ -3,11 +3,14 @@ import {
   utilizationReportSchema,
   type FreeCapacityDto,
   type FreeCapacityQuery,
-  type UtilizationQuery,
   type UtilizationReportDto,
+  type UtilizationQuery,
 } from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
+
+/** One date's totals (busiest / emptiest days, R1 follow-up; backend #118). */
+export type UtilizationDayDto = UtilizationReportDto['days'][number];
 
 /** R1 (docs/42 §5, D148): teacher utilization and the free-capacity heatmap. */
 function qs(query: Record<string, unknown>) {
