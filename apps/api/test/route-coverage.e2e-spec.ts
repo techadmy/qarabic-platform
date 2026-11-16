@@ -215,6 +215,9 @@ describe('route permission coverage', () => {
       'GET zoom-hosts': 'all:settings.manage',
       'POST zoom-hosts': 'all:settings.manage',
       'PATCH zoom-hosts/:id': 'all:settings.manage',
+      'GET zoom-hosts/account': 'any:settings.manage|staff.manage',
+      'POST zoom-hosts/sync': 'any:settings.manage|staff.manage',
+      'PUT zoom-hosts/:id/teacher': 'any:settings.manage|staff.manage',
     });
   });
 
@@ -239,6 +242,7 @@ describe('route permission coverage', () => {
       'POST tests/:id/reopen': 'all:tests.manage',
       'GET teacher-portal/week': 'all:sessions.conduct',
       'GET teacher-portal/students': 'all:sessions.conduct',
+      'GET teacher-portal/zoom-link': 'all:sessions.conduct',
     });
   });
 

@@ -593,6 +593,62 @@ export type CreateZoomHostInput = z.input<typeof createZoomHostSchema>;
 export const updateZoomHostSchema = createZoomHostSchema.partial();
 export type UpdateZoomHostInput = z.input<typeof updateZoomHostSchema>;
 
+/*
+| D151 (b): with the Zoom app on, the account's licensed users are synced into the host pool (daily
+| and on «sync now»); staff pick one per teacher from a dropdown, which sets the teacher's link and
+| PMI. With Zoom off the list answers `{ enabled: false }`: the UI keeps the manual link field.
+*/
+
+/** One synced Zoom user. Their link is never sent (it carries the passcode). */
+export const zoomAccountHostSchema = z.object({
+  id: z.number().int(),
+  zoomUserId: z.string(),
+  email: z.string(),
+  displayName: z.string().nullable(),
+  pmiMeetingId: z.string().nullable(),
+  /** Zoom's user type: `licensed` (the ones listed), or `basic` once a licence is removed. */
+  licenseType: z.string().nullable(),
+  /** False when Zoom no longer lists the user as active and licensed. */
+  isActive: z.boolean(),
+  lastSyncedAt: z.string().nullable(),
+  /** Assigned teacher (one host per teacher, one teacher per host), or null when free. */
+  teacher: z.object({ id: z.number().int(), name: z.string() }).nullable(),
+});
+export type ZoomAccountHostDto = z.infer<typeof zoomAccountHostSchema>;
+
+/** `GET /zoom-hosts/account` (`settings.manage` or `staff.manage`). */
+export const zoomAccountHostsSchema = z.discriminatedUnion('enabled', [
+  z.object({ enabled: z.literal(false) }),
+  z.object({
+    enabled: z.literal(true),
+    /** The last successful sync (null before the first). */
+    lastSyncedAt: z.string().nullable(),
+    hosts: z.array(zoomAccountHostSchema),
+  }),
+]);
+export type ZoomAccountHostsDto = z.infer<typeof zoomAccountHostsSchema>;
+
+/** `POST /zoom-hosts/sync` (same permissions; 503 `zoom_unavailable` while Zoom is off). */
+export const zoomHostsSyncResultSchema = z.object({
+  /** Licensed users created or updated. */
+  synced: z.number().int(),
+  /** Hosts no longer active and licensed in Zoom (kept, marked inactive). */
+  deactivated: z.number().int(),
+  /** Users whose PMI already belongs to another teacher's manual link (left unassigned). */
+  conflicts: z.array(z.object({ email: z.string(), pmiMeetingId: z.string() })),
+  lastSyncedAt: z.string(),
+});
+export type ZoomHostsSyncResultDto = z.infer<typeof zoomHostsSyncResultSchema>;
+
+/**
+ * `PUT /zoom-hosts/:id/teacher` `{ teacherId }` (same permissions): assigns the host to the teacher
+ * (their link and PMI come from the host; any other host of theirs is freed), or `null` frees it
+ * (the teacher's link is cleared). `409 zoom_host_taken` when another teacher has the host;
+ * `409 zoom_host_inactive` for a host Zoom no longer lists.
+ */
+export const assignZoomHostSchema = z.object({ teacherId: id.nullable() });
+export type AssignZoomHostInput = z.input<typeof assignZoomHostSchema>;
+
 // ------------------------------------------------------------------ class rules (settings)
 
 /**

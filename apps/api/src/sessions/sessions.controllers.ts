@@ -39,7 +39,10 @@ import {
   updateSessionSchema,
   updateSessionSettingsSchema,
   updateZoomHostSchema,
+  assignZoomHostSchema,
+  type ZoomAccountHostsDto,
   type ZoomHostDto,
+  type ZoomHostsSyncResultDto,
 } from '@qarabic/shared';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
@@ -49,7 +52,7 @@ import { Can, CanAny, CurrentUser } from '../auth/decorators.js';
 import { RateLimit } from '../auth/rate-limit.guard.js';
 import { Clock } from '../common/clock.js';
 import { Crypto } from '../common/crypto.js';
-import { ApiException, notFound, validationError } from '../common/errors.js';
+import { ApiException, conflict, notFound, validationError } from '../common/errors.js';
 import { IdPipe } from '../common/id.pipe.js';
 import { jsonSchema } from '../common/openapi.js';
 import { ZodBody, ZodPipe } from '../common/zod.pipe.js';
@@ -63,6 +66,7 @@ import { SessionReads } from './board.js';
 import { fail } from './errors.js';
 import { SessionGenerator } from './generator.js';
 import { SessionRequestsService } from './requests.service.js';
+import { ZoomAccountHosts } from '../zoom/zoom.account.js';
 import { ZoomApi } from '../zoom/zoom.api.js';
 import { ZoomConfig } from '../zoom/zoom.config.js';
 import { SeriesEditService } from './series.js';
@@ -71,6 +75,7 @@ import { Actor, SessionStateMachine, StaleSessionError } from './state-machine.j
 import { ZoomDriver, ZoomMeetings } from './zoom.js';
 import { recordEvent } from './events.js';
 import { LessonReportsService } from './lesson-reports.js';
+import { meetingLinkOf } from './meeting-link.js';
 
 type Out<S extends z.ZodType> = z.output<S>;
 
@@ -292,9 +297,9 @@ export class SessionsController {
     }
     this.assertWindow(s, START_BEFORE_MIN);
     let url: string;
-    const external = s.zoomStatus === 'external' ? this.crypto.tryDecrypt(s.zoomJoinUrl) : null;
-    if (external) {
-      url = external; // the teacher's own meeting link (until Zoom, B7)
+    const link = await meetingLinkOf(this.prisma, this.crypto, s);
+    if (link.url && (link.source === 'external' || link.source === 'teacher')) {
+      url = link.url; // the enrollment's fixed link or the teacher's own Zoom link (D151)
     } else if (s.zoomStatus === 'ready' && s.zoomMeetingId && this.zoom.client.enabled()) {
       try {
         url = await this.zoom.client.startUrl(s.zoomMeetingId);
@@ -320,10 +325,8 @@ export class SessionsController {
     this.assertWindow(s, JOIN_BEFORE_MIN);
     // Stored encrypted; a value that does not decrypt (tampered, wrong key) is logged and
     // treated as no link.
-    const joinUrl =
-      s.zoomStatus === 'ready' || s.zoomStatus === 'external'
-        ? this.crypto.tryDecrypt(s.zoomJoinUrl)
-        : null;
+    // D151: or the class teacher's personal Zoom link, read now.
+    const joinUrl = (await meetingLinkOf(this.prisma, this.crypto, s)).url;
     if (!joinUrl) throw fail(HttpStatus.SERVICE_UNAVAILABLE, 'zoom_unavailable');
     res.setHeader('Cache-Control', 'no-store, private');
     return { data: { joinUrl } };
@@ -561,7 +564,53 @@ export class ZoomHostsController {
     private readonly audit: AuditService,
     private readonly zoomConfig: ZoomConfig,
     private readonly zoomApi: ZoomApi,
+    private readonly account: ZoomAccountHosts,
   ) {}
+
+  /** D151 (b): the Zoom account's licensed users and who has each; `{ enabled: false }` when off. */
+  @CanAny('settings.manage', 'staff.manage')
+  @Get('account')
+  async accountHosts(): Promise<{ data: ZoomAccountHostsDto }> {
+    return { data: await this.account.list() };
+  }
+
+  /** D151 (b): read the licensed users from Zoom now (also daily). */
+  @CanAny('settings.manage', 'staff.manage')
+  @Post('sync')
+  @HttpCode(200)
+  async sync(@CurrentUser() actor: AuthUser): Promise<{ data: ZoomHostsSyncResultDto }> {
+    const result = await this.account.sync();
+    await this.audit.record({
+      actorId: actor.id,
+      action: 'zoom_hosts_synced',
+      subjectType: 'zoom_host',
+      subjectId: null,
+      after: { synced: result.synced, deactivated: result.deactivated },
+    });
+    return { data: result };
+  }
+
+  /** D151 (b): assign the host to a teacher (their link and PMI follow), or free it. */
+  @CanAny('settings.manage', 'staff.manage')
+  @Put(':id/teacher')
+  @ApiBody({ schema: jsonSchema(assignZoomHostSchema) })
+  async assign(
+    @Param('id', IdPipe) id: number,
+    @ZodBody(assignZoomHostSchema) body: Out<typeof assignZoomHostSchema>,
+    @CurrentUser() actor: AuthUser,
+  ): Promise<{ data: ZoomAccountHostsDto }> {
+    const before = await this.prisma.zoomHost.findUnique({ where: { id } });
+    await this.account.assign(id, body.teacherId);
+    await this.audit.record({
+      actorId: actor.id,
+      action: body.teacherId ? 'zoom_host_assigned' : 'zoom_host_freed',
+      subjectType: 'zoom_host',
+      subjectId: id,
+      before: { teacherId: before?.teacherId ?? null },
+      after: { teacherId: body.teacherId },
+    });
+    return { data: await this.account.list() };
+  }
 
   @Can('settings.manage')
   @Get()
@@ -577,6 +626,7 @@ export class ZoomHostsController {
     @CurrentUser() actor: AuthUser,
   ): Promise<{ data: ZoomHostDto }> {
     await this.assertTeacher(body.teacherId);
+    await this.assertPmiFree(body.pmiMeetingId, body.teacherId ?? null);
     await this.assertPmi(body.zoomUserId, body.pmiMeetingId);
     const host = await this.prisma.zoomHost
       .create({
@@ -611,6 +661,10 @@ export class ZoomHostsController {
     const before = await this.prisma.zoomHost.findUnique({ where: { id } });
     if (!before) throw notFound();
     await this.assertTeacher(body.teacherId);
+    await this.assertPmiFree(
+      body.pmiMeetingId !== undefined ? body.pmiMeetingId : before.pmiMeetingId,
+      body.teacherId !== undefined ? body.teacherId : before.teacherId,
+    );
     if (body.pmiMeetingId !== undefined || body.zoomUserId !== undefined) {
       await this.assertPmi(
         body.zoomUserId ?? before.zoomUserId,
@@ -661,6 +715,16 @@ export class ZoomHostsController {
         pmiMeetingId: ["This is not the Zoom user's personal meeting ID."],
       });
     }
+  }
+
+  /** D151: a meeting id that is another teacher's Zoom link cannot be this host's PMI. */
+  private async assertPmiFree(pmi: string | null | undefined, teacherId: number | null) {
+    if (!pmi) return;
+    const owner = await this.prisma.teacher.findFirst({
+      where: { zoomMeetingId: pmi, ...(teacherId ? { NOT: { id: teacherId } } : {}) },
+      select: { id: true },
+    });
+    if (owner) throw conflict('zoom_link_taken');
   }
 
   private async assertTeacher(id: number | null | undefined): Promise<void> {

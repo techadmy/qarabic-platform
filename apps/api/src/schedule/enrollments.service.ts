@@ -820,7 +820,7 @@ export class EnrollmentsService {
     if (mode === 'zoom' && !this.zoom.client.enabled()) {
       throw invalid(
         'meetingMode',
-        'Zoom is not set up yet: choose a fixed external meeting link for this enrollment.',
+        "Zoom is not set up yet: use the teacher's Zoom link or a fixed link for this enrollment.",
       );
     }
   }
