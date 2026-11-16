@@ -478,7 +478,8 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
     course: !courseId ? t('courseRequired') : '',
     teacher: !teacherId
       ? t('teacherRequired')
-      : option?.reasons.includes('busy')
+      : // A clash (busy, blocked: #129) can't be overridden; the API would refuse it (409).
+        option && !option.eligible && !option.overridable
         ? t('teacherBusy')
         : teacherRefusal,
     override:

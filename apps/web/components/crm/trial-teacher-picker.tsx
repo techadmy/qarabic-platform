@@ -104,7 +104,8 @@ export function TrialTeacherPicker({
 
   const card = (o: TrialTeacherOptionDto) => {
     const id = `trial-teacher-${o.teacher.id}`;
-    const busy = o.reasons.includes('busy');
+    // Not bookable: a clash the booking can't override (busy, or a blocked time since #129).
+    const busy = !o.eligible && !o.overridable;
     return (
       <FieldLabel key={o.teacher.id} htmlFor={id} className={busy ? 'opacity-60' : undefined}>
         <Field orientation="horizontal" data-disabled={busy || undefined}>
