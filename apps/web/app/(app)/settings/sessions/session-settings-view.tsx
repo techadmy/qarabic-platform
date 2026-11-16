@@ -30,7 +30,7 @@ import { Switch } from '@qarabic/ui/components/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@qarabic/ui/components/tabs';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { ColumnDef } from '@tanstack/react-table';
-import { AlertCircleIcon, PlusIcon, VideoIcon } from 'lucide-react';
+import { AlertCircleIcon, PencilIcon, PlusIcon, VideoIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
@@ -314,6 +314,11 @@ function ZoomHosts() {
   const [zoomUserId, setZoomUserId] = useState('');
   const [email, setEmail] = useState('');
   const [label, setLabel] = useState('');
+  const [pmi, setPmi] = useState('');
+  // Z1: the host's Personal Meeting ID (9–11 digits; spaces and dashes are dropped).
+  const [editing, setEditing] = useState<ZoomHostDto | null>(null);
+  const pmiDigits = (v: string) => v.replace(/[\s-]/g, '');
+  const pmiValid = (v: string) => !v.trim() || /^\d{9,11}$/.test(pmiDigits(v));
   const query = useQuery({
     queryKey: sessionKeys.zoomHosts,
     queryFn: ({ signal }) => fetchZoomHosts(signal),
@@ -333,6 +338,7 @@ function ZoomHosts() {
         zoomUserId: zoomUserId.trim(),
         email: email.trim(),
         label: label.trim() || null,
+        pmiMeetingId: pmi.trim() ? pmiDigits(pmi) : null,
       }),
     onSuccess: () => {
       refresh();
@@ -340,9 +346,20 @@ function ZoomHosts() {
       setZoomUserId('');
       setEmail('');
       setLabel('');
+      setPmi('');
       toast.success(t('added'));
     },
     onError: (e) => setError(isApiError(e, 422) ? t('invalid') : t('failed')),
+  });
+  const savePmi = useMutation({
+    mutationFn: (v: { id: number; pmi: string }) =>
+      updateZoomHost(v.id, { pmiMeetingId: v.pmi.trim() ? pmiDigits(v.pmi) : null }),
+    onSuccess: () => {
+      refresh();
+      setEditing(null);
+      toast.success(t('pmiSaved'));
+    },
+    onError: (e) => setError(isApiError(e, 422) ? t('pmiInvalid') : t('failed')),
   });
   const columns: ColumnDef<ZoomHostDto, unknown>[] = [
     {
@@ -361,6 +378,18 @@ function ZoomHosts() {
       cell: ({ row }) => <bdi dir="ltr">{row.original.zoomUserId}</bdi>,
     },
     {
+      id: 'pmi',
+      header: t('pmi'),
+      cell: ({ row }) =>
+        row.original.pmiMeetingId ? (
+          <bdi dir="ltr" className="tabular-nums">
+            {row.original.pmiMeetingId}
+          </bdi>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        ),
+    },
+    {
       id: 'status',
       header: t('status'),
       cell: ({ row }) =>
@@ -374,12 +403,26 @@ function ZoomHosts() {
       id: 'toggle',
       header: () => <span className="sr-only">{t('toggle')}</span>,
       cell: ({ row }) => (
-        <Switch
-          checked={row.original.isActive}
-          aria-label={t('toggleFor', { label: row.original.label ?? row.original.email })}
-          disabled={toggle.isPending}
-          onCheckedChange={() => toggle.mutate(row.original)}
-        />
+        <span className="inline-flex items-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-lg"
+            aria-label={t('editPmi', { label: row.original.label ?? row.original.email })}
+            onClick={() => {
+              setError(null);
+              setPmi(row.original.pmiMeetingId ?? '');
+              setEditing(row.original);
+            }}
+          >
+            <PencilIcon />
+          </Button>
+          <Switch
+            checked={row.original.isActive}
+            aria-label={t('toggleFor', { label: row.original.label ?? row.original.email })}
+            disabled={toggle.isPending}
+            onCheckedChange={() => toggle.mutate(row.original)}
+          />
+        </span>
       ),
       meta: { className: 'text-end' },
     },
@@ -455,6 +498,7 @@ function ZoomHosts() {
                 onChange={(e) => setZoomUserId(e.target.value)}
               />
             </Field>
+            <PmiField value={pmi} onChange={setPmi} invalid={!pmiValid(pmi)} />
           </FieldGroup>
         }
         onConfirm={() => {
@@ -462,9 +506,61 @@ function ZoomHosts() {
             setError(t('invalid'));
             return;
           }
+          if (!pmiValid(pmi)) {
+            setError(t('pmiInvalid'));
+            return;
+          }
           add.mutate();
         }}
       />
+      <ReasonDialog
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        title={editing ? t('editPmi', { label: editing.label ?? editing.email }) : ''}
+        confirmLabel={t('savePmi')}
+        busy={savePmi.isPending}
+        error={error}
+        extra={<PmiField value={pmi} onChange={setPmi} invalid={!pmiValid(pmi)} />}
+        onConfirm={() => {
+          if (!pmiValid(pmi)) {
+            setError(t('pmiInvalid'));
+            return;
+          }
+          if (editing) savePmi.mutate({ id: editing.id, pmi });
+        }}
+      />
     </Card>
+  );
+}
+
+/** The host's Zoom Personal Meeting ID (Z1): digits only, 9–11. */
+function PmiField({
+  value,
+  onChange,
+  invalid,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  invalid: boolean;
+}) {
+  const t = useTranslations('sessionSettings.zoom');
+  return (
+    <Field data-invalid={invalid}>
+      <FieldLabel htmlFor="zoom-pmi">{t('pmi')}</FieldLabel>
+      <Input
+        id="zoom-pmi"
+        dir="ltr"
+        inputMode="numeric"
+        autoComplete="off"
+        className="h-10"
+        value={value}
+        aria-invalid={invalid}
+        aria-describedby="zoom-pmi-hint"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      <p id="zoom-pmi-hint" className="text-sm text-muted-foreground">
+        {invalid ? t('pmiInvalid') : t('pmiHint')}
+      </p>
+    </Field>
   );
 }

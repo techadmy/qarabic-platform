@@ -42,6 +42,7 @@
     "/payroll/profiles region",
     "/payroll/runs/:id region",
     "/payroll/wallets region",
+    "/reports/utilization region",
     "/requests region",
     "/roles region",
     "/roles/:id heading-order",
