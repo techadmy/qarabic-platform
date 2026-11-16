@@ -63,6 +63,24 @@ describe('Class settings', () => {
     await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(3));
     expect(within(table).getByText('zoom1@qarabic.test')).toBeInTheDocument();
   });
+
+  it('Z1: a host’s Personal Meeting ID is checked (9–11 digits) and saved without spaces', async () => {
+    const user = userEvent.setup();
+    renderPage(<SessionSettingsView />, { path: '/settings/sessions' });
+    await user.click(await screen.findByRole('tab', { name: 'حسابات Zoom' }));
+    const table = await screen.findByRole('table', { name: 'حسابات Zoom' });
+    await user.click(
+      (await within(table).findAllByRole('button', { name: /تعديل رقم الاجتماع الشخصي/ }))[0]!,
+    );
+    const dialog = await screen.findByRole('dialog');
+    const input = within(dialog).getByLabelText('رقم الاجتماع الشخصي (PMI)');
+    await user.type(input, '12345');
+    expect(within(dialog).getByText('أدخل من 9 إلى 11 رقمًا.')).toBeInTheDocument();
+    await user.clear(input);
+    await user.type(input, '123 456 7890');
+    await user.click(within(dialog).getByRole('button', { name: 'احفظ الرقم' }));
+    expect(await within(table).findByText('1234567890')).toBeInTheDocument();
+  });
 });
 
 describe('Public holidays', () => {

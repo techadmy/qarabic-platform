@@ -1544,6 +1544,8 @@ interface EventCalendarViewConfig<TData = unknown> {
     boundsStartMin: number
     boundsEndMin: number
     totalMinutes: number
+    /** The resource view's column (local change, Qarabic). */
+    resourceId?: string
   }) => ReactNode
   renderDayHeader?: (props: {
     day: Date

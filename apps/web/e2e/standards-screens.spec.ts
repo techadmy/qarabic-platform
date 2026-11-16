@@ -121,6 +121,7 @@ const ELSEWHERE = [
   '/today',
   '/families',
   '/schedule',
+  '/reports/utilization',
   '/schedule/enrollments',
   '/schedule/availability-requests',
   '/leads',

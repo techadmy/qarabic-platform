@@ -33,6 +33,7 @@ import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
 import { availabilityHandlers, resetAvailabilityChanges } from './availability-handlers';
 import { scheduleHandlers } from './schedule-handlers';
+import { utilizationHandlers } from './utilization-handlers';
 import { resetScheduleDb } from './schedule-db';
 import { resetSupportDb } from './support-db';
 import { supportHandlers } from './support-handlers';
@@ -330,6 +331,7 @@ export const handlers: HttpHandler[] = [
   // A1: a teacher's own availability change is a request (falls through for staff).
   ...availabilityHandlers,
   ...scheduleHandlers,
+  ...utilizationHandlers,
 ];
 
 export { MOCK_PASSWORD };

@@ -1,5 +1,6 @@
 import type { Me } from '@qarabic/shared';
 import {
+  GaugeIcon,
   ArrowLeftRightIcon,
   BadgeCheckIcon,
   CalendarCheckIcon,
@@ -63,6 +64,7 @@ export type NavKey =
   | 'myRequests'
   | 'lessonReports'
   | 'tests'
+  | 'utilization'
   | 'myTests'
   | 'mySchedule'
   | 'supportInbox'
@@ -229,6 +231,13 @@ export const STAFF_NAV: NavEntry[] = [
         permission: 'sessions.view',
       },
       { key: 'tests', href: '/tests', icon: ClipboardListIcon, permission: 'tests.view' },
+      // R1 (docs/42 §5): teacher utilization and free capacity.
+      {
+        key: 'utilization',
+        href: '/reports/utilization',
+        icon: GaugeIcon,
+        permission: 'reports.view',
+      },
     ],
   },
   {

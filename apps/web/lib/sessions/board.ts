@@ -29,6 +29,10 @@ export const STATUS_TILES: BoardCounter[] = [
 /** What «تحتاج إجراء» is made of, in priority order (each is also a filter). */
 export const ATTENTION_TILES: BoardCounter[] = [
   'late',
+  // Z1: from Zoom attendance (0 until the owner's Zoom keys are set).
+  'teacher_no_show',
+  'student_no_show',
+  'short_class',
   'needs_entry',
   'ended',
   'pending_requests',
@@ -47,6 +51,9 @@ const has = (s: SessionDto, code: string) => s.attention.includes(code);
 /** Codes that make a class need someone to act now. */
 const ACTION_CODES = new Set([
   'late',
+  'teacher_no_show',
+  'student_no_show',
+  'short_class',
   'needs_entry',
   'report_missing',
   'teacher_unavailable',
