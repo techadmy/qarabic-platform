@@ -15,6 +15,7 @@ import { InfoSection, KeyFacts, StatusHistory } from '@/components/people/detail
 import { BothTimes } from '@/components/people/local-time';
 import { ProfileShell } from '@/components/people/profile-shell';
 import { MissingZoomLinkAlert, ZoomLinkValue } from '@/components/people/zoom-link';
+import { hostName, useZoomAccount } from '@/components/sessions/zoom-accounts';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { fetchPerson } from '@/lib/api/people';
@@ -29,6 +30,7 @@ export function TeacherProfile({ id }: { id: number }) {
   const pane = useRecordPane();
   const t = useTranslations('teachers');
   const tp = useTranslations('people');
+  const tz = useTranslations('zoomAccounts');
   const locale = useLocale() === 'en' ? 'en' : 'ar';
   const me = useCurrentUser();
   const canManage = can(me, 'staff.manage');
@@ -39,6 +41,11 @@ export function TeacherProfile({ id }: { id: number }) {
   });
   const x = query.data;
   const editable = canManage && !x?.archive;
+  // D151 (b): with Zoom connected, the licensed Zoom user this teacher's link comes from.
+  const zoomAccount = useZoomAccount(canManage);
+  const zoomHost = zoomAccount.data?.enabled
+    ? (zoomAccount.data.hosts.find((h) => h.teacher?.id === id) ?? null)
+    : undefined;
   // The shared money helper (audit 39 RTL-6): same digits, symbol and isolation as billing.
   const money = (amount: string | null, currency: string) =>
     amount === null ? null : formatMoney(amount, currency, locale);
@@ -130,6 +137,23 @@ export function TeacherProfile({ id }: { id: number }) {
                 title={tp('sections.zoom')}
                 onEdit={editable ? () => edit('zoom') : undefined}
                 rows={[
+                  ...(zoomHost !== undefined
+                    ? [
+                        {
+                          label: tz('hostField'),
+                          value: zoomHost ? (
+                            <span className="flex flex-col">
+                              <span>{hostName(zoomHost)}</span>
+                              <bdi dir="ltr" className="text-sm text-muted-foreground">
+                                {zoomHost.email}
+                              </bdi>
+                            </span>
+                          ) : (
+                            tz('noHost')
+                          ),
+                        },
+                      ]
+                    : []),
                   {
                     label: tp('fields.zoomJoinUrl'),
                     value: <ZoomLinkValue url={x.zoomJoinUrl} hasLink={x.hasZoomLink} />,

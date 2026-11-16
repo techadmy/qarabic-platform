@@ -85,6 +85,11 @@ import {
   TimeZoneField,
 } from '@/components/forms/people-fields';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import {
+  useAssignZoomHost,
+  useZoomAccount,
+  ZoomHostPicker,
+} from '@/components/sessions/zoom-accounts';
 import { isApiError } from '@/lib/api/client';
 import { createPerson, fetchLookups, updatePerson, type PeopleKind } from '@/lib/api/people';
 import { applyServerErrors } from '@/lib/forms/server-errors';
@@ -302,12 +307,18 @@ function useFormBody<T extends FieldValues>({
   id,
   fields,
   props,
+  extraDirty = false,
+  afterSave,
 }: {
   form: UseFormReturn<T, unknown, Record<string, unknown>>;
   kind: PeopleKind;
   id?: number;
   fields: readonly string[];
   props: BodyProps;
+  /** A change kept outside the form (the teacher's Zoom user, D151 b). */
+  extraDirty?: boolean;
+  /** Runs after the record is saved (or alone when only `extraDirty` changed); errors are toasts. */
+  afterSave?: (recordId: number) => Promise<void>;
 }) {
   const t = useTranslations('people.form');
   const tv = useTranslations('validation');
@@ -319,19 +330,42 @@ function useFormBody<T extends FieldValues>({
   const isDirty = form.formState.isDirty;
   const dirtyFields = form.formState.dirtyFields;
   const { onDirty, onPending } = props;
-  useEffect(() => onDirty(isDirty), [isDirty, onDirty]);
-  useEffect(() => onPending(save.isPending), [save.isPending, onPending]);
+  const [after, setAfter] = useState(false);
+  useEffect(() => onDirty(isDirty || extraDirty), [isDirty, extraDirty, onDirty]);
+  useEffect(() => onPending(save.isPending || after), [save.isPending, after, onPending]);
+
+  /** The step after the save; its failure is a toast (the record itself is saved). */
+  async function runAfter(recordId: number) {
+    if (!afterSave) return;
+    setAfter(true);
+    try {
+      await afterSave(recordId);
+    } catch (error) {
+      toast.error(refusal(error));
+    } finally {
+      setAfter(false);
+    }
+  }
 
   const onSubmit = form.handleSubmit(
     (values) => {
       setBanner(null);
       const body = id ? dirtyOnly(values, dirtyFields as never) : values;
-      if (id && Object.keys(body).length === 0) return props.onDone();
+      if (id && Object.keys(body).length === 0) {
+        if (!extraDirty) return props.onDone();
+        void runAfter(id).then(() => {
+          props.onDone();
+          toast.success(t('saved'));
+        });
+        return;
+      }
       save.mutate(body, {
-        onSuccess: (saved) => {
+        onSuccess: async (saved) => {
+          const recordId = (saved as { id: number }).id;
+          if (extraDirty) await runAfter(recordId);
           props.onDone();
           toast.success(id ? t('saved') : t('created'));
-          if (!id) router.push(`${KINDS[kind].href}/${(saved as { id: number }).id}`);
+          if (!id) router.push(`${KINDS[kind].href}/${recordId}`);
         },
         onError: (error) => {
           // D151: another teacher already uses this Zoom link (409 `zoom_link_taken`).
@@ -785,12 +819,27 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
       description: record?.description ?? '',
     },
   });
+  // D151 (b): with Zoom connected the link comes from the teacher's licensed Zoom user.
+  const zoomAccount = useZoomAccount();
+  const zoomHosts = zoomAccount.data?.enabled ? zoomAccount.data.hosts : null;
+  const currentHost = record ? zoomHosts?.find((h) => h.teacher?.id === record.id) : undefined;
+  const [hostChoice, setHostChoice] = useState<string | null | undefined>(undefined);
+  const hostValue =
+    hostChoice === undefined ? (currentHost ? String(currentHost.id) : null) : hostChoice;
+  const hostChanged =
+    hostChoice !== undefined && hostValue !== (currentHost ? String(currentHost.id) : null);
+  const assign = useAssignZoomHost();
   const { onSubmit, banner } = useFormBody({
     form,
     kind: 'teachers',
     id: record?.id,
     fields: TEACHER_FIELDS,
     props,
+    extraDirty: hostChanged,
+    afterSave: async (teacherId) => {
+      if (hostValue) await assign.mutateAsync({ hostId: Number(hostValue), teacherId });
+      else if (currentHost) await assign.mutateAsync({ hostId: currentHost.id, teacherId: null });
+    },
   });
   const country = useWatch({ control: form.control, name: 'countryCode' }) as string | null;
   const c = form.control as Control<FieldValues>;
@@ -866,13 +915,22 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
       {/* T2 (docs/33 §4.1): who can be offered a trial class, and how many a week. */}
       {/* D151: the teacher's personal Zoom link; every class of theirs uses it. */}
       <Section id="zoom" title={t('sections.zoom')}>
-        <TextField
-          control={c}
-          name="zoomJoinUrl"
-          label={t('fields.zoomJoinUrl')}
-          description={t('form.zoomJoinUrlHelp')}
-          inputProps={{ type: 'url', dir: 'ltr', inputMode: 'url', placeholder: 'https://' }}
-        />
+        {zoomHosts ? (
+          <ZoomHostPicker
+            hosts={zoomHosts}
+            teacherId={record?.id}
+            value={hostValue}
+            onChange={setHostChoice}
+          />
+        ) : (
+          <TextField
+            control={c}
+            name="zoomJoinUrl"
+            label={t('fields.zoomJoinUrl')}
+            description={t('form.zoomJoinUrlHelp')}
+            inputProps={{ type: 'url', dir: 'ltr', inputMode: 'url', placeholder: 'https://' }}
+          />
+        )}
       </Section>
       <Section id="trials" title={t('sections.trials')}>
         <SwitchField

@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { HolidaysView } from '@/app/(app)/holidays/holidays-view';
 import { SessionSettingsView } from '@/app/(app)/settings/sessions/session-settings-view';
 import { server } from '@/mocks/node';
@@ -55,31 +55,61 @@ describe('Class settings', () => {
     expect(await screen.findByText('ليست لديك صلاحية')).toBeInTheDocument();
   });
 
-  it('lists the Zoom hosts for settings.manage', async () => {
+  // D151 (b): the Zoom account's licensed users, one per teacher (the mock account is off unless
+  // a test turns it on).
+  const zoomOn = () => window.localStorage.setItem('qarabic.mock.zoomOn', '1');
+  afterEach(() => window.localStorage.removeItem('qarabic.mock.zoomOn'));
+  it('lists the licensed Zoom users with their teacher; links a free one after choosing a teacher', async () => {
     const user = userEvent.setup();
+    zoomOn();
     renderPage(<SessionSettingsView />, { path: '/settings/sessions' });
     await user.click(await screen.findByRole('tab', { name: 'حسابات Zoom' }));
     const table = await screen.findByRole('table', { name: 'حسابات Zoom' });
-    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(3));
+    await waitFor(() => expect(within(table).getAllByRole('row')).toHaveLength(7));
     expect(within(table).getByText('zoom1@qarabic.test')).toBeInTheDocument();
+    expect(within(table).getByText('غير مرخّص')).toBeInTheDocument();
+    expect(screen.getByText(/^آخر مزامنة:/)).toBeInTheDocument();
+
+    await user.click(within(table).getByRole('button', { name: 'ربط بمعلم: Qarabic Zoom 3' }));
+    const dialog = await screen.findByRole('dialog', { name: 'ربط Qarabic Zoom 3 بمعلم' });
+    await user.click(within(dialog).getByRole('button', { name: 'ربط بمعلم' }));
+    expect(await within(dialog).findAllByText('اختر المعلم')).not.toHaveLength(0);
+    await user.click(within(dialog).getByRole('combobox', { name: 'المعلم' }));
+    await user.click(await screen.findByRole('option', { name: /^معلم تجريبي/ }));
+    expect(within(dialog).getByText(/مرتبط الآن بـ Qarabic Zoom 1/)).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'ربط بمعلم' }));
+    expect(await screen.findByText('رُبط الحساب بالمعلم.')).toBeInTheDocument();
+    const row = within(table).getByText('zoom3@qarabic.test').closest('tr')!;
+    expect(within(row).getByRole('link', { name: 'معلم تجريبي' })).toBeInTheDocument();
+    // Teacher 1 moved: their old user is free again.
+    const old = within(table).getByText('zoom1@qarabic.test').closest('tr')!;
+    expect(within(old).getByText('غير مرتبط')).toBeInTheDocument();
   });
 
-  it('Z1: a host’s Personal Meeting ID is checked (9–11 digits) and saved without spaces', async () => {
+  it('unlinks after a confirmation, and syncs on «مزامنة الآن»', async () => {
     const user = userEvent.setup();
+    zoomOn();
     renderPage(<SessionSettingsView />, { path: '/settings/sessions' });
     await user.click(await screen.findByRole('tab', { name: 'حسابات Zoom' }));
     const table = await screen.findByRole('table', { name: 'حسابات Zoom' });
     await user.click(
-      (await within(table).findAllByRole('button', { name: /تعديل رقم الاجتماع الشخصي/ }))[0]!,
+      await within(table).findByRole('button', { name: 'إلغاء الربط: Qarabic Zoom 2' }),
     );
-    const dialog = await screen.findByRole('dialog');
-    const input = within(dialog).getByLabelText('رقم الاجتماع الشخصي (PMI)');
-    await user.type(input, '12345');
-    expect(within(dialog).getByText('أدخل من 9 إلى 11 رقمًا.')).toBeInTheDocument();
-    await user.clear(input);
-    await user.type(input, '123 456 7890');
-    await user.click(within(dialog).getByRole('button', { name: 'احفظ الرقم' }));
-    expect(await within(table).findByText('1234567890')).toBeInTheDocument();
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByText(/سيُحذف رابط Zoom من ملف المعلم/)).toBeInTheDocument();
+    await user.click(within(confirm).getByRole('button', { name: 'إلغاء الربط' }));
+    expect(await screen.findByText('أُلغي ربط الحساب.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'مزامنة الآن' }));
+    expect(await screen.findByText(/^تمت المزامنة:/)).toBeInTheDocument();
+  });
+
+  it('says it works once Zoom is connected when the account is off', async () => {
+    const user = userEvent.setup();
+    renderPage(<SessionSettingsView />, { path: '/settings/sessions' });
+    await user.click(await screen.findByRole('tab', { name: 'حسابات Zoom' }));
+    expect(await screen.findByText('يُفعَّل بعد ربط حساب Zoom')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'مزامنة الآن' })).not.toBeInTheDocument();
   });
 });
 

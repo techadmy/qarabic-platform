@@ -16,6 +16,51 @@ import type {
 import { addDays, dateKeyIn, hhmmIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { db as people } from './people-db';
 
+/** D151 (b): one synced Zoom user (the API's `ZoomAccountHostDto` without the teacher's name). */
+export interface ZoomAccountRow {
+  id: number;
+  zoomUserId: string;
+  email: string;
+  displayName: string | null;
+  pmiMeetingId: string | null;
+  licenseType: string | null;
+  isActive: boolean;
+  lastSyncedAt: string | null;
+  teacherId: number | null;
+}
+
+/**
+ * Six licensed users: two already on teachers 1 and 3 (their PMI is the one in their link), three
+ * free, one whose licence was removed (inactive).
+ */
+function zoomAccountSeed(at: string): ZoomAccountRow[] {
+  const row = (
+    id: number,
+    name: string,
+    pmi: string,
+    teacherId: number | null,
+    isActive = true,
+  ): ZoomAccountRow => ({
+    id: 100 + id,
+    zoomUserId: `zu-${id}`,
+    email: `zoom${id}@qarabic.test`,
+    displayName: name,
+    pmiMeetingId: pmi,
+    licenseType: isActive ? 'licensed' : 'basic',
+    isActive,
+    lastSyncedAt: at,
+    teacherId,
+  });
+  return [
+    row(1, 'Qarabic Zoom 1', '8100000001', 1),
+    row(2, 'Qarabic Zoom 2', '8100000003', 3),
+    row(3, 'Qarabic Zoom 3', '8500000003', null),
+    row(4, 'Qarabic Zoom 4', '8500000004', null),
+    row(5, 'Qarabic Zoom 5', '8500000005', null),
+    row(6, 'Qarabic Zoom 6', '8500000006', null, false),
+  ];
+}
+
 /**
  * In-memory schedule and class data for the MSW mocks (N2), built from the People mock data and
  * the real clock, so the Today board always shows "today": past classes are marked, one is late,
@@ -120,6 +165,8 @@ interface ScheduleDb {
   workHours: Map<number, WorkHourDto[]>;
   settings: SessionSettingsDto;
   zoomHosts: ZoomHostDto[];
+  /** D151 (b): the Zoom account's synced licensed users (teacherId: the assignment). */
+  zoomAccount: { lastSyncedAt: string | null; hosts: ZoomAccountRow[] };
   nextId: {
     enrollment: number;
     slot: number;
@@ -305,6 +352,10 @@ function build(): ScheduleDb {
     ],
     workHours: new Map(),
     settings: { ...SETTINGS_DEFAULTS },
+    zoomAccount: {
+      lastSyncedAt: new Date(now - 3 * 3_600_000).toISOString(),
+      hosts: zoomAccountSeed(new Date(now - 3 * 3_600_000).toISOString()),
+    },
     zoomHosts: [
       {
         id: 1,

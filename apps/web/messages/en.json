@@ -4668,5 +4668,60 @@
     "teacherDefault": "This enrollment's classes use the Zoom link on the teacher's profile automatically.",
     "teacherMissing": "This teacher has no Zoom link yet.",
     "openTeacher": "Open the teacher's profile"
+  },
+  "zoomAccounts": {
+    "title": "Zoom accounts",
+    "off": {
+      "title": "Available once Zoom is connected",
+      "body": "Once the academy's Zoom account is connected, its licensed users appear here and each one is linked to a teacher. Until then, type the Zoom link on each teacher's profile."
+    },
+    "empty": {
+      "title": "No licensed users yet",
+      "body": "Press «Sync now» to fetch the licensed users from Zoom."
+    },
+    "lastSync": "Last sync: {at}",
+    "neverSynced": "Not synced yet.",
+    "syncNow": "Sync now",
+    "synced": "Synced: {synced, plural, one {# active user} other {# active users}}, {deactivated, plural, one {# deactivated} other {# deactivated}}.",
+    "conflicts": {
+      "title": "Users not linked",
+      "body": "Their personal meeting ID is already in another teacher's link, so they were not linked automatically. Check that teacher's link, then link the user by hand."
+    },
+    "columns": {
+      "name": "User",
+      "pmi": "Personal meeting ID",
+      "teacher": "Teacher",
+      "status": "Status",
+      "synced": "Last sync",
+      "actions": "Actions"
+    },
+    "free": "Not linked",
+    "active": "Licensed",
+    "inactive": "Not licensed",
+    "link": "Link to a teacher",
+    "unlink": "Unlink",
+    "linked": "The user is linked to the teacher.",
+    "unlinked": "The user is unlinked.",
+    "linkTitle": "Link \u2068{name}\u2069 to a teacher",
+    "linkBody": "This user's Zoom link becomes the teacher's link; all their classes use it.",
+    "unlinkTitle": "Unlink the user from \u2068{name}\u2069?",
+    "unlinkBody": "The Zoom link is removed from the teacher's profile; their classes on that link have none until another is added.",
+    "teacher": "Teacher",
+    "pickTeacher": "Choose the teacher",
+    "searchTeacher": "Search by teacher name",
+    "hasHost": "Linked to \u2068{name}\u2069",
+    "moves": "This teacher is linked to \u2068{name}\u2069 now; that link will be removed.",
+    "hostField": "Zoom user",
+    "pickHost": "Choose a licensed user",
+    "searchHost": "Search by name, email or meeting ID",
+    "hostHelp": "The teacher's Zoom link and personal meeting ID come from the chosen user.",
+    "noHost": "Not linked to a user",
+    "errors": {
+      "taken": "Another teacher has this user now. Refresh the page.",
+      "inactive": "Zoom no longer lists this user as licensed.",
+      "off": "Zoom is not connected right now.",
+      "failed": "Couldn't save the link. Try again.",
+      "syncFailed": "Couldn't sync. Try again."
+    }
   }
 }

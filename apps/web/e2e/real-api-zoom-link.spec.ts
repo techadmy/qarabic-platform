@@ -78,6 +78,21 @@ test('the teacher reads their own link on the home page, read-only', async ({ pa
   expect(body.data.meetingId).toMatch(/^9\d{9}$/);
 });
 
+test('«حسابات Zoom» reads the account; without Zoom configured it says so', async ({ page }) => {
+  await signInReal(page, '/settings/sessions');
+  const res = await page.context().request.get(`${API}/zoom-hosts/account`);
+  expect(res.status()).toBe(200);
+  const account = (await res.json()) as { data: { enabled: boolean } };
+  await page.getByRole('tab', { name: 'حسابات Zoom' }).click();
+  if (account.data.enabled) {
+    await expect(page.getByRole('table', { name: 'حسابات Zoom' })).toBeVisible();
+  } else {
+    await expect(page.getByText('يُفعَّل بعد ربط حساب Zoom')).toBeVisible();
+  }
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
+});
+
 test.afterAll(async ({ browser }) => {
   if (!ownId) return;
   // Put teacher 1's link back (blank clears it).
