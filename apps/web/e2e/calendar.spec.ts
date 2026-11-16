@@ -70,3 +70,22 @@ test('the enrollments list lives at /schedule/enrollments and links back to the 
   await expect(page).toHaveURL(/\/schedule\/enrollments$/);
   await expect(page.getByRole('table', { name: 'الاشتراكات' })).toBeVisible();
 });
+
+test('C3: a trial opens the teachers view of suitable teachers; a time in a column checks and offers', async ({
+  page,
+}) => {
+  await open(
+    page,
+    1440,
+    'ar',
+    '/schedule?view=teachers&trialLead=6&trialStudent=601&trialCourse=2',
+  );
+  await expect(page.getByText(/اختيار معلم للحصة التجريبية/)).toBeVisible();
+  await expectNoSeriousA11yViolations(page);
+  // Early in the day (empty in the mocks): a click on the column's free time.
+  await page
+    .locator('[data-ec-resource]')
+    .first()
+    .click({ position: { x: 20, y: 12 } });
+  await expect(page.getByRole('dialog', { name: 'إرسال الحصة التجريبية إلى معلم' })).toBeVisible();
+});

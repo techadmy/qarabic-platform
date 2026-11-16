@@ -39,7 +39,8 @@ import {
 } from '@qarabic/ui/components/select';
 import { Spinner } from '@qarabic/ui/components/spinner';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { PlusIcon, Trash2Icon } from 'lucide-react';
+import { CalendarSearchIcon, PlusIcon, Trash2Icon } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useId, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
@@ -692,6 +693,17 @@ function TrialStep({ lead, onDone }: { lead: LeadDetailDto; onDone: (l: LeadDeta
               </span>
             )}
           </div>
+        )}
+        {/* C3 (docs/42 §3): pick the teacher on the calendar's teachers view, by their free time. */}
+        {studentId && courseId && (
+          <Button asChild variant="outline" className="h-10 w-fit">
+            <Link
+              href={`/schedule?view=teachers&date=${date}&trialLead=${lead.id}&trialStudent=${studentId}&trialCourse=${courseId}&trialMinutes=${duration}`}
+            >
+              <CalendarSearchIcon />
+              {t('pickOnCalendar')}
+            </Link>
+          </Button>
         )}
         <FieldSet>
           <FieldLegend variant="label">{t('offer.mode')}</FieldLegend>
