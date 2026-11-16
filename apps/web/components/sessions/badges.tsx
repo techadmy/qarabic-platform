@@ -178,12 +178,26 @@ export function AttentionBadge({ code }: { code: string }) {
  * D151: the class should use the teacher's Zoom link but they have none (`zoom.link: missing`).
  * Staff and the teacher see it; a parent is not shown an internal setup problem.
  */
-export function ZoomLinkMissingBadge({ session }: { session: SessionDto }) {
+export function ZoomLinkMissingBadge({
+  session,
+  className,
+}: {
+  session: SessionDto;
+  className?: string;
+}) {
   const locale = useUiLocale();
   const me = useCurrentUser();
   if (session.zoom.link !== 'missing' || me.role?.kind === 'parent') return null;
   const label = SESSION_LINK_SOURCE_LABELS.missing;
-  return <ToneBadge tone="orange" icon={VideoOffIcon} label={label[locale]} title={label.en} />;
+  return (
+    <ToneBadge
+      tone="orange"
+      icon={VideoOffIcon}
+      label={label[locale]}
+      title={label.en}
+      className={className}
+    />
+  );
 }
 
 const ENROLLMENT_TONE: Record<EnrollmentStatus, { tone: Tone; icon: LucideIcon }> = {

@@ -17,6 +17,7 @@ import { cn } from '@qarabic/ui/lib/utils';
 import { CheckIcon, MinusIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
+import { useCurrentUser } from '@/components/shell/app-shell';
 import { rowTone, type RowTone } from '@/lib/sessions/board';
 import { clock, dayLabel, dateKeyIn, minutesBetween } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
@@ -63,16 +64,24 @@ function Joined({ at, label }: { at: string | null; label: string }) {
 function Meeting({ s }: { s: SessionDto }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
+  const parent = useCurrentUser().role?.kind === 'parent';
   const showEvidence =
     !!s.evidence.teacherJoinedAt || !!s.evidence.studentJoinedAt || RUNNING.has(s.stage);
   return (
-    <span className="flex flex-col text-sm">
-      {/* D151: a class on the teacher's own link names its source, not the meeting status. */}
-      <span>
-        {s.zoom.link === 'teacher' || s.zoom.link === 'missing'
-          ? SESSION_LINK_SOURCE_LABELS[s.zoom.link][locale]
-          : ZOOM_STATUS_LABELS[s.zoom.status][locale]}
-      </span>
+    <span className="flex max-w-32 flex-col text-sm whitespace-normal">
+      {/* D151: a class on the teacher's own link names its source, not the meeting status. The
+          missing link shows once per row, here, wrapping, so the board keeps its width at 1440. */}
+      {s.zoom.link === 'missing' && !parent ? (
+        <span>
+          <ZoomLinkMissingBadge session={s} className="h-auto min-h-6 py-0.5 whitespace-normal" />
+        </span>
+      ) : (
+        <span>
+          {s.zoom.link === 'teacher'
+            ? SESSION_LINK_SOURCE_LABELS.teacher[locale]
+            : ZOOM_STATUS_LABELS[s.zoom.status][locale]}
+        </span>
+      )}
       {showEvidence && (
         <span className="flex gap-2 text-xs text-muted-foreground">
           <Joined at={s.evidence.teacherJoinedAt} label={t('party.teacher')} />
@@ -389,7 +398,6 @@ export function ClassTable({
                       .map((a) => (
                         <AttentionBadge key={a} code={a} />
                       ))}
-                    <ZoomLinkMissingBadge session={s} />
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-1.5 whitespace-nowrap">
