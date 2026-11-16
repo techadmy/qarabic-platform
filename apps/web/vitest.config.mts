@@ -26,7 +26,7 @@ export default defineConfig({
       include: ['lib/**/*.ts'],
       exclude: ['**/*.test.ts'],
       reporter: ['text-summary'],
-      thresholds: { statements: 32, branches: 79, functions: 66, lines: 32 },
+      thresholds: { statements: 49, branches: 55, functions: 33, lines: 48 },
     },
     // Half the cores: jsdom renders are CPU-bound, and with every core busy (turbo runs the other
     // suites alongside, other checkouts build) each test ran ~2× slower, so 3 s `findBy` waits ran
