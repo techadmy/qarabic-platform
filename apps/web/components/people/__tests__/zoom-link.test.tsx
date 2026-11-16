@@ -1,11 +1,39 @@
 import type { SessionDto } from '@qarabic/shared';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { TeacherProfile } from '@/app/(app)/teachers/[id]/teacher-profile';
 import { ZoomLinkMissingBadge } from '@/components/sessions/badges';
 import { hasMeetingLink } from '@/components/sessions/use-session-actions';
 import { renderPage } from '@/test/people';
+
+describe('teacher Zoom user with Zoom connected (D151 b)', () => {
+  afterEach(() => window.localStorage.removeItem('qarabic.mock.zoomOn'));
+
+  it('the form picks a free licensed user instead of a typed link; the profile shows it', async () => {
+    window.localStorage.setItem('qarabic.mock.zoomOn', '1');
+    const user = userEvent.setup();
+    renderPage(<TeacherProfile id={2} />, { path: '/teachers/2' });
+    await user.click(await screen.findByRole('button', { name: 'أضف الرابط' }));
+    const picker = await screen.findByRole('combobox', { name: 'حساب Zoom' });
+    expect(screen.queryByLabelText('رابط Zoom')).not.toBeInTheDocument();
+    await user.click(picker);
+    // Only free, licensed users: not Zoom 1/2 (teachers 1 and 3) nor Zoom 6 (no licence).
+    const options = await screen.findAllByRole('option');
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining('Qarabic Zoom 3'),
+      expect.stringContaining('Qarabic Zoom 4'),
+      expect.stringContaining('Qarabic Zoom 5'),
+    ]);
+    await user.click(options[0]!);
+    await user.click(screen.getByRole('button', { name: 'حفظ' }));
+    expect(
+      await screen.findByText('https://us02web.zoom.us/j/8500000003?pwd=mock103'),
+    ).toBeInTheDocument();
+    expect(screen.getByText('zoom3@qarabic.test')).toBeInTheDocument();
+    expect(screen.queryByText('لا يوجد رابط Zoom لهذا المعلم')).not.toBeInTheDocument();
+  });
+});
 
 /** D151: the teacher's personal Zoom link on the profile, in the form, and on the classes. */
 describe('teacher Zoom link (D151)', () => {

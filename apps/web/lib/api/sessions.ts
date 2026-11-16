@@ -6,6 +6,11 @@ import {
   sessionSchema,
   sessionSettingsSchema,
   zoomHostSchema,
+  zoomAccountHostsSchema,
+  zoomHostsSyncResultSchema,
+  type AssignZoomHostInput,
+  type ZoomAccountHostsDto,
+  type ZoomHostsSyncResultDto,
   zoomJoinSchema,
   zoomStartSchema,
   type BoardDto,
@@ -155,6 +160,33 @@ export async function updateZoomHost(id: number, body: UpdateZoomHostInput): Pro
   ).data;
 }
 
+/** D151 (b): the Zoom account's licensed users and who they belong to; `{ enabled: false }` while Zoom is off. */
+export async function fetchZoomAccount(signal?: AbortSignal): Promise<ZoomAccountHostsDto> {
+  return (await apiFetch('/zoom-hosts/account', { schema: one(zoomAccountHostsSchema), signal }))
+    .data;
+}
+
+/** «مزامنة الآن»: pull the licensed users from Zoom (503 `zoom_unavailable` while Zoom is off). */
+export async function syncZoomHosts(): Promise<ZoomHostsSyncResultDto> {
+  return (
+    await apiFetch('/zoom-hosts/sync', { method: 'POST', schema: one(zoomHostsSyncResultSchema) })
+  ).data;
+}
+
+/** Assign a host to a teacher (their link and PMI follow), or free it (`teacherId: null`). */
+export async function assignZoomHost(
+  id: number,
+  teacherId: number | null,
+): Promise<ZoomAccountHostsDto> {
+  return (
+    await apiFetch(`/zoom-hosts/${id}/teacher`, {
+      method: 'PUT',
+      body: { teacherId } satisfies AssignZoomHostInput,
+      schema: one(zoomAccountHostsSchema),
+    })
+  ).data;
+}
+
 /** T4: the teacher's trial report of a trial class (null until written). */
 export async function fetchTrialReport(
   id: number,
@@ -190,4 +222,5 @@ export const sessionKeys = {
   trialReport: (id: number) => ['sessions', 'trial-report', id] as const,
   settings: ['sessions', 'settings'] as const,
   zoomHosts: ['sessions', 'zoom-hosts'] as const,
+  zoomAccount: ['sessions', 'zoom-account'] as const,
 };

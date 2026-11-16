@@ -43,6 +43,9 @@ import {
   type SessionAction,
   type SessionDto,
   type SessionLinkSource,
+  type ZoomAccountHostsDto,
+  assignZoomHostSchema,
+  zoomMeetingIdOf,
   type SessionRequestDto,
   type SessionStage,
 } from '@qarabic/shared';
@@ -397,6 +400,32 @@ export function meetingLinkOf(s: SessionRow): { source: SessionLinkSource; url: 
       url: `https://zoom.example.com/j/8${String(s.id).padStart(9, '0')}`,
     };
   return { source: 'none', url: null };
+}
+
+/**
+ * Mock switch for D151 (b): the Zoom account is off by default (as in production until Ahmed
+ * connects it); tests and e2e turn it on with `localStorage['qarabic.mock.zoomOn'] = '1'`.
+ */
+function zoomAccountEnabled(): boolean {
+  try {
+    return (
+      typeof window !== 'undefined' && window.localStorage.getItem('qarabic.mock.zoomOn') === '1'
+    );
+  } catch {
+    return false;
+  }
+}
+
+function zoomAccountOut(): ZoomAccountHostsDto {
+  if (!zoomAccountEnabled()) return { enabled: false };
+  return {
+    enabled: true,
+    lastSyncedAt: sdb.zoomAccount.lastSyncedAt,
+    hosts: sdb.zoomAccount.hosts.map(({ teacherId, ...h }) => {
+      const t = teacherId ? teacherOf(teacherId) : null;
+      return { ...h, teacher: t ? { id: t.id, name: t.name } : null };
+    }),
+  };
 }
 
 export function presentSession(s: SessionRow, me: MockUser): SessionDto {
@@ -2304,6 +2333,63 @@ export const scheduleHandlers: HttpHandler[] = [
     if (!parsed.success) return validationFailed(parsed.error.issues);
     Object.assign(sdb.settings, parsed.data);
     return HttpResponse.json({ data: sdb.settings });
+  }),
+
+  // ---------------------------------------------------------------- D151 (b): the Zoom account
+  http.get(`${API}/zoom-hosts/account`, ({ request }) => {
+    const g = guardAny(request, 'settings.manage', 'staff.manage');
+    if ('error' in g) return g.error;
+    return HttpResponse.json({ data: zoomAccountOut() });
+  }),
+
+  http.post(`${API}/zoom-hosts/sync`, ({ request }) => {
+    const g = guardAny(request, 'settings.manage', 'staff.manage');
+    if ('error' in g) return g.error;
+    if (!zoomAccountEnabled()) return apiError(503, 'zoom_unavailable', 'Zoom is not connected.');
+    const at = iso(Date.now());
+    sdb.zoomAccount.lastSyncedAt = at;
+    for (const h of sdb.zoomAccount.hosts) h.lastSyncedAt = at;
+    // A licensed user whose PMI is already in another teacher's typed link is left unassigned.
+    const conflicts = sdb.zoomAccount.hosts
+      .filter((h) => h.isActive && !h.teacherId && h.pmiMeetingId)
+      .filter((h) => people.teachers.some((t) => zoomMeetingIdOf(t.zoomJoinUrl) === h.pmiMeetingId))
+      .map((h) => ({ email: h.email, pmiMeetingId: h.pmiMeetingId! }));
+    return HttpResponse.json({
+      data: {
+        synced: sdb.zoomAccount.hosts.filter((h) => h.isActive).length,
+        deactivated: sdb.zoomAccount.hosts.filter((h) => !h.isActive).length,
+        conflicts,
+        lastSyncedAt: at,
+      },
+    });
+  }),
+
+  http.put(`${API}/zoom-hosts/:id/teacher`, async ({ request, params }) => {
+    const g = guardAny(request, 'settings.manage', 'staff.manage');
+    if ('error' in g) return g.error;
+    if (!zoomAccountEnabled()) return apiError(503, 'zoom_unavailable', 'Zoom is not connected.');
+    const host = sdb.zoomAccount.hosts.find((h) => h.id === Number(params.id));
+    if (!host) return notFound();
+    const parsed = assignZoomHostSchema.safeParse(await body(request));
+    if (!parsed.success) return validationFailed(parsed.error.issues);
+    const { teacherId } = parsed.data;
+    if (teacherId === null) {
+      const teacher = host.teacherId ? teacherOf(host.teacherId) : null;
+      if (teacher) teacher.zoomJoinUrl = null;
+      host.teacherId = null;
+      return HttpResponse.json({ data: zoomAccountOut() });
+    }
+    const teacher = teacherOf(teacherId);
+    if (!teacher) return notFound();
+    if (!host.isActive)
+      return apiError(409, 'zoom_host_inactive', 'Zoom no longer lists this user.');
+    if (host.teacherId && host.teacherId !== teacherId)
+      return apiError(409, 'zoom_host_taken', 'Another teacher has this Zoom user.');
+    for (const other of sdb.zoomAccount.hosts)
+      if (other.teacherId === teacherId) other.teacherId = null;
+    host.teacherId = teacherId;
+    teacher.zoomJoinUrl = `https://us02web.zoom.us/j/${host.pmiMeetingId}?pwd=mock${host.id}`;
+    return HttpResponse.json({ data: zoomAccountOut() });
   }),
 
   http.get(`${API}/zoom-hosts`, ({ request }) => {
