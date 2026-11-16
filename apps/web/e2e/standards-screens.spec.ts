@@ -123,6 +123,7 @@ const ELSEWHERE = [
   '/schedule',
   '/reports/utilization',
   '/schedule/enrollments',
+  '/schedule/availability-requests',
   '/leads',
   '/invoices',
   '/payroll',

@@ -31,6 +31,7 @@ import { crmHandlers } from './crm-handlers';
 import { resetCrmDb } from './crm-db';
 import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
+import { availabilityHandlers, resetAvailabilityChanges } from './availability-handlers';
 import { scheduleHandlers } from './schedule-handlers';
 import { utilizationHandlers } from './utilization-handlers';
 import { resetScheduleDb } from './schedule-db';
@@ -71,6 +72,7 @@ export function resetMockState() {
   resetMockData();
   resetPeopleDb();
   resetScheduleDb();
+  resetAvailabilityChanges();
   resetTeachingDb();
   resetTrialReports();
   resetSupportDb();
@@ -326,6 +328,8 @@ export const handlers: HttpHandler[] = [
   ...payrollHandlers,
   ...peopleHandlers,
   ...teachingHandlers,
+  // A1: a teacher's own availability change is a request (falls through for staff).
+  ...availabilityHandlers,
   ...scheduleHandlers,
   ...utilizationHandlers,
 ];

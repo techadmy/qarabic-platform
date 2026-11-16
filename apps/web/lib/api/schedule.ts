@@ -1,4 +1,6 @@
 import {
+  availabilityChangeSchema,
+  type AvailabilityChangeDto,
   affectedManualSessionsSchema,
   availabilitySchema,
   conflictResultSchema,
@@ -180,14 +182,33 @@ export async function fetchBlocks(teacherId: number, signal?: AbortSignal) {
   ).data as TeacherBlockDto[];
 }
 
-export async function createBlock(teacherId: number, body: CreateTeacherBlockInput) {
-  return (
-    await apiFetch(`/teachers/${teacherId}/blocks`, {
-      method: 'POST',
-      body,
-      schema: one(teacherBlockSchema),
-    })
-  ).data as TeacherBlockDto;
+/**
+ * A1 (D148, B131): staff edits apply at once; a teacher's own change to their hours or blocks is a
+ * request (202 `{ data: change, pending: true }`) until staff approve it.
+ */
+export type Applied<T> =
+  { pending: false; data: T } | { pending: true; change: AvailabilityChangeDto };
+const pendingSchema = z.object({ data: availabilityChangeSchema, pending: z.literal(true) });
+function appliedOr<T extends z.ZodType>(schema: T) {
+  return z
+    .union([pendingSchema, z.object({ data: schema })])
+    .transform((r): Applied<z.infer<T>> => {
+      const parsed = pendingSchema.safeParse(r);
+      return parsed.success
+        ? { pending: true, change: parsed.data.data }
+        : { pending: false, data: (r as { data: z.infer<T> }).data };
+    });
+}
+
+export async function createBlock(
+  teacherId: number,
+  body: CreateTeacherBlockInput,
+): Promise<Applied<TeacherBlockDto>> {
+  return (await apiFetch(`/teachers/${teacherId}/blocks`, {
+    method: 'POST',
+    body,
+    schema: appliedOr(teacherBlockSchema),
+  })) as Applied<TeacherBlockDto>;
 }
 
 export async function updateBlock(
@@ -204,8 +225,13 @@ export async function updateBlock(
   ).data as TeacherBlockDto;
 }
 
-export async function deleteBlock(teacherId: number, blockId: number): Promise<void> {
-  await apiFetch(`/teachers/${teacherId}/blocks/${blockId}`, { method: 'DELETE' });
+/** Staff: 204 (removed). A teacher: 202 with the pending change. */
+export async function deleteBlock(teacherId: number, blockId: number): Promise<Applied<null>> {
+  const res = await apiFetch(`/teachers/${teacherId}/blocks/${blockId}`, { method: 'DELETE' });
+  const parsed = pendingSchema.safeParse(res);
+  return parsed.success
+    ? { pending: true, change: parsed.data.data }
+    : { pending: false, data: null };
 }
 
 export async function fetchWorkHours(teacherId: number, signal?: AbortSignal) {
@@ -217,14 +243,15 @@ export async function fetchWorkHours(teacherId: number, signal?: AbortSignal) {
   ).data as WorkHourDto[];
 }
 
-export async function replaceWorkHours(teacherId: number, body: ReplaceWorkHoursInput) {
-  return (
-    await apiFetch(`/teachers/${teacherId}/work-hours`, {
-      method: 'PUT',
-      body,
-      schema: one(z.array(workHourSchema)),
-    })
-  ).data as WorkHourDto[];
+export async function replaceWorkHours(
+  teacherId: number,
+  body: ReplaceWorkHoursInput,
+): Promise<Applied<WorkHourDto[]>> {
+  return (await apiFetch(`/teachers/${teacherId}/work-hours`, {
+    method: 'PUT',
+    body,
+    schema: appliedOr(z.array(workHourSchema)),
+  })) as Applied<WorkHourDto[]>;
 }
 
 export async function fetchHolidays(year: number, signal?: AbortSignal): Promise<HolidayDto[]> {
