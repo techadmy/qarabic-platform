@@ -31,8 +31,16 @@ export function RangeBar({
   previous,
   today,
   onChange,
+  presets = RANGE_PRESETS,
+  maxDays = MAX_RANGE_DAYS,
+  showCompare = true,
 }: {
   range: DashboardRange;
+  /** Another report's choices and limit (R1: up to 92 days); the dashboard's by default. */
+  presets?: readonly RangePreset[];
+  maxDays?: number;
+  /** A report that always compares (its API answers the previous period) hides the switch. */
+  showCompare?: boolean;
   /** The period the API compared with (its `range.previous`), once the answer is in. */
   previous: { from: string; to: string } | null | undefined;
   today: string;
@@ -69,7 +77,7 @@ export function RangeBar({
             <SelectValue />
           </SelectTrigger>
           <SelectContent position="popper">
-            {RANGE_PRESETS.map((p) => (
+            {presets.map((p) => (
               <SelectItem key={p} value={p}>
                 {t(`presets.${p}`)}
               </SelectItem>
@@ -86,7 +94,7 @@ export function RangeBar({
             <DatePicker
               id={ids.from}
               value={range.from}
-              min={addDays(range.to, -(MAX_RANGE_DAYS - 1))}
+              min={addDays(range.to, -(maxDays - 1))}
               max={range.to}
               invalid={!!range.invalid}
               onChange={(v) => v && set({ from: v })}
@@ -107,14 +115,16 @@ export function RangeBar({
           </div>
         </>
       )}
-      <div className="flex h-10 items-center gap-2">
-        <Switch
-          id={ids.compare}
-          checked={range.compare}
-          onCheckedChange={(on) => set({ compare: on })}
-        />
-        <Label htmlFor={ids.compare}>{t('compare')}</Label>
-      </div>
+      {showCompare && (
+        <div className="flex h-10 items-center gap-2">
+          <Switch
+            id={ids.compare}
+            checked={range.compare}
+            onCheckedChange={(on) => set({ compare: on })}
+          />
+          <Label htmlFor={ids.compare}>{t('compare')}</Label>
+        </div>
+      )}
       <p role="status" className="text-sm text-muted-foreground md:ms-auto md:self-center">
         <bdi>{span(range.from, range.to)}</bdi>
         {range.compare && previous && (
@@ -126,7 +136,7 @@ export function RangeBar({
       </p>
       {range.invalid && (
         <p role="alert" className="basis-full text-sm text-destructive">
-          {t(`invalid.${range.invalid}`, { max: MAX_RANGE_DAYS })}
+          {t(`invalid.${range.invalid}`, { max: maxDays })}
         </p>
       )}
     </section>

@@ -1,5 +1,6 @@
 'use client';
 
+import { MyUtilizationCard } from '@/components/reports/utilization-view';
 import { CalendarXIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useCurrentUser } from '@/components/shell/app-shell';
@@ -19,5 +20,10 @@ export function MyScheduleView() {
       <EmptyState icon={CalendarXIcon} title={t('noTeacherTitle')} description={t('noTeacher')} />
     );
   }
-  return <TimetableView id={me.teacherId} mine />;
+  return (
+    <>
+      <TimetableView id={me.teacherId} mine />
+      <MyUtilizationCard />
+    </>
+  );
 }

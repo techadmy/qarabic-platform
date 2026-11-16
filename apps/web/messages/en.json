@@ -138,7 +138,8 @@
     "trialsToday": "Trial classes",
     "familyCredits": "Family credits",
     "paymentsReview": "Payments to review",
-    "exchangeRates": "Exchange rates"
+    "exchangeRates": "Exchange rates",
+    "utilization": "Teacher utilization"
   },
   "home": {
     "title": "Home",
@@ -4488,5 +4489,58 @@
     "pickTeachers": "Choose a teacher (up to 3) to see the week clearly; every teacher’s classes together are too narrow to read.",
     "pickTeachersAction": "Choose teachers",
     "teachersCap": "The first 12 teachers are shown; choose teachers in the filters to see others."
+  },
+  "utilization": {
+    "title": "Teacher utilization",
+    "description": "Teachers’ available, booked and free hours in the period, utilization against the period before, and the week’s free capacity.",
+    "filters": "Filter the report",
+    "course": "Course",
+    "allCourses": "All courses",
+    "searchCourse": "Search by course name",
+    "gender": "Teacher gender",
+    "allGenders": "All teachers",
+    "genders": {
+      "male": "Male teachers",
+      "female": "Female teachers"
+    },
+    "audience": "Audience",
+    "allAudiences": "All audiences",
+    "audiences": {
+      "children": "Children",
+      "adults": "Adults"
+    },
+    "available": "Available hours",
+    "booked": "Booked hours",
+    "free": "Free hours",
+    "utilization": "Utilization",
+    "availableShort": "Available",
+    "bookedShort": "Booked",
+    "freeShort": "Free",
+    "outside": "Outside work hours",
+    "delta": "Change",
+    "teacher": "Teacher",
+    "tableLabel": "Teacher utilization in the period",
+    "utilizationOf": "Utilization of \u2068{name}\u2069",
+    "classes": "{count, plural, =0 {no classes} one {# class} other {# classes}}",
+    "empty": "No teachers match the filters.",
+    "deltaUp": "{count, plural, one {up # point} other {up # points}}",
+    "deltaDown": "{count, plural, one {down # point} other {down # points}}",
+    "deltaFlat": "no change",
+    "capacity": {
+      "title": "Free capacity",
+      "description": "How many teachers are free for each whole hour, in \u2068{city}\u2069 time.",
+      "tableLabel": "Teachers free per hour (of \u2068{count}\u2069)",
+      "day": "Day",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week",
+      "free": "{count, plural, =0 {no teachers free} one {# teacher free} other {# teachers free}}"
+    },
+    "mine": {
+      "title": "My utilization this month",
+      "description": "Your available and booked hours this month."
+    },
+    "invalidRange": "Choose a valid period to see the report.",
+    "comparedWith": "Change compared with \u2068{span}\u2069.",
+    "span": "\u2068{from}\u2069 – \u2068{to}\u2069"
   }
 }
