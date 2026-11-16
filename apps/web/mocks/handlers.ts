@@ -32,6 +32,7 @@ import { resetCrmDb } from './crm-db';
 import { peopleHandlers } from './people-handlers';
 import { resetPeopleDb } from './people-db';
 import { scheduleHandlers } from './schedule-handlers';
+import { utilizationHandlers } from './utilization-handlers';
 import { resetScheduleDb } from './schedule-db';
 import { resetSupportDb } from './support-db';
 import { supportHandlers } from './support-handlers';
@@ -326,6 +327,7 @@ export const handlers: HttpHandler[] = [
   ...peopleHandlers,
   ...teachingHandlers,
   ...scheduleHandlers,
+  ...utilizationHandlers,
 ];
 
 export { MOCK_PASSWORD };

@@ -25,6 +25,10 @@ export async function expectNoHorizontalScroll(page: Page) {
 export async function expectNoSeriousA11yViolations(page: Page) {
   // Next streams <title> with the page metadata; under load axe could run before it arrives.
   await expect(page).toHaveTitle(/\S/);
+  // Measure from the top of the page. The board scrolls itself to the «الآن» line, so at some
+  // hours a header button sat half under the sticky top bar and target-size called it obscured
+  // (classes.spec, after 00:00 Cairo, 2026-11-15); that depends on the clock, not on the page.
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
   // Jump running transitions and animations to their end (a dialog fading in, a button turning
   // from disabled to enabled): axe measured colours mid-fade and reported contrast that the
   // settled screen does not have (support.spec «teacher change», 2026-11-14). finish() fires the
