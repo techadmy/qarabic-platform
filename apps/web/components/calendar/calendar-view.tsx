@@ -68,6 +68,7 @@ import { useListParams } from '@/lib/list-params';
 import { intlLocale } from '@/lib/time';
 import { dateKeyIn, hhmmIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
 import { CalendarFilters } from './calendar-filters';
+import { TrialBanner, TrialPickDialog, trialModeOf, useTrialTeachers } from './trial-pick';
 
 /** URL view ↔ ReUI view. */
 const TO_REUI: Record<CalendarView, ReuiView> = {
@@ -235,6 +236,10 @@ export function CalendarView() {
   }
 
   const [move, setMove] = useState<Move | null>(null);
+  // C3: picking a trial teacher on the teachers view (from the trial booking).
+  const trial = trialModeOf(params.get);
+  const trialTeachers = useTrialTeachers(trial, state.date, tz);
+  const [trialPick, setTrialPick] = useState<{ at: Date; teacherId: number | null } | null>(null);
   const now = useNow(60_000);
   const reuiEvents = useMemo<CalendarEvent<CalendarEventDto>[]>(
     () =>
@@ -268,9 +273,12 @@ export function CalendarView() {
       }),
     [events.data, manage, locale, now, t],
   );
-  // The teachers view: the chosen teachers (or the first 12), one column each.
+  // The teachers view: the chosen teachers (or the first 12), one column each; picking a trial
+  // teacher keeps the teachers who can take it (course, gender, age group, taking trials).
+  const trialOk = new Set((trialTeachers.data ?? []).map((x) => x.id));
   const resources = (background.data?.teachers ?? [])
     .filter((x) => !state.teacherIds.length || state.teacherIds.includes(x.teacherId))
+    .filter((x) => !trial || trialOk.has(x.teacherId))
     .slice(0, 12)
     .map((x) => ({ id: String(x.teacherId), title: x.name }));
   const holidays = background.data?.holidays ?? [];
@@ -385,6 +393,7 @@ export function CalendarView() {
           {state.view === 'teachers' && capped && (
             <p className="text-sm text-muted-foreground">{t('teachersCap')}</p>
           )}
+          {trial && <TrialBanner mode={trial} />}
           <StageLegend />
           {/* The calendar's own day headings are h3 (agenda): an h2 above keeps the order. */}
           <h2 className="sr-only">{t('calendarLabel')}</h2>
@@ -493,6 +502,13 @@ export function CalendarView() {
                   set({ view: 'day', date: dateKeyIn(tz, slot.date) });
                   return;
                 }
+                if (trial) {
+                  setTrialPick({
+                    at: slot.date,
+                    teacherId: slot.resourceId ? Number(slot.resourceId) : null,
+                  });
+                  return;
+                }
                 if (!can(me, 'schedule.manage')) return;
                 const teacherId =
                   slot.resourceId ??
@@ -533,18 +549,21 @@ export function CalendarView() {
                   </span>
                 );
               }}
-              renderDayColumnBackground={
-                shaded
-                  ? ({ day, boundsStartMin, totalMinutes }) => (
-                      <DayShade
-                        day={day}
-                        startMin={boundsStartMin}
-                        total={totalMinutes}
-                        teacher={shaded}
-                      />
-                    )
-                  : undefined
-              }
+              // Outside working hours grey, blocks hatched: behind the one chosen teacher, and
+              // behind each teacher's own column on the teachers view (free time stays white).
+              renderDayColumnBackground={({ day, boundsStartMin, totalMinutes, resourceId }) => {
+                const teacher = resourceId
+                  ? background.data?.teachers.find((x) => String(x.teacherId) === resourceId)
+                  : shaded;
+                return teacher ? (
+                  <DayShade
+                    day={day}
+                    startMin={boundsStartMin}
+                    total={totalMinutes}
+                    teacher={teacher}
+                  />
+                ) : null;
+              }}
             >
               <EventCalendarNav />
               <EventCalendarContent components={{ week: WeekNoAllDay, day: DayNoAllDay }} />
@@ -553,6 +572,16 @@ export function CalendarView() {
         </TooltipProvider>
       )}
       <SessionSheet />
+      {trial && trialPick && (
+        <TrialPickDialog
+          key={`${trialPick.at.getTime()}-${trialPick.teacherId}`}
+          mode={trial}
+          at={trialPick.at}
+          tz={tz}
+          teacherId={trialPick.teacherId}
+          onClose={() => setTrialPick(null)}
+        />
+      )}
       {move && (
         <RescheduleDialog
           key={`${move.event.id}-${move.startsAt}-${move.durationMinutes}`}

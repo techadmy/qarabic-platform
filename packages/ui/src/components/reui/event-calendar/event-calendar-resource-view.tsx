@@ -685,6 +685,19 @@ function EventCalendarResourceColumn({
         )
       }}
     >
+      {/* Local change (Qarabic): the day-column background hook, per resource (a teacher's free
+          time and hours on the teachers view). */}
+      {viewConfig.renderDayColumnBackground && (
+        <div className="pointer-events-none absolute inset-0">
+          {viewConfig.renderDayColumnBackground({
+            day,
+            boundsStartMin,
+            boundsEndMin,
+            totalMinutes: boundsMinutes,
+            resourceId: resource.id,
+          })}
+        </div>
+      )}
       {packed.map((segment) => {
         const startMin = Math.max(segment.startMin ?? 0, boundsStartMin)
         const endMin = Math.min(segment.endMin ?? startMin, boundsEndMin)

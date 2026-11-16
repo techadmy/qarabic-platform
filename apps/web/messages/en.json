@@ -2648,7 +2648,8 @@
         "shortlistLegend": "{count, plural, =0 {Choose the teachers (none chosen)} one {Choose the teachers (# chosen)} other {Choose the teachers (# chosen)}}",
         "loadError": "Couldn’t load the eligible teachers.",
         "retry": "Try again"
-      }
+      },
+      "pickOnCalendar": "Pick the teacher on the calendar"
     },
     "outcome": {
       "title": "Trial class outcome",
@@ -4460,7 +4461,21 @@
     "enrollments": "Enrollments",
     "truncated": "Too many classes in this period; narrow the filters or the period to see them all.",
     "needsAttention": "Needs attention",
-    "trial": "Trial",
+    "trial": {
+      "title": "Pick a teacher for the trial: \u2068{name}\u2069",
+      "hint": "Only teachers who can take this trial are shown; white time is free. Click a time in a teacher’s column to check the class (\u2068{minutes}\u2069 min) and send them the offer.",
+      "back": "Back to the lead",
+      "pickTitle": "Send the trial to a teacher",
+      "minutes": "{count, plural, one {# minute} other {# minutes}}",
+      "eligible": "Free and suitable",
+      "notEligible": "Not suitable at this time",
+      "teacherTime": "Teacher’s time:",
+      "chooseBelow": "Choose one of the teachers suitable at this time.",
+      "others": "Other suitable teachers at this time",
+      "sent": "Sent the trial offer to \u2068{name}\u2069.",
+      "send": "Send offer",
+      "cancel": "Cancel"
+    },
     "rescheduled": "Re-scheduled",
     "outsideHours": "Outside working hours",
     "nav": {
