@@ -41,6 +41,9 @@ export const RULE_MESSAGES = {
   permission_not_held: 'You cannot grant a permission you do not have.',
   wrong_password: 'The current password is not correct.',
   has_open_invoices: 'This family still has open invoices. Settle or void them first.',
+  zoom_link_taken: 'Another teacher already uses this Zoom meeting link.',
+  zoom_host_taken: 'This Zoom user is assigned to another teacher. Free it first.',
+  zoom_host_inactive: 'Zoom no longer lists this user as an active licensed user.',
 } as const;
 export type RuleCode = keyof typeof RULE_MESSAGES;
 

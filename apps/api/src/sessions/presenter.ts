@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { SessionDto } from '@qarabic/shared';
+import type { SessionDto, SessionLinkSource } from '@qarabic/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import type { Prisma, TeacherBlock } from '../generated/prisma/client.js';
@@ -17,6 +17,7 @@ import {
 import { SettingsService, type SettingsMap } from '../settings/settings.service.js';
 import { zoomFlags } from '../zoom/zoom.attendance.js';
 import { ZoomConfig } from '../zoom/zoom.config.js';
+import { linkSourceOf, teachersWithLink } from './meeting-link.js';
 import {
   Actor,
   type GuardContext,
@@ -164,7 +165,7 @@ export class SessionPresenter {
           ).map((h) => h.teacherId)
         : [],
     );
-    const [running, blocks, marks] = await Promise.all([
+    const [running, blocks, marks, withLink] = await Promise.all([
       this.prisma.classSession.findMany({
         where: { teacherId: { in: teacherIds }, deletedAt: null, stage: { in: [...RUNNING] } },
         select: { id: true, teacherId: true },
@@ -184,6 +185,7 @@ export class SessionPresenter {
           occurredAt: true,
         },
       }),
+      teachersWithLink(this.prisma, teacherIds),
     ]);
     const lastMark = new Map<number, LastStageEvent>();
     for (const m of marks) if (!lastMark.has(m.sessionId)) lastMark.set(m.sessionId, m);
@@ -200,7 +202,7 @@ export class SessionPresenter {
       const deleted = s.deletedAt !== null;
       const live = actor && !deleted;
       out.push(
-        this.toDto(s, viewer, st, now, {
+        this.toDto(s, viewer, st, now, linkSourceOf(s, withLink.has(s.teacherId)), {
           attention: deleted
             ? ['deleted']
             : attentionFor(
@@ -223,6 +225,7 @@ export class SessionPresenter {
     viewer: AuthUser | null,
     st: SettingsMap,
     now: number,
+    link: SessionLinkSource,
     computed: Pick<SessionDto, 'attention' | 'allowedActions' | 'upcomingActions'>,
   ): SessionDto {
     const academy = st['academy.timezone'];
@@ -230,7 +233,7 @@ export class SessionPresenter {
     const starts = s.startsAt.getTime();
     const ends = s.endsAt.getTime();
     const joinAvailable =
-      (s.zoomStatus === 'ready' || s.zoomStatus === 'external') &&
+      (link === 'meeting' || link === 'external' || link === 'teacher') &&
       ['scheduled', 'activated', 'in_progress'].includes(s.stage) &&
       now >= starts - 60 * MINUTE &&
       now <= ends;
@@ -273,7 +276,7 @@ export class SessionPresenter {
         s.activatedAt && s.activatedAt.getTime() > starts
           ? Math.floor((s.activatedAt.getTime() - starts) / MINUTE)
           : 0,
-      zoom: { status: s.zoomStatus, joinAvailable },
+      zoom: { status: s.zoomStatus, joinAvailable, link },
       // P0-4: join evidence and the review flag are for staff who manage classes.
       evidence: manages
         ? {

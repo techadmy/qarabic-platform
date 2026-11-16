@@ -60,6 +60,7 @@ const KIND_ONLY: Record<string, Role> = {
   'GET parent/home': 'parent',
   'GET teacher-portal/students': 'teacher',
   'GET teacher-portal/week': 'teacher',
+  'GET teacher-portal/zoom-link': 'teacher',
 };
 
 /** Queries a route validates before its handler runs (so the handler's own rule is reached). */
@@ -224,6 +225,7 @@ const TEACHER_ROUTES = [
   'GET support/mine',
   'GET teacher-portal/students',
   'GET teacher-portal/week',
+  'GET teacher-portal/zoom-link',
   'GET teachers/:teacherId/blocks',
   'GET teachers/:teacherId/timetable',
   'GET teachers/:teacherId/work-hours',
@@ -584,6 +586,7 @@ const TEACHER_LISTS = [
   'GET support/mine',
   'GET teacher-portal/students',
   'GET teacher-portal/week',
+  'GET teacher-portal/zoom-link',
   'GET tests',
   'GET tests/summary?month=2026-11',
 ];

@@ -9,6 +9,7 @@ import {
   type SurahDto,
   type TeacherStudentDto,
   type TeacherWeekDto,
+  type TeacherZoomLinkDto,
   teacherWeekQuerySchema,
   type TestDto,
   testListQuerySchema,
@@ -196,6 +197,17 @@ export class TeacherPortalController {
     @CurrentUser() viewer: AuthUser,
   ): Promise<{ data: TeacherWeekDto }> {
     return { data: await this.portal.week(viewer, q.date) };
+  }
+
+  /** D151: the teacher's own Zoom link, read-only (`no-store`: it carries the passcode). */
+  @Can('sessions.conduct')
+  @Get('zoom-link')
+  async zoomLink(
+    @CurrentUser() viewer: AuthUser,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<{ data: TeacherZoomLinkDto }> {
+    res.setHeader('Cache-Control', 'no-store, private');
+    return { data: await this.portal.zoomLink(viewer) };
   }
 
   @Can('sessions.conduct')

@@ -299,7 +299,11 @@ describe('Zoom meetings (ZoomTest)', () => {
     // no URL in any class payload
     const detail = await asMonitor.get(`/sessions/${session.id}`);
     expect(JSON.stringify(detail.body)).not.toContain('zoom.example.test');
-    expect(detail.body.data.zoom).toEqual({ status: 'ready', joinAvailable: true });
+    expect(detail.body.data.zoom).toEqual({
+      status: 'ready',
+      joinAvailable: true,
+      link: 'meeting',
+    });
   });
 
   it('gives the join URL to the family and staff from 60 minutes before', async () => {

@@ -405,7 +405,7 @@ export async function m2Enrollment(
     endsOn?: string | null;
     timezone?: string;
     courseId?: number;
-    meetingMode?: 'zoom' | 'external';
+    meetingMode?: 'zoom' | 'external' | 'teacher';
     externalMeetingUrl?: string | null;
     kind?: 'regular' | 'trial';
   } = {},
