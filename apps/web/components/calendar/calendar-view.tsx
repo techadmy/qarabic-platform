@@ -10,6 +10,7 @@ import {
 import { Alert, AlertDescription } from '@qarabic/ui/components/alert';
 import { Badge } from '@qarabic/ui/components/badge';
 import { Button } from '@qarabic/ui/components/button';
+import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { EventCalendar } from '@qarabic/ui/components/reui/event-calendar/event-calendar';
 import { EventCalendarContent } from '@qarabic/ui/components/reui/event-calendar/event-calendar-content';
 import { EventCalendarNav } from '@qarabic/ui/components/reui/event-calendar/event-calendar-nav';
@@ -403,181 +404,211 @@ export function CalendarView() {
             <p className="text-sm text-muted-foreground">{t('teachersCap')}</p>
           )}
           {trial && <TrialBanner mode={trial} />}
+          {trial && trialTeachers.isError && (
+            <Alert variant="destructive" role="alert">
+              <TriangleAlertIcon />
+              <AlertDescription className="flex flex-wrap items-center gap-2">
+                {t('trial.loadFailed')}
+                <Button variant="outline" size="sm" onClick={() => void trialTeachers.refetch()}>
+                  {t('trial.retry')}
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+          {trial && trialTeachers.isSuccess && trialTeachers.data.length === 0 && (
+            <Alert role="status">
+              <InfoIcon />
+              <AlertDescription>{t('trial.none')}</AlertDescription>
+            </Alert>
+          )}
           <StageLegend />
           {/* The calendar's own day headings are h3 (agenda): an h2 above keeps the order. */}
           <h2 className="sr-only">{t('calendarLabel')}</h2>
-          <div
-            className="h-[75svh] min-h-[480px] overflow-hidden rounded-xl border bg-card"
-            aria-busy={events.isFetching || undefined}
-          >
-            <EventCalendar<CalendarEventDto>
-              className="h-full"
-              events={reuiEvents}
-              view={TO_REUI[state.view]}
-              date={viewDate}
-              views={[
-                'month',
-                'week',
-                'day',
-                'agenda',
-                ...(isTeacher ? [] : ['resource' as const]),
-              ]}
-              resources={resources}
-              timeZone={tz}
-              locale={locale === 'ar' ? ar : enUS}
-              weekStartsOn={6}
-              scrollToHour={Math.max(
-                0,
-                Number(hhmmIn(new Date().toISOString(), tz).slice(0, 2)) - 2,
-              )}
-              slotDuration={60}
-              snapDuration={15}
-              loading={events.isPending}
-              interactions={{ drag: manage, resize: manage, selectSlot: false }}
-              offDays={{ weekendDays: [], isOffDay, className: 'bg-muted' }}
-              // «+N أخرى» is a 24 px target at least (WCAG 2.2 target size).
-              classNames={{
-                moreIndicator: 'inline-flex min-h-6 items-center',
-                // The day number at the top-start of a month cell (ui-ux), not the bottom.
-                monthCellFooter: 'order-first justify-start pt-1.5 pb-0',
-              }}
-              i18n={{
-                labels: {
-                  today: t('nav.today'),
-                  previous: t('nav.previous'),
-                  next: t('nav.next'),
-                  allDay: t('nav.allDay'),
-                  more: (n: number) => t('nav.more', { count: n }),
-                  noEvents: t('nav.noEvents'),
-                  loading: t('nav.loading'),
-                  selectView: t('nav.selectView'),
-                  resources: t('nav.teachers'),
-                  goToDate: t('nav.goToDate'),
-                  dropNotAllowed: t('nav.dropNotAllowed'),
-                },
-                // Titles in the UI language with Intl (date-fns patterns read English-style).
-                functions: {
-                  formatTitle: (v, { date, activeRange }) => {
-                    const fmt = (o: Intl.DateTimeFormatOptions) =>
-                      new Intl.DateTimeFormat(intlLocale(locale), { ...o, timeZone: tz });
-                    if (v === 'month') return fmt({ month: 'long', year: 'numeric' }).format(date);
-                    if (v === 'day' || v === 'resource') {
-                      return fmt({
-                        weekday: 'long',
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric',
-                      }).format(date);
-                    }
-                    return fmt({ day: 'numeric', month: 'long', year: 'numeric' }).formatRange(
-                      activeRange.start,
-                      new Date(activeRange.end.getTime() - 1),
-                    );
-                  },
-                },
-                viewNames: {
-                  month: t('views.month'),
-                  week: t('views.week'),
-                  day: t('views.day'),
-                  agenda: t('views.list'),
-                  resource: t('views.teachers'),
-                },
-              }}
-              onViewChange={(v) => {
-                const next = FROM_REUI[v];
-                if (next) set({ view: next });
-              }}
-              onDateChange={(d) => set({ date: dateKeyIn(tz, d) })}
-              onEventClick={(o) => open(Number(o.event.id))}
-              // Our rules first: never into the past, never to another teacher by dragging
-              // (the move dialog checks conflicts, work hours and holidays with the API).
-              canDropEvent={(u) =>
-                u.start.getTime() > now.getTime() &&
-                (!u.resourceId || u.resourceId === u.event.resourceId)
-              }
-              onEventUpdate={(u) => {
-                if (u.event.data) {
-                  setMove({
-                    event: u.event.data,
-                    startsAt: u.start.toISOString(),
-                    durationMinutes: Math.round((u.end.getTime() - u.start.getTime()) / 60_000),
-                  });
-                }
-                // Nothing moves until the dialog is confirmed.
-                return false;
-              }}
-              onSlotClick={(slot) => {
-                if (slot.view === 'month') {
-                  set({ view: 'day', date: dateKeyIn(tz, slot.date) });
-                  return;
-                }
-                if (trial) {
-                  setTrialPick({
-                    at: slot.date,
-                    teacherId: slot.resourceId ? Number(slot.resourceId) : null,
-                  });
-                  return;
-                }
-                if (!can(me, 'schedule.manage')) return;
-                const teacherId =
-                  slot.resourceId ??
-                  (state.teacherIds.length === 1 ? String(state.teacherIds[0]) : '');
-                const zone = oneStudent ?? tz;
-                const at = slot.date.toISOString();
-                const q = new URLSearchParams({
-                  weekday: String(isoWeekday(dateKeyIn(zone, slot.date))),
-                  time: hhmmIn(at, zone),
-                  ...(teacherId ? { teacherId } : {}),
-                  ...(state.studentIds.length === 1
-                    ? { studentId: String(state.studentIds[0]) }
-                    : {}),
-                });
-                router.push(`/schedule/new?${q}`);
-              }}
-              renderEvent={({ occurrence }) => {
-                const e = occurrence.event.data;
-                if (!e) return occurrence.event.title;
-                return (
-                  <span
-                    className={cn(
-                      'flex min-w-0 items-center gap-1 font-medium',
-                      (e.stage === 'cancelled' || e.stage === 'moved_out') && 'line-through',
-                    )}
-                  >
-                    {e.attention.length > 0 && (
-                      <TriangleAlertIcon
-                        aria-label={t('needsAttention')}
-                        className="size-3 shrink-0"
-                      />
-                    )}
-                    {e.kind === 'trial' && <StarIcon aria-hidden className="size-3 shrink-0" />}
-                    {e.kind === 'rescheduled' && (
-                      <RefreshCwIcon aria-hidden className="size-3 shrink-0" />
-                    )}
-                    <span className="truncate">{occurrence.event.title}</span>
-                  </span>
-                );
-              }}
-              // Outside working hours grey, blocks hatched: behind the one chosen teacher, and
-              // behind each teacher's own column on the teachers view (free time stays white).
-              renderDayColumnBackground={({ day, boundsStartMin, totalMinutes, resourceId }) => {
-                const teacher = resourceId
-                  ? background.data?.teachers.find((x) => String(x.teacherId) === resourceId)
-                  : shaded;
-                return teacher ? (
-                  <DayShade
-                    day={day}
-                    startMin={boundsStartMin}
-                    total={totalMinutes}
-                    teacher={teacher}
-                  />
-                ) : null;
-              }}
+          {trial && trialTeachers.isPending ? (
+            <div
+              aria-busy="true"
+              aria-label={t('trial.loading')}
+              className="grid h-[75svh] min-h-[480px] grid-cols-3 gap-2 rounded-xl border bg-card p-3"
             >
-              <EventCalendarNav />
-              <EventCalendarContent components={{ week: WeekNoAllDay, day: DayNoAllDay }} />
-            </EventCalendar>
-          </div>
+              {Array.from({ length: 3 }, (_, i) => (
+                <Skeleton key={i} className="h-full" />
+              ))}
+            </div>
+          ) : (
+            <div
+              className="h-[75svh] min-h-[480px] overflow-hidden rounded-xl border bg-card"
+              aria-busy={events.isFetching || undefined}
+            >
+              <EventCalendar<CalendarEventDto>
+                className="h-full"
+                events={reuiEvents}
+                view={TO_REUI[state.view]}
+                date={viewDate}
+                views={[
+                  'month',
+                  'week',
+                  'day',
+                  'agenda',
+                  ...(isTeacher ? [] : ['resource' as const]),
+                ]}
+                resources={resources}
+                timeZone={tz}
+                locale={locale === 'ar' ? ar : enUS}
+                weekStartsOn={6}
+                scrollToHour={Math.max(
+                  0,
+                  Number(hhmmIn(new Date().toISOString(), tz).slice(0, 2)) - 2,
+                )}
+                slotDuration={60}
+                snapDuration={15}
+                loading={events.isPending}
+                interactions={{ drag: manage, resize: manage, selectSlot: false }}
+                offDays={{ weekendDays: [], isOffDay, className: 'bg-muted' }}
+                // «+N أخرى» is a 24 px target at least (WCAG 2.2 target size).
+                classNames={{
+                  moreIndicator: 'inline-flex min-h-6 items-center',
+                  // The day number at the top-start of a month cell (ui-ux), not the bottom.
+                  monthCellFooter: 'order-first justify-start pt-1.5 pb-0',
+                }}
+                i18n={{
+                  labels: {
+                    today: t('nav.today'),
+                    previous: t('nav.previous'),
+                    next: t('nav.next'),
+                    allDay: t('nav.allDay'),
+                    more: (n: number) => t('nav.more', { count: n }),
+                    noEvents: t('nav.noEvents'),
+                    loading: t('nav.loading'),
+                    selectView: t('nav.selectView'),
+                    resources: t('nav.teachers'),
+                    goToDate: t('nav.goToDate'),
+                    dropNotAllowed: t('nav.dropNotAllowed'),
+                  },
+                  // Titles in the UI language with Intl (date-fns patterns read English-style).
+                  functions: {
+                    formatTitle: (v, { date, activeRange }) => {
+                      const fmt = (o: Intl.DateTimeFormatOptions) =>
+                        new Intl.DateTimeFormat(intlLocale(locale), { ...o, timeZone: tz });
+                      if (v === 'month')
+                        return fmt({ month: 'long', year: 'numeric' }).format(date);
+                      if (v === 'day' || v === 'resource') {
+                        return fmt({
+                          weekday: 'long',
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        }).format(date);
+                      }
+                      return fmt({ day: 'numeric', month: 'long', year: 'numeric' }).formatRange(
+                        activeRange.start,
+                        new Date(activeRange.end.getTime() - 1),
+                      );
+                    },
+                  },
+                  viewNames: {
+                    month: t('views.month'),
+                    week: t('views.week'),
+                    day: t('views.day'),
+                    agenda: t('views.list'),
+                    resource: t('views.teachers'),
+                  },
+                }}
+                onViewChange={(v) => {
+                  const next = FROM_REUI[v];
+                  if (next) set({ view: next });
+                }}
+                onDateChange={(d) => set({ date: dateKeyIn(tz, d) })}
+                onEventClick={(o) => open(Number(o.event.id))}
+                // Our rules first: never into the past, never to another teacher by dragging
+                // (the move dialog checks conflicts, work hours and holidays with the API).
+                canDropEvent={(u) =>
+                  u.start.getTime() > now.getTime() &&
+                  (!u.resourceId || u.resourceId === u.event.resourceId)
+                }
+                onEventUpdate={(u) => {
+                  if (u.event.data) {
+                    setMove({
+                      event: u.event.data,
+                      startsAt: u.start.toISOString(),
+                      durationMinutes: Math.round((u.end.getTime() - u.start.getTime()) / 60_000),
+                    });
+                  }
+                  // Nothing moves until the dialog is confirmed.
+                  return false;
+                }}
+                onSlotClick={(slot) => {
+                  if (slot.view === 'month') {
+                    set({ view: 'day', date: dateKeyIn(tz, slot.date) });
+                    return;
+                  }
+                  if (trial) {
+                    setTrialPick({
+                      at: slot.date,
+                      teacherId: slot.resourceId ? Number(slot.resourceId) : null,
+                    });
+                    return;
+                  }
+                  if (!can(me, 'schedule.manage')) return;
+                  const teacherId =
+                    slot.resourceId ??
+                    (state.teacherIds.length === 1 ? String(state.teacherIds[0]) : '');
+                  const zone = oneStudent ?? tz;
+                  const at = slot.date.toISOString();
+                  const q = new URLSearchParams({
+                    weekday: String(isoWeekday(dateKeyIn(zone, slot.date))),
+                    time: hhmmIn(at, zone),
+                    ...(teacherId ? { teacherId } : {}),
+                    ...(state.studentIds.length === 1
+                      ? { studentId: String(state.studentIds[0]) }
+                      : {}),
+                  });
+                  router.push(`/schedule/new?${q}`);
+                }}
+                renderEvent={({ occurrence }) => {
+                  const e = occurrence.event.data;
+                  if (!e) return occurrence.event.title;
+                  return (
+                    <span
+                      className={cn(
+                        'flex min-w-0 items-center gap-1 font-medium',
+                        (e.stage === 'cancelled' || e.stage === 'moved_out') && 'line-through',
+                      )}
+                    >
+                      {e.attention.length > 0 && (
+                        <TriangleAlertIcon
+                          aria-label={t('needsAttention')}
+                          className="size-3 shrink-0"
+                        />
+                      )}
+                      {e.kind === 'trial' && <StarIcon aria-hidden className="size-3 shrink-0" />}
+                      {e.kind === 'rescheduled' && (
+                        <RefreshCwIcon aria-hidden className="size-3 shrink-0" />
+                      )}
+                      <span className="truncate">{occurrence.event.title}</span>
+                    </span>
+                  );
+                }}
+                // Outside working hours grey, blocks hatched: behind the one chosen teacher, and
+                // behind each teacher's own column on the teachers view (free time stays white).
+                renderDayColumnBackground={({ day, boundsStartMin, totalMinutes, resourceId }) => {
+                  const teacher = resourceId
+                    ? background.data?.teachers.find((x) => String(x.teacherId) === resourceId)
+                    : shaded;
+                  return teacher ? (
+                    <DayShade
+                      day={day}
+                      startMin={boundsStartMin}
+                      total={totalMinutes}
+                      teacher={teacher}
+                    />
+                  ) : null;
+                }}
+              >
+                <EventCalendarNav />
+                <EventCalendarContent components={{ week: WeekNoAllDay, day: DayNoAllDay }} />
+              </EventCalendar>
+            </div>
+          )}
         </TooltipProvider>
       )}
       <SessionSheet />

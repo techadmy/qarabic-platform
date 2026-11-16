@@ -18,7 +18,7 @@ import {
 } from '@qarabic/ui/components/dialog';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { Spinner } from '@qarabic/ui/components/spinner';
-import { useMutation, useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircleIcon, CalendarSearchIcon, CheckIcon, SendIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -29,11 +29,18 @@ import { ToneBadge } from '@/components/sessions/badges';
 import { useUiLocale } from '@/components/sessions/times';
 import { createTrialOffer, fetchLead, fetchTrialTeachers } from '@/lib/api/crm';
 import { useCrmError } from '@/components/crm/crm-bits';
-import { dateKeyIn, dayAndClock, hhmmIn } from '@/lib/schedule-time';
+import { clock, dateKeyIn, dayAndClock, hhmmIn } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
 
 /** Reasons that depend on the chosen time only; the others rule a teacher out for the trial. */
-const TIME_REASONS: readonly TrialIneligibleReason[] = ['busy', 'on_leave', 'weekly_limit'];
+const TIME_REASONS: readonly string[] = [
+  'busy',
+  'on_leave',
+  'weekly_limit',
+  // Backend is adding these to trial eligibility (time-dependent too).
+  'outside_work_hours',
+  'blocked',
+];
 
 export interface TrialMode {
   leadId: number;
@@ -75,7 +82,7 @@ export function useTrialTeachers(mode: TrialMode | null, date: string, tz: strin
     enabled: !!mode,
     select: (r) =>
       [...r.data.eligible, ...r.data.ineligible]
-        .filter((o) => o.reasons.every((x) => TIME_REASONS.includes(x)))
+        .filter((o) => o.reasons.every((x: string) => TIME_REASONS.includes(x)))
         .map((o) => o.teacher),
   });
 }
@@ -93,7 +100,7 @@ export function TrialBanner({ mode }: { mode: TrialMode }) {
       <CalendarSearchIcon />
       <AlertTitle>{t('title', { name: student?.name ?? lead.data?.parentName ?? '' })}</AlertTitle>
       <AlertDescription className="flex flex-wrap items-center gap-2">
-        {t('hint', { minutes: mode.minutes })}
+        {t('hint', { minutes: mode.minutes })} {t('keyboard')}
         <Button asChild variant="outline" size="sm">
           <Link href={`/leads/${mode.leadId}`}>{t('back')}</Link>
         </Button>
@@ -123,6 +130,7 @@ export function TrialPickDialog({
   const t = useTranslations('calendar.trial');
   const locale = useUiLocale();
   const router = useRouter();
+  const queryClient = useQueryClient();
   const message = useCrmError();
   const localDate = dateKeyIn(tz, at);
   const localTime = hhmmIn(at.toISOString(), tz);
@@ -142,6 +150,12 @@ export function TrialPickDialog({
   const all = check.data ? [...check.data.data.eligible, ...check.data.data.ineligible] : [];
   const option = all.find((o) => o.teacher.id === chosen);
   const others = (check.data?.data.eligible ?? []).filter((o) => o.teacher.id !== chosen);
+  // The family's own zone (D30): from the lead (the check echoes the zone it was asked in).
+  const lead = useQuery({
+    queryKey: ['crm', 'lead', mode.leadId],
+    queryFn: ({ signal }) => fetchLead(mode.leadId, signal),
+  });
+  const familyZone = lead.data ? (lead.data.family?.timezone ?? lead.data.timezone) : undefined;
   const send = useMutation({
     mutationFn: (id: number) =>
       createTrialOffer(mode.leadId, {
@@ -149,13 +163,20 @@ export function TrialPickDialog({
         audience: 'shortlist',
         teacherIds: [id],
       }),
-    onSuccess: () => {
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['crm'] });
       toast.success(t('sent', { name: option?.teacher.name ?? '' }));
       router.push(`/leads/${mode.leadId}`);
     },
   });
   const reasons = (o: TrialTeacherOptionDto) =>
-    o.reasons.map((r) => TRIAL_INELIGIBLE_LABELS[r][locale]).join('، ');
+    o.reasons
+      .map(
+        (r: string) =>
+          TRIAL_INELIGIBLE_LABELS[r as TrialIneligibleReason]?.[locale] ??
+          (r === 'outside_work_hours' || r === 'blocked' ? t(`reasons.${r}`) : r),
+      )
+      .join('، ');
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -180,8 +201,11 @@ export function TrialPickDialog({
               <div className="flex flex-col gap-1 rounded-lg border p-3">
                 <span className="flex flex-wrap items-center gap-2 font-semibold">
                   {option.teacher.name}
-                  {option.eligible ? (
+                  {option.eligible && option.inWorkHours ? (
                     <ToneBadge tone="green" icon={CheckIcon} label={t('eligible')} />
+                  ) : option.eligible ? (
+                    // Suitable, but the time is outside their working hours (grey on the grid).
+                    <ToneBadge tone="orange" icon={AlertCircleIcon} label={t('outsideHours')} />
                   ) : (
                     <ToneBadge tone="red" icon={AlertCircleIcon} label={t('notEligible')} />
                   )}
@@ -191,6 +215,12 @@ export function TrialPickDialog({
                   {cityOf(option.teacher.timezone, locale)})
                 </span>
                 {!option.eligible && <span className="text-sm">{reasons(option)}</span>}
+                {familyZone && familyZone !== tz && (
+                  <span className="text-sm text-muted-foreground">
+                    {t('familyTime')} <bdi>{clock(at.toISOString(), familyZone, locale)}</bdi> (
+                    {cityOf(familyZone, locale)})
+                  </span>
+                )}
               </div>
             ) : (
               <p className="text-sm text-muted-foreground">{t('chooseBelow')}</p>
