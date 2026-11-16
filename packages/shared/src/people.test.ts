@@ -7,6 +7,8 @@ import {
   familyListQuerySchema,
   familyStatusChangeSchema,
   updateFamilySchema,
+  updateTeacherSchema,
+  zoomMeetingIdOf,
 } from './people.js';
 import { createRoleSchema } from './roles.js';
 import { updateMeSchema } from './auth.js';
@@ -98,5 +100,29 @@ describe('roles and me', () => {
       updateMeSchema.safeParse({ password: 'long-enough', currentPassword: 'x' }).success,
     ).toBe(true);
     expect(updateMeSchema.parse({ phone: '+44 7700 900123' }).phone).toBe('+447700900123');
+  });
+});
+
+describe('D151 teacher Zoom link', () => {
+  it('accepts zoom.us meeting links (subdomains, pwd) and reads the meeting id', () => {
+    const url = 'https://us02web.zoom.us/j/81234567890?pwd=abcDEF.1';
+    expect(updateTeacherSchema.parse({ zoomJoinUrl: ` ${url} ` }).zoomJoinUrl).toBe(url);
+    expect(zoomMeetingIdOf(url)).toBe('81234567890');
+    expect(zoomMeetingIdOf('https://zoom.us/j/123456789')).toBe('123456789');
+    expect(updateTeacherSchema.parse({ zoomJoinUrl: '' }).zoomJoinUrl).toBeNull();
+  });
+
+  it('refuses other links', () => {
+    for (const bad of [
+      'http://zoom.us/j/123456789',
+      'https://zoom.us.evil.example/j/123456789',
+      'https://evilzoom.us/j/123456789',
+      'https://zoom.us/my/teacher',
+      'https://zoom.us/j/12345',
+      'https://meet.example.com/j/123456789',
+    ]) {
+      expect(updateTeacherSchema.safeParse({ zoomJoinUrl: bad }).success, bad).toBe(false);
+      expect(zoomMeetingIdOf(bad), bad).toBeNull();
+    }
   });
 });

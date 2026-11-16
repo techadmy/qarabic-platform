@@ -410,6 +410,10 @@ model Teacher {
   experience        String?
   address           String?         @db.VarChar(500)
   skypeId           String?         @map("skype_id") @db.VarChar(100)
+  /// D151: the personal Zoom meeting link, encrypted at rest (AES-256-GCM, `v1:` + base64).
+  zoomJoinUrl       String?         @map("zoom_join_url")
+  /// D151: the meeting id (PMI) in that link, digits only; one teacher per meeting.
+  zoomMeetingId     String?         @unique @map("zoom_meeting_id") @db.VarChar(20)
   description       String?
   status            ActiveStatus    @default(active)
   statusReason      String?         @map("status_reason") @db.VarChar(500)
@@ -561,9 +565,11 @@ enum SessionSource {
   migrated
 }
 
+/// D151: `teacher` = the teacher's personal Zoom link, read when the class is shown or joined.
 enum MeetingMode {
   zoom
   external
+  teacher
 }
 
 enum ZoomStatus {

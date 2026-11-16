@@ -68,9 +68,16 @@ export const ENROLLMENT_KIND_LABELS: Labels<EnrollmentKind> = {
   trial: { ar: 'تجريبي', en: 'Trial' },
 };
 
-export const MEETING_MODES = ['zoom', 'external'] as const;
+/**
+ * `teacher` (D151, the default): the class link is the teacher's personal Zoom link, read when
+ * the class is shown or joined, so a new link or a new teacher applies to every future class.
+ * `external`: a fixed link for this enrollment only (override). `zoom`: a meeting the academy
+ * creates per class (needs the Zoom driver).
+ */
+export const MEETING_MODES = ['teacher', 'zoom', 'external'] as const;
 export type MeetingMode = (typeof MEETING_MODES)[number];
 export const MEETING_MODE_LABELS: Labels<MeetingMode> = {
+  teacher: { ar: 'رابط زووم المعلّم', en: "The teacher's Zoom link" },
   zoom: { ar: 'زووم (من الأكاديمية)', en: 'Zoom (academy)' },
   external: { ar: 'رابط خارجي ثابت', en: 'Fixed external link' },
 };
@@ -268,7 +275,8 @@ export const createEnrollmentSchema = z
     sessionMinutes: durationMinutesSchema.optional(),
     /** Defaults to the family's zone. */
     timezone: timeZoneSchema.optional(),
-    meetingMode: z.enum(MEETING_MODES),
+    /** D151: defaults to `teacher` (the teacher's personal Zoom link). */
+    meetingMode: z.enum(MEETING_MODES).default('teacher'),
     externalMeetingUrl: z.preprocess(blankToNull, httpsUrl.nullable()).optional(),
     notes: z.preprocess(blankToNull, z.string().trim().max(2000).nullable()).optional(),
     slots: z.array(slotInputSchema).max(14).default([]),
