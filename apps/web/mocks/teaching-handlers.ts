@@ -32,6 +32,7 @@ import {
   type TestErrorCode,
   trialReportInputSchema,
   type TrialReportDto,
+  zoomMeetingIdOf,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import { addDays, dateKeyIn, isoWeekday, zonedInstant } from '@/lib/schedule-time';
@@ -870,6 +871,16 @@ export const teachingHandlers: HttpHandler[] = [
     const parsed = teacherWeekQuerySchema.safeParse(queryOf(request));
     if (!parsed.success) return validationFailed(parsed.error.issues);
     return HttpResponse.json({ data: weekOf(g.me, parsed.data.date) });
+  }),
+
+  // D151: the signed-in teacher's own Zoom link (read-only; staff set it on the profile).
+  http.get(`${API}/teacher-portal/zoom-link`, ({ request }) => {
+    const g = guard(request, 'sessions.conduct');
+    if ('error' in g) return g.error;
+    const own = ownTeacherId(g.me);
+    if (!isTeacher(g.me) || !own) return apiError(403, 'forbidden', 'Forbidden.');
+    const url = people.teachers.find((t) => t.id === own)?.zoomJoinUrl ?? null;
+    return HttpResponse.json({ data: { url, meetingId: zoomMeetingIdOf(url) } });
   }),
 
   http.get(`${API}/teacher-portal/students`, ({ request }) => {

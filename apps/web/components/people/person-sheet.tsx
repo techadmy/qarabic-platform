@@ -22,6 +22,7 @@ import {
   type StudentDetailDto,
   type TeacherDetailDto,
   TEACHER_AUDIENCE_LABELS,
+  TEACHER_ZOOM_LINK_TAKEN,
   TEACHER_AUDIENCES,
   TEACHER_LANGUAGE_LABELS,
   TEACHER_LANGUAGES,
@@ -60,6 +61,7 @@ import {
   useWatch,
   type Control,
   type FieldValues,
+  type Path,
   type UseFormReturn,
 } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -83,6 +85,7 @@ import {
   TimeZoneField,
 } from '@/components/forms/people-fields';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import { isApiError } from '@/lib/api/client';
 import { createPerson, fetchLookups, updatePerson, type PeopleKind } from '@/lib/api/people';
 import { applyServerErrors } from '@/lib/forms/server-errors';
 import { useBeforeUnload } from '@/lib/forms/use-unsaved-guard';
@@ -331,6 +334,20 @@ function useFormBody<T extends FieldValues>({
           if (!id) router.push(`${KINDS[kind].href}/${(saved as { id: number }).id}`);
         },
         onError: (error) => {
+          // D151: another teacher already uses this Zoom link (409 `zoom_link_taken`).
+          if (
+            isApiError(error, 409) &&
+            error.code === TEACHER_ZOOM_LINK_TAKEN &&
+            fields.includes('zoomJoinUrl')
+          ) {
+            form.setError('zoomJoinUrl' as Path<T>, {
+              type: 'server',
+              message: t('zoomLinkTaken'),
+            });
+            form.setFocus('zoomJoinUrl' as Path<T>);
+            setBanner(t('fixErrors'));
+            return;
+          }
           const mapped = applyServerErrors(form, error, (k) => tv(k), fields);
           setBanner(mapped ? t('fixErrors') : refusal(error));
         },
@@ -729,6 +746,7 @@ const TEACHER_FIELDS = [
   'experience',
   'address',
   'skypeId',
+  'zoomJoinUrl',
   'description',
 ] as const;
 
@@ -763,6 +781,7 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
       experience: record?.experience ?? '',
       address: record?.address ?? '',
       skypeId: record?.skypeId ?? '',
+      zoomJoinUrl: record?.zoomJoinUrl ?? '',
       description: record?.description ?? '',
     },
   });
@@ -845,6 +864,16 @@ function TeacherForm({ record, ...props }: BodyProps & { record?: TeacherDetailD
         />
       </Section>
       {/* T2 (docs/33 §4.1): who can be offered a trial class, and how many a week. */}
+      {/* D151: the teacher's personal Zoom link; every class of theirs uses it. */}
+      <Section id="zoom" title={t('sections.zoom')}>
+        <TextField
+          control={c}
+          name="zoomJoinUrl"
+          label={t('fields.zoomJoinUrl')}
+          description={t('form.zoomJoinUrlHelp')}
+          inputProps={{ type: 'url', dir: 'ltr', inputMode: 'url', placeholder: 'https://' }}
+        />
+      </Section>
       <Section id="trials" title={t('sections.trials')}>
         <SwitchField
           control={c}

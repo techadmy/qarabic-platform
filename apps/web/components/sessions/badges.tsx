@@ -14,6 +14,7 @@ import {
   type RequestType,
   type SessionDto,
   type SessionKind,
+  SESSION_LINK_SOURCE_LABELS,
 } from '@qarabic/shared';
 import { Badge } from '@qarabic/ui/components/badge';
 import { cn } from '@qarabic/ui/lib/utils';
@@ -37,8 +38,10 @@ import {
   TimerIcon,
   TriangleAlertIcon,
   UserXIcon,
+  VideoOffIcon,
   type LucideIcon,
 } from 'lucide-react';
+import { useCurrentUser } from '@/components/shell/app-shell';
 import { useLocale } from 'next-intl';
 import { displayStage, type DisplayStage } from '@/lib/sessions/board';
 
@@ -169,6 +172,18 @@ export function AttentionBadge({ code }: { code: string }) {
       title={label.en}
     />
   );
+}
+
+/**
+ * D151: the class should use the teacher's Zoom link but they have none (`zoom.link: missing`).
+ * Staff and the teacher see it; a parent is not shown an internal setup problem.
+ */
+export function ZoomLinkMissingBadge({ session }: { session: SessionDto }) {
+  const locale = useUiLocale();
+  const me = useCurrentUser();
+  if (session.zoom.link !== 'missing' || me.role?.kind === 'parent') return null;
+  const label = SESSION_LINK_SOURCE_LABELS.missing;
+  return <ToneBadge tone="orange" icon={VideoOffIcon} label={label[locale]} title={label.en} />;
 }
 
 const ENROLLMENT_TONE: Record<EnrollmentStatus, { tone: Tone; icon: LucideIcon }> = {

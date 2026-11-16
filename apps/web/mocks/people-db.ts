@@ -214,6 +214,8 @@ function build(): Db {
       experience: `${id + 2} years teaching online`,
       address: null,
       skypeId: null,
+      // D151: teacher 2 has no Zoom link yet (their classes warn «لا يوجد رابط زووم للمعلّم»).
+      zoomJoinUrl: id === 2 ? null : `https://us02web.zoom.us/j/8${100000000 + id}?pwd=demo${id}`,
       description: null,
       status: inactive ? status('inactive', 'Left the academy') : status('active'),
       archive: null,

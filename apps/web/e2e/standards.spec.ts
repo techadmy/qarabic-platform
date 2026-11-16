@@ -104,7 +104,6 @@ test('the warning alert uses the warning token surface', async ({ page }) => {
   await page.getByRole('option', { name: /Ahmed Fathy/ }).click();
   await page.getByRole('combobox', { name: /الدورة/ }).click();
   await page.getByRole('option').first().click();
-  await page.getByLabel(/رابط الاجتماع/).fill('https://meet.example.com/e2e-class');
   await page.getByRole('button', { name: 'التالي' }).click();
   await page.getByRole('combobox', { name: /^الوقت/ }).click();
   await page.getByRole('option', { name: '8:00 م' }).click();

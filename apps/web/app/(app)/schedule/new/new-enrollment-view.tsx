@@ -48,6 +48,7 @@ import { toast } from 'sonner';
 import { Combobox } from '@/components/forms/fields';
 import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { PageHeader } from '@/components/page-header';
+import { TeacherLinkNote } from '@/components/people/zoom-link';
 import { TeacherSide } from '@/components/schedule/teacher-side';
 import { canSave, ConflictList } from '@/components/sessions/conflict-list';
 import { DURATIONS } from '@/components/sessions/reschedule-dialog';
@@ -93,7 +94,8 @@ export function NewEnrollmentView() {
   );
   const [startsOn, setStartsOn] = useState(() => dateKeyIn(viewerTz));
   const [minutes, setMinutes] = useState(30);
-  const [meeting, setMeeting] = useState<MeetingMode>('external');
+  // D151: the teacher's own Zoom link by default; a fixed link only as an override.
+  const [meeting, setMeeting] = useState<MeetingMode>('teacher');
   const [url, setUrl] = useState('');
   const [notes, setNotes] = useState('');
   const [slots, setSlots] = useState<DraftSlot[]>(() => {
@@ -207,7 +209,7 @@ export function NewEnrollmentView() {
     );
   }
 
-  const urlOk = meeting === 'zoom' || /^https:\/\/\S+\.\S+/.test(url.trim());
+  const urlOk = meeting !== 'external' || /^https:\/\/\S+\.\S+/.test(url.trim());
   const step1Valid = !!studentId && !!courseId && !!teacherId && !!startsOn && urlOk;
   const step2Valid = slots.length > 0 && !checking && canSave(combined, ack);
   const next = () => {
@@ -410,13 +412,14 @@ export function NewEnrollmentView() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent position="popper">
-                    {(['external', 'zoom'] as const).map((m) => (
+                    {(['teacher', 'external', 'zoom'] as const).map((m) => (
                       <SelectItem key={m} value={m}>
                         {MEETING_MODE_LABELS[m][locale]}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {meeting === 'teacher' && <TeacherLinkNote teacher={teacher} />}
               </Field>
               {meeting === 'external' && (
                 <Field data-invalid={touched && !urlOk}>

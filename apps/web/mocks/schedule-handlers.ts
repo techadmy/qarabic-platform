@@ -42,6 +42,7 @@ import {
   type ScheduleSlotDto,
   type SessionAction,
   type SessionDto,
+  type SessionLinkSource,
   type SessionRequestDto,
   type SessionStage,
 } from '@qarabic/shared';
@@ -374,13 +375,38 @@ function upcomingActions(s: SessionRow, me: MockUser) {
   return at.filter(([, t]) => t > nowMs()).map(([action, t]) => ({ action, availableAt: iso(t) }));
 }
 
+/**
+ * D151: where the class link comes from, as the API resolves it when the class is shown or
+ * joined: the academy's meeting, the enrollment's fixed link, or the teacher's personal Zoom link
+ * (`missing` when they have none).
+ */
+export function meetingLinkOf(s: SessionRow): { source: SessionLinkSource; url: string | null } {
+  if (s.deleted || s.zoomStatus === 'deleted') return { source: 'none', url: null };
+  const e = sdb.enrollments.find((x) => x.id === s.enrollmentId);
+  if (e?.meetingMode === 'teacher') {
+    const url = teacherOf(s.teacherId)?.zoomJoinUrl ?? null;
+    return url ? { source: 'teacher', url } : { source: 'missing', url: null };
+  }
+  if (e?.meetingMode === 'external' || s.zoomStatus === 'external')
+    return e?.externalMeetingUrl
+      ? { source: 'external', url: e.externalMeetingUrl }
+      : { source: 'none', url: null };
+  if (s.zoomStatus === 'ready')
+    return {
+      source: 'meeting',
+      url: `https://zoom.example.com/j/8${String(s.id).padStart(9, '0')}`,
+    };
+  return { source: 'none', url: null };
+}
+
 export function presentSession(s: SessionRow, me: MockUser): SessionDto {
   const student = studentOf(s.studentId)!;
   const teacher = teacherOf(s.teacherId)!;
   const course = COURSES.find((c) => c.id === s.courseId)!;
   const start = Date.parse(s.startsAt);
   const terminal = (TERMINAL_STAGES as readonly string[]).includes(s.stage);
-  const hasLink = s.zoomStatus === 'ready' || s.zoomStatus === 'external';
+  const link = meetingLinkOf(s);
+  const hasLink = !!link.url;
   return {
     id: s.id,
     kind: s.kind,
@@ -421,6 +447,7 @@ export function presentSession(s: SessionRow, me: MockUser): SessionDto {
       status: s.zoomStatus,
       joinAvailable:
         hasLink && !terminal && nowMs() >= start - 60 * MIN && nowMs() <= Date.parse(endsAt(s)),
+      link: link.source,
     },
     evidence: {
       actualStartedAt: s.activatedAt,
@@ -1052,7 +1079,7 @@ export const scheduleHandlers: HttpHandler[] = [
     if (input.timezone) e.timezone = input.timezone;
     if (input.meetingMode) e.meetingMode = input.meetingMode;
     if (input.externalMeetingUrl !== undefined) e.externalMeetingUrl = input.externalMeetingUrl;
-    if (input.meetingMode === 'zoom') e.externalMeetingUrl = null;
+    if (input.meetingMode && input.meetingMode !== 'external') e.externalMeetingUrl = null;
     if (input.notes !== undefined) e.notes = input.notes;
     return HttpResponse.json({
       data: presentEnrollment(e, g.me),
@@ -2062,13 +2089,7 @@ export const scheduleHandlers: HttpHandler[] = [
     const s = sessionOr404(params.id as string, g.me);
     if (!s) return notFound();
     const start = Date.parse(s.startsAt);
-    const e = sdb.enrollments.find((x) => x.id === s.enrollmentId);
-    const link =
-      s.zoomStatus === 'external'
-        ? e?.externalMeetingUrl
-        : s.zoomStatus === 'ready'
-          ? `https://zoom.example.com/j/8${String(s.id).padStart(9, '0')}`
-          : null;
+    const link = meetingLinkOf(s).url;
     if (params.as === 'start') {
       if (!isOwnTeacher(g.me, s)) return apiError(403, 'forbidden', 'Forbidden.');
       if (nowMs() < start - 15 * MIN)

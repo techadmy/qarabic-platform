@@ -26,6 +26,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { TrialOffersCard } from '@/components/portal/trial-offers-card';
 import { KeyFacts } from '@/components/people/detail';
+import { MyZoomLinkCard } from '@/components/people/zoom-link';
 import { PageHeader } from '@/components/page-header';
 import { TodayCard } from '@/components/payroll/attendance-view';
 import { StageBadge } from '@/components/sessions/badges';
@@ -33,7 +34,7 @@ import { ClassTable } from '@/components/sessions/class-table';
 import { RowActions } from '@/components/sessions/row-actions';
 import { SessionSheet, useOpenSession } from '@/components/sessions/session-sheet';
 import { BothClassTimes, useNow, useUiLocale, useViewerTz } from '@/components/sessions/times';
-import { useSessionActions } from '@/components/sessions/use-session-actions';
+import { hasMeetingLink, useSessionActions } from '@/components/sessions/use-session-actions';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
@@ -122,7 +123,7 @@ function HeroClass({ session: s, now }: { session: SessionDto; now: Date }) {
                 className={big}
                 disabled={!!actions.pending}
                 onClick={() => {
-                  if (s.zoom.status !== 'none') actions.openMeeting('start');
+                  if (hasMeetingLink(s)) actions.openMeeting('start');
                   actions.run('activate');
                 }}
               >
@@ -319,6 +320,7 @@ export function TeacherHomeView() {
       {/* T3: trials offered to this teacher (accept / volunteer / decline). */}
       <TrialOffersCard />
       {can(me, 'attendance.request') && <TodayCard />}
+      <MyZoomLinkCard />
       <section aria-labelledby="home-today" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 id="home-today" className="text-lg font-bold">

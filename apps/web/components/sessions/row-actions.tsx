@@ -48,7 +48,7 @@ import { RescheduleDialog } from './reschedule-dialog';
 import { JoinClassButton } from './join-class-button';
 import { useOpenSession } from './session-sheet';
 import { useUiLocale, useViewerTz } from './times';
-import { useSessionActions } from './use-session-actions';
+import { hasMeetingLink, useSessionActions } from './use-session-actions';
 
 /** Class actions in the order a monitor reaches for them; destructive ones last (§5.7). */
 const MENU_ORDER: SessionAction[] = [
@@ -162,7 +162,7 @@ export function RowActions({
           variant={a === 'activate' ? 'default' : 'outline'}
           disabled={!!actions.pending}
           onClick={() => {
-            if (a === 'activate' && ownTeacher && session.zoom.status !== 'none') {
+            if (a === 'activate' && ownTeacher && hasMeetingLink(session)) {
               actions.openMeeting('start');
             }
             actions.run(a);

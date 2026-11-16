@@ -1,6 +1,6 @@
 'use client';
 
-import { ZOOM_STATUS_LABELS, type SessionDto } from '@qarabic/shared';
+import { SESSION_LINK_SOURCE_LABELS, ZOOM_STATUS_LABELS, type SessionDto } from '@qarabic/shared';
 import { Card } from '@qarabic/ui/components/card';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@qarabic/ui/components/tooltip';
@@ -20,7 +20,7 @@ import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
 import { rowTone, type RowTone } from '@/lib/sessions/board';
 import { clock, dayLabel, dateKeyIn, minutesBetween } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
-import { AttentionBadge, KindBadge, StageBadge } from './badges';
+import { AttentionBadge, KindBadge, StageBadge, ZoomLinkMissingBadge } from './badges';
 import { RowActions } from './row-actions';
 import { OtherTime, useUiLocale, useViewerTz } from './times';
 
@@ -67,7 +67,12 @@ function Meeting({ s }: { s: SessionDto }) {
     !!s.evidence.teacherJoinedAt || !!s.evidence.studentJoinedAt || RUNNING.has(s.stage);
   return (
     <span className="flex flex-col text-sm">
-      <span>{ZOOM_STATUS_LABELS[s.zoom.status][locale]}</span>
+      {/* D151: a class on the teacher's own link names its source, not the meeting status. */}
+      <span>
+        {s.zoom.link === 'teacher' || s.zoom.link === 'missing'
+          ? SESSION_LINK_SOURCE_LABELS[s.zoom.link][locale]
+          : ZOOM_STATUS_LABELS[s.zoom.status][locale]}
+      </span>
       {showEvidence && (
         <span className="flex gap-2 text-xs text-muted-foreground">
           <Joined at={s.evidence.teacherJoinedAt} label={t('party.teacher')} />
@@ -269,6 +274,7 @@ export function ClassTable({
                     .map((a) => (
                       <AttentionBadge key={a} code={a} />
                     ))}
+                  <ZoomLinkMissingBadge session={s} />
                 </div>
                 <RowActions session={s} primary={primaryActions} className="flex-wrap" />
               </Card>
@@ -383,6 +389,7 @@ export function ClassTable({
                       .map((a) => (
                         <AttentionBadge key={a} code={a} />
                       ))}
+                    <ZoomLinkMissingBadge session={s} />
                   </span>
                 </TableCell>
                 <TableCell className="px-3 py-1.5 whitespace-nowrap">
