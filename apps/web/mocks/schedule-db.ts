@@ -225,7 +225,7 @@ export function generateFor(
       markedAt: null,
       markedBy: null,
       markedFrom: null,
-      zoomStatus: enrollment.meetingMode === 'external' ? 'external' : 'ready',
+      zoomStatus: enrollment.meetingMode === 'zoom' ? 'ready' : 'external',
       teacherJoinedAt: null,
       studentJoinedAt: null,
       needsReview: false,
@@ -369,9 +369,10 @@ function build(): ScheduleDb {
       endsOn: null,
       sessionMinutes: 30,
       timezone: family.timezone,
-      meetingMode: index % 3 === 0 ? 'zoom' : 'external',
+      // D151: every third enrollment uses the teacher's own Zoom link (the default now).
+      meetingMode: index % 3 === 0 ? 'zoom' : index % 3 === 1 ? 'external' : 'teacher',
       externalMeetingUrl:
-        index % 3 === 0 ? null : `https://meet.example.com/qarabic-${100 + index}`,
+        index % 3 === 1 ? `https://meet.example.com/qarabic-${100 + index}` : null,
       notes: index % 4 === 0 ? 'Prefers the same teacher every week.' : null,
       createdAt: iso(now - 60 * 86_400_000),
     };
@@ -426,6 +427,16 @@ function build(): ScheduleDb {
       new Date(s.startsAt),
     );
   });
+  // D151: whatever the hour, the board shows one class without a link: the late class's
+  // enrollment is on its teacher's own Zoom link, and that teacher has none (like teacher 2).
+  const noLink = anchors[1];
+  const noLinkEnrollment = noLink && fresh.enrollments.find((e) => e.id === noLink.enrollmentId);
+  if (noLink && noLinkEnrollment) {
+    noLinkEnrollment.meetingMode = 'teacher';
+    noLinkEnrollment.externalMeetingUrl = null;
+    const teacher = people.teachers.find((t) => t.id === noLink.teacherId);
+    if (teacher) teacher.zoomJoinUrl = null;
+  }
   // A class of the demo parent's child starts in 90 minutes: a leave asked now is too late for
   // the automatic approval (2 h notice), so it waits for staff.
   const soon = fresh.sessions.find(

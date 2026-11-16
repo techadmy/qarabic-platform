@@ -20,6 +20,9 @@ import {
   type StaffDto,
   type StudentDetailDto,
   type TeacherDetailDto,
+  TEACHER_ZOOM_LINK_TAKEN,
+  type TeacherDto,
+  zoomMeetingIdOf,
 } from '@qarabic/shared';
 import { http, HttpResponse, type HttpHandler } from 'msw';
 import type { z } from 'zod';
@@ -125,6 +128,28 @@ const takenError = () =>
   apiError(422, 'validation_failed', 'The given data was invalid.', {
     email: ['The email has already been taken.'],
   });
+
+/** D151: another teacher already uses the same Zoom meeting (the meeting id in the link). */
+function zoomLinkTaken(url: string | null | undefined, exceptId?: number): boolean {
+  const meetingId = zoomMeetingIdOf(url);
+  return (
+    !!meetingId &&
+    db.teachers.some((t) => t.id !== exceptId && zoomMeetingIdOf(t.zoomJoinUrl) === meetingId)
+  );
+}
+
+const zoomTakenError = () =>
+  apiError(409, TEACHER_ZOOM_LINK_TAKEN, 'Another teacher already uses this Zoom link.');
+
+/** D151: the link itself only for its editors (`staff.manage`); everyone sees `hasZoomLink`. */
+function teacherOut<T extends TeacherDto>(t: T, me: MockUser): T {
+  const { zoomJoinUrl, ...rest } = t;
+  return {
+    ...rest,
+    hasZoomLink: !!zoomJoinUrl,
+    ...(me.permissions.includes('staff.manage') ? { zoomJoinUrl: zoomJoinUrl ?? null } : {}),
+  } as T;
+}
 
 async function body(request: Request): Promise<unknown> {
   try {
@@ -563,7 +588,7 @@ export const peopleHandlers: HttpHandler[] = [
       q.sort === 'name' ? t.name : q.sort === 'createdAt' ? t.createdAt : t.id;
     const page = paginate(rows, q, ACTIVE_STATUSES, (a, b) => compare(order, key(a), key(b)));
     return HttpResponse.json({
-      data: page.data.map(({ statusHistory: _h, ...t }) => t),
+      data: page.data.map(({ statusHistory: _h, ...t }) => teacherOut(t, g.me)),
       meta: page.meta,
     });
   }),
@@ -572,7 +597,7 @@ export const peopleHandlers: HttpHandler[] = [
     const g = guard(request, 'staff.view');
     if ('error' in g) return g.error;
     const t = db.teachers.find((x) => x.id === Number(params.id));
-    return t ? HttpResponse.json({ data: t }) : notFound();
+    return t ? HttpResponse.json({ data: teacherOut(t, g.me) }) : notFound();
   }),
 
   http.post(`${API}/teachers`, async ({ request }) => {
@@ -582,6 +607,7 @@ export const peopleHandlers: HttpHandler[] = [
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const input = parsed.data;
     if (emailTaken(input.email)) return takenError();
+    if (zoomLinkTaken(input.zoomJoinUrl)) return zoomTakenError();
     const id = db.nextId.teachers++;
     const teacher: TeacherDetailDto = {
       id,
@@ -610,6 +636,7 @@ export const peopleHandlers: HttpHandler[] = [
       experience: input.experience ?? null,
       address: input.address ?? null,
       skypeId: input.skypeId ?? null,
+      zoomJoinUrl: input.zoomJoinUrl ?? null,
       description: input.description ?? null,
       status: { value: 'active', reason: null, changedAt: null, changedBy: null },
       archive: null,
@@ -618,7 +645,7 @@ export const peopleHandlers: HttpHandler[] = [
       statusHistory: [],
     };
     db.teachers.push(teacher);
-    return HttpResponse.json({ data: teacher }, { status: 201 });
+    return HttpResponse.json({ data: teacherOut(teacher, g.me) }, { status: 201 });
   }),
 
   http.patch(`${API}/teachers/:id`, async ({ request, params }) => {
@@ -631,6 +658,7 @@ export const peopleHandlers: HttpHandler[] = [
     if (!parsed.success) return validationFailed(parsed.error.issues);
     const { courseIds, hourlyRateCurrency: _c, ...rest } = parsed.data;
     if (rest.email && emailTaken(rest.email, t.userId)) return takenError();
+    if (zoomLinkTaken(rest.zoomJoinUrl, t.id)) return zoomTakenError();
     for (const [key, value] of Object.entries(rest)) {
       if (value !== undefined) (t as unknown as Record<string, unknown>)[key] = value;
     }
@@ -641,7 +669,7 @@ export const peopleHandlers: HttpHandler[] = [
     }
     t.name = [t.firstName, t.lastName].filter(Boolean).join(' ');
     syncDerived(db);
-    return HttpResponse.json({ data: t });
+    return HttpResponse.json({ data: teacherOut(t, g.me) });
   }),
 
   ...lifecycle('teachers', {

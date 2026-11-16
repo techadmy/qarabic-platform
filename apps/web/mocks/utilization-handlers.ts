@@ -190,6 +190,10 @@ export const utilizationHandlers: HttpHandler[] = [
           ]),
       ]),
     );
+    // Each teacher's work hours once for the whole range, not once per hour of each day.
+    const work = new Map(
+      list.map((t) => [t.id, workIntervals(t.id, addDays(from, -1), addDays(to, 1))]),
+    );
     const data: FreeCapacityDto = {
       range: { from, to, timezone: tz },
       teacherCount: list.length,
@@ -200,8 +204,7 @@ export const utilizationHandlers: HttpHandler[] = [
           const a = Date.parse(zonedInstant(date, `${String(h).padStart(2, '0')}:00`, tz));
           const b = a + H;
           return list.filter((t) => {
-            const work = workIntervals(t.id, addDays(date, -1), addDays(date, 1));
-            const covered = work.some(([s, e]) => s <= a && e >= b);
+            const covered = (work.get(t.id) ?? []).some(([s, e]) => s <= a && e >= b);
             const taken = (busy.get(t.id) ?? []).some(([s, e]) => s! < b && e! > a);
             return covered && !taken;
           }).length;

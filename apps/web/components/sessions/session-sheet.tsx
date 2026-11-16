@@ -37,6 +37,7 @@ import { useDirection } from '@/lib/use-direction';
 import { clock, dayAndClock, relativeTime } from '@/lib/schedule-time';
 import {
   AttentionBadge,
+  ZoomLinkMissingBadge,
   KindBadge,
   RequestStatusBadge,
   RequestTypeBadge,
@@ -218,6 +219,7 @@ function SessionInfo({
             .map((a) => (
               <AttentionBadge key={a} code={a} />
             ))}
+          <ZoomLinkMissingBadge session={s} />
         </div>
         <p className="text-lg font-bold">{s.student.name}</p>
         <p className="text-muted-foreground">

@@ -411,7 +411,8 @@
       "acceptsTrials": "Takes trial classes",
       "maxTrialsPerWeek": "Max trial classes a week",
       "audience": "Age group",
-      "languages": "Teaching languages"
+      "languages": "Teaching languages",
+      "zoomJoinUrl": "Zoom link"
     },
     "sections": {
       "contact": "Contact",
@@ -427,7 +428,8 @@
       "personal": "Personal details",
       "work": "Work",
       "background": "Qualifications and experience",
-      "trials": "Trial classes"
+      "trials": "Trial classes",
+      "zoom": "Zoom link"
     },
     "history": {
       "title": "Status history",
@@ -566,7 +568,9 @@
       "ownRole": "You cannot change your own role. An owner or another user who manages staff can change it.",
       "acceptsTrialsHelp": "When off, the teacher is not suggested for trials unless overridden with a reason.",
       "maxTrialsHelp": "Leave empty for no limit.",
-      "languagesHelp": "A match with the student’s language ranks the teacher higher."
+      "languagesHelp": "A match with the student’s language ranks the teacher higher.",
+      "zoomJoinUrlHelp": "The teacher's personal Zoom meeting link, e.g. https://us02web.zoom.us/j/1234567890. All their classes use it automatically.",
+      "zoomLinkTaken": "Another teacher already uses this link. Each teacher has their own Zoom link."
     },
     "trials": {
       "yes": "Yes",
@@ -4644,5 +4648,25 @@
     "teacherTime": "Teacher:",
     "approveTitle": "Approve \u2068{name}\u2069’s request?",
     "approveImpact": "{count, plural, one {# booked class falls} other {# booked classes fall}} outside the new hours; move or reschedule them after approving."
+  },
+  "zoomLink": {
+    "label": "Zoom link",
+    "copy": "Copy",
+    "open": "Open",
+    "newTab": "in a new tab",
+    "copied": "Link copied.",
+    "copyFailed": "Couldn't copy the link. Copy it by hand.",
+    "set": "Set",
+    "missing": "No link",
+    "missingTitle": "This teacher has no Zoom link",
+    "missingBody": "Their classes that use the teacher's link have nothing to join until one is added.",
+    "add": "Add the link",
+    "mine": "Your Zoom link",
+    "mineNote": "Your classes use it automatically. To change it, contact the academy office.",
+    "mineMissing": "The office hasn't added your Zoom link yet. Contact them to add it.",
+    "meetingId": "Meeting ID",
+    "teacherDefault": "This enrollment's classes use the Zoom link on the teacher's profile automatically.",
+    "teacherMissing": "This teacher has no Zoom link yet.",
+    "openTeacher": "Open the teacher's profile"
   }
 }

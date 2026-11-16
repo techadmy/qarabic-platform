@@ -140,7 +140,14 @@ describe('New enrollment', () => {
     await user.click(screen.getByRole('combobox', { name: /الدورة/ }));
     const course = (await screen.findAllByRole('option'))[0]!;
     await user.click(course);
-    await user.type(screen.getByLabelText(/رابط الاجتماع/), 'https://meet.example.com/new-class');
+    // D151: the teacher's own Zoom link is the default, so there is no link to type; teacher 2
+    // has none yet, so the form says so and links to their profile.
+    expect(screen.queryByLabelText(/رابط الاجتماع/)).not.toBeInTheDocument();
+    expect(await screen.findByText('لا يوجد رابط Zoom لهذا المعلم بعد.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'افتح ملف المعلم' })).toHaveAttribute(
+      'href',
+      '/teachers/2',
+    );
     await user.click(screen.getByRole('button', { name: 'التالي' }));
 
     expect(await screen.findByText('لم تُضف مواعيد بعد.')).toBeInTheDocument();
@@ -159,8 +166,8 @@ describe('New enrollment', () => {
       studentId: 7,
       teacherId: 2,
       kind: 'regular',
-      meetingMode: 'external',
-      externalMeetingUrl: 'https://meet.example.com/new-class',
+      meetingMode: 'teacher',
+      externalMeetingUrl: null,
       slots: [{ weekday: 6, localStartTime: '17:00', durationMinutes: 30 }],
     });
   });

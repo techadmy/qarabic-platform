@@ -95,7 +95,6 @@ test('staff: create an enrollment with weekly times (warning acknowledged)', asy
   await page.getByRole('option', { name: /Ahmed Fathy/ }).click();
   await page.getByRole('combobox', { name: /الدورة/ }).click();
   await page.getByRole('option').first().click();
-  await page.getByLabel(/رابط الاجتماع/).fill('https://meet.example.com/e2e-class');
   await page.getByRole('button', { name: 'التالي' }).click();
 
   // Step 2: Saturday 8:00 pm New York = 3:00 am Cairo, outside the teacher's work hours.

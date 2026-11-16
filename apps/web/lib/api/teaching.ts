@@ -5,6 +5,8 @@ import {
   sessionSchema,
   teacherStudentsSchema,
   teacherWeekSchema,
+  teacherZoomLinkDtoSchema,
+  type TeacherZoomLinkDto,
   testListResponseSchema,
   testSchema,
   testSummarySchema,
@@ -155,8 +157,16 @@ export async function fetchTeacherStudents(signal?: AbortSignal): Promise<Teache
  * Query keys. The class-shaped ones live under `sessions` so a class write (`upsertSession`)
  * refreshes the week, the reports list and the board together.
  */
+/** `GET /teacher-portal/zoom-link` (D151): the signed-in teacher's own Zoom link, read-only. */
+export async function fetchMyZoomLink(signal?: AbortSignal): Promise<TeacherZoomLinkDto> {
+  return (
+    await apiFetch('/teacher-portal/zoom-link', { schema: one(teacherZoomLinkDtoSchema), signal })
+  ).data;
+}
+
 export const teachingKeys = {
   all: ['teaching'] as const,
+  myZoomLink: ['teaching', 'my-zoom-link'] as const,
   report: (sessionId: number) => ['sessions', 'report', sessionId] as const,
   reports: (query: unknown) => ['sessions', 'lesson-reports', query] as const,
   week: (date: string | undefined) => ['sessions', 'teacher-week', date ?? 'today'] as const,

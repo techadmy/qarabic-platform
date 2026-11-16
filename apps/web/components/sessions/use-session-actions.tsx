@@ -57,6 +57,14 @@ export interface SessionActionRunner {
  * destructive ones (cancel, revert, undo activation) confirm first with a reason. The buttons come
  * from `allowedActions`; `expectedStage` + `lockVersion` guard against a stale screen.
  */
+/**
+ * Whether «ابدأ الحصة» should also open a meeting: there is one (`zoom.status` not none) and, D151,
+ * it is not a teacher-link class whose teacher has no link yet (`missing`).
+ */
+export function hasMeetingLink(s: Pick<SessionDto, 'zoom'>): boolean {
+  return s.zoom.status !== 'none' && s.zoom.link !== 'missing' && s.zoom.link !== 'none';
+}
+
 export function useSessionActions(session: SessionDto | undefined): SessionActionRunner {
   const t = useTranslations('classes');
   const locale = useUiLocale();

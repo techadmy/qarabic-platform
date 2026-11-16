@@ -32,6 +32,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Combobox } from '@/components/forms/fields';
+import { TeacherLinkNote } from '@/components/people/zoom-link';
 import { DatePicker } from '@/components/forms/date-time';
 import { PageHeader } from '@/components/page-header';
 import { InfoSection, ProfileSkeleton } from '@/components/people/detail';
@@ -628,7 +629,7 @@ function MeetingDialog({
           <Field>
             <FieldLabel>{t('fields.meetingMode')}</FieldLabel>
             <RadioGroup value={mode} onValueChange={(v) => setMode(v as MeetingMode)}>
-              {(['zoom', 'external'] as const).map((m) => (
+              {(['teacher', 'external', 'zoom'] as const).map((m) => (
                 <Field key={m} orientation="horizontal">
                   <RadioGroupItem value={m} id={`meeting-${m}`} />
                   <FieldLabel htmlFor={`meeting-${m}`} className="font-normal">
@@ -637,6 +638,7 @@ function MeetingDialog({
                 </Field>
               ))}
             </RadioGroup>
+            {mode === 'teacher' && <TeacherLinkNote teacher={{ id: e.teacher.id }} />}
           </Field>
           {mode === 'external' && (
             <Field>

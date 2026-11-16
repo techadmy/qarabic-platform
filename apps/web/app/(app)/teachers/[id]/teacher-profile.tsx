@@ -14,6 +14,7 @@ import Link from 'next/link';
 import { InfoSection, KeyFacts, StatusHistory } from '@/components/people/detail';
 import { BothTimes } from '@/components/people/local-time';
 import { ProfileShell } from '@/components/people/profile-shell';
+import { MissingZoomLinkAlert, ZoomLinkValue } from '@/components/people/zoom-link';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { StatusBadge } from '@/components/status-badge';
 import { fetchPerson } from '@/lib/api/people';
@@ -64,6 +65,10 @@ export function TeacherProfile({ id }: { id: number }) {
       {({ edit }) =>
         x && (
           <>
+            {/* D151: without a Zoom link the teacher's classes have nothing to join. */}
+            {!x.archive && x.hasZoomLink === false && (
+              <MissingZoomLinkAlert onAdd={editable ? () => edit('zoom') : undefined} />
+            )}
             <KeyFacts
               items={[
                 {
@@ -119,6 +124,16 @@ export function TeacherProfile({ id }: { id: number }) {
                     value: x.skypeId && <bdi dir="ltr">{x.skypeId}</bdi>,
                   },
                   { label: tp('fields.address'), value: x.address },
+                ]}
+              />
+              <InfoSection
+                title={tp('sections.zoom')}
+                onEdit={editable ? () => edit('zoom') : undefined}
+                rows={[
+                  {
+                    label: tp('fields.zoomJoinUrl'),
+                    value: <ZoomLinkValue url={x.zoomJoinUrl} hasLink={x.hasZoomLink} />,
+                  },
                 ]}
               />
               <InfoSection
