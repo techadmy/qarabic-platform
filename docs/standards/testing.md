@@ -37,8 +37,11 @@ academy's day still work end to end?», which no layer above checks on its own.
   movable with `JOURNEYS_API_PORT` / `JOURNEYS_WEB_PORT`. Secrets are throwaway, made per run.
 - **Data:** `pnpm --filter @qarabic/api qa:seed` (the global setup runs it) **empties** the `*_test`
   database and seeds the QA personas: `QA Admin`, `QA Teacher` (with a made-up tracked Zoom
-  meeting), `QA Parent` + `QA Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses
-  any database not named `*_test`. Never production data, never a real person.
+  meeting), `QA Trial Teacher` (J2's trials, so they never clash with J1), `QA Parent` +
+  `QA Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
+  `*_test`. Never production data, never a real person. A login a journey creates through the
+  product (J2's converted family) gets the QA password with `qa:seed --password-for=<email>`
+  (`setQaPassword()`), since mail is off; QA addresses only.
 - **No real outside calls:** the API runs with `e2e-journeys/no-egress.mjs` preloaded (any request
   off localhost throws) and `SCHEDULER_ENABLED=false`; every browser context stubs non-local URLs.
   Zoom is simulated by posting webhook events signed exactly like Zoom (`x-zm-signature` =
@@ -53,9 +56,14 @@ academy's day still work end to end?», which no layer above checks on its own.
 - **Report:** `e2e-journeys/summary-reporter.ts` writes `journeys-summary.json` (journey, steps,
   status, duration, screenshot, commit, run URL). The `QA journeys` workflow
   (`.github/workflows/journeys.yml`) runs on every PR, nightly at 02:30 Cairo and by hand; it
-  prints the step table on the run page and uploads the screenshots and report. The owner's
-  dashboard is the «Qarabic QA» artifact, fed from these summaries. Not a required check until the
-  owner decides.
+  prints the step table on the run page and uploads the screenshots and report. Not a required
+  check until the owner decides.
+- **Public feed:** after a nightly or manual run on `main` (never a PR), the workflow's `publish`
+  job commits to the `qa-reports` branch (`e2e-journeys/report-feed.mjs`): `latest.json` (the run's
+  summary), `history.json` (last 60 journey runs), `runs.json` / `steps.json` (the «Qarabic QA»
+  dashboard's datasets) and `shots/` (the latest failing step's screenshot). Read them at
+  `https://raw.githubusercontent.com/techadmy/qarabic-platform/qa-reports/<file>`: the owner's
+  dashboard and the Control Center use them. QA personas only; nothing else is written there.
 - **Adding a journey:** a new `jN-*.spec.ts` with its own tag; reuse `helpers.ts` (sign-in, API with
   CSRF, Zoom signing, CLI); add personas to `qa-seed.ts` only if the journey needs a new role.
   Assert what the user sees (role/label locators) and the API state behind it.

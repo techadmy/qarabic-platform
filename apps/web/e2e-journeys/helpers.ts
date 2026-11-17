@@ -11,10 +11,11 @@ export const QA_ZOOM = {
   meetingId: '9000000001',
   joinUrl: 'https://us02web.zoom.us/j/9000000001?pwd=qa',
 } as const;
-export type Persona = 'qa-admin' | 'qa-teacher' | 'qa-parent';
+export type Persona = 'qa-admin' | 'qa-teacher' | 'qa-teacher2' | 'qa-parent' | 'qa-family2';
 export const NAMES = {
   admin: 'QA Admin',
   teacher: 'QA Teacher',
+  trialTeacher: 'QA Trial Teacher',
   parent: 'QA Parent',
   student: 'QA Student',
 } as const;
@@ -67,6 +68,18 @@ export async function shot(page: Page, testInfo: TestInfo, step: number, label: 
   const path = testInfo.outputPath(`step-${String(step).padStart(2, '0')}-${label}.png`);
   await page.screenshot({ path, fullPage: true });
   await testInfo.attach(`step-${step}`, { path, contentType: 'image/png' });
+}
+
+/**
+ * Gives a login the journey created through the product (a converted family) the QA password:
+ * mail is off, so no invitation reaches anyone. QA addresses only (qa-seed.ts checks).
+ */
+export function setQaPassword(email: string) {
+  execFileSync('pnpm', ['exec', 'tsx', 'prisma/qa-seed.ts', `--password-for=${email}`], {
+    cwd: fileURLToPath(new URL('../../api', import.meta.url)),
+    env: { ...process.env, ...apiEnv },
+    stdio: 'pipe',
+  });
 }
 
 /** Runs an API CLI command (a cron job once) against the journeys' database. */
