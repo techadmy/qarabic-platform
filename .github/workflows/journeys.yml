@@ -1,0 +1,84 @@
+name: QA journeys
+
+# Whole business scenarios across roles on the real stack (docs/standards/testing.md «Journeys»):
+# the built API + PostgreSQL 17 + the production web build, no mocks, QA personas only. Runs on
+# every PR, nightly and by hand. Not a required check (protect-main) until the owner says so.
+on:
+  pull_request:
+  schedule:
+    - cron: '30 0 * * *' # nightly, 02:30 Cairo (far from local midnight: classes are «today»)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: journeys-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  journeys:
+    name: QA journeys (real stack)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: qarabic
+          POSTGRES_PASSWORD: qarabic
+          POSTGRES_DB: qarabic_journeys_test
+          TZ: Africa/Cairo
+          PGTZ: Africa/Cairo
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U qarabic" --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      # The journeys' own database (qa:seed refuses anything not named *_test and empties it).
+      JOURNEYS_DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_journeys_test
+      DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_journeys_test
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Throwaway secrets for this run
+        run: |
+          for name in QA_PASSWORD QA_ZOOM_WEBHOOK_SECRET JOURNEYS_SESSION_SECRET; do
+            value="$(openssl rand -hex 24)"
+            echo "::add-mask::$value"
+            echo "$name=$value" >> "$GITHUB_ENV"
+          done
+          key="$(openssl rand -base64 32)"
+          echo "::add-mask::$key"
+          echo "JOURNEYS_ENCRYPTION_KEY=$key" >> "$GITHUB_ENV"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @qarabic/shared build
+      - run: pnpm --filter @qarabic/api exec prisma migrate deploy
+      - name: Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @qarabic/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache the Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+      - run: pnpm --filter @qarabic/web exec playwright install chromium
+      - run: pnpm --filter @qarabic/web test:journeys
+      # The step table on the run page, from journeys-summary.json (also uploaded below).
+      - name: Journey summary
+        if: ${{ !cancelled() }}
+        working-directory: apps/web
+        run: node e2e-journeys/step-summary.mjs journeys-summary.json >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: ${{ !cancelled() }}
+        with:
+          name: qa-journeys-${{ github.run_id }}
+          path: |
+            apps/web/journeys-summary.json
+            apps/web/journeys-results/
+            apps/web/journeys-report/
+          if-no-files-found: ignore
+          retention-days: 30
