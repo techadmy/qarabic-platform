@@ -155,15 +155,21 @@ function addHistory(now: number) {
 function shapeDemoTeacher(now: number) {
   const minute = Math.floor(now / MIN) * MIN;
   const own = sdb.sessions.filter((s) => s.teacherId === 1 && !s.deleted);
-  // A class that can be started now (the activation window opens 10 min before).
-  // (Unless one is already startable: scheduled and starting within ten minutes either side.)
+  // A lesson that can be started now (the activation window opens 10 min before). Not a trial:
+  // a trial closes through the trial report (T4), and on some weekdays the class nearest the
+  // hour is one (2026-11-17, a Tuesday, broke the N3 flow).
+  // (Unless a lesson is already startable: scheduled and starting within ten minutes either side.)
   const busy = own.some(
-    (s) => s.stage === 'scheduled' && Math.abs(Date.parse(s.startsAt) - minute) <= 10 * MIN,
+    (s) =>
+      s.stage === 'scheduled' &&
+      s.kind !== 'trial' &&
+      Math.abs(Date.parse(s.startsAt) - minute) <= 10 * MIN,
   );
   if (!busy) {
     const pick = own.find(
       (s) =>
         s.stage === 'scheduled' &&
+        s.kind !== 'trial' &&
         Date.parse(s.startsAt) > now + 5 * HOUR &&
         familyOf(s.studentId) !== 1 &&
         !sdb.requests.some((r) => r.sessionId === s.id),
