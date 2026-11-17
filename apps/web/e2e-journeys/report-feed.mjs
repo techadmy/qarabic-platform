@@ -5,7 +5,7 @@
 //   shots/<journey>-step-<n>.png — the failing step's screenshot of the latest run (none if green).
 // Usage: node e2e-journeys/report-feed.mjs <feed-dir> <journeys-summary.json>
 // The summary's screenshot paths are relative to its own folder (the run's artifact).
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { runRowsOf, stepRows, writeDataset } from './dashboard-rows.mjs';
@@ -21,9 +21,16 @@ if (summary.schema !== 1) throw new Error(`Unknown summary schema ${summary.sche
 mkdirSync(feedDir, { recursive: true });
 
 const historyFile = join(feedDir, 'history.json');
-const history = existsSync(historyFile)
-  ? JSON.parse(readFileSync(historyFile, 'utf8'))
-  : { schema: 1, runs: [] };
+/** The feed's history so far; none on the branch's first run. */
+function readHistory() {
+  try {
+    return JSON.parse(readFileSync(historyFile, 'utf8'));
+  } catch (e) {
+    if (e.code === 'ENOENT') return { schema: 1, runs: [] };
+    throw e;
+  }
+}
+const history = readHistory();
 // A re-run of the same summary replaces its rows instead of adding them twice.
 const kept = history.runs.filter((r) => r.runAt !== summary.generatedAt);
 const runs = [...kept, ...runRowsOf(summary)]
@@ -38,17 +45,22 @@ writeDataset(join(feedDir, 'steps.json'), stepRows([summary]));
 // The latest failure's screenshots only: the branch must not grow with every run.
 const shots = join(feedDir, 'shots');
 rmSync(shots, { recursive: true, force: true });
+mkdirSync(shots, { recursive: true });
 const base = dirname(resolve(summaryFile));
 for (const journey of summary.journeys) {
   for (const step of journey.steps) {
     if (step.status !== 'failed' || !step.screenshot) continue;
     const from = resolve(base, step.screenshot);
-    if (!existsSync(from)) continue;
     mkdirSync(shots, { recursive: true });
-    copyFileSync(from, join(shots, `${journey.id}-step-${step.n}.png`));
+    try {
+      copyFileSync(from, join(shots, `${journey.id}-step-${step.n}.png`));
+    } catch (e) {
+      // A screenshot the run never wrote (it stopped first): the feed goes on without it.
+      if (e.code !== 'ENOENT') throw e;
+    }
   }
 }
-const shotCount = existsSync(shots) ? readdirSync(shots).length : 0;
+const shotCount = readdirSync(shots, { withFileTypes: true }).length;
 console.log(
   `QA feed: ${runs.length} run row(s), status ${summary.status}, ${shotCount} screenshot(s).`,
 );
