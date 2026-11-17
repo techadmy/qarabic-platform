@@ -13,9 +13,12 @@ import { seedCourses } from './seed-people.js';
  * 2. roles, permissions and the reference courses;
  * 3. the QA personas, all named «QA …» on `qa.qarabic.test` (no real people), one password from
  *    QA_PASSWORD (CI makes a throwaway one per run): a staff admin, a teacher with a tracked Zoom
- *    personal meeting (made-up ids), a family (parent login) and one student;
+ *    personal meeting (made-up ids), a second teacher for trials, a family (parent login) and one
+ *    student;
  * 4. the settings the journeys rely on: no minimum class length (a journey ends the class right
  *    away) and class reminders on, to the parents too (the in-app bell; mail/WhatsApp stay off).
+ *
+ * `--password-for=<email>` instead only sets QA_PASSWORD on one existing QA login.
  *
  * Zoom tracking itself is switched on by the API process's env (ZOOM_DRIVER=s2s + throwaway keys),
  * never here; the journeys post signed webhook events to it, nothing reaches Zoom.
@@ -51,6 +54,25 @@ async function main(): Promise<void> {
   if (!password || password.length < 12) throw new Error('Set QA_PASSWORD (12+ characters).');
 
   const prisma = createPrismaClient(env.DATABASE_URL);
+  // `--password-for=<email>`: a login a journey made through the product (e.g. the family J2
+  // converts) gets QA_PASSWORD, since mail is off. QA addresses only; nothing else changes.
+  const passwordFor = process.argv.find((a) => a.startsWith('--password-for='))?.slice(15);
+  if (passwordFor !== undefined) {
+    try {
+      if (!passwordFor.endsWith(`@${QA_DOMAIN}`)) {
+        throw new Error(`--password-for takes a QA address on ${QA_DOMAIN} only.`);
+      }
+      const { count } = await prisma.user.updateMany({
+        where: { email: passwordFor },
+        data: { passwordHash: await new PasswordsService().hash(password) },
+      });
+      if (count !== 1) throw new Error(`No QA login ${passwordFor}.`);
+      console.log(`QA password set for ${passwordFor}.`);
+    } finally {
+      await prisma.$disconnect();
+    }
+    return;
+  }
   try {
     const tables = await prisma.$queryRaw<{ tablename: string }[]>`
       SELECT tablename FROM pg_tables
@@ -97,6 +119,20 @@ async function main(): Promise<void> {
         label: 'QA Teacher',
         teacherId: teacher.id,
         pmiMeetingId: QA_ZOOM.meetingId,
+      },
+    });
+
+    // J2: a second teacher for the trial (its own day, so it never clashes with J1's class).
+    const trialLogin = await user('QA Trial Teacher', 'qa-teacher2', 'teacher', 'Africa/Cairo');
+    await prisma.teacher.create({
+      data: {
+        userId: trialLogin.id,
+        firstName: 'QA Trial',
+        lastName: 'Teacher',
+        gender: 'female',
+        timezone: 'Africa/Cairo',
+        countryCode: 'EG',
+        courses: { create: courses.slice(0, 3).map((c) => ({ courseId: c.id })) },
       },
     });
 

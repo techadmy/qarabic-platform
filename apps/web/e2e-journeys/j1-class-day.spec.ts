@@ -50,7 +50,7 @@ test(
       const people = api(staff);
       const teachers = (await people.get('/teachers?perPage=10')).body.data;
       const students = (await people.get('/students?search=QA%20Student')).body.data;
-      expect(teachers.map((t: { name: string }) => t.name)).toEqual([NAMES.teacher]);
+      expect(teachers.map((t: { name: string }) => t.name)).toContain(NAMES.teacher);
       expect(students.map((s: { name: string }) => s.name)).toEqual([NAMES.student]);
       await shot(staff, testInfo, 1, 'staff-signed-in');
     });
@@ -58,7 +58,9 @@ test(
     await step(2, async () => {
       const people = api(staff);
       const student = (await people.get('/students?search=QA%20Student')).body.data[0];
-      const teacherRow = (await people.get('/teachers?perPage=10')).body.data[0];
+      const teacherRow = (await people.get('/teachers?perPage=10')).body.data.find(
+        (t: { name: string }) => t.name === NAMES.teacher,
+      );
       // A class «today» must not cross Cairo midnight: in the last minutes of the day, wait.
       const cairo = localParts(new Date(), 'Africa/Cairo');
       if (cairo.time >= '23:50') {
