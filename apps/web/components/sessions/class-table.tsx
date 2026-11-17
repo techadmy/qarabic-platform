@@ -18,6 +18,7 @@ import { CheckIcon, MinusIcon } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Fragment, useEffect, useRef, type MouseEvent } from 'react';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import { can } from '@/lib/auth/use-me';
 import { rowTone, type RowTone } from '@/lib/sessions/board';
 import { clock, dayLabel, dateKeyIn, minutesBetween } from '@/lib/schedule-time';
 import { cityOf } from '@/lib/time';
@@ -64,9 +65,12 @@ function Joined({ at, label }: { at: string | null; label: string }) {
 function Meeting({ s }: { s: SessionDto }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
-  const parent = useCurrentUser().role?.kind === 'parent';
+  const me = useCurrentUser();
+  const parent = me.role?.kind === 'parent';
+  // P0-4: join evidence reaches class managers only; for others the nulls mean "not sent".
   const showEvidence =
-    !!s.evidence.teacherJoinedAt || !!s.evidence.studentJoinedAt || RUNNING.has(s.stage);
+    can(me, 'sessions.manage') &&
+    (!!s.evidence.teacherJoinedAt || !!s.evidence.studentJoinedAt || RUNNING.has(s.stage));
   return (
     <span className="flex max-w-32 flex-col text-sm whitespace-normal">
       {/* D151: a class on the teacher's own link names its source, not the meeting status. The
