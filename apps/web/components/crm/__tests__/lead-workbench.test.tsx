@@ -86,7 +86,15 @@ describe('Lead workbench', () => {
     const user = userEvent.setup();
     open(TRIAL_DONE);
     expect(await heading('Yasmin Farouk')).toBeVisible();
-    expect(screen.queryByRole('button', { name: 'سجّل نتيجة التجريبية' })).not.toBeInTheDocument();
+    // The outcome stays recordable (J2) as a secondary action; conversion is the primary one.
+    expect(screen.getByRole('button', { name: 'سجّل نتيجة التجريبية' })).toHaveAttribute(
+      'data-variant',
+      'outline',
+    );
+    expect(screen.getByRole('button', { name: 'حوّل إلى منتظم' })).toHaveAttribute(
+      'data-variant',
+      'default',
+    );
     await user.click(screen.getByRole('button', { name: 'حوّل إلى منتظم' }));
     expect(await screen.findByRole('dialog', { name: 'التحويل إلى منتظم' })).toBeInTheDocument();
   });

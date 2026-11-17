@@ -33,6 +33,16 @@ describe('T4 trial report (B85)', () => {
     expect(within(sheet).queryByText('تقرير الحصة', { exact: true })).toBeNull();
   });
 
+  it('the teacher can pick another suggested course (J2: the list is not empty for teachers)', async () => {
+    const user = userEvent.setup();
+    const s = endedTrial();
+    renderPage(<MyClassesView />, { as: TEACHER, path: `/my-classes?session=${s.id}&report=1` });
+    const sheet = await screen.findByRole('dialog', { name: 'تفاصيل الحصة' });
+    const form = await within(sheet).findByRole('form', { name: 'تقرير الحصة التجريبية' });
+    await user.click(within(form).getByRole('combobox', { name: /الدورة المقترحة/ }));
+    expect((await screen.findAllByRole('option')).length).toBeGreaterThan(1);
+  });
+
   it('the teacher writes it: required choices first, then it closes the class', async () => {
     const user = userEvent.setup();
     const s = endedTrial();

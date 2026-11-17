@@ -33,6 +33,18 @@ async function openOutcome(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe('Trial outcome dialog', () => {
+  it('«حضر التجريبية» still takes an outcome (J2), e.g. the family changed its mind', async () => {
+    const user = userEvent.setup();
+    const sent = capture('trial-outcome');
+    renderPage(<LeadWorkbench id={TRIAL_DONE} />, { path: `/leads/${TRIAL_DONE}` });
+    await user.click(await screen.findByRole('button', { name: 'سجّل نتيجة التجريبية' }));
+    const dialog = await screen.findByRole('dialog', { name: 'نتيجة الحصة التجريبية' });
+    await user.click(within(dialog).getByRole('radio', { name: 'غير مهتم' }));
+    await user.click(within(dialog).getByRole('button', { name: 'سجّل النتيجة' }));
+    await waitFor(() => expect(sent).toHaveLength(1));
+    expect(sent[0]).toMatchObject({ outcome: 'not_interested', lostReason: 'not_interested' });
+  });
+
   it('needs an outcome', async () => {
     const user = userEvent.setup();
     const sent = capture('trial-outcome');

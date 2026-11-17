@@ -24,16 +24,16 @@ import {
 } from '@qarabic/ui/components/field';
 import { RadioGroup, RadioGroupItem } from '@qarabic/ui/components/radio-group';
 import { Spinner } from '@qarabic/ui/components/spinner';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { Controller, useForm, type Control, type FieldValues, type Path } from 'react-hook-form';
 import { toast } from 'sonner';
 import { ComboboxField, SelectField, TextareaField } from '@/components/forms/fields';
-import { useLookups } from '@/components/people/person-sheet';
 import { useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { dayAndClock } from '@/lib/schedule-time';
 import { isApiError } from '@/lib/api/client';
+import { crmKeys, fetchPublicCourses } from '@/lib/api/crm';
 import { saveTrialReport, sessionKeys } from '@/lib/api/sessions';
 import { applyServerErrors } from '@/lib/forms/server-errors';
 import { useBeforeUnload } from '@/lib/forms/use-unsaved-guard';
@@ -73,7 +73,13 @@ export function TrialReportForm({
   const tv = useTranslations('validation');
   const locale = useUiLocale();
   const tz = useViewerTz();
-  const lookups = useLookups();
+  // J2: the active courses from `/public/courses`, which a teacher may read; `/people/lookups` is
+  // staff-only, so a teacher's list was empty.
+  const activeCourses = useQuery({
+    queryKey: crmKeys.publicCourses,
+    queryFn: ({ signal }) => fetchPublicCourses(signal),
+    staleTime: 10 * 60_000,
+  });
   const queryClient = useQueryClient();
   const classError = useClassError();
   const [banner, setBanner] = useState<string | null>(null);
@@ -127,9 +133,10 @@ export function TrialReportForm({
     },
   });
   const c = form.control;
-  const courses = (lookups.data?.courses ?? [])
-    .filter((x) => x.isActive)
-    .map((x) => ({ value: String(x.id), label: locale === 'ar' ? x.nameAr : x.nameEn }));
+  const courses = (activeCourses.data ?? []).map((x) => ({
+    value: String(x.id),
+    label: locale === 'ar' ? x.nameAr : x.nameEn,
+  }));
 
   return (
     <form
