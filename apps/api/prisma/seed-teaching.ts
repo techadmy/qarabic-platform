@@ -16,7 +16,7 @@ const SUMMARIES = [
 ];
 
 /**
- * Development only (fake data): a lesson report with hifz rows for every past held class of the
+ * Development only (fake data): a lesson report with hifz rows for every past held lesson of the
  * demo students — each child memorises Juz Amma backwards from An-Nas, a few ayahs a class — the
  * latest held class of the first student left without a report (so «بلا تقرير» has a row), and
  * three student tests (one upcoming, one taken, one refused). Skipped when reports exist.
@@ -32,7 +32,10 @@ export async function seedDemoTeaching(prisma: PrismaClient): Promise<boolean> {
 
   for (const [k, student] of students.entries()) {
     const held = await prisma.classSession.findMany({
-      where: { studentId: student.id, stage: 'taken', deletedAt: null },
+      // Lessons only: a trial class closes through the trial report (T4), never a lesson report
+      // (a lesson report on one made the report screens show an empty trial report on days when
+      // a trial class sorted first, e.g. 2026-11-17).
+      where: { studentId: student.id, stage: 'taken', kind: { not: 'trial' }, deletedAt: null },
       include: { teacher: { select: { userId: true } } },
       orderBy: { startsAt: 'asc' },
     });
