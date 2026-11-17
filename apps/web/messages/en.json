@@ -807,7 +807,13 @@
       "participant_joined": "Participant joined",
       "participant_left": "Participant left",
       "note": "Note",
-      "dst_adjusted": "Adjusted for DST"
+      "dst_adjusted": "Adjusted for DST",
+      "zoom_meeting_started": "Zoom meeting started",
+      "zoom_meeting_ended": "Zoom meeting ended",
+      "zoom_start_url_issued": "Meeting start link opened",
+      "report_submitted": "Lesson report submitted",
+      "report_updated": "Lesson report updated",
+      "other": "Other event"
     },
     "conflicts": {
       "checking": "Checking for conflicts…",

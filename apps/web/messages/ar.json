@@ -807,7 +807,13 @@
       "participant_joined": "دخل مشارك",
       "participant_left": "خرج مشارك",
       "note": "ملاحظة",
-      "dst_adjusted": "عُدّلت بسبب التوقيت الصيفي"
+      "dst_adjusted": "عُدّلت بسبب التوقيت الصيفي",
+      "zoom_meeting_started": "بدأ اجتماع Zoom",
+      "zoom_meeting_ended": "انتهى اجتماع Zoom",
+      "zoom_start_url_issued": "فُتح رابط بدء الاجتماع",
+      "report_submitted": "أُرسل تقرير الحصة",
+      "report_updated": "عُدّل تقرير الحصة",
+      "other": "حدث آخر"
     },
     "conflicts": {
       "checking": "جارٍ التحقق من التعارض…",

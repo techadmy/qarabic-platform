@@ -198,6 +198,7 @@ function SessionInfo({
   const me = useCurrentUser();
   const now = useNow();
   const ownTeacher = can(me, 'sessions.conduct') && !can(me, 'sessions.manage');
+  const seesEvidence = can(me, 'sessions.manage');
   const course = locale === 'ar' ? s.course.nameAr : s.course.nameEn;
   const stageName = (stage: string | null) =>
     stage ? (SESSION_STAGE_LABELS[stage as SessionStage]?.[locale] ?? stage) : '';
@@ -331,21 +332,31 @@ function SessionInfo({
             </Section>
           </>
         )}
-      <Separator />
-      <Section title={t('detail.evidence')}>
-        <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
-          <dt className="text-muted-foreground">{t('detail.teacherJoined')}</dt>
-          <dd>{joined(s.evidence.teacherJoinedAt)}</dd>
-          <dt className="text-muted-foreground">{t('detail.studentJoined')}</dt>
-          <dd>{joined(s.evidence.studentJoinedAt)}</dd>
-          {s.latenessMinutes > 0 && (
-            <>
-              <dt className="text-muted-foreground">{t('detail.lateness')}</dt>
-              <dd>{t('minutes', { count: s.latenessMinutes })}</dd>
-            </>
-          )}
-        </dl>
-      </Section>
+      {(seesEvidence || s.latenessMinutes > 0) && (
+        <>
+          <Separator />
+          <Section title={t('detail.evidence')}>
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+              {/* P0-4: the API sends join evidence only to class managers (nulls to the rest),
+                  so others never see a misleading «لم يدخل». */}
+              {seesEvidence && (
+                <>
+                  <dt className="text-muted-foreground">{t('detail.teacherJoined')}</dt>
+                  <dd>{joined(s.evidence.teacherJoinedAt)}</dd>
+                  <dt className="text-muted-foreground">{t('detail.studentJoined')}</dt>
+                  <dd>{joined(s.evidence.studentJoinedAt)}</dd>
+                </>
+              )}
+              {s.latenessMinutes > 0 && (
+                <>
+                  <dt className="text-muted-foreground">{t('detail.lateness')}</dt>
+                  <dd>{t('minutes', { count: s.latenessMinutes })}</dd>
+                </>
+              )}
+            </dl>
+          </Section>
+        </>
+      )}
       {s.requests.length > 0 && (
         <>
           <Separator />
@@ -384,7 +395,9 @@ function SessionInfo({
             return (
               <li key={e.id} className="flex flex-col gap-0.5 text-sm">
                 <span className="font-semibold">
-                  {t.has(`events.${e.type}`) ? t(`events.${e.type}`) : e.type}
+                  {/* A type without a label (e.g. one imported from the old system) never
+                      shows as a raw key. */}
+                  {t.has(`events.${e.type}`) ? t(`events.${e.type}`) : t('events.other')}
                   {e.type === 'marked' && e.toStage ? ` — ${stageName(e.toStage)}` : ''}
                 </span>
                 <span

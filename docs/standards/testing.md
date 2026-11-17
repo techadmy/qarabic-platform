@@ -56,9 +56,14 @@ academy's day still work end to end?», which no layer above checks on its own.
 - **Report:** `e2e-journeys/summary-reporter.ts` writes `journeys-summary.json` (journey, steps,
   status, duration, screenshot, commit, run URL). The `QA journeys` workflow
   (`.github/workflows/journeys.yml`) runs on every PR, nightly at 02:30 Cairo and by hand; it
-  prints the step table on the run page and uploads the screenshots and report. The owner's
-  dashboard is the «Qarabic QA» artifact, fed from these summaries. Not a required check until the
-  owner decides.
+  prints the step table on the run page and uploads the screenshots and report. Not a required
+  check until the owner decides.
+- **Public feed:** after a nightly or manual run on `main` (never a PR), the workflow's `publish`
+  job commits to the `qa-reports` branch (`e2e-journeys/report-feed.mjs`): `latest.json` (the run's
+  summary), `history.json` (last 60 journey runs), `runs.json` / `steps.json` (the «Qarabic QA»
+  dashboard's datasets) and `shots/` (the latest failing step's screenshot). Read them at
+  `https://raw.githubusercontent.com/techadmy/qarabic-platform/qa-reports/<file>`: the owner's
+  dashboard and the Control Center use them. QA personas only; nothing else is written there.
 - **Adding a journey:** a new `jN-*.spec.ts` with its own tag; reuse `helpers.ts` (sign-in, API with
   CSRF, Zoom signing, CLI); add personas to `qa-seed.ts` only if the journey needs a new role.
   Assert what the user sees (role/label locators) and the API state behind it.

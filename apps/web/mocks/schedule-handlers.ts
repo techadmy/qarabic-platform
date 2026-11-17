@@ -478,11 +478,14 @@ export function presentSession(s: SessionRow, me: MockUser): SessionDto {
         hasLink && !terminal && nowMs() >= start - 60 * MIN && nowMs() <= Date.parse(endsAt(s)),
       link: link.source,
     },
-    evidence: {
-      actualStartedAt: s.activatedAt,
-      teacherJoinedAt: s.teacherJoinedAt,
-      studentJoinedAt: s.studentJoinedAt,
-    },
+    // P0-4, as the API: join evidence only for staff who manage classes; nulls for the rest.
+    evidence: canManage(me)
+      ? {
+          actualStartedAt: s.activatedAt,
+          teacherJoinedAt: s.teacherJoinedAt,
+          studentJoinedAt: s.studentJoinedAt,
+        }
+      : { actualStartedAt: null, teacherJoinedAt: null, studentJoinedAt: null },
     report: { submitted: !!reportOf(s.id), editableUntil: editableUntil(s) },
     attention: attention(s),
     pendingRequests: pendingOf(s).map((r) => ({ id: r.id, type: r.type })),
