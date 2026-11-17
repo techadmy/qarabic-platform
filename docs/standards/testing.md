@@ -44,7 +44,9 @@ academy's day still work end to end?», which no layer above checks on its own.
   Zoom is simulated by posting webhook events signed exactly like Zoom (`x-zm-signature` =
   `v0=` + HMAC-SHA256 of `v0:{timestamp}:{body}` with the run's test secret). Mail and WhatsApp are
   off; notifications are asserted in the in-app outbox (`/me/notifications`), never by delivery.
-  Cron jobs a journey needs run once through the API CLI (e.g. `cli operations:notify`).
+  Cron jobs a journey needs run once through the API CLI (e.g. `cli operations:notify`). If a
+  future journey ever needs a real Zoom meeting, the licensed Zoom user «Qarabic Teacher 7» is
+  reserved for QA (D152); that needs the owner's go first, never production data.
 - **Shape:** one `test()` per journey, tagged with its id (`@J1`), with the planned steps in a
   `step` annotation and each step a numbered `test.step` that asserts and calls `shot()`. No
   retries: a failure stops the story and the remaining steps show as «not run».
