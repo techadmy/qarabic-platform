@@ -15,6 +15,7 @@
     "test:e2e": "playwright test",
     "msw:init": "msw init public --save",
     "test:e2e:real": "E2E_REAL_API=1 playwright test",
+    "test:journeys": "playwright test --config playwright.journeys.config.ts",
     "test:coverage": "vitest run lib --coverage"
   },
   "dependencies": {

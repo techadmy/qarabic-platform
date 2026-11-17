@@ -1,3 +1,6 @@
 e2e-results.json
 e2e/.axe-moderate.log
 e2e/*-snapshots/*-darwin.png
+journeys-results/
+journeys-report/
+journeys-summary.json
