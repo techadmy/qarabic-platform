@@ -1,0 +1,80 @@
+{
+  "rows": [
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 1,
+      "title": "QA personas are seeded and staff signs in",
+      "status": "passed",
+      "durationS": 2.1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 2,
+      "title": "Staff creates an enrollment (external link) → today’s class is generated",
+      "status": "passed",
+      "durationS": 2.2,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 3,
+      "title": "Teacher sees the class and its join link, and activates it",
+      "status": "passed",
+      "durationS": 1.7,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 4,
+      "title": "Zoom: teacher and student join (signed webhooks) → timeline and Today board",
+      "status": "passed",
+      "durationS": 1.5,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 5,
+      "title": "Teacher ends the class and submits the lesson report",
+      "status": "passed",
+      "durationS": 1.7,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 6,
+      "title": "Parent sees the class as held and the report — no staff names (D142)",
+      "status": "passed",
+      "durationS": 2.2,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    },
+    {
+      "journey": "J1",
+      "runAt": "2026-11-17T20:25:47.638Z",
+      "n": 7,
+      "title": "Parent’s notification is in the outbox (in-app bell; mail/WhatsApp off)",
+      "status": "passed",
+      "durationS": 1.1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+    }
+  ],
+  "meta": [
+    {
+      "label": "Made by",
+      "value": "apps/web/e2e-journeys/dashboard-rows.mjs"
+    }
+  ]
+}
