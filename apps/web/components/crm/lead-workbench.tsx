@@ -297,6 +297,13 @@ function Workbench({ lead }: { lead: LeadDetailDto }) {
                 {t('actions.rebook')}
               </Button>
             )}
+            {/* J2: the API takes a (new) outcome at «trial_done» too, e.g. the family changed
+                their mind after the report. */}
+            {lead.status === 'trial_done' && can('record_outcome') && (
+              <Button variant="outline" onClick={() => setDialog('outcome')}>
+                {t('primary.record_outcome')}
+              </Button>
+            )}
             {lead.status === 'trial_done' && can('book_trial') && (
               <Button variant="outline" onClick={() => setDialog('trial')}>
                 {t('primary.book_trial')}
