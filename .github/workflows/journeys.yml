@@ -37,6 +37,8 @@ jobs:
       # The journeys' own database (qa:seed refuses anything not named *_test and empties it).
       JOURNEYS_DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_journeys_test
       DATABASE_URL: postgresql://qarabic:qarabic@localhost:5432/qarabic_journeys_test
+      # The commit the report names: the PR's head, not GitHub's merge commit.
+      JOURNEYS_COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1

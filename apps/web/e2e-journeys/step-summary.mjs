@@ -10,6 +10,13 @@ if (!existsSync(file)) {
 const summary = JSON.parse(readFileSync(file, 'utf8'));
 const icon = { passed: '✅', failed: '❌', not_run: '⏸️', skipped: '⏭️' };
 const seconds = (ms) => `${(ms / 1000).toFixed(1)} s`;
+// A table cell: backslashes, pipes and markup escaped, one line.
+const cell = (text) =>
+  String(text)
+    .replace(/\\/g, '\\\\')
+    .replace(/\|/g, '\\|')
+    .replace(/</g, '&lt;')
+    .replace(/\s+/g, ' ');
 
 const lines = [`### QA journeys — ${icon[summary.status] ?? ''} ${summary.status}`, ''];
 for (const journey of summary.journeys) {
@@ -20,9 +27,9 @@ for (const journey of summary.journeys) {
     '|---|------|--------|------|',
   );
   for (const step of journey.steps) {
-    const error = step.error ? `<br>${step.error.replace(/\|/g, '\\|').slice(0, 200)}` : '';
+    const error = step.error ? `<br>${cell(step.error.slice(0, 200))}` : '';
     lines.push(
-      `| ${step.n} | ${step.title}${error} | ${icon[step.status] ?? ''} ${step.status} | ${seconds(step.durationMs)} |`,
+      `| ${step.n} | ${cell(step.title)}${error} | ${icon[step.status] ?? ''} ${step.status} | ${seconds(step.durationMs)} |`,
     );
   }
   lines.push('');

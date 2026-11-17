@@ -71,7 +71,7 @@ export default class SummaryReporter implements Reporter {
       generatedAt: new Date().toISOString(),
       status: result.status === 'passed' ? 'passed' : 'failed',
       durationMs: Date.now() - this.started,
-      commit: env.GITHUB_SHA ?? null,
+      commit: env.JOURNEYS_COMMIT || env.GITHUB_SHA || null,
       branch: env.GITHUB_HEAD_REF || env.GITHUB_REF_NAME || null,
       event: env.GITHUB_EVENT_NAME ?? null,
       runUrl,
