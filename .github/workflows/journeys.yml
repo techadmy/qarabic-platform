@@ -84,3 +84,61 @@ jobs:
             apps/web/journeys-report/
           if-no-files-found: ignore
           retention-days: 30
+
+  publish:
+    # The public QA feed: after a nightly or manual run on main (never a PR), the run's summary,
+    # the history and the dashboard's datasets are committed to the `qa-reports` branch, read by
+    # the «Qarabic QA» dashboard and the Control Center (raw.githubusercontent.com/<repo>/qa-reports/
+    # latest.json). QA personas only, no secrets. Only this job may write, and only that branch.
+    name: Publish the QA feed
+    needs: journeys
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    concurrency:
+      group: qa-reports-feed
+      cancel-in-progress: false
+    steps:
+      # A full checkout: a sparse one would also hide the feed's `shots/` folder from git.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+      - name: The run's summary
+        id: summary
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh run download "$GITHUB_RUN_ID" -n "qa-journeys-$GITHUB_RUN_ID" -D artifact \
+            && [ -f artifact/journeys-summary.json ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::No journeys summary in this run (the journeys stopped before running): nothing published."
+          fi
+      - name: Update the qa-reports branch
+        if: steps.summary.outputs.found == 'true'
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          if git fetch --depth 1 origin qa-reports; then
+            git worktree add feed FETCH_HEAD
+          else
+            git worktree add --detach feed
+            git -C feed checkout --orphan qa-reports
+            git -C feed rm -rq --cached . && git -C feed clean -fdxq
+          fi
+          node apps/web/e2e-journeys/report-feed.mjs feed artifact/journeys-summary.json
+          cat > feed/README.md <<'MD'
+          # QA feed (generated)
+
+          Written by the «QA journeys» workflow after each nightly or manual run on `main`. Do not edit.
+          `latest.json` (last run, journeys-summary schema 1), `history.json` (last 60 journey runs),
+          `runs.json` / `steps.json` (the «Qarabic QA» dashboard's datasets) and `shots/` (the latest
+          failing step's screenshot). QA personas only; how journeys work: docs/standards/testing.md.
+          MD
+          git -C feed add -A
+          git -C feed commit -qm "qa: ${GITHUB_EVENT_NAME} run ${GITHUB_RUN_ID}" || exit 0
+          git -C feed push origin HEAD:refs/heads/qa-reports
