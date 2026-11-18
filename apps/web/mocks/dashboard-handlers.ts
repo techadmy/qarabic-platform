@@ -1,5 +1,7 @@
 import {
   DASHBOARD_WAITING_LINKS,
+  visibleEventKinds,
+  type DashboardEventDto,
   visibleWaiting,
   visibleWidgets,
   type DashboardMetricsDto,
@@ -96,7 +98,92 @@ function totals(from: string, to: string) {
   };
 }
 
+/**
+ * The mock «Recent events» (D3, `GET /dashboard/events`): a fixed list, one every 37 minutes back
+ * from now, filtered by `visibleEventKinds()` like the API and paged by `before`.
+ */
+function mockEvents(now: number): DashboardEventDto[] {
+  const at = (i: number) => new Date(now - (i + 1) * 37 * 60_000).toISOString();
+  const staff = { id: 2, name: 'Sara Ali', role: 'billing' };
+  const rows: Omit<DashboardEventDto, 'key' | 'at'>[] = [
+    {
+      kind: 'payment_received',
+      actor: null,
+      subject: { type: 'payment', id: 301 },
+      data: { amount: '120.00', currency: 'USD', method: 'card', invoiceId: 1 },
+    },
+    {
+      kind: 'lead_converted',
+      actor: staff,
+      subject: { type: 'lead', id: 1 },
+      data: { familyId: 1 },
+    },
+    {
+      kind: 'invoice_issued',
+      actor: staff,
+      subject: { type: 'invoice', id: 2 },
+      data: { number: 'INV-2026-0042', total: '95.00', currency: 'GBP' },
+    },
+    {
+      kind: 'class_cancelled',
+      actor: staff,
+      subject: { type: 'class_session', id: 1 },
+      data: { startsAt: new Date(now + 26 * 3_600_000).toISOString(), reason: null },
+    },
+    {
+      kind: 'trial_booked',
+      actor: staff,
+      subject: { type: 'lead', id: 2 },
+      data: { startsAt: new Date(now + 50 * 3_600_000).toISOString(), sessionId: 9 },
+    },
+    {
+      kind: 'payroll_approved',
+      actor: staff,
+      subject: { type: 'payroll_run', id: 1 },
+      data: { period: '2026-10' },
+    },
+    {
+      kind: 'payment_refunded',
+      actor: staff,
+      subject: { type: 'payment', id: 288 },
+      data: { amount: '40.00', currency: 'USD', method: 'card', invoiceId: 1 },
+    },
+    {
+      kind: 'payslip_paid',
+      actor: staff,
+      subject: { type: 'payslip', id: 1 },
+      data: { paidOn: '2026-11-05' },
+    },
+    {
+      kind: 'invoice_voided',
+      actor: staff,
+      subject: { type: 'invoice', id: 3 },
+      data: {},
+    },
+  ];
+  // Twelve events: the first page of eight, then «show more».
+  return Array.from({ length: 12 }, (_, i) => ({
+    ...rows[i % rows.length]!,
+    key: `audit:${1000 - i}`,
+    at: at(i),
+  }));
+}
+
 export const dashboardHandlers: HttpHandler[] = [
+  http.get(`${API}/dashboard/events`, ({ request }) => {
+    const g = guard(request, 'reports.view');
+    if ('error' in g) return g.error;
+    const q = new URL(request.url).searchParams;
+    const limit = Math.min(50, Math.max(1, Number(q.get('limit')) || 20));
+    const before = q.get('before');
+    const kinds = new Set(visibleEventKinds(new Set(g.me.permissions)));
+    const all = mockEvents(Date.now()).filter(
+      (e) => kinds.has(e.kind) && (!before || e.at < before),
+    );
+    const events = all.slice(0, limit);
+    const nextBefore = all.length > limit ? events[events.length - 1]!.at : null;
+    return HttpResponse.json({ data: { events, nextBefore } });
+  }),
   http.get(`${API}/dashboard/metrics`, ({ request }) => {
     const g = guard(request, 'reports.view');
     if ('error' in g) return g.error;

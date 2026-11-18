@@ -4456,12 +4456,31 @@
         "description": "Paid teacher hours in each period (rounded per class).",
         "hours": "Hours",
         "payroll": "Teacher pay in the period: <amount></amount>"
-      }
+      },
+      "details": "Details: \u2068{title}\u2069",
+      "detailsShort": "Details"
     },
     "missingRates": {
       "title": "Missing exchange rates",
       "body": "No USD rate for: {list}. Amounts in these currencies for those months are left out of the USD totals and shown in their own currency.",
       "link": "Add the missing rate"
+    },
+    "panel": {
+      "error": "Couldn’t load this panel.",
+      "retry": "Try again"
+    },
+    "waiting": {
+      "title": "Waiting for action",
+      "description": "What is pending now; each opens its list.",
+      "empty": "Nothing is waiting for action."
+    },
+    "events": {
+      "title": "Recent events",
+      "description": "The latest activity across the academy.",
+      "empty": "No events yet.",
+      "system": "System",
+      "more": "Show more",
+      "moreError": "Couldn’t load more events."
     }
   },
   "calendar": {

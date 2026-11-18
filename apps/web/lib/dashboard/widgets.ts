@@ -80,6 +80,33 @@ export function kpiHref(widget: KpiWidget, range: { from: string; to: string }):
   }
 }
 
+/**
+ * The list or report behind a chart (docs/40 §2.5), narrowed to the range where it can be, like
+ * `kpiHref`: the income statement and the lead KPIs take from/to, invoices a month.
+ */
+export function chartHref(chart: ChartWidget, range: { from: string; to: string }): string {
+  const oneDay = range.from === range.to;
+  const oneMonth = range.from.slice(0, 7) === range.to.slice(0, 7);
+  const span = `from=${range.from}&to=${range.to}`;
+  switch (chart) {
+    case 'revenue_expenses':
+      return `/accounting/reports?report=profit-and-loss&${span}`;
+    case 'collections':
+      return oneMonth ? `/invoices?period=${range.from.slice(0, 7)}` : '/invoices';
+    case 'ageing':
+      return '/invoices?status=overdue';
+    case 'students_trials':
+    case 'leads_by_source':
+      return `/leads/kpis?${span}`;
+    case 'lost_reasons':
+      return '/leads?status=lost';
+    case 'class_outcomes':
+      return oneDay ? `/today?date=${range.from}` : '/today';
+    case 'teacher_hours':
+      return '/payroll';
+  }
+}
+
 /** A USD total as a number, or null when a rate is missing (a gap, never a 0). */
 export const usdOf = (m: UsdMoney | null | undefined): number | null =>
   m && m.usd !== null && !m.missingRate ? Number(m.usd) : null;

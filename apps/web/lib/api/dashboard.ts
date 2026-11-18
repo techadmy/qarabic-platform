@@ -1,4 +1,9 @@
-import { dashboardMetricsSchema, type DashboardMetricsDto } from '@qarabic/shared';
+import {
+  dashboardEventsSchema,
+  dashboardMetricsSchema,
+  type DashboardEventsDto,
+  type DashboardMetricsDto,
+} from '@qarabic/shared';
 import { z } from 'zod';
 import { apiFetch } from './client';
 
@@ -29,7 +34,23 @@ export async function fetchDashboardMetrics(
   ).data;
 }
 
+/** D3 «Recent events» (docs/40 §3 row 3, `GET /dashboard/events`): newest first, paged by `before`. */
+export async function fetchDashboardEvents(
+  q: { limit: number; before?: string | null },
+  signal?: AbortSignal,
+): Promise<DashboardEventsDto> {
+  const qs = new URLSearchParams({ limit: String(q.limit) });
+  if (q.before) qs.set('before', q.before);
+  return (
+    await apiFetch(`/dashboard/events?${qs}`, {
+      schema: z.object({ data: dashboardEventsSchema }),
+      signal,
+    })
+  ).data;
+}
+
 export const dashboardKeys = {
   all: ['dashboard'] as const,
   metrics: (q: DashboardMetricsQuery) => ['dashboard', 'metrics', q] as const,
+  events: ['dashboard', 'events'] as const,
 };
