@@ -45,6 +45,36 @@
       "branch": "main",
       "commit": "ae740cc",
       "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "runAt": "2026-11-18T07:49:08.087Z",
+      "journey": "J1",
+      "title": "J1 class day",
+      "status": "passed",
+      "stepsPassed": 7,
+      "stepsTotal": 7,
+      "failedStep": null,
+      "error": null,
+      "durationS": 16.5,
+      "trigger": "nightly",
+      "branch": "main",
+      "commit": "ae740cc",
+      "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+    },
+    {
+      "runAt": "2026-11-18T07:49:08.087Z",
+      "journey": "J2",
+      "title": "J2 trial to regular",
+      "status": "passed",
+      "stepsPassed": 7,
+      "stepsTotal": 7,
+      "failedStep": null,
+      "error": null,
+      "durationS": 19.9,
+      "trigger": "nightly",
+      "branch": "main",
+      "commit": "ae740cc",
+      "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
     }
   ]
 }
