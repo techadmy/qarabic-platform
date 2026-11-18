@@ -294,13 +294,16 @@ export function RequestCard({
             )}
           </div>
         )}
-        <p className="text-sm">
-          <bdi>{r.reason}</bdi>
-        </p>
+        {r.reason && (
+          <p className="text-sm">
+            <bdi>{r.reason}</bdi>
+          </p>
+        )}
         {r.decisionNote && (
           <p className="text-sm text-muted-foreground">
             {t('decisionNote')}: <bdi>{r.decisionNote}</bdi>
-            {r.decidedBy?.name && <> — {r.decidedBy.name}</>}
+            {/* A parent or teacher gets the decider by role only (D142): «إدارة الأكاديمية». */}
+            {r.decidedBy && <> — {r.decidedBy.name ? <bdi>{r.decidedBy.name}</bdi> : t('staff')}</>}
           </p>
         )}
         {extra}

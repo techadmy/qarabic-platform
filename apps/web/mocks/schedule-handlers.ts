@@ -834,8 +834,17 @@ export function presentRequest(r: RequestRow, me: MockUser, withSession = true):
     if (me.permissions.includes('session_requests.approve')) actions.push('approve', 'reject');
     if (r.requestedBy.id === me.id) actions.push('cancel');
   }
+  // P0-4 / D142 (#150), as the API: a parent or teacher sees someone else's request and the
+  // deciding staff member by role only, without the reason or the decision note.
+  const portal = isParent(me) || isTeacher(me);
+  const hide = portal && r.requestedBy.id !== me.id;
   return {
     ...r,
+    requestedBy: hide ? { id: null, name: null, role: r.requestedBy.role } : r.requestedBy,
+    reason: hide ? '' : r.reason,
+    decisionNote: hide ? null : r.decisionNote,
+    decidedBy:
+      r.decidedBy && portal && r.decidedBy.id !== me.id ? { id: null, name: null } : r.decidedBy,
     session: withSession ? presentSession(s, me) : undefined,
     student: student ? { id: student.id, name: student.name } : null,
     allowedActions: actions,
