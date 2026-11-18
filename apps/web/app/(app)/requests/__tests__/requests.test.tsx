@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 import { RequestsView } from '@/app/(app)/requests/requests-view';
+import { MOCK_USERS } from '@/mocks/data';
 import { server } from '@/mocks/node';
 import { sdb } from '@/mocks/schedule-db';
 import { lastReplacedUrl, renderPage } from '@/test/people';
@@ -83,5 +84,21 @@ describe('Requests inbox', () => {
     expect(items).toHaveLength(1);
     expect(within(items[0]!).getByRole('button', { name: 'سحب الطلب' })).toBeInTheDocument();
     expect(within(items[0]!).queryByRole('button', { name: /^موافقة/ })).not.toBeInTheDocument();
+  });
+
+  it('shows a parent the staff who decided by role only (D142), never a name', async () => {
+    const parent = MOCK_USERS.find((u) => u.email === 'parent@qarabic.test')!;
+    const own = sdb.requests.find((r) => r.requestedBy.id === parent.id)!;
+    Object.assign(own, {
+      status: 'approved',
+      decidedBy: { id: 1, name: 'Admin Person' },
+      decidedAt: new Date().toISOString(),
+      decisionNote: 'See you then',
+    });
+    renderPage(<RequestsView />, { as: 'parent@qarabic.test', path: '/requests?status=decided' });
+    const list = await screen.findByRole('list', { name: 'طلباتي' });
+    expect(await within(list).findByText(/See you then/)).toBeInTheDocument();
+    expect(within(list).getByText(/إدارة الأكاديمية/)).toBeInTheDocument();
+    expect(screen.queryByText(/Admin Person/)).not.toBeInTheDocument();
   });
 });

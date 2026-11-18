@@ -1009,7 +1009,13 @@
       "back": "Back",
       "send": "Send request"
     },
-    "staff": "Academy staff"
+    "staff": "Academy staff",
+    "makeUp": {
+      "label": "Make-up class",
+      "hint": "Pick a time for the make-up after the leave, within the period the academy allows from the original class. The academy reviews it unless it is approved automatically.",
+      "outsideWindow": "This time is outside the make-up period. Pick a time closer to the original class.",
+      "action": "Ask for a make-up class"
+    }
   },
   "schedule": {
     "title": "Schedule",

@@ -834,8 +834,17 @@ export function presentRequest(r: RequestRow, me: MockUser, withSession = true):
     if (me.permissions.includes('session_requests.approve')) actions.push('approve', 'reject');
     if (r.requestedBy.id === me.id) actions.push('cancel');
   }
+  // P0-4 / D142 (#150), as the API: a parent or teacher sees someone else's request and the
+  // deciding staff member by role only, without the reason or the decision note.
+  const portal = isParent(me) || isTeacher(me);
+  const hide = portal && r.requestedBy.id !== me.id;
   return {
     ...r,
+    requestedBy: hide ? { id: null, name: null, role: r.requestedBy.role } : r.requestedBy,
+    reason: hide ? '' : r.reason,
+    decisionNote: hide ? null : r.decisionNote,
+    decidedBy:
+      r.decidedBy && portal && r.decidedBy.id !== me.id ? { id: null, name: null } : r.decidedBy,
     session: withSession ? presentSession(s, me) : undefined,
     student: student ? { id: student.id, name: student.name } : null,
     allowedActions: actions,
@@ -888,7 +897,8 @@ function applyRequest(r: RequestRow, me: MockUser | null, startsAt?: string, tea
   sdb.sessions.push(made);
   addEvent(made.id, 'created', null, 'scheduled', actor, { requestId: r.id });
   r.resultSessionId = made.id;
-  if (r.type !== 'extra') {
+  // As the API: only a scheduled class moves out; a leave class stays «إجازة» beside its make-up.
+  if (r.type !== 'extra' && s.stage === 'scheduled') {
     const from = s.stage;
     s.stage = 'moved_out';
     s.stageReason = r.type === 'advance' ? 'advanced' : 'rescheduled';
@@ -2210,6 +2220,22 @@ export const scheduleHandlers: HttpHandler[] = [
         proposedStartsAt: ['This field is required.'],
       });
     }
+    // As the API (requests.service.ts validateTarget): a reschedule of a scheduled class must be
+    // later than it; a leave class takes a make-up within `sessions.makeup_window_days`.
+    if (input.type === 'reschedule' && input.proposedStartsAt) {
+      const makeUp = s.stage === 'leave';
+      if (!makeUp && s.stage !== 'scheduled') {
+        return apiError(422, 'validation_failed', 'The given data was invalid.', {
+          sessionId: ['Only a scheduled class or a leave class can be rescheduled.'],
+        });
+      }
+      const window = settings()['sessions.makeup_window_days'] * 86_400_000;
+      if (makeUp && Date.parse(input.proposedStartsAt) > Date.parse(s.startsAt) + window) {
+        return apiError(422, 'validation_failed', 'The given data was invalid.', {
+          proposedStartsAt: ['A make-up must be within the make-up window of the class.'],
+        });
+      }
+    }
     if (
       input.type === 'advance' &&
       input.proposedStartsAt &&
@@ -2246,7 +2272,13 @@ export const scheduleHandlers: HttpHandler[] = [
       sessionId: s.id,
       requestedBy: { id: g.me.id, name: g.me.name, role: g.me.role?.name ?? 'staff' },
       reason: input.reason,
-      notifiedAt: input.type === 'leave' ? (input.notifiedAt ?? iso(nowMs())) : null,
+      // Only staff record when a leave was notified; for others it is now (J4).
+      notifiedAt:
+        input.type === 'leave'
+          ? ((g.me.role?.kind === 'owner' || g.me.role?.kind === 'staff'
+              ? input.notifiedAt
+              : undefined) ?? iso(nowMs()))
+          : null,
       proposedStartsAt: input.proposedStartsAt ?? null,
       proposedDurationMinutes: input.proposedDurationMinutes ?? null,
       proposedTeacherId: input.proposedTeacherId ?? null,
