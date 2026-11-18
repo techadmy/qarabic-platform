@@ -5,8 +5,12 @@ name: QA journeys
 # every PR, nightly and by hand. Not a required check (protect-main) until the owner says so.
 on:
   pull_request:
+  # Nightly, far from local midnight (classes are «today»). GitHub delays scheduled runs under load
+  # and sometimes drops them (2026-11-18: no run at all; CodeQL's weekly one came 8 h late), so a
+  # backup slot follows; the `gate` job skips a slot when a run on main already finished that night.
   schedule:
-    - cron: '30 0 * * *' # nightly, 02:30 Cairo (far from local midnight: classes are «today»)
+    - cron: '30 0 * * *' # 02:30 Cairo
+    - cron: '45 3 * * *' # 05:45 Cairo, backup
   workflow_dispatch:
 
 permissions:
@@ -17,8 +21,43 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  gate:
+    # A scheduled slot runs only if no run on main finished (passed or failed) in the last 18 hours:
+    # one nightly result whichever slot GitHub fires first. PRs and manual runs always go ahead.
+    name: Nightly gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.check.outputs.run }}
+    steps:
+      - id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" != "schedule" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          since="$(date -u -d '-18 hours' +%Y-%m-%dT%H:%M:%SZ)"
+          done="$(gh api -X GET "repos/$GITHUB_REPOSITORY/actions/workflows/journeys.yml/runs" \
+            -f branch=main -f status=completed -f "created=>=$since" -f per_page=50 \
+            --jq "[.workflow_runs[] | select(.id != $GITHUB_RUN_ID)
+              | select(.event == \"schedule\" or .event == \"workflow_dispatch\")
+              | select(.conclusion == \"success\" or .conclusion == \"failure\")] | length")"
+          if [ "$done" -gt 0 ]; then
+            echo "::notice::A journeys run on main already finished in the last 18 h: this slot is skipped."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   journeys:
     name: QA journeys (real stack)
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -92,7 +131,7 @@ jobs:
     # latest.json). QA personas only, no secrets. Only this job may write, and only that branch.
     name: Publish the QA feed
     needs: journeys
-    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
+    if: ${{ !cancelled() && needs.journeys.result != 'skipped' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
