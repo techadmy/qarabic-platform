@@ -2,73 +2,143 @@
   "rows": [
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 1,
       "title": "QA personas are seeded and staff signs in",
       "status": "passed",
       "durationS": 2.1,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 2,
       "title": "Staff creates an enrollment (external link) → today’s class is generated",
       "status": "passed",
-      "durationS": 2.2,
+      "durationS": 2.3,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 3,
       "title": "Teacher sees the class and its join link, and activates it",
       "status": "passed",
-      "durationS": 1.7,
+      "durationS": 1.8,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 4,
       "title": "Zoom: teacher and student join (signed webhooks) → timeline and Today board",
       "status": "passed",
-      "durationS": 1.5,
+      "durationS": 1.4,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 5,
       "title": "Teacher ends the class and submits the lesson report",
       "status": "passed",
-      "durationS": 1.7,
+      "durationS": 1.8,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 6,
       "title": "Parent sees the class as held and the report — no staff names (D142)",
       "status": "passed",
-      "durationS": 2.2,
+      "durationS": 2.1,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-17T20:25:47.638Z",
+      "runAt": "2026-11-18T07:35:09.176Z",
       "n": 7,
       "title": "Parent’s notification is in the outbox (in-app bell; mail/WhatsApp off)",
       "status": "passed",
       "durationS": 1.1,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 1,
+      "title": "A parent asks for a free trial on the public form → a new lead",
+      "status": "passed",
+      "durationS": 4.1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 2,
+      "title": "Staff call, open the family account and book a trial today",
+      "status": "passed",
+      "durationS": 2.4,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 3,
+      "title": "Trial teacher sees the trial, opens its link, runs and ends it",
+      "status": "passed",
+      "durationS": 1.7,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 4,
+      "title": "Trial teacher submits the trial report → lead «trial done», staff notified",
+      "status": "passed",
+      "durationS": 1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 5,
+      "title": "Staff convert the family to regular (dialog prefilled from the report)",
+      "status": "passed",
+      "durationS": 2.6,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 6,
+      "title": "The first regular class is generated; the teacher sees it",
+      "status": "passed",
+      "durationS": 1.1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
+    },
+    {
+      "journey": "J2",
+      "runAt": "2026-11-18T07:35:09.176Z",
+      "n": 7,
+      "title": "The new parent signs in: teacher, first class, trial summary — no staff names (D142)",
+      "status": "passed",
+      "durationS": 2.2,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255"
     }
   ],
   "meta": [

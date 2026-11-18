@@ -1,25 +1,25 @@
 {
   "schema": 1,
-  "generatedAt": "2026-11-17T20:25:47.638Z",
+  "generatedAt": "2026-11-18T07:35:09.176Z",
   "status": "passed",
-  "durationMs": 59942,
-  "commit": "cbbab471e69fdaf74f8ae81034195c3ec4d80d3d",
+  "durationMs": 67311,
+  "commit": "ae740cc555a5ba78f9590d7a447105f1e2922bc0",
   "branch": "main",
   "event": "workflow_dispatch",
-  "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44168814875",
+  "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44259783255",
   "journeys": [
     {
       "id": "J1",
       "title": "J1 class day",
       "status": "passed",
-      "durationMs": 12606,
+      "durationMs": 12794,
       "error": null,
       "steps": [
         {
           "n": 1,
           "title": "QA personas are seeded and staff signs in",
           "status": "passed",
-          "durationMs": 2050,
+          "durationMs": 2122,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-1-b53365b57ba8bafcb6f9804b871f6072f1fed76c.png"
         },
@@ -27,7 +27,7 @@
           "n": 2,
           "title": "Staff creates an enrollment (external link) → today’s class is generated",
           "status": "passed",
-          "durationMs": 2209,
+          "durationMs": 2308,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-2-322c7e0af2f9d79a8cf500a88846287dfc1377b9.png"
         },
@@ -35,7 +35,7 @@
           "n": 3,
           "title": "Teacher sees the class and its join link, and activates it",
           "status": "passed",
-          "durationMs": 1732,
+          "durationMs": 1831,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-3-83371be9193fdbbff52e25ef912900f37ac125bb.png"
         },
@@ -43,7 +43,7 @@
           "n": 4,
           "title": "Zoom: teacher and student join (signed webhooks) → timeline and Today board",
           "status": "passed",
-          "durationMs": 1491,
+          "durationMs": 1436,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-4-edc62ac63e71125e354c80801961f41a5d8ead62.png"
         },
@@ -51,7 +51,7 @@
           "n": 5,
           "title": "Teacher ends the class and submits the lesson report",
           "status": "passed",
-          "durationMs": 1669,
+          "durationMs": 1776,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-5-2f0bd4c610bd4a0cd27b262d3ba5e2d0ca365e37.png"
         },
@@ -59,7 +59,7 @@
           "n": 6,
           "title": "Parent sees the class as held and the report — no staff names (D142)",
           "status": "passed",
-          "durationMs": 2238,
+          "durationMs": 2130,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-6-8fef163f2951c31fb2e9e4f7f9434637495b4e49.png"
         },
@@ -67,9 +67,74 @@
           "n": 7,
           "title": "Parent’s notification is in the outbox (in-app bell; mail/WhatsApp off)",
           "status": "passed",
-          "durationMs": 1091,
+          "durationMs": 1066,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-7-70672a244898b2aa9e007d6ad51687a76f9c2221.png"
+        }
+      ]
+    },
+    {
+      "id": "J2",
+      "title": "J2 trial to regular",
+      "status": "passed",
+      "durationMs": 15420,
+      "error": null,
+      "steps": [
+        {
+          "n": 1,
+          "title": "A parent asks for a free trial on the public form → a new lead",
+          "status": "passed",
+          "durationMs": 4143,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-1-65349d0d52fa56d089a8f12f4f1a36ab4e19d677.png"
+        },
+        {
+          "n": 2,
+          "title": "Staff call, open the family account and book a trial today",
+          "status": "passed",
+          "durationMs": 2426,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-2-71c5908a98619db0a395cd134fabc76fc10130da.png"
+        },
+        {
+          "n": 3,
+          "title": "Trial teacher sees the trial, opens its link, runs and ends it",
+          "status": "passed",
+          "durationMs": 1669,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-3-421b9a5b9cd0ab15863b5b8fc3fd056e44aa1c6a.png"
+        },
+        {
+          "n": 4,
+          "title": "Trial teacher submits the trial report → lead «trial done», staff notified",
+          "status": "passed",
+          "durationMs": 1038,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-4-b61a6cdf3952ca058c8b6291b8c057c6452018de.png"
+        },
+        {
+          "n": 5,
+          "title": "Staff convert the family to regular (dialog prefilled from the report)",
+          "status": "passed",
+          "durationMs": 2592,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-5-041406ba3dbd48edddf056b4ca107c306541f057.png"
+        },
+        {
+          "n": 6,
+          "title": "The first regular class is generated; the teacher sees it",
+          "status": "passed",
+          "durationMs": 1146,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-6-896708368db28f814b0bfd1cd4f12338cd8d9ee3.png"
+        },
+        {
+          "n": 7,
+          "title": "The new parent signs in: teacher, first class, trial summary — no staff names (D142)",
+          "status": "passed",
+          "durationMs": 2241,
+          "error": null,
+          "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-7-d865fa6d40e4729393d0be811856df3326bb9415.png"
         }
       ]
     }
