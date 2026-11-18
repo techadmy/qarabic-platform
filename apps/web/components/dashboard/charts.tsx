@@ -3,6 +3,7 @@
 import { Button } from '@qarabic/ui/components/button';
 import {
   Card,
+  CardAction,
   CardContent,
   CardDescription,
   CardHeader,
@@ -17,7 +18,8 @@ import {
   type ChartConfig,
 } from '@qarabic/ui/components/chart';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
-import { ChartNoAxesColumnIcon, TriangleAlertIcon } from 'lucide-react';
+import { ArrowUpRightIcon, ChartNoAxesColumnIcon, TriangleAlertIcon } from 'lucide-react';
+import Link from 'next/link';
 import { useTranslations } from 'next-intl';
 import { useId, type ReactNode } from 'react';
 import {
@@ -76,11 +78,14 @@ export function ChartCard({
   onRetry,
   empty,
   missingRate,
+  href,
   children,
 }: {
   id: string;
   title: string;
   description: string;
+  /** The list or report behind the chart (docs/40 §2.5 drill-down). */
+  href?: string;
   loading: boolean;
   error: boolean;
   onRetry: () => void;
@@ -99,6 +104,17 @@ export function ChartCard({
           </h3>
         </CardTitle>
         <CardDescription>{description}</CardDescription>
+        {href && (
+          <CardAction>
+            <Button asChild variant="ghost" size="sm">
+              {/* «Details» alone is ambiguous on a page of charts: the title is in its name. */}
+              <Link href={href} aria-label={t('details', { title })}>
+                {t('detailsShort')}
+                <ArrowUpRightIcon aria-hidden className="rtl:-scale-x-100" />
+              </Link>
+            </Button>
+          </CardAction>
+        )}
       </CardHeader>
       <CardContent className="flex flex-col gap-2">
         {missingRate && missingRate.length > 0 && (

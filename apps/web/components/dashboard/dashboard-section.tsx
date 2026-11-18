@@ -22,6 +22,7 @@ import { can } from '@/lib/auth/use-me';
 import { dashboardKeys, fetchDashboardMetrics } from '@/lib/api/dashboard';
 import { paramsOf, rangeFromParams } from '@/lib/dashboard/range';
 import {
+  chartHref,
   dashboardLayout,
   kpiHref,
   usdOf,
@@ -30,6 +31,7 @@ import {
 } from '@/lib/dashboard/widgets';
 import { useListParams } from '@/lib/list-params';
 import { intlLocale } from '@/lib/time';
+import { RecentEventsPanel, WaitingPanel } from './action-panels';
 import { bucketLabel, CategoryBars, ChartCard, Donut, SeriesChart } from './charts';
 import { Change, Count, CurrencyParts, KpiCard, Pct, Usd, UsdTotal } from './kpi-card';
 import { RangeBar } from './range-bar';
@@ -192,6 +194,7 @@ export function DashboardSection() {
       loading,
       error: failed,
       onRetry: retry,
+      href: chartHref(widget, range),
     };
     switch (widget) {
       case 'revenue_expenses': {
@@ -449,6 +452,18 @@ export function DashboardSection() {
         </div>
       )}
       {charts.length > 0 && <div className="grid gap-4 lg:grid-cols-2">{charts.map(chart)}</div>}
+      {/* Row 3 (docs/40 §3): what is queued now, and what just happened. */}
+      <div className="grid items-start gap-4 lg:grid-cols-2">
+        {(!d || d.waiting.length > 0) && (
+          <WaitingPanel
+            items={d?.waiting}
+            loading={!d && !failed}
+            error={failed && !d}
+            onRetry={retry}
+          />
+        )}
+        <RecentEventsPanel />
+      </div>
     </section>
   );
 }
