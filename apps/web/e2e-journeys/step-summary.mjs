@@ -32,6 +32,7 @@ for (const journey of summary.journeys) {
       `| ${step.n} | ${cell(step.title)}${error} | ${icon[step.status] ?? ''} ${step.status} | ${seconds(step.durationMs)} |`,
     );
   }
+  for (const bug of journey.knownBugs ?? []) lines.push(`⚠️ Known bug: ${cell(bug)}`, '');
   lines.push('');
 }
 lines.push('Screenshots and the Playwright report: the `qa-journeys-…` artifact of this run.');

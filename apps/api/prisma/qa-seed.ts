@@ -14,7 +14,7 @@ import { seedCourses } from './seed-people.js';
  * 3. the QA personas, all named «QA …» on `qa.qarabic.test` (no real people), one password from
  *    QA_PASSWORD (CI makes a throwaway one per run): a staff admin, a teacher with a tracked Zoom
  *    personal meeting (made-up ids), a second teacher for trials, an hourly-paid teacher and an
- *    accountant for payroll, a family (parent login) and one student;
+ *    accountant for payroll, a family (parent login) and three students;
  * 4. the settings the journeys rely on: no minimum class length (a journey ends the class right
  *    away) and class reminders on, to the parents too (the in-app bell; mail/WhatsApp stay off).
  *
@@ -178,6 +178,18 @@ async function main(): Promise<void> {
         name: 'QA Student',
         gender: 'male',
         age: 9,
+        language: 'english',
+        regularCourseId: courses[2]?.id ?? null,
+        teacherId: teacher.id,
+      },
+    });
+    // J4: a second child of the same family for the leave / make-up journey (J1 never sees it).
+    await prisma.student.create({
+      data: {
+        familyId: family.id,
+        name: 'QA Leave Student',
+        gender: 'female',
+        age: 11,
         language: 'english',
         regularCourseId: courses[2]?.id ?? null,
         teacherId: teacher.id,

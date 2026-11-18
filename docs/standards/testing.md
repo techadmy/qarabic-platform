@@ -39,7 +39,7 @@ academy's day still work end to end?», which no layer above checks on its own.
   database and seeds the QA personas: `QA Admin`, `QA Teacher` (with a made-up tracked Zoom
   meeting), `QA Trial Teacher` (J2's trials, so they never clash with J1), `QA Payroll Teacher`
   (hourly, 100 EGP) and `QA Accountant` (J5's reviewer; the owner approves), `QA Parent` +
-  `QA Student` + `QA Payroll Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
+  `QA Student`, `QA Leave Student` (J4's second child) and `QA Payroll Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
   `*_test`. Never production data, never a real person. A login a journey creates through the
   product (J2's converted family) gets the QA password with `qa:seed --password-for=<email>`
   (`setQaPassword()`), since mail is off; QA addresses only.
@@ -54,11 +54,19 @@ academy's day still work end to end?», which no layer above checks on its own.
 - **Shape:** one `test()` per journey, tagged with its id (`@J1`), with the planned steps in a
   `step` annotation and each step a numbered `test.step` that asserts and calls `shot()`. No
   retries: a failure stops the story and the remaining steps show as «not run».
+- **Known bugs:** a journey that meets a bug someone is already fixing records it with
+  `testInfo.annotations.push({ type: 'known-bug', description })` instead of failing, only for a
+  bug listed in `docs/31` (e.g. J4's D142 API check). The summary (`knownBugs`), the run page and
+  the dashboard show it; the check disappears from the list by itself once the bug is fixed.
 - **Report:** `e2e-journeys/summary-reporter.ts` writes `journeys-summary.json` (journey, steps,
   status, duration, screenshot, commit, run URL). The `QA journeys` workflow
-  (`.github/workflows/journeys.yml`) runs on every PR, nightly at 02:30 Cairo and by hand; it
+  (`.github/workflows/journeys.yml`) runs on every PR, nightly and by hand; it
   prints the step table on the run page and uploads the screenshots and report. Not a required
   check until the owner decides.
+- **Nightly:** two cron slots, 02:30 and 05:45 Cairo. GitHub delays scheduled runs and sometimes
+  drops them (the first night had none), so the second is a backup: the `gate` job skips a slot
+  when a run on `main` already finished in the last 18 hours. Check the night with
+  `gh run list --workflow journeys.yml --event schedule`.
 - **Public feed:** after a nightly or manual run on `main` (never a PR), the workflow's `publish`
   job commits to the `qa-reports` branch (`e2e-journeys/report-feed.mjs`): `latest.json` (the run's
   summary), `history.json` (last 60 journey runs), `runs.json` / `steps.json` (the «Qarabic QA»
