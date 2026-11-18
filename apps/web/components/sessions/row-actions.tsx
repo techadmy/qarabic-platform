@@ -34,7 +34,7 @@ import {
 import { useTranslations } from 'next-intl';
 import { useState, type SyntheticEvent } from 'react';
 import { toast } from 'sonner';
-import { RequestDialog } from '@/components/requests/request-dialog';
+import { isMakeUpCandidate, RequestDialog } from '@/components/requests/request-dialog';
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { TicketFormDialog } from '@/components/support/ticket-form-dialog';
 import { retryZoom } from '@/lib/api/sessions';
@@ -85,6 +85,7 @@ export function RowActions({
   const t = useTranslations('classes');
   const tr = useTranslations('reports');
   const ts = useTranslations('support.actions');
+  const tm = useTranslations('requests.makeUp');
   const viewerTz = useViewerTz();
   const locale = useUiLocale();
   const dir = useDirection();
@@ -118,7 +119,14 @@ export function RowActions({
     !session.attention.includes('late') &&
     !session.attention.includes('needs_entry');
   const pendingTypes = new Set(session.pendingRequests.map((r) => r.type));
-  const requestTypes = mayRequest ? REQUEST_TYPES.filter((r) => !pendingTypes.has(r)) : [];
+  // J4: a class on leave takes a make-up («حصة تعويضية»): the API's reschedule of a leave class,
+  // within `sessions.makeup_window_days` of it, one pending at a time.
+  const makeUp = isMakeUpCandidate(session, me) && !pendingTypes.has('reschedule');
+  const requestTypes: RequestType[] = mayRequest
+    ? REQUEST_TYPES.filter((r) => !pendingTypes.has(r))
+    : makeUp
+      ? ['reschedule']
+      : [];
   const retry = useMutation({
     mutationFn: () => retryZoom(session.id),
     onSuccess: (s) => {
@@ -286,7 +294,7 @@ export function RowActions({
                 </DropdownMenuLabel>
                 {requestTypes.map((type) => (
                   <DropdownMenuItem key={type} onSelect={() => setRequest(type)}>
-                    {REQUEST_TYPE_LABELS[type][locale]}
+                    {makeUp ? tm('label') : REQUEST_TYPE_LABELS[type][locale]}
                   </DropdownMenuItem>
                 ))}
               </>

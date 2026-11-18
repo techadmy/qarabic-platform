@@ -36,6 +36,7 @@ import { DatePicker, TimeSelect } from '@/components/forms/date-time';
 import { canSave, ConflictList } from '@/components/sessions/conflict-list';
 import { BothClassTimes, useUiLocale, useViewerTz } from '@/components/sessions/times';
 import { useCurrentUser } from '@/components/shell/app-shell';
+import { isApiError } from '@/lib/api/client';
 import { createRequest } from '@/lib/api/requests';
 import { checkSchedule, scheduleKeys } from '@/lib/api/schedule';
 import { can } from '@/lib/auth/use-me';
@@ -46,10 +47,29 @@ import { addDays, dateKeyIn, hhmmIn, zonedInstant } from '@/lib/schedule-time';
 /** Where the proposed time starts: the class time, a day later (or the same day for advance). */
 function proposedDefaults(session: SessionDto, type: RequestType, tz: string) {
   const day = dateKeyIn(tz, new Date(session.startsAt));
+  const next = addDays(day, 1);
+  const today = dateKeyIn(tz);
   return {
-    date: type === 'advance' ? day : addDays(day, 1),
+    // A make-up of a past leave class starts from tomorrow, never a day already gone.
+    date: type === 'advance' ? day : next < today ? addDays(today, 1) : next,
     time: hhmmIn(session.startsAt, tz),
   };
+}
+
+/**
+ * J4: a class on leave can be made up («حصة تعويضية»): the API takes a reschedule of a leave
+ * class from the parent, the class's teacher or staff who handle requests (apps/api
+ * requests.service.ts `assertCanRequest`), within `sessions.makeup_window_days` of the class.
+ */
+export function isMakeUpCandidate(session: SessionDto, me: ReturnType<typeof useCurrentUser>) {
+  return (
+    session.stage === 'leave' &&
+    (me.role?.kind === 'parent' ||
+      can(me, 'session_requests.request') ||
+      can(me, 'session_requests.manage') ||
+      can(me, 'session_requests.approve') ||
+      can(me, 'sessions.conduct'))
+  );
 }
 
 /**
@@ -76,7 +96,12 @@ export function RequestDialog({
   const me = useCurrentUser();
   const queryClient = useQueryClient();
   const message = useClassError();
+  const tm = useTranslations('requests.makeUp');
   const needsTime = type !== 'leave';
+  const makeUp = type === 'reschedule' && session.stage === 'leave';
+  // The notice time is the staff's to record (a phone call); a family's or a teacher's leave is
+  // notified when they send it (J4; the API ignores it from them).
+  const staffViewer = me.role?.kind === 'owner' || me.role?.kind === 'staff';
   const canCheck = can(me, 'schedule.view') && me.role?.kind !== 'parent';
   const initial = proposedDefaults(session, type, tz);
   const [date, setDate] = useState(initial.date);
@@ -113,7 +138,10 @@ export function RequestDialog({
         sessionId: session.id,
         reason: reason.trim(),
         ...(type === 'leave'
-          ? { notifiedAt: notifiedAt ? new Date(notifiedAt).toISOString() : undefined }
+          ? {
+              notifiedAt:
+                staffViewer && notifiedAt ? new Date(notifiedAt).toISOString() : undefined,
+            }
           : { proposedStartsAt: startsAt! }),
         acknowledgeWarnings: ack,
       }),
@@ -131,6 +159,8 @@ export function RequestDialog({
     onError: (e) => {
       const conflicts = conflictsOf(e);
       if (conflicts) setServerResult(conflicts);
+      else if (makeUp && isApiError(e, 422) && e.error?.errors?.proposedStartsAt)
+        setError(tm('outsideWindow'));
       else setError(message(e));
     },
   });
@@ -170,7 +200,7 @@ export function RequestDialog({
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
             <DialogTitle>
-              {REQUEST_TYPE_LABELS[type][locale]} — {session.student.name}
+              {makeUp ? tm('label') : REQUEST_TYPE_LABELS[type][locale]} — {session.student.name}
             </DialogTitle>
             <DialogDescription asChild>
               <div className="text-sm">
@@ -183,6 +213,7 @@ export function RequestDialog({
             </DialogDescription>
           </DialogHeader>
           <FieldGroup>
+            {makeUp && <p className="text-sm text-muted-foreground">{tm('hint')}</p>}
             {needsTime && (
               <div className="grid gap-3 sm:grid-cols-2">
                 <Field>
@@ -219,7 +250,7 @@ export function RequestDialog({
                 onAcknowledge={setAck}
               />
             )}
-            {type === 'leave' && (
+            {type === 'leave' && staffViewer && (
               <Field>
                 <FieldLabel htmlFor="request-notified">{t('notifiedAt')}</FieldLabel>
                 <Input

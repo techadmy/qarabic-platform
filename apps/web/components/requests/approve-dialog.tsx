@@ -112,7 +112,11 @@ export function ApproveDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    // J4: it stays open until the server answers, so a refusal is never lost with the dialog.
+    <Dialog
+      open={open}
+      onOpenChange={(next) => (approve.isPending ? undefined : onOpenChange(next))}
+    >
       <DialogContent className="sm:max-w-lg" showCloseButton={false}>
         <form noValidate onSubmit={submit} className="flex flex-col gap-4">
           <DialogHeader>
