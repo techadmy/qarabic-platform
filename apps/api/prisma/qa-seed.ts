@@ -13,8 +13,8 @@ import { seedCourses } from './seed-people.js';
  * 2. roles, permissions and the reference courses;
  * 3. the QA personas, all named «QA …» on `qa.qarabic.test` (no real people), one password from
  *    QA_PASSWORD (CI makes a throwaway one per run): a staff admin, a teacher with a tracked Zoom
- *    personal meeting (made-up ids), a second teacher for trials, a family (parent login) and two
- *    students;
+ *    personal meeting (made-up ids), a second teacher for trials, an hourly-paid teacher and an
+ *    accountant for payroll, a family (parent login) and three students;
  * 4. the settings the journeys rely on: no minimum class length (a journey ends the class right
  *    away) and class reminders on, to the parents too (the in-app bell; mail/WhatsApp stay off).
  *
@@ -136,6 +136,31 @@ async function main(): Promise<void> {
       },
     });
 
+    // J5: a teacher paid by the hour (100 EGP), and an accountant who reviews the payroll run the
+    // owner then approves (P0-3: the reviewer is not the approver).
+    const payrollLogin = await user('QA Payroll Teacher', 'qa-teacher3', 'teacher', 'Africa/Cairo');
+    const payrollTeacher = await prisma.teacher.create({
+      data: {
+        userId: payrollLogin.id,
+        firstName: 'QA Payroll',
+        lastName: 'Teacher',
+        gender: 'male',
+        timezone: 'Africa/Cairo',
+        countryCode: 'EG',
+        courses: { create: courses.slice(0, 3).map((c) => ({ courseId: c.id })) },
+      },
+    });
+    await prisma.payProfile.create({
+      data: {
+        userId: payrollLogin.id,
+        teacherId: payrollTeacher.id,
+        salaryType: 'hourly',
+        currency: 'EGP',
+        hourlyRate: '100.00',
+      },
+    });
+    await user('QA Accountant', 'qa-accountant', 'accounts', 'Africa/Cairo');
+
     const parent = await user('QA Parent', 'qa-parent', 'parent', 'Europe/London');
     const family = await prisma.family.create({
       data: {
@@ -168,6 +193,19 @@ async function main(): Promise<void> {
         language: 'english',
         regularCourseId: courses[2]?.id ?? null,
         teacherId: teacher.id,
+      },
+    });
+
+    // J5: the payroll teacher's own student (no clash with J1's weekly time).
+    await prisma.student.create({
+      data: {
+        familyId: family.id,
+        name: 'QA Payroll Student',
+        gender: 'male',
+        age: 10,
+        language: 'english',
+        regularCourseId: courses[0]?.id ?? null,
+        teacherId: payrollTeacher.id,
       },
     });
 

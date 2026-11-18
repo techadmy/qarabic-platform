@@ -37,8 +37,9 @@ academy's day still work end to end?», which no layer above checks on its own.
   movable with `JOURNEYS_API_PORT` / `JOURNEYS_WEB_PORT`. Secrets are throwaway, made per run.
 - **Data:** `pnpm --filter @qarabic/api qa:seed` (the global setup runs it) **empties** the `*_test`
   database and seeds the QA personas: `QA Admin`, `QA Teacher` (with a made-up tracked Zoom
-  meeting), `QA Trial Teacher` (J2's trials, so they never clash with J1), `QA Parent` +
-  `QA Student` and `QA Leave Student` (J4's second child), all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
+  meeting), `QA Trial Teacher` (J2's trials, so they never clash with J1), `QA Payroll Teacher`
+  (hourly, 100 EGP) and `QA Accountant` (J5's reviewer; the owner approves), `QA Parent` +
+  `QA Student`, `QA Leave Student` (J4's second child) and `QA Payroll Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
   `*_test`. Never production data, never a real person. A login a journey creates through the
   product (J2's converted family) gets the QA password with `qa:seed --password-for=<email>`
   (`setQaPassword()`), since mail is off; QA addresses only.
