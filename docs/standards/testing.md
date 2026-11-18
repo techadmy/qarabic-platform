@@ -59,9 +59,13 @@ academy's day still work end to end?», which no layer above checks on its own.
   the dashboard show it; the check disappears from the list by itself once the bug is fixed.
 - **Report:** `e2e-journeys/summary-reporter.ts` writes `journeys-summary.json` (journey, steps,
   status, duration, screenshot, commit, run URL). The `QA journeys` workflow
-  (`.github/workflows/journeys.yml`) runs on every PR, nightly at 02:30 Cairo and by hand; it
+  (`.github/workflows/journeys.yml`) runs on every PR, nightly and by hand; it
   prints the step table on the run page and uploads the screenshots and report. Not a required
   check until the owner decides.
+- **Nightly:** two cron slots, 02:30 and 05:45 Cairo. GitHub delays scheduled runs and sometimes
+  drops them (the first night had none), so the second is a backup: the `gate` job skips a slot
+  when a run on `main` already finished in the last 18 hours. Check the night with
+  `gh run list --workflow journeys.yml --event schedule`.
 - **Public feed:** after a nightly or manual run on `main` (never a PR), the workflow's `publish`
   job commits to the `qa-reports` branch (`e2e-journeys/report-feed.mjs`): `latest.json` (the run's
   summary), `history.json` (last 60 journey runs), `runs.json` / `steps.json` (the «Qarabic QA»
