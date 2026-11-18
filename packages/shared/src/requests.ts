@@ -63,7 +63,8 @@ export const createSessionRequestSchema = z.object({
   type: z.enum(REQUEST_TYPES),
   sessionId: id,
   reason: z.string().trim().min(1).max(2000),
-  /** Leave: when the teacher or the academy was told (not in the future). */
+  /** Leave: when the academy was told (not in the future). Staff only; ignored for parents and
+   * teachers, whose request is notified when it is sent (J4). */
   notifiedAt: instantSchema.optional(),
   proposedStartsAt: instantSchema.optional(),
   proposedDurationMinutes: durationMinutesSchema.optional(),
@@ -106,8 +107,9 @@ export const sessionRequestSchema = z.object({
   /** Left out inside a class detail. */
   session: sessionSchema.nullable().optional(),
   student: z.object({ id: z.number().int(), name: z.string() }).nullable(),
+  /** Parents and teachers get a staff member's role only: `id` and `name` null (P0-4). */
   requestedBy: z.object({
-    id: z.number().int(),
+    id: z.number().int().nullable(),
     name: z.string().nullable(),
     role: z.string().nullable(),
   }),
@@ -116,7 +118,8 @@ export const sessionRequestSchema = z.object({
   proposedStartsAt: z.string().nullable(),
   proposedDurationMinutes: z.number().int().nullable(),
   proposedTeacherId: z.number().int().nullable(),
-  decidedBy: z.object({ id: z.number().int(), name: z.string().nullable() }).nullable(),
+  /** `{ id: null, name: null }` for parents and teachers when staff decided (P0-4). */
+  decidedBy: z.object({ id: z.number().int().nullable(), name: z.string().nullable() }).nullable(),
   decidedAt: z.string().nullable(),
   decisionNote: z.string().nullable(),
   resultSessionId: z.number().int().nullable(),
