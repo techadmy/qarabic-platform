@@ -158,7 +158,11 @@ export class SessionRequestsService {
     this.validateTarget(input, session, st['sessions.makeup_window_days']);
 
     const now = this.clock.nowMs();
-    const notified = input.notifiedAt ? new Date(input.notifiedAt).getTime() : now;
+    // J4: only staff may record that the family or teacher told them earlier (audited below); a
+    // parent's or teacher's own request is notified now, whatever the client sends, so nobody can
+    // backdate a leave into the «enough notice» auto-approval.
+    const backdated = !isPortalViewer(user) && input.notifiedAt !== undefined;
+    const notified = backdated ? new Date(input.notifiedAt!).getTime() : now;
     if (notified > now) {
       throw validationError({ notifiedAt: ['The notified time cannot be in the future.'] });
     }
@@ -192,7 +196,14 @@ export class SessionRequestsService {
             action: 'created',
             subjectType: 'session_request',
             subjectId: r.id,
-            after: { type: input.type, sessionId: session.id, reason: input.reason },
+            after: {
+              type: input.type,
+              sessionId: session.id,
+              reason: input.reason,
+              ...(backdated && input.type === 'leave'
+                ? { notifiedAt: new Date(notified).toISOString() }
+                : {}),
+            },
           },
           tx,
         );
@@ -554,23 +565,33 @@ export class SessionRequestsService {
           viewer,
         )
       : [];
+    // P0-4 / D142 (J4): parents and teachers see staff by role only — no staff names or ids, and
+    // no reason or decision note on a request someone else made (as in the class detail).
+    const portal = isPortalViewer(viewer);
     const out: SessionRequestDto[] = [];
     for (const [i, r] of rows.entries()) {
+      const hide = portal && r.requestedById !== viewer.id;
       out.push({
         id: r.id,
         type: r.type,
         status: r.status,
         ...(withSession ? { session: sessions[i] ?? null } : {}),
         student: r.student ? { id: r.student.id, name: r.student.name } : null,
-        requestedBy: { id: r.requestedById, name: r.requestedBy.name, role: r.requesterRole },
-        reason: r.reason,
+        requestedBy: hide
+          ? { id: null, name: null, role: r.requesterRole }
+          : { id: r.requestedById, name: r.requestedBy.name, role: r.requesterRole },
+        reason: hide ? '' : r.reason,
         notifiedAt: isoZ(r.notifiedAt),
         proposedStartsAt: isoZ(r.proposedStartsAt),
         proposedDurationMinutes: r.proposedDurationMinutes,
         proposedTeacherId: r.proposedTeacherId,
-        decidedBy: r.decidedBy ? { id: r.decidedBy.id, name: r.decidedBy.name } : null,
+        decidedBy: r.decidedBy
+          ? portal && r.decidedBy.id !== viewer.id
+            ? { id: null, name: null }
+            : { id: r.decidedBy.id, name: r.decidedBy.name }
+          : null,
         decidedAt: isoZ(r.decidedAt),
-        decisionNote: r.decisionNote,
+        decisionNote: hide ? null : r.decisionNote,
         resultSessionId: r.resultSessionId,
         allowedActions: await this.allowedActions(r, viewer),
         dueAt:
@@ -594,3 +615,5 @@ function rethrowPendingTaken(error: unknown): never {
   }
   throw error;
 }
+
+const isPortalViewer = (u: AuthUser) => isParentViewer(u) || isTeacherViewer(u);
