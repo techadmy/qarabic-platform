@@ -10,7 +10,14 @@ import { Button } from '@qarabic/ui/components/button';
 import { Card } from '@qarabic/ui/components/card';
 import { Skeleton } from '@qarabic/ui/components/skeleton';
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { CheckIcon, InboxIcon, SearchXIcon, Undo2Icon, XIcon } from 'lucide-react';
+import {
+  CalendarPlusIcon,
+  CheckIcon,
+  InboxIcon,
+  SearchXIcon,
+  Undo2Icon,
+  XIcon,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 import { toast } from 'sonner';
@@ -18,6 +25,7 @@ import { ListPagination } from '@/components/list/list-pagination';
 import { FilterSelect, StatusTabs } from '@/components/list/list-toolbar';
 import { PageHeader } from '@/components/page-header';
 import { ApproveDialog } from '@/components/requests/approve-dialog';
+import { isMakeUpCandidate, RequestDialog } from '@/components/requests/request-dialog';
 import {
   RequestStatusBadge,
   RequestTypeBadge,
@@ -198,7 +206,10 @@ export function RequestCard({
   const queryClient = useQueryClient();
   const message = useClassError();
   const { open } = useOpenSession();
+  const tm = useTranslations('requests.makeUp');
+  const me = useCurrentUser();
   const [approving, setApproving] = useState(false);
+  const [makingUp, setMakingUp] = useState(false);
   const [rejecting, setRejecting] = useState(false);
   const [rejectError, setRejectError] = useState<string | null>(null);
   const s = r.session ?? null;
@@ -219,6 +230,12 @@ export function RequestCard({
     },
     onError: (e) => toast.error(message(e)),
   });
+  // J4: a leave that took the class off offers its make-up here too (the same API rules).
+  const canMakeUp =
+    r.type === 'leave' &&
+    !!s &&
+    isMakeUpCandidate(s, me) &&
+    !s.pendingRequests.some((p) => p.type === 'reschedule');
   const overdue =
     r.status === 'pending' && r.dueAt && Date.parse(r.dueAt) - now.getTime() < 3 * 3_600_000;
   const role =
@@ -288,8 +305,15 @@ export function RequestCard({
         )}
         {extra}
       </div>
-      {r.allowedActions.length > 0 && (
+      {(r.allowedActions.length > 0 || canMakeUp) && (
         <div className="flex shrink-0 flex-wrap gap-2 md:flex-col md:items-stretch">
+          {canMakeUp && (
+            <Button variant="outline" onClick={() => setMakingUp(true)}>
+              <CalendarPlusIcon />
+              {tm('action')}
+              <span className="sr-only">: {r.student?.name}</span>
+            </Button>
+          )}
           {r.allowedActions.includes('approve') && (
             <Button onClick={() => setApproving(true)}>
               <CheckIcon />
@@ -324,6 +348,9 @@ export function RequestCard({
         </div>
       )}
       {approving && <ApproveDialog request={r} open onOpenChange={setApproving} />}
+      {makingUp && s && (
+        <RequestDialog session={s} type="reschedule" open onOpenChange={setMakingUp} />
+      )}
       <ReasonDialog
         open={rejecting}
         onOpenChange={setRejecting}

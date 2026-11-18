@@ -257,7 +257,7 @@ export function ClassTable({
                 <NowDivider now={now} tz={timeTz} />
               </li>
             )}
-            <li>
+            <li data-session-id={s.id}>
               <Card
                 onClick={(e) => open(e, s)}
                 data-tone={rowTone(s)}
