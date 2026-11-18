@@ -120,7 +120,8 @@ test(
       await form.getByRole('button', { name: 'حفظ التقرير' }).click();
       const sheet = teacher.getByRole('dialog', { name: 'تفاصيل الحصة' });
       await expect(sheet).toContainText(REPORT);
-      await sheet.getByRole('button', { name: 'Close' }).click();
+      // Back to the home page (the sheet is in the URL; its close button missed under load).
+      await teacher.goto('/');
       await expect(sheet).toBeHidden();
       await teacher.getByRole('button', { name: 'تسجيل الانصراف' }).click();
       await expect(teacher.getByRole('status').filter({ hasText: 'الانصراف' })).toBeVisible();

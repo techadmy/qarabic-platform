@@ -235,18 +235,17 @@ test(
         }>
       ).map((r) => r.status);
       expect(statuses.sort()).toEqual(['approved', 'approved', 'auto_approved']);
-      // D142 in the API answers too (parents and teachers never get staff names). Known bug,
-      // docs/31: `decidedBy.name` is sent to them. Recorded on the journey until it is fixed.
-      for (const [who, page] of [
-        ['parent', parent],
-        ['teacher', teacher],
-      ] as const) {
-        const body = JSON.stringify((await api(page).get('/session-requests')).body);
-        if (body.includes(NAMES.admin)) {
-          testInfo.annotations.push({
-            type: 'known-bug',
-            description: `D142: GET /session-requests sends the deciding staff member's name to the ${who} (decidedBy.name)`,
-          });
+      // D142 in the API answers too: parents and teachers never get the deciding staff member's
+      // name or id (#150).
+      for (const page of [parent, teacher]) {
+        const answer = (await api(page).get('/session-requests')).body as {
+          data: Array<{ status: string; decidedBy: Record<string, unknown> | null }>;
+        };
+        expect(JSON.stringify(answer)).not.toContain(NAMES.admin);
+        for (const r of answer.data.filter((x) => x.status === 'approved')) {
+          // The role at most: never who it was.
+          expect(r.decidedBy?.name ?? null).toBeNull();
+          expect(r.decidedBy?.id ?? null).toBeNull();
         }
       }
     });
