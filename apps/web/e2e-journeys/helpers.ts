@@ -11,11 +11,20 @@ export const QA_ZOOM = {
   meetingId: '9000000001',
   joinUrl: 'https://us02web.zoom.us/j/9000000001?pwd=qa',
 } as const;
-export type Persona = 'qa-admin' | 'qa-teacher' | 'qa-teacher2' | 'qa-parent' | 'qa-family2';
+export type Persona =
+  | 'qa-admin'
+  | 'qa-accountant'
+  | 'qa-teacher'
+  | 'qa-teacher2'
+  | 'qa-teacher3'
+  | 'qa-parent'
+  | 'qa-family2';
 export const NAMES = {
   admin: 'QA Admin',
   teacher: 'QA Teacher',
   trialTeacher: 'QA Trial Teacher',
+  payrollTeacher: 'QA Payroll Teacher',
+  accountant: 'QA Accountant',
   parent: 'QA Parent',
   student: 'QA Student',
 } as const;
