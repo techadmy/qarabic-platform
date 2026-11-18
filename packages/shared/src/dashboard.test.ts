@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DASHBOARD_WAITING,
+  DASHBOARD_WAITING_LINKS,
+  DASHBOARD_WAITING_PERMISSIONS,
+  visibleWaiting,
   DASHBOARD_WIDGET_PERMISSIONS,
   DASHBOARD_WIDGETS,
   dashboardMetricsSchema,
@@ -169,6 +173,7 @@ describe('dashboardMetricsSchema', () => {
         },
       },
       missingRates: [{ currency: 'GBP', month: '2026-10' }],
+      waiting: [{ key: 'leave_requests', count: 2, href: '/requests?type=leave' }],
       generatedAt: '2026-11-15T10:00:00.000Z',
     });
     expect(parsed.kpis.gross_profit).toBeUndefined();
@@ -183,5 +188,26 @@ describe('owner-only permissions (D145)', () => {
     expect(permissionsFor('admin')).toContain('reports.profit');
     expect(permissionListSchema.safeParse(['reports.profit']).success).toBe(false);
     expect(permissionListSchema.safeParse(['reports.financial']).success).toBe(true);
+  });
+});
+
+describe('waiting for action (D3)', () => {
+  const of = (role: Role) => visibleWaiting(new Set<string>(permissionsFor(role)));
+
+  it('every item has a link and real permissions', () => {
+    const all = new Set<string>(allPermissions());
+    for (const k of DASHBOARD_WAITING) {
+      expect(DASHBOARD_WAITING_LINKS[k]).toMatch(/^\//);
+      for (const p of DASHBOARD_WAITING_PERMISSIONS[k]) expect(all.has(p), p).toBe(true);
+    }
+  });
+
+  it('shows each role only the queues it can open; nothing for teachers and parents', () => {
+    expect(of('admin')).toEqual([...DASHBOARD_WAITING]);
+    expect(of('monitor')).toEqual(['leave_requests', 'tickets_past_sla']);
+    expect(of('csr')).toEqual(['leads_uncontacted', 'tickets_past_sla']);
+    expect(of('billing')).toEqual(['payments_to_review', 'credits_to_review', 'tickets_past_sla']);
+    expect(of('teacher')).toEqual([]);
+    expect(of('parent')).toEqual([]);
   });
 });

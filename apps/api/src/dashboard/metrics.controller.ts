@@ -12,10 +12,12 @@ import { Can, CurrentUser } from '../auth/decorators.js';
 import { ZodQuery } from '../common/zod-query.pipe.js';
 import { DashboardEventsService } from './events.service.js';
 import { DashboardMetricsService } from './metrics.service.js';
+import { DashboardWaitingService } from './waiting.service.js';
 
 /**
  * `GET /dashboard/metrics` (docs/40 D1, D144). The route needs `reports.view`; each widget also
- * needs its own module permissions (DASHBOARD_WIDGET_PERMISSIONS) and is absent otherwise.
+ * needs its own module permissions (DASHBOARD_WIDGET_PERMISSIONS) and is absent otherwise; so does
+ * each «waiting for action» item (DASHBOARD_WAITING_PERMISSIONS, docs/40 D3).
  */
 @ApiTags('dashboard')
 @Controller('dashboard')
@@ -23,6 +25,7 @@ export class DashboardMetricsController {
   constructor(
     private readonly metrics: DashboardMetricsService,
     private readonly events: DashboardEventsService,
+    private readonly waiting: DashboardWaitingService,
   ) {}
 
   @Can('reports.view')
@@ -31,7 +34,11 @@ export class DashboardMetricsController {
     @ZodQuery(dashboardQuerySchema) q: z.output<typeof dashboardQuerySchema>,
     @CurrentUser() viewer: AuthUser,
   ): Promise<{ data: DashboardMetricsDto }> {
-    return { data: await this.metrics.metrics(q, viewer.permissions) };
+    const [body, waiting] = await Promise.all([
+      this.metrics.metrics(q, viewer.permissions),
+      this.waiting.list(viewer),
+    ]);
+    return { data: { ...body, waiting } };
   }
 
   /** «Recent events» (docs/40 §3): each kind gated like its widget (DASHBOARD_EVENT_PERMISSIONS). */

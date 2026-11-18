@@ -160,6 +160,7 @@ describe('D2 management dashboard (docs/40, D144)', () => {
             },
             series: {},
             missingRates: [],
+            waiting: [],
             generatedAt: '2026-11-15T10:00:00Z',
           },
         }),

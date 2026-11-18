@@ -1,4 +1,6 @@
 import {
+  DASHBOARD_WAITING_LINKS,
+  visibleWaiting,
   visibleWidgets,
   type DashboardMetricsDto,
   type DashboardWidget,
@@ -13,6 +15,7 @@ import { guard } from './session';
  * deterministic numbers per bucket so screenshots and tests are stable; only the widgets
  * `visibleWidgets()` allows (every other key absent, as the API). The oldest month of a long range
  * has GBP payments with no exchange rate: those amounts carry `missingRate` and no USD total.
+ * `waiting` (D3) has fixed counts for the items `visibleWaiting()` allows.
  */
 const API = '*/api/v1';
 
@@ -249,6 +252,12 @@ export const dashboardHandlers: HttpHandler[] = [
         noRate && widgets.some((w) => ['collected', 'revenue_expenses', 'collections'].includes(w))
           ? [{ currency: 'GBP', month: noRate }]
           : [],
+      // D3 «waiting for action»: fixed counts, only the items this viewer may open.
+      waiting: visibleWaiting(new Set(g.me.permissions)).map((key, i) => ({
+        key,
+        count: [4, 1, 2, 3, 0][i % 5]!,
+        href: DASHBOARD_WAITING_LINKS[key],
+      })),
       generatedAt: new Date().toISOString(),
     };
     return HttpResponse.json({ data });

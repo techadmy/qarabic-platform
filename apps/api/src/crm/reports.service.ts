@@ -77,6 +77,13 @@ export function bothTimes(
  * The read side of the CRM (Laravel `LeadReportService` + the lead resources): the queue with
  * its tabs, the workbench, today tiles, the funnel, trials and duplicates of a lead.
  */
+/** New leads nobody has contacted yet (also the dashboard's «waiting for action» count). */
+export const uncontactedLeadWhere = (): Prisma.LeadWhereInput => ({
+  status: 'new',
+  firstResponseAt: null,
+  lastContactedAt: null,
+});
+
 @Injectable()
 export class LeadReports {
   constructor(
@@ -375,7 +382,7 @@ export class LeadReports {
 
   /** New leads nobody has contacted yet (spam and parked leads are not "new"). */
   uncontactedWhere(): Prisma.LeadWhereInput {
-    return { status: 'new', firstResponseAt: null, lastContactedAt: null };
+    return uncontactedLeadWhere();
   }
 
   /** A booked trial whose class time has passed and no outcome yet. */

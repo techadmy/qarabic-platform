@@ -39,6 +39,13 @@ import { WhatsAppConfig, WhatsAppIntake, WhatsAppWebhookController } from './wha
     WhatsAppConfig,
     WhatsAppIntake,
   ],
-  exports: [TicketsService, TicketCli, WhatsAppConfig, SupportReports],
+  exports: [
+    TicketsService,
+    TicketCli,
+    WhatsAppConfig,
+    SupportReports,
+    InboxService,
+    SupportContext,
+  ],
 })
 export class SupportModule {}
