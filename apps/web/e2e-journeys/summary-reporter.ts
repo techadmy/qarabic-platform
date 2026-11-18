@@ -29,6 +29,8 @@ export interface JourneySummary {
     status: 'passed' | 'failed' | 'skipped';
     durationMs: number;
     error: string | null;
+    /** Known bugs the journey recorded (annotation `known-bug`): shown, not failed, until fixed. */
+    knownBugs: string[];
     steps: Array<{
       n: number;
       title: string;
@@ -120,6 +122,13 @@ export default class SummaryReporter implements Reporter {
           status: r.status === 'passed' ? 'passed' : r.status === 'skipped' ? 'skipped' : 'failed',
           durationMs: Math.round(r.duration),
           error: firstLine(r.error?.message),
+          knownBugs: [
+            ...new Set(
+              [...test.annotations, ...r.annotations]
+                .filter((a) => a.type === 'known-bug' && a.description)
+                .map((a) => a.description!),
+            ),
+          ],
           steps,
         };
       }),
