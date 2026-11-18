@@ -313,6 +313,62 @@ export const dashboardSeriesSchema = z.object({
 });
 export type DashboardSeries = z.infer<typeof dashboardSeriesSchema>;
 
+// ------------------------------------------------------------------ waiting for action (docs/40 §3 row 3)
+
+/** «Waiting for action»: what is queued now (not range-bound), each linking to its filtered list. */
+export const DASHBOARD_WAITING = [
+  'leads_uncontacted',
+  'payments_to_review',
+  'credits_to_review',
+  'leave_requests',
+  'tickets_past_sla',
+] as const;
+export type DashboardWaitingKey = (typeof DASHBOARD_WAITING)[number];
+
+/**
+ * ANY one of these shows the item: the same gate as the list it counts (a count never shows more
+ * than the screen behind it). Absent from `waiting` otherwise.
+ */
+export const DASHBOARD_WAITING_PERMISSIONS: Record<DashboardWaitingKey, readonly Permission[]> = {
+  leads_uncontacted: ['leads.view'],
+  payments_to_review: ['invoices.manage', 'reports.financial'],
+  credits_to_review: ['invoices.manage', 'reports.financial'],
+  leave_requests: ['session_requests.approve', 'session_requests.manage'],
+  tickets_past_sla: ['support.view'],
+};
+
+/** The filtered list behind each count (web routes). */
+export const DASHBOARD_WAITING_LINKS: Record<DashboardWaitingKey, string> = {
+  leads_uncontacted: '/leads?uncontacted=1',
+  payments_to_review: '/billing/payments-review',
+  credits_to_review: '/billing/credits',
+  leave_requests: '/requests?type=leave',
+  tickets_past_sla: '/support?breached=1',
+};
+
+export const DASHBOARD_WAITING_LABELS: Record<DashboardWaitingKey, { ar: string; en: string }> = {
+  leads_uncontacted: { ar: 'عملاء محتملون لم يُتواصل معهم', en: 'Leads not contacted' },
+  payments_to_review: { ar: 'مدفوعات بانتظار المراجعة', en: 'Payments to review' },
+  credits_to_review: { ar: 'أرصدة دائنة بانتظار المراجعة', en: 'Credits to review' },
+  leave_requests: { ar: 'طلبات إجازة معلّقة', en: 'Leave requests' },
+  tickets_past_sla: { ar: 'تذاكر تجاوزت مهلة الاستجابة', en: 'Tickets past SLA' },
+};
+
+/** The waiting items a set of permissions can see, in display order. */
+export function visibleWaiting(granted: ReadonlySet<string>): DashboardWaitingKey[] {
+  return DASHBOARD_WAITING.filter((k) =>
+    DASHBOARD_WAITING_PERMISSIONS[k].some((p) => granted.has(p)),
+  );
+}
+
+export const dashboardWaitingItemSchema = z.object({
+  key: z.enum(DASHBOARD_WAITING),
+  count: z.number().int(),
+  /** Web route of the filtered list (DASHBOARD_WAITING_LINKS). */
+  href: z.string(),
+});
+export type DashboardWaitingItemDto = z.infer<typeof dashboardWaitingItemSchema>;
+
 // ------------------------------------------------------------------ response
 
 const rangeSchema = z.object({ from: z.string(), to: z.string() });
@@ -333,6 +389,8 @@ export const dashboardMetricsSchema = z.object({
   series: dashboardSeriesSchema,
   /** True when any money figure lacks an exchange rate (show the banner, link to the rates). */
   missingRates: z.array(z.object({ currency: z.string(), month: z.string() })),
+  /** Queues now (not cached, not range-bound): only the items the viewer may see, in order. */
+  waiting: z.array(dashboardWaitingItemSchema),
   generatedAt: z.string(),
 });
 export type DashboardMetricsDto = z.infer<typeof dashboardMetricsSchema>;

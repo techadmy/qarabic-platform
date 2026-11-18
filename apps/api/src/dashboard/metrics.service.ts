@@ -49,9 +49,12 @@ const BILLED = Prisma.sql`status NOT IN ('draft', 'void', 'split')`;
 
 const CACHE_MS = 5 * 60_000;
 
+/** The cached, range-bound part; the controller adds the live `waiting` block. */
+export type MetricsBody = Omit<DashboardMetricsDto, 'waiting'>;
+
 @Injectable()
 export class DashboardMetricsService {
-  private readonly cache = new Map<string, { at: number; value: DashboardMetricsDto }>();
+  private readonly cache = new Map<string, { at: number; value: MetricsBody }>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -65,7 +68,7 @@ export class DashboardMetricsService {
     this.cache.clear();
   }
 
-  async metrics(query: Query, permissions: ReadonlySet<string>): Promise<DashboardMetricsDto> {
+  async metrics(query: Query, permissions: ReadonlySet<string>): Promise<MetricsBody> {
     const widgets = visibleWidgets(permissions);
     const zone = await this.settings.get('academy.timezone');
     const today = localDate(this.clock.nowMs(), zone);
@@ -122,7 +125,7 @@ export class DashboardMetricsService {
       return money;
     }) as Pending;
 
-    const value: DashboardMetricsDto = {
+    const value: MetricsBody = {
       range: {
         from,
         to,
