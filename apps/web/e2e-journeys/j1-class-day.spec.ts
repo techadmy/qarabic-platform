@@ -51,13 +51,15 @@ test(
       const teachers = (await people.get('/teachers?perPage=10')).body.data;
       const students = (await people.get('/students?search=QA%20Student')).body.data;
       expect(teachers.map((t: { name: string }) => t.name)).toContain(NAMES.teacher);
-      expect(students.map((s: { name: string }) => s.name)).toEqual([NAMES.student]);
+      expect(students.map((s: { name: string }) => s.name)).toContain(NAMES.student);
       await shot(staff, testInfo, 1, 'staff-signed-in');
     });
 
     await step(2, async () => {
       const people = api(staff);
-      const student = (await people.get('/students?search=QA%20Student')).body.data[0];
+      const student = (await people.get('/students?search=QA%20Student')).body.data.find(
+        (s: { name: string }) => s.name === NAMES.student,
+      );
       const teacherRow = (await people.get('/teachers?perPage=10')).body.data.find(
         (t: { name: string }) => t.name === NAMES.teacher,
       );

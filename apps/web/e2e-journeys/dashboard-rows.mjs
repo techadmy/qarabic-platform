@@ -26,6 +26,7 @@ export function runRowsOf(s) {
     stepsTotal: j.steps.length,
     failedStep: j.steps.find((x) => x.status === 'failed')?.n ?? null,
     error: j.error,
+    knownBugs: j.knownBugs ?? [],
     durationS: seconds(j.durationMs),
     trigger: TRIGGERS[s.event] ?? 'local',
     branch: s.branch,

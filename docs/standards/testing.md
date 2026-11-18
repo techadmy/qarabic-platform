@@ -38,7 +38,7 @@ academy's day still work end to end?», which no layer above checks on its own.
 - **Data:** `pnpm --filter @qarabic/api qa:seed` (the global setup runs it) **empties** the `*_test`
   database and seeds the QA personas: `QA Admin`, `QA Teacher` (with a made-up tracked Zoom
   meeting), `QA Trial Teacher` (J2's trials, so they never clash with J1), `QA Parent` +
-  `QA Student`, all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
+  `QA Student` and `QA Leave Student` (J4's second child), all on `qa.qarabic.test`, password `QA_PASSWORD`. It refuses any database not named
   `*_test`. Never production data, never a real person. A login a journey creates through the
   product (J2's converted family) gets the QA password with `qa:seed --password-for=<email>`
   (`setQaPassword()`), since mail is off; QA addresses only.
@@ -53,6 +53,10 @@ academy's day still work end to end?», which no layer above checks on its own.
 - **Shape:** one `test()` per journey, tagged with its id (`@J1`), with the planned steps in a
   `step` annotation and each step a numbered `test.step` that asserts and calls `shot()`. No
   retries: a failure stops the story and the remaining steps show as «not run».
+- **Known bugs:** a journey that meets a bug someone is already fixing records it with
+  `testInfo.annotations.push({ type: 'known-bug', description })` instead of failing, only for a
+  bug listed in `docs/31` (e.g. J4's D142 API check). The summary (`knownBugs`), the run page and
+  the dashboard show it; the check disappears from the list by itself once the bug is fixed.
 - **Report:** `e2e-journeys/summary-reporter.ts` writes `journeys-summary.json` (journey, steps,
   status, duration, screenshot, commit, run URL). The `QA journeys` workflow
   (`.github/workflows/journeys.yml`) runs on every PR, nightly and by hand; it
