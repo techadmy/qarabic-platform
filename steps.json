@@ -2,143 +2,283 @@
   "rows": [
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 1,
       "title": "QA personas are seeded and staff signs in",
       "status": "passed",
-      "durationS": 2.7,
+      "durationS": 2.1,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 2,
       "title": "Staff creates an enrollment (external link) → today’s class is generated",
       "status": "passed",
-      "durationS": 3.1,
+      "durationS": 2.2,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 3,
       "title": "Teacher sees the class and its join link, and activates it",
       "status": "passed",
-      "durationS": 2.1,
+      "durationS": 1.7,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 4,
       "title": "Zoom: teacher and student join (signed webhooks) → timeline and Today board",
       "status": "passed",
-      "durationS": 1.9,
+      "durationS": 1.5,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 5,
       "title": "Teacher ends the class and submits the lesson report",
       "status": "passed",
-      "durationS": 2.2,
+      "durationS": 1.8,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 6,
       "title": "Parent sees the class as held and the report — no staff names (D142)",
       "status": "passed",
-      "durationS": 3,
+      "durationS": 2.2,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J1",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 7,
       "title": "Parent’s notification is in the outbox (in-app bell; mail/WhatsApp off)",
       "status": "passed",
-      "durationS": 1.4,
+      "durationS": 1.1,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 1,
       "title": "A parent asks for a free trial on the public form → a new lead",
       "status": "passed",
-      "durationS": 5,
+      "durationS": 4,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 2,
       "title": "Staff call, open the family account and book a trial today",
       "status": "passed",
-      "durationS": 3,
+      "durationS": 2.5,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 3,
       "title": "Trial teacher sees the trial, opens its link, runs and ends it",
       "status": "passed",
-      "durationS": 2,
+      "durationS": 1.8,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 4,
       "title": "Trial teacher submits the trial report → lead «trial done», staff notified",
       "status": "passed",
-      "durationS": 1.4,
+      "durationS": 1.3,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 5,
       "title": "Staff convert the family to regular (dialog prefilled from the report)",
       "status": "passed",
-      "durationS": 3.7,
+      "durationS": 3,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 6,
       "title": "The first regular class is generated; the teacher sees it",
       "status": "passed",
-      "durationS": 1.6,
+      "durationS": 1.3,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     },
     {
       "journey": "J2",
-      "runAt": "2026-11-18T07:49:08.087Z",
+      "runAt": "2026-11-19T07:44:21.934Z",
       "n": 7,
       "title": "The new parent signs in: teacher, first class, trial summary — no staff names (D142)",
       "status": "passed",
+      "durationS": 2.5,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 1,
+      "title": "Staff give the child a weekly class; the parent sees tomorrow’s class",
+      "status": "passed",
       "durationS": 3,
       "error": null,
-      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44261533336"
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 2,
+      "title": "The parent asks for leave on tomorrow’s class → approved automatically (enough notice)",
+      "status": "passed",
+      "durationS": 0.6,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 3,
+      "title": "The parent asks for a make-up of the leave class (API: no screen offers it yet)",
+      "status": "passed",
+      "durationS": 0,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 4,
+      "title": "The parent asks to postpone next week’s class → «pending review»",
+      "status": "passed",
+      "durationS": 1.5,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 5,
+      "title": "Staff approve both on «طلبات الحصص» → the make-up class exists, next week’s class moves",
+      "status": "passed",
+      "durationS": 2,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 6,
+      "title": "The teacher sees the leave, the make-up and the new time",
+      "status": "failed",
+      "durationS": 18.1,
+      "error": "Error: expect(locator).toHaveCount(expected) failed",
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J4",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 7,
+      "title": "The parent sees the requests decided — no staff names (D142)",
+      "status": "not_run",
+      "durationS": 0,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 1,
+      "title": "The hourly-paid teacher checks in on the home page",
+      "status": "passed",
+      "durationS": 1.6,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 2,
+      "title": "The teacher teaches a 30-minute class, writes its report and checks out",
+      "status": "passed",
+      "durationS": 3.5,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 3,
+      "title": "The owner creates this month’s payroll run from its preview → «draft»",
+      "status": "passed",
+      "durationS": 1.7,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 4,
+      "title": "The run cannot be approved before review (separation of duties)",
+      "status": "passed",
+      "durationS": 0,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 5,
+      "title": "The accountant reviews the run → «reviewed»",
+      "status": "passed",
+      "durationS": 2.1,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 6,
+      "title": "The owner approves the run and records the teacher’s payment → «paid»",
+      "status": "passed",
+      "durationS": 2.3,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
+    },
+    {
+      "journey": "J5",
+      "runAt": "2026-11-19T07:44:21.934Z",
+      "n": 7,
+      "title": "The teacher reads the paid payslip — no staff names (D142)",
+      "status": "passed",
+      "durationS": 1.2,
+      "error": null,
+      "evidence": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033"
     }
   ],
   "meta": [
