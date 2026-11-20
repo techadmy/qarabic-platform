@@ -18,6 +18,7 @@
     "qa:seed": "tsx prisma/qa-seed.ts",
     "postinstall": "prisma generate",
     "cli": "node --env-file-if-exists=.env dist/cli.js",
+    "demo:accounts": "node --env-file-if-exists=.env dist/cli.js demo:accounts",
     "test:e2e:coverage": "vitest run --project e2e --coverage"
   },
   "dependencies": {

@@ -8,6 +8,12 @@ import {
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { cents, fromCents } from '../payroll/money.js';
+import {
+  NOT_DEMO_FAMILY_ROW,
+  NOT_DEMO_LOGIN,
+  NOT_DEMO_SESSION,
+  NOT_DEMO_STUDENT,
+} from '../common/demo.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { addDays, localDate, startOfLocalDay, toDbDate } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -59,23 +65,25 @@ export class DashboardService {
       when(can('families.view') || can('staff.view'), async () => {
         const [families, students, teachers] = await Promise.all([
           this.prisma.family.count({
-            where: { archivedAt: null, status: { in: ['regular', 'trial'] } },
+            where: { archivedAt: null, status: { in: ['regular', 'trial'] }, ...NOT_DEMO_LOGIN },
           }),
           this.prisma.student.count({
             where: {
               archivedAt: null,
               status: 'active',
-              family: { archivedAt: null, status: { in: ['regular', 'trial'] } },
+              family: { archivedAt: null, status: { in: ['regular', 'trial'] }, ...NOT_DEMO_LOGIN },
             },
           }),
-          this.prisma.teacher.count({ where: { archivedAt: null, status: 'active' } }),
+          this.prisma.teacher.count({
+            where: { archivedAt: null, status: 'active', ...NOT_DEMO_LOGIN },
+          }),
         ]);
         return { families, students, teachers };
       }),
       when(can('sessions.view') && !viewer.teacherId && viewer.role?.kind !== 'parent', () =>
         this.prisma.classSession.groupBy({
           by: ['stage'],
-          where: { startsAt: { gte: dayStart, lt: dayEnd } },
+          where: { startsAt: { gte: dayStart, lt: dayEnd }, ...NOT_DEMO_SESSION },
           _count: { _all: true },
         }),
       ),
@@ -94,7 +102,9 @@ export class DashboardService {
         }),
       ),
       when(can('session_requests.approve') || can('session_requests.manage'), () =>
-        this.prisma.sessionRequest.count({ where: { status: 'pending' } }),
+        this.prisma.sessionRequest.count({
+          where: { status: 'pending', student: NOT_DEMO_STUDENT },
+        }),
       ),
       when(can('attendance.manage'), () =>
         this.prisma.leaveRequest.count({ where: { status: 'pending' } }),
@@ -151,13 +161,17 @@ export class DashboardService {
     const [overdue, received, payroll, billingPending, payrollPending] = await Promise.all([
       this.prisma.invoice.groupBy({
         by: ['currency'],
-        where: { status: { in: [...OPEN_INVOICE_STATUSES] }, dueDate: { lt: toDbDate(today) } },
+        where: {
+          status: { in: [...OPEN_INVOICE_STATUSES] },
+          dueDate: { lt: toDbDate(today) },
+          ...NOT_DEMO_FAMILY_ROW,
+        },
         _sum: { total: true, paid: true },
         _count: { _all: true },
       }),
       this.prisma.payment.groupBy({
         by: ['currency'],
-        where: { status: 'succeeded', receivedAt: { gte: monthFrom } },
+        where: { status: 'succeeded', receivedAt: { gte: monthFrom }, ...NOT_DEMO_FAMILY_ROW },
         _sum: { amount: true },
       }),
       this.prisma.payrollRun.count({ where: { status: 'reviewed' } }),

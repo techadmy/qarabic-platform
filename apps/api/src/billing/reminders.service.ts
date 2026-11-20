@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { OPEN_INVOICE_STATUSES } from '@qarabic/shared';
 import { Clock } from '../common/clock.js';
 import { Prisma } from '../generated/prisma/client.js';
+import { NOT_DEMO_FAMILY_ROW } from '../common/demo.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { addDays, fromDbDate, HOUR, localDate, toDbDate } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -57,6 +58,8 @@ export class InvoiceReminderService {
       where: {
         status: { in: [...OPEN_INVOICE_STATUSES] },
         dueDate: { gte: toDbDate(earliestDue), lte: toDbDate(latestDue) },
+        // D153: no reminders to demo families.
+        ...NOT_DEMO_FAMILY_ROW,
       },
       orderBy: { id: 'asc' },
       select: { id: true, dueDate: true },
