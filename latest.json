@@ -1,18 +1,18 @@
 {
   "schema": 1,
-  "generatedAt": "2026-11-19T07:44:21.934Z",
-  "status": "failed",
-  "durationMs": 116736,
+  "generatedAt": "2026-11-20T07:36:36.064Z",
+  "status": "passed",
+  "durationMs": 126836,
   "commit": "2047c24356c62d70bbb96258c5e4f8d1d100002f",
   "branch": "main",
   "event": "schedule",
-  "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44481554033",
+  "runUrl": "https://github.com/techadmy/qarabic-platform/actions/runs/44695849042",
   "journeys": [
     {
       "id": "J1",
       "title": "J1 class day",
       "status": "passed",
-      "durationMs": 12847,
+      "durationMs": 16974,
       "error": null,
       "knownBugs": [],
       "steps": [
@@ -20,7 +20,7 @@
           "n": 1,
           "title": "QA personas are seeded and staff signs in",
           "status": "passed",
-          "durationMs": 2118,
+          "durationMs": 2886,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-1-b53365b57ba8bafcb6f9804b871f6072f1fed76c.png"
         },
@@ -28,7 +28,7 @@
           "n": 2,
           "title": "Staff creates an enrollment (external link) → today’s class is generated",
           "status": "passed",
-          "durationMs": 2249,
+          "durationMs": 3380,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-2-322c7e0af2f9d79a8cf500a88846287dfc1377b9.png"
         },
@@ -36,7 +36,7 @@
           "n": 3,
           "title": "Teacher sees the class and its join link, and activates it",
           "status": "passed",
-          "durationMs": 1736,
+          "durationMs": 2185,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-3-83371be9193fdbbff52e25ef912900f37ac125bb.png"
         },
@@ -44,7 +44,7 @@
           "n": 4,
           "title": "Zoom: teacher and student join (signed webhooks) → timeline and Today board",
           "status": "passed",
-          "durationMs": 1450,
+          "durationMs": 1955,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-4-edc62ac63e71125e354c80801961f41a5d8ead62.png"
         },
@@ -52,7 +52,7 @@
           "n": 5,
           "title": "Teacher ends the class and submits the lesson report",
           "status": "passed",
-          "durationMs": 1807,
+          "durationMs": 2236,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-5-2f0bd4c610bd4a0cd27b262d3ba5e2d0ca365e37.png"
         },
@@ -60,7 +60,7 @@
           "n": 6,
           "title": "Parent sees the class as held and the report — no staff names (D142)",
           "status": "passed",
-          "durationMs": 2220,
+          "durationMs": 2666,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-6-8fef163f2951c31fb2e9e4f7f9434637495b4e49.png"
         },
@@ -68,7 +68,7 @@
           "n": 7,
           "title": "Parent’s notification is in the outbox (in-app bell; mail/WhatsApp off)",
           "status": "passed",
-          "durationMs": 1143,
+          "durationMs": 1498,
           "error": null,
           "screenshot": "journeys-results/j1-class-day-J1-class-day-journeys/attachments/step-7-70672a244898b2aa9e007d6ad51687a76f9c2221.png"
         }
@@ -78,7 +78,7 @@
       "id": "J2",
       "title": "J2 trial to regular",
       "status": "passed",
-      "durationMs": 16585,
+      "durationMs": 20440,
       "error": null,
       "knownBugs": [],
       "steps": [
@@ -86,7 +86,7 @@
           "n": 1,
           "title": "A parent asks for a free trial on the public form → a new lead",
           "status": "passed",
-          "durationMs": 4038,
+          "durationMs": 5176,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-1-65349d0d52fa56d089a8f12f4f1a36ab4e19d677.png"
         },
@@ -94,7 +94,7 @@
           "n": 2,
           "title": "Staff call, open the family account and book a trial today",
           "status": "passed",
-          "durationMs": 2477,
+          "durationMs": 3098,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-2-71c5908a98619db0a395cd134fabc76fc10130da.png"
         },
@@ -102,7 +102,7 @@
           "n": 3,
           "title": "Trial teacher sees the trial, opens its link, runs and ends it",
           "status": "passed",
-          "durationMs": 1825,
+          "durationMs": 2021,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-3-421b9a5b9cd0ab15863b5b8fc3fd056e44aa1c6a.png"
         },
@@ -110,7 +110,7 @@
           "n": 4,
           "title": "Trial teacher submits the trial report → lead «trial done», staff notified",
           "status": "passed",
-          "durationMs": 1296,
+          "durationMs": 1349,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-4-b61a6cdf3952ca058c8b6291b8c057c6452018de.png"
         },
@@ -118,7 +118,7 @@
           "n": 5,
           "title": "Staff convert the family to regular (dialog prefilled from the report)",
           "status": "passed",
-          "durationMs": 2959,
+          "durationMs": 3781,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-5-041406ba3dbd48edddf056b4ca107c306541f057.png"
         },
@@ -126,7 +126,7 @@
           "n": 6,
           "title": "The first regular class is generated; the teacher sees it",
           "status": "passed",
-          "durationMs": 1348,
+          "durationMs": 1553,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-6-896708368db28f814b0bfd1cd4f12338cd8d9ee3.png"
         },
@@ -134,7 +134,7 @@
           "n": 7,
           "title": "The new parent signs in: teacher, first class, trial summary — no staff names (D142)",
           "status": "passed",
-          "durationMs": 2479,
+          "durationMs": 3205,
           "error": null,
           "screenshot": "journeys-results/j2-trial-to-regular-J2-trial-to-regular-journeys/attachments/step-7-d865fa6d40e4729393d0be811856df3326bb9415.png"
         }
@@ -143,16 +143,16 @@
     {
       "id": "J4",
       "title": "J4 leave, make-up and postponement",
-      "status": "failed",
-      "durationMs": 25636,
-      "error": "Error: expect(locator).toHaveCount(expected) failed",
+      "status": "passed",
+      "durationMs": 13604,
+      "error": null,
       "knownBugs": [],
       "steps": [
         {
           "n": 1,
           "title": "Staff give the child a weekly class; the parent sees tomorrow’s class",
           "status": "passed",
-          "durationMs": 3048,
+          "durationMs": 3691,
           "error": null,
           "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-1-f095b7ff8db6a77e2d911dd3ca3b3343cd052125.png"
         },
@@ -160,7 +160,7 @@
           "n": 2,
           "title": "The parent asks for leave on tomorrow’s class → approved automatically (enough notice)",
           "status": "passed",
-          "durationMs": 629,
+          "durationMs": 723,
           "error": null,
           "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-2-2690942ccd60e0762818c66609d0630b7c4f526c.png"
         },
@@ -168,15 +168,15 @@
           "n": 3,
           "title": "The parent asks for a make-up of the leave class (API: no screen offers it yet)",
           "status": "passed",
-          "durationMs": 32,
+          "durationMs": 33,
           "error": null,
-          "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/test-failed-7.png"
+          "screenshot": null
         },
         {
           "n": 4,
           "title": "The parent asks to postpone next week’s class → «pending review»",
           "status": "passed",
-          "durationMs": 1508,
+          "durationMs": 1453,
           "error": null,
           "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-4-334fbeac29e11cbfda0dc9838527ce1b5e580ddc.png"
         },
@@ -184,25 +184,25 @@
           "n": 5,
           "title": "Staff approve both on «طلبات الحصص» → the make-up class exists, next week’s class moves",
           "status": "passed",
-          "durationMs": 2013,
+          "durationMs": 2504,
           "error": null,
           "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-5-4debb19f6e199544351a3178932fcabee24addae.png"
         },
         {
           "n": 6,
           "title": "The teacher sees the leave, the make-up and the new time",
-          "status": "failed",
-          "durationMs": 18054,
-          "error": "Error: expect(locator).toHaveCount(expected) failed",
+          "status": "passed",
+          "durationMs": 3829,
+          "error": null,
           "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-6-a9adceb22c539855327a02d38b6f873b88d1fe93.png"
         },
         {
           "n": 7,
           "title": "The parent sees the requests decided — no staff names (D142)",
-          "status": "not_run",
-          "durationMs": 0,
+          "status": "passed",
+          "durationMs": 1213,
           "error": null,
-          "screenshot": null
+          "screenshot": "journeys-results/j4-leave-makeup-J4-leave-make-up-and-postponement-journeys/attachments/step-7-3f61ebbb40f27cd4ce80cc632e6f8ba1c0faf597.png"
         }
       ]
     },
@@ -210,7 +210,7 @@
       "id": "J5",
       "title": "J5 payroll month",
       "status": "passed",
-      "durationMs": 12542,
+      "durationMs": 15149,
       "error": null,
       "knownBugs": [],
       "steps": [
@@ -218,7 +218,7 @@
           "n": 1,
           "title": "The hourly-paid teacher checks in on the home page",
           "status": "passed",
-          "durationMs": 1620,
+          "durationMs": 1797,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-1-7ff6e20a586392392cd85dfc2b6529423e64bb82.png"
         },
@@ -226,7 +226,7 @@
           "n": 2,
           "title": "The teacher teaches a 30-minute class, writes its report and checks out",
           "status": "passed",
-          "durationMs": 3486,
+          "durationMs": 4432,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-2-9a99510688a2b9db67f1f2b9d62b3d00caf0f200.png"
         },
@@ -234,7 +234,7 @@
           "n": 3,
           "title": "The owner creates this month’s payroll run from its preview → «draft»",
           "status": "passed",
-          "durationMs": 1717,
+          "durationMs": 1963,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-3-4a6d14211b5a9d292036e58b36e1947d4e3d9412.png"
         },
@@ -242,7 +242,7 @@
           "n": 4,
           "title": "The run cannot be approved before review (separation of duties)",
           "status": "passed",
-          "durationMs": 28,
+          "durationMs": 25,
           "error": null,
           "screenshot": null
         },
@@ -250,7 +250,7 @@
           "n": 5,
           "title": "The accountant reviews the run → «reviewed»",
           "status": "passed",
-          "durationMs": 2085,
+          "durationMs": 2633,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-5-cbab348e03de3fe8675624cb66137eda150285b4.png"
         },
@@ -258,7 +258,7 @@
           "n": 6,
           "title": "The owner approves the run and records the teacher’s payment → «paid»",
           "status": "passed",
-          "durationMs": 2311,
+          "durationMs": 2855,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-6-0f0516b6f680b64d86e2de7287a610889b94a266.png"
         },
@@ -266,7 +266,7 @@
           "n": 7,
           "title": "The teacher reads the paid payslip — no staff names (D142)",
           "status": "passed",
-          "durationMs": 1157,
+          "durationMs": 1283,
           "error": null,
           "screenshot": "journeys-results/j5-payroll-month-J5-payroll-month-journeys/attachments/step-7-446f9f86afefcf9ca768e2e8b979485743d2da66.png"
         }
