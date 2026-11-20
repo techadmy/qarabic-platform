@@ -15,6 +15,7 @@ import { ApiException, notFound } from '../common/errors.js';
 import { type Invoice, Prisma } from '../generated/prisma/client.js';
 import type { InvoiceLineType } from '../generated/prisma/enums.js';
 import type { Tx } from '../people/people.common.js';
+import { NOT_DEMO_LOGIN } from '../common/demo.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { addDays, fromDbDate, localDate, toDbDate } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -95,6 +96,8 @@ export class InvoiceService {
       where: {
         status: 'regular',
         archivedAt: null,
+        // D153: demo families are never invoiced.
+        ...NOT_DEMO_LOGIN,
         billingProfile: {
           enabled: true,
           billingDay: day,

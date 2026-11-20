@@ -106,7 +106,7 @@ export class NotificationCentre {
       const [users, prefs, channels] = await Promise.all([
         this.prisma.user.findMany({
           where: { id: { in: ids }, isActive: true, archivedAt: null },
-          select: { id: true, email: true },
+          select: { id: true, email: true, isDemo: true },
         }),
         this.prisma.notificationPreference.findMany({
           where: { userId: { in: ids }, kind: notice.kind },
@@ -133,7 +133,8 @@ export class NotificationCentre {
       }
       if (notice.email && channels.email) {
         for (const u of users) {
-          if (!(pref.get(u.id)?.email ?? DEFAULT_PREFS.email)) continue;
+          // D153: demo logins get the bell only, never outbound mail.
+          if (u.isDemo || !(pref.get(u.id)?.email ?? DEFAULT_PREFS.email)) continue;
           try {
             await this.mailer.send({
               kind: `${notice.kind}_${notice.event}`,
@@ -152,7 +153,7 @@ export class NotificationCentre {
           users.filter((u) => pref.get(u.id)?.push ?? DEFAULT_PREFS.push).map((u) => u.id),
         );
       }
-      if (channels.whatsapp && users.some((u) => pref.get(u.id)?.whatsapp)) {
+      if (channels.whatsapp && users.some((u) => !u.isDemo && pref.get(u.id)?.whatsapp)) {
         this.logger.warn('WhatsApp notices are switched on but have no transport yet (B50).');
       }
       return inApp.length;

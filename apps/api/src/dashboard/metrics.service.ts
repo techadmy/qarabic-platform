@@ -15,6 +15,12 @@ import type { z } from 'zod';
 import { ExchangeRatesService } from '../accounting/exchange-rates.js';
 import { UsdTotal } from '../accounting/fx.js';
 import { Clock } from '../common/clock.js';
+import {
+  notDemoFamilySql,
+  notDemoSessionSql,
+  notDemoStudentSql,
+  notDemoTeacherSql,
+} from '../common/demo.js';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { addDays, addMonths, dateMs, DAY, localDate, toUtc } from '../schedule/time.js';
@@ -46,6 +52,9 @@ interface Pending {
 const LIVE_STAGES = Prisma.sql`stage NOT IN ('cancelled', 'moved_out')`;
 /** Invoices that are a real claim on the family (a split parent is replaced by its parts). */
 const BILLED = Prisma.sql`status NOT IN ('draft', 'void', 'split')`;
+/** D153: the demo accounts are left out of every number. */
+const NO_DEMO_SESSION = notDemoSessionSql();
+const NO_DEMO_ENROLLMENT = notDemoStudentSql('enrollments.student_id');
 
 const CACHE_MS = 5 * 60_000;
 
@@ -187,7 +196,8 @@ export class DashboardMetricsService {
                count(*) FILTER (WHERE kind = 'trial' AND ${LIVE_STAGES}) AS booked,
                count(*) FILTER (WHERE kind = 'trial' AND stage = 'taken') AS attended
           FROM class_sessions
-         WHERE deleted_at IS NULL AND starts_at >= ${r.start} AND starts_at < ${r.end}`;
+         WHERE deleted_at IS NULL AND starts_at >= ${r.start} AND starts_at < ${r.end}
+           AND ${NO_DEMO_SESSION}`;
       if (has('active_students')) out.active_students = Number(s!.students);
       if (has('teachers_on_duty')) out.teachers_on_duty = Number(s!.teachers);
       if (has('attendance_rate')) {
@@ -211,7 +221,7 @@ export class DashboardMetricsService {
     if (has('new_students')) {
       const [n] = await this.prisma.$queryRaw<Array<{ n: bigint }>>`
         SELECT count(*) AS n FROM (
-          SELECT min(starts_on) AS first FROM enrollments WHERE kind = 'regular' GROUP BY student_id
+          SELECT min(starts_on) AS first FROM enrollments WHERE kind = 'regular' AND ${NO_DEMO_ENROLLMENT} GROUP BY student_id
         ) f WHERE f.first BETWEEN ${r.from}::date AND ${r.to}::date`;
       out.new_students = Number(n!.n);
     }
@@ -285,6 +295,7 @@ export class DashboardMetricsService {
                to_char(issue_date, 'YYYY-MM') AS month, sum(total) AS amount
           FROM invoices
          WHERE ${BILLED} AND issue_date BETWEEN ${r.from}::date AND ${r.to}::date
+           AND ${notDemoFamilySql('invoices.family_id')}
          GROUP BY 1, 2, 3`;
       for (const row of invoiced)
         points.get(row.bucket)?.invoiced.add(row.currency, row.month, row.amount);
@@ -304,7 +315,7 @@ export class DashboardMetricsService {
       );
       const firsts = await this.prisma.$queryRaw<Array<{ bucket: string; n: bigint }>>`
         SELECT to_char(${trunc(bucket, Prisma.sql`f.first::timestamp`)}, 'YYYY-MM-DD') AS bucket, count(*) AS n
-          FROM (SELECT min(starts_on) AS first FROM enrollments WHERE kind = 'regular' GROUP BY student_id) f
+          FROM (SELECT min(starts_on) AS first FROM enrollments WHERE kind = 'regular' AND ${NO_DEMO_ENROLLMENT} GROUP BY student_id) f
          WHERE f.first BETWEEN ${r.from}::date AND ${r.to}::date
          GROUP BY 1`;
       for (const row of firsts) {
@@ -319,6 +330,7 @@ export class DashboardMetricsService {
                count(*) FILTER (WHERE stage = 'taken') AS attended
           FROM class_sessions
          WHERE deleted_at IS NULL AND kind = 'trial' AND starts_at >= ${r.start} AND starts_at < ${r.end}
+           AND ${NO_DEMO_SESSION}
          GROUP BY 1`;
       for (const row of trials) {
         const p = points.get(row.bucket);
@@ -369,6 +381,7 @@ export class DashboardMetricsService {
           FROM class_sessions
          WHERE deleted_at IS NULL AND stage IN ('taken', 'absent', 'leave', 'declined', 'cancelled')
            AND starts_at >= ${r.start} AND starts_at < ${r.end}
+           AND ${NO_DEMO_SESSION}
          GROUP BY 1, 2`;
       for (const row of rows) {
         const p = points.get(row.bucket);
@@ -384,7 +397,7 @@ export class DashboardMetricsService {
       >`
         SELECT r.period, s.currency, sum(s.paid_hours) AS hours, sum(s.net) AS net
           FROM payslips s JOIN payroll_runs r ON r.id = s.payroll_run_id
-         WHERE s.teacher_id IS NOT NULL
+         WHERE s.teacher_id IS NOT NULL AND ${notDemoTeacherSql('s.teacher_id')}
            AND r.period BETWEEN ${r.from.slice(0, 7)} AND ${r.to.slice(0, 7)}
          GROUP BY 1, 2 ORDER BY 1`;
       const points = new Map<string, { hours: number; payroll: UsdTotal }>();
@@ -415,6 +428,7 @@ export class DashboardMetricsService {
         FROM payments
        WHERE status = 'succeeded' AND method <> 'credit'
          AND received_at >= ${r.start} AND received_at < ${r.end}
+         AND ${notDemoFamilySql('payments.family_id')}
        GROUP BY 1, 2, 3`;
   }
 
@@ -436,7 +450,8 @@ export class DashboardMetricsService {
            GROUP BY invoice_id
         ) p ON p.invoice_id = i.id
        WHERE i.status NOT IN ('draft', 'void', 'split') AND i.issue_date <= ${to}::date
-         AND i.total - coalesce(p.applied, 0) > 0`;
+         AND i.total - coalesce(p.applied, 0) > 0
+         AND ${notDemoFamilySql('i.family_id')}`;
     const total = new UsdTotal();
     const overdue = new UsdTotal();
     const ageing = Object.fromEntries(AGEING_BANDS.map((b) => [b, new UsdTotal()])) as Record<
@@ -477,7 +492,8 @@ export class DashboardMetricsService {
            GROUP BY invoice_id
         ) p ON p.invoice_id = i.id
        WHERE i.status NOT IN ('draft', 'void', 'split')
-         AND i.due_date BETWEEN ${r.from}::date AND ${r.to}::date`;
+         AND i.due_date BETWEEN ${r.from}::date AND ${r.to}::date
+         AND ${notDemoFamilySql('i.family_id')}`;
     const ratio = new UsdRatio();
     for (const row of rows) {
       ratio.due.add(row.currency, row.month, row.total);

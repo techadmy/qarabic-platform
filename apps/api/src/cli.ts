@@ -13,6 +13,7 @@ import { LeadAlerts } from './crm/alerts.js';
 import { OperationsJobs } from './operations/jobs.js';
 import { billingCommand } from './billing/cli.js';
 import { runLegacy } from './legacy/legacy-cli.js';
+import { runDemoAccounts } from './people/demo-accounts.cli.js';
 import { Period } from './payroll/period.js';
 import { PayrollRunsService } from './payroll/runs.service.js';
 import { SessionJobs } from './sessions/jobs.js';
@@ -58,6 +59,11 @@ import { TicketCli } from './support/ticket-cli.js';
  *                                                [--dry-run] [--report=file.md] [--seed=N]
  *   pnpm --filter @qarabic/api cli legacy:verify [--only=…] [--report=file.md] [--seed=N]
  *
+ * D153 permanent demo accounts (teacher, parent, two students; safe to re-run, production too;
+ * password from DEMO_PASSWORD or a hidden prompt, docs/36):
+ *
+ *   pnpm --filter @qarabic/api demo:accounts
+ *
  * The CLI never starts the cron (`SCHEDULER_ENABLED=false`).
  */
 process.env.SCHEDULER_ENABLED = 'false';
@@ -75,6 +81,7 @@ async function main(): Promise<number> {
     (result.code === 0 ? console.log : console.error)(result.out.join('\n'));
     return result.code;
   }
+  if (command === 'demo:accounts') return runDemoAccounts();
   if (command === 'openapi:export') {
     // The full HTTP app (routes), never listening: the document is written and the app closed.
     const out = option(args, 'out') ?? 'openapi.json';

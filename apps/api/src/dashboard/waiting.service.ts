@@ -6,6 +6,7 @@ import {
   visibleWaiting,
 } from '@qarabic/shared';
 import type { AuthUser } from '../auth/auth.types.js';
+import { NOT_DEMO_FAMILY_ROW, NOT_DEMO_STUDENT } from '../common/demo.js';
 import { uncontactedLeadWhere } from '../crm/reports.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { InboxService } from '../support/inbox.service.js';
@@ -35,11 +36,15 @@ export class DashboardWaitingService {
       case 'leads_uncontacted':
         return this.prisma.lead.count({ where: uncontactedLeadWhere() });
       case 'payments_to_review':
-        return this.prisma.payment.count({ where: { needsReview: true } });
+        return this.prisma.payment.count({ where: { needsReview: true, ...NOT_DEMO_FAMILY_ROW } });
       case 'credits_to_review':
-        return this.prisma.familyCredit.count({ where: { reviewedAt: null } });
+        return this.prisma.familyCredit.count({
+          where: { reviewedAt: null, ...NOT_DEMO_FAMILY_ROW },
+        });
       case 'leave_requests':
-        return this.prisma.sessionRequest.count({ where: { type: 'leave', status: 'pending' } });
+        return this.prisma.sessionRequest.count({
+          where: { type: 'leave', status: 'pending', student: NOT_DEMO_STUDENT },
+        });
       case 'tickets_past_sla':
         // The support inbox's own «breached» total for this viewer (its queues and visibility).
         return (await this.inbox.summary(await this.support.viewer(viewer))).breachedTotal;

@@ -7,6 +7,7 @@ import {
   visibleEventKinds,
 } from '@qarabic/shared';
 import type { z } from 'zod';
+import { NOT_DEMO_SESSION } from '../common/demo.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
 type Query = z.output<typeof dashboardEventsQuerySchema>;
@@ -89,6 +90,7 @@ export class DashboardEventsService {
               type: 'cancelled',
               // A person cancelled it (holiday / schedule re-sync cancellations are the system's).
               actorUserId: { not: null },
+              session: NOT_DEMO_SESSION,
               ...(before ? { occurredAt: { lt: before } } : {}),
             },
             include: { actor: actorSelect, session: { select: { startsAt: true } } },

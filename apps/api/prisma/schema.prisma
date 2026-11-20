@@ -84,6 +84,9 @@ model User {
   locale            Locale    @default(ar)
   timezone          String    @default("Africa/Cairo") @db.VarChar(64)
   isActive          Boolean   @default(true) @map("is_active")
+  /// D153: a permanent demo login (`@demo.qarabic.test`) and, through it, its family or teacher
+  /// profile. Kept out of the dashboard, payroll, invoicing, reminders and outbound mail.
+  isDemo            Boolean   @default(false) @map("is_demo")
   roleId            Int?      @map("role_id")
   /// Staff status change (D130): why and by whom the login was (de)activated.
   statusReason      String?   @map("status_reason") @db.VarChar(500)

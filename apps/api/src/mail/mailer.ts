@@ -7,6 +7,7 @@ import {
   type OnApplicationBootstrap,
 } from '@nestjs/common';
 import { createTransport } from 'nodemailer';
+import { isDemoEmail } from '../common/demo.js';
 import { ENV, type Env } from '../config/env.js';
 
 export interface MailMessage {
@@ -120,6 +121,11 @@ export class MailGateway implements Mailer, OnApplicationBootstrap {
   }
 
   async send(message: MailMessage): Promise<void> {
+    // D153: demo logins never get mail (their `.test` domain does not exist anyway).
+    if (isDemoEmail(message.to)) {
+      this.logger.log(`Mail not sent (${message.kind}): demo account.`);
+      return;
+    }
     if (this.allowed && !recipientAllowed(message.to, this.allowed)) {
       this.logger.warn(`Mail not sent (${message.kind}): recipient not on the allowlist.`);
       return;

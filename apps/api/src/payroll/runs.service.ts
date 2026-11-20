@@ -639,7 +639,12 @@ export class PayrollRunsService {
 
   private activeProfiles(db: Db, userId?: number) {
     return db.payProfile.findMany({
-      where: { active: true, user: { archivedAt: null }, ...(userId ? { userId } : {}) },
+      // D153: the demo teacher is never paid.
+      where: {
+        active: true,
+        user: { archivedAt: null, isDemo: false },
+        ...(userId ? { userId } : {}),
+      },
       orderBy: { id: 'asc' },
     });
   }
