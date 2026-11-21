@@ -38,26 +38,28 @@ export function ProfileAvatar({ name }: { name: string }) {
 
 /**
  * Key facts under the header (docs/28 §5): shadcn Cards with a value and its label, plus an
- * optional small `hint` line under the label (D155). Five or six facts take three columns on
- * desktop instead of four.
+ * optional small `hint` line under the label (D155). Four columns on desktop; `columns={3}` for a
+ * row of five or six (the teacher home, D155).
  */
 export function KeyFacts({
   items,
+  columns = 4,
 }: {
   items: { label: string; value: ReactNode; hint?: ReactNode }[];
+  columns?: 3 | 4;
 }) {
   // Inside the split view's pane the facts follow the pane's width (D141 §1).
   const pane = useRecordPane();
-  const wide = items.length > 4;
+  const three = columns === 3;
   return (
     <dl
       className={cn(
         'grid grid-cols-2 gap-3',
         pane
-          ? wide
+          ? three
             ? '@3xl:grid-cols-3'
             : '@3xl:grid-cols-4'
-          : wide
+          : three
             ? 'lg:grid-cols-3'
             : 'lg:grid-cols-4',
       )}

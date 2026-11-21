@@ -304,6 +304,7 @@ export function TeacherHomeView() {
     <div className="flex flex-col gap-5">
       {header}
       <KeyFacts
+        columns={3}
         items={[
           { label: t('facts.today'), value: count((s) => s.stage !== 'moved_out') },
           { label: tm('facts.taken'), value: count((s) => s.stage === 'taken') },
