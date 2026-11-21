@@ -873,6 +873,34 @@ export const teachingHandlers: HttpHandler[] = [
     return HttpResponse.json({ data: weekOf(g.me, parsed.data.date) });
   }),
 
+  // D155: the teacher's own month so far. The mock pays taken and absent classes by their length
+  // (2 decimals per class, as payroll) at 150 EGP an hour.
+  http.get(`${API}/teacher-portal/month`, ({ request }) => {
+    const g = guard(request, 'sessions.conduct');
+    if ('error' in g) return g.error;
+    const own = ownTeacherId(g.me);
+    if (!isTeacher(g.me) || !own) return apiError(403, 'forbidden', 'Forbidden.');
+    const month = new Date().toISOString().slice(0, 7);
+    const held = sdb.sessions.filter(
+      (s) =>
+        s.teacherId === own &&
+        !s.deleted &&
+        s.startsAt.startsWith(month) &&
+        (s.stage === 'taken' || s.stage === 'absent'),
+    );
+    const centi = held.reduce((a, s) => a + Math.round((s.durationMinutes / 60) * 100), 0);
+    const fixed = (c: number) => `${Math.trunc(c / 100)}.${String(c % 100).padStart(2, '0')}`;
+    return HttpResponse.json({
+      data: {
+        month,
+        classesHeld: held.length,
+        hours: fixed(centi),
+        expectedPay: { amount: fixed(centi * 150), currency: 'EGP' },
+        final: false,
+      },
+    });
+  }),
+
   // D151: the signed-in teacher's own Zoom link (read-only; staff set it on the profile).
   http.get(`${API}/teacher-portal/zoom-link`, ({ request }) => {
     const g = guard(request, 'sessions.conduct');

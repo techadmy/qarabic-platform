@@ -5,7 +5,7 @@ import type { Tx } from '../people/people.common.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
 import { toDbDate } from '../schedule/time.js';
 import type { SettingsMap } from '../settings/settings.service.js';
-import { centi, cents, divRound, fromCents, hours } from './money.js';
+import { centi, cents, type DecimalLike, divRound, fromCents, hours } from './money.js';
 import { Period } from './period.js';
 import { isDeductible, slotTiers } from './presenter.js';
 
@@ -50,6 +50,16 @@ export interface ComputedSlip {
   netMinor: number;
   warnings: PayslipIssue[];
   errors: PayslipIssue[];
+}
+
+/** Paid classes: a decided pay snapshot above zero (rounded per class, D41/D56). */
+function paidOf<S extends { payHours: DecimalLike }>(sessions: S[]) {
+  const paid = sessions.filter((s) => centi(s.payHours) > 0);
+  return {
+    paid,
+    centiHours: paid.reduce((a, s) => a + centi(s.payHours), 0),
+    classes: paid.length,
+  };
 }
 
 /** The rate snapshot stored on a payslip. */
@@ -119,9 +129,7 @@ export class PayrollCalculator {
       ? await this.sessions(db, profile.teacherId, period, zone)
       : [];
     if (!profile.teacherId && type !== 'monthly') warnings.push({ code: 'no_teacher_link' });
-    const paid = sessions.filter((s) => centi(s.payHours) > 0);
-    const centiHours = paid.reduce((a, s) => a + centi(s.payHours), 0);
-    const classes = paid.length;
+    const { paid, centiHours, classes } = paidOf(sessions);
 
     const undecided = sessions.filter(
       (s) => UNDECIDED.includes(s.stage) && s.startsAt.getTime() < nowMs,
@@ -234,6 +242,20 @@ export class PayrollCalculator {
       warnings,
       errors,
     };
+  }
+
+  /**
+   * D155: the paid classes and hours of a teacher's month, exactly as `compute` counts them (for a
+   * teacher with no salary profile, whose month is still shown on the portal).
+   */
+  async paidHours(
+    db: Db,
+    teacherId: number,
+    period: Period,
+    zone: string,
+  ): Promise<{ paidHours: string; paidClasses: number }> {
+    const { centiHours, classes } = paidOf(await this.sessions(db, teacherId, period, zone));
+    return { paidHours: hours(centiHours), paidClasses: classes };
   }
 
   /** The teacher's live classes that start in the month (academy zone). */

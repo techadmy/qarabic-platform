@@ -8,6 +8,7 @@ import {
   recordTestResultSchema,
   type SurahDto,
   type TeacherStudentDto,
+  type TeacherMonthDto,
   type TeacherWeekDto,
   type TeacherZoomLinkDto,
   teacherWeekQuerySchema,
@@ -197,6 +198,13 @@ export class TeacherPortalController {
     @CurrentUser() viewer: AuthUser,
   ): Promise<{ data: TeacherWeekDto }> {
     return { data: await this.portal.week(viewer, q.date) };
+  }
+
+  /** D155: the teacher's own month so far (hours, classes, expected pay). No id: own data only. */
+  @Can('sessions.conduct')
+  @Get('month')
+  async month(@CurrentUser() viewer: AuthUser): Promise<{ data: TeacherMonthDto }> {
+    return { data: await this.portal.month(viewer) };
   }
 
   /** D151: the teacher's own Zoom link, read-only (`no-store`: it carries the passcode). */

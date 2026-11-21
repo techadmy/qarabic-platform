@@ -240,6 +240,7 @@ describe('route permission coverage', () => {
       'POST tests/:id/refuse': 'any:tests.manage|tests.conduct',
       'POST tests/:id/cancel': 'any:tests.manage|tests.conduct',
       'POST tests/:id/reopen': 'all:tests.manage',
+      'GET teacher-portal/month': 'all:sessions.conduct',
       'GET teacher-portal/week': 'all:sessions.conduct',
       'GET teacher-portal/students': 'all:sessions.conduct',
       'GET teacher-portal/zoom-link': 'all:sessions.conduct',

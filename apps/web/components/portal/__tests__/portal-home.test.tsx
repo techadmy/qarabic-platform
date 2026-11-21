@@ -7,6 +7,10 @@ import { TeacherHomeView } from '@/components/portal/teacher-home';
 import { pickHeroClass, upcomingDays } from '@/lib/sessions/teacher-home';
 import { JoinClassButton, ParentHomeView } from '@/components/support/parent-home-view';
 import { RowActions } from '@/components/sessions/row-actions';
+import { ClassTable } from '@/components/sessions/class-table';
+import { MOCK_USERS } from '@/mocks/data';
+import { presentSession } from '@/mocks/schedule-handlers';
+import { sdb } from '@/mocks/schedule-db';
 import { renderPage } from '@/test/people';
 import { server } from '@/mocks/node';
 
@@ -95,6 +99,72 @@ describe('Teacher home «يومي»', () => {
     const upcoming = screen.getByRole('region', { name: 'الأيام الخمسة القادمة' });
     expect(await within(upcoming).findAllByRole('heading', { level: 3 })).toHaveLength(5);
     expect(screen.queryByRole('button', { name: 'تسجيل الحضور' })).toBeNull();
+  });
+});
+
+describe('Teacher home: the month and the countdown (D155)', () => {
+  it('shows the month hours with the classes held and the expected pay with its note and link', async () => {
+    server.use(
+      http.get('*/teacher-portal/month', () =>
+        HttpResponse.json({
+          data: {
+            month: '2026-11',
+            classesHeld: 7,
+            hours: '5.25',
+            expectedPay: { amount: '787.50', currency: 'EGP' },
+            final: false,
+          },
+        }),
+      ),
+    );
+    renderPage(<TeacherHomeView />, { as: TEACHER, path: '/' });
+    const hours = (await screen.findByText('ساعاتي هذا الشهر')).parentElement!;
+    expect(hours.querySelector('dd')!.textContent).toBe('5.25');
+    expect(within(hours).getByText('7 حصص')).toBeInTheDocument();
+    const pay = screen.getByText('المستحق المتوقع هذا الشهر').parentElement!;
+    expect(pay.querySelector('dd')!.textContent).toContain('787.50');
+    expect(within(pay).getByText(/تقديري، والنهائي في قسيمة الراتب/)).toBeInTheDocument();
+    expect(within(pay).getByRole('link', { name: 'راتبي' })).toHaveAttribute('href', '/payroll');
+  });
+
+  it('hides the expected pay when the teacher has no salary profile', async () => {
+    server.use(
+      http.get('*/teacher-portal/month', () =>
+        HttpResponse.json({
+          data: {
+            month: '2026-11',
+            classesHeld: 1,
+            hours: '0.50',
+            expectedPay: null,
+            final: false,
+          },
+        }),
+      ),
+    );
+    renderPage(<TeacherHomeView />, { as: TEACHER, path: '/' });
+    const hours = (await screen.findByText('ساعاتي هذا الشهر')).parentElement!;
+    expect(within(hours).getByText('حصة واحدة')).toBeInTheDocument();
+    expect(screen.queryByText('المستحق المتوقع هذا الشهر')).toBeNull();
+  });
+
+  it('counts down only to classes that have not started', async () => {
+    const me = MOCK_USERS.find((u) => u.email === TEACHER)!;
+    const base = presentSession(sdb.sessions[0]!, me);
+    const now = new Date(Date.UTC(2026, 10, 12, 10, 0));
+    const rows: SessionDto[] = [
+      { ...base, id: 9001, stage: 'scheduled', startsAt: at(70) },
+      { ...base, id: 9002, stage: 'scheduled', startsAt: at(25) },
+      { ...base, id: 9003, stage: 'taken', startsAt: at(-60) },
+    ];
+    renderPage(
+      <ClassTable rows={rows} now={now} onOpen={() => {}} label="اليوم" hideTeacher countdown />,
+      { as: TEACHER, path: '/' },
+    );
+    expect(await screen.findByRole('columnheader', { name: 'تبدأ بعد' })).toBeInTheDocument();
+    expect(screen.getByText('1 س 10 د')).toBeInTheDocument();
+    expect(screen.getByText('25 د')).toBeInTheDocument();
+    const done = document.querySelector('[data-session-id="9003"]')!;
+    expect(done.textContent).not.toMatch(/ د$| س /);
   });
 });
 

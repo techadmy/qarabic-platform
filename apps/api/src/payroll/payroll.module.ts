@@ -41,6 +41,6 @@ import { WalletService } from './wallet.service.js';
     PayProfilesService,
     WalletService,
   ],
-  exports: [AttendanceService, PayrollRunsService],
+  exports: [AttendanceService, PayrollRunsService, PayrollCalculator],
 })
 export class PayrollModule {}

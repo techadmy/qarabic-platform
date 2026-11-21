@@ -1,8 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import type { TeacherStudentDto, TeacherWeekDto, TeacherZoomLinkDto } from '@qarabic/shared';
+import type {
+  TeacherMonthDto,
+  TeacherStudentDto,
+  TeacherWeekDto,
+  TeacherZoomLinkDto,
+} from '@qarabic/shared';
 import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { Crypto } from '../common/crypto.js';
+import { PayrollCalculator } from '../payroll/calculator.js';
+import { cents, type DecimalLike, fromCents } from '../payroll/money.js';
+import { Period } from '../payroll/period.js';
 import { isTeacherViewer } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { zoneOr } from '../schedule/conflicts.js';
@@ -28,6 +36,7 @@ export class TeacherPortalService {
     private readonly clock: Clock,
     private readonly presenter: SessionPresenter,
     private readonly crypto: Crypto,
+    private readonly calculator: PayrollCalculator,
   ) {}
 
   private async teacherOf(viewer: AuthUser) {
@@ -85,6 +94,45 @@ export class TeacherPortalService {
           sessions: sessions.filter((s) => localDate(Date.parse(s.startsAt), zone) === d),
         };
       }),
+    };
+  }
+
+  /**
+   * D155: the teacher's own month so far. The payroll month and the payroll calculator (as
+   * `runs/preview`), so hours and the expected net match the run; nothing is stored. No salary
+   * profile (or a demo teacher, never paid, D153) → hours only, `expectedPay` null.
+   */
+  async month(viewer: AuthUser): Promise<TeacherMonthDto> {
+    const teacher = await this.teacherOf(viewer);
+    const st = await this.settings.all();
+    const zone = st['academy.timezone'];
+    const now = this.clock.nowMs();
+    const period = Period.current(now, zone);
+    const profile = await this.prisma.payProfile.findFirst({
+      where: {
+        teacherId: teacher.id,
+        userId: viewer.id,
+        active: true,
+        user: { archivedAt: null, isDemo: false },
+      },
+    });
+    if (!profile || !hasRate(profile)) {
+      const h = await this.calculator.paidHours(this.prisma, teacher.id, period, zone);
+      return {
+        month: period.toString(),
+        classesHeld: h.paidClasses,
+        hours: h.paidHours,
+        expectedPay: null,
+        final: false,
+      };
+    }
+    const slip = await this.calculator.compute(this.prisma, profile, period, st, now);
+    return {
+      month: period.toString(),
+      classesHeld: slip.paidClasses,
+      hours: slip.paidHours,
+      expectedPay: { amount: fromCents(Math.max(0, slip.netMinor)), currency: slip.currency },
+      final: false,
     };
   }
 
@@ -153,4 +201,20 @@ export class TeacherPortalService {
       };
     });
   }
+}
+
+/** A salary profile that pays something: its type's rate, a monthly salary or an allowance. */
+function hasRate(p: {
+  salaryType: string;
+  monthlySalary: DecimalLike;
+  classRate: DecimalLike;
+  hourlyRate: DecimalLike;
+  slotTiers: unknown;
+  allowance: DecimalLike;
+}): boolean {
+  if (cents(p.monthlySalary) > 0 || cents(p.allowance) > 0) return true;
+  if (p.salaryType === 'hourly') return cents(p.hourlyRate) > 0;
+  if (p.salaryType === 'per_class') return cents(p.classRate) > 0;
+  if (p.salaryType === 'slot') return Array.isArray(p.slotTiers) && p.slotTiers.length > 0;
+  return false;
 }

@@ -4,7 +4,7 @@
  * floating-point arithmetic touches money: decimals are parsed from their string form.
  */
 
-type DecimalLike = { toFixed(dp: number): string } | string | number | null | undefined;
+export type DecimalLike = { toFixed(dp: number): string } | string | number | null | undefined;
 
 /** "12.5" / 12.5 / Prisma.Decimal → 1250. Exact for at most 2 decimals. */
 export function cents(value: DecimalLike): number {
