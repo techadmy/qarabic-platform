@@ -4,6 +4,7 @@ import {
   reportListResponseSchema,
   sessionSchema,
   teacherStudentsSchema,
+  teacherMonthSchema,
   teacherWeekSchema,
   teacherZoomLinkDtoSchema,
   type TeacherZoomLinkDto,
@@ -20,6 +21,7 @@ import {
   type ReportListQuery,
   type SessionDto,
   type TeacherStudentDto,
+  type TeacherMonthDto,
   type TeacherWeekDto,
   type TestDto,
   type TestListQuery,
@@ -147,6 +149,12 @@ export async function fetchTeacherWeek(
     .data;
 }
 
+/** D155: the teacher's own month so far (hours, held classes, expected pay). */
+export async function fetchTeacherMonth(signal?: AbortSignal): Promise<TeacherMonthDto> {
+  return (await apiFetch('/teacher-portal/month', { schema: one(teacherMonthSchema), signal }))
+    .data;
+}
+
 export async function fetchTeacherStudents(signal?: AbortSignal): Promise<TeacherStudentDto[]> {
   return (
     await apiFetch('/teacher-portal/students', { schema: one(teacherStudentsSchema), signal })
@@ -171,6 +179,7 @@ export const teachingKeys = {
   reports: (query: unknown) => ['sessions', 'lesson-reports', query] as const,
   week: (date: string | undefined) => ['sessions', 'teacher-week', date ?? 'today'] as const,
   myStudents: ['sessions', 'teacher-students'] as const,
+  myMonth: ['sessions', 'teacher-month'] as const,
   progress: (studentId: number) => ['teaching', 'progress', studentId] as const,
   tests: ['teaching', 'tests'] as const,
   testList: (query: unknown) => ['teaching', 'tests', 'list', query] as const,

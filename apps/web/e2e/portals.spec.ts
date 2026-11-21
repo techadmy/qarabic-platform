@@ -49,6 +49,17 @@ for (const [name, width] of Object.entries(WIDTHS)) {
               lang === 'ar' ? /الحصة التالية|الحصة الجارية الآن/ : /Next class|Class in progress/,
           });
           await expect(hero).toBeVisible();
+          // D155: the month tiles, and the hero beside the rest of today only at desktop width.
+          await expect(
+            page.getByText(lang === 'ar' ? 'ساعاتي هذا الشهر' : 'My hours this month'),
+          ).toBeVisible();
+          await expect(
+            page.getByText(lang === 'ar' ? 'المستحق المتوقع هذا الشهر' : 'Expected pay this month'),
+          ).toBeVisible();
+          const today = page.locator('section[aria-labelledby="home-today"]');
+          const [h, d] = [(await hero.boundingBox())!, (await today.boundingBox())!];
+          if (width >= 1024) expect(Math.abs(h.y - d.y)).toBeLessThan(4);
+          else expect(d.y).toBeGreaterThanOrEqual(h.y + h.height);
         }
         await expect(page.locator('[aria-busy="true"]')).toHaveCount(0);
         await expectNoHorizontalScroll(page);

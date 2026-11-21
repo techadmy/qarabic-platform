@@ -24,6 +24,8 @@ import {
 import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState } from 'react';
+import { Money } from '@/components/billing/billing-bits';
+import { Hours } from '@/components/payroll/payroll-bits';
 import { TrialOffersCard } from '@/components/portal/trial-offers-card';
 import { KeyFacts } from '@/components/people/detail';
 import { MyZoomLinkCard } from '@/components/people/zoom-link';
@@ -37,7 +39,13 @@ import { hasMeetingLink, useSessionActions } from '@/components/sessions/use-ses
 import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
-import { fetchTeacherStudents, fetchTeacherWeek, teachingKeys } from '@/lib/api/teaching';
+import { can } from '@/lib/auth/use-me';
+import {
+  fetchTeacherMonth,
+  fetchTeacherStudents,
+  fetchTeacherWeek,
+  teachingKeys,
+} from '@/lib/api/teaching';
 import { rangeText, shortLabel } from '@/lib/reports/format';
 import { dayLabel, relativeTime } from '@/lib/schedule-time';
 import {
@@ -211,9 +219,11 @@ function UpcomingDay({ day, now }: { day: Day; now: Date }) {
  * The teacher's home «يومي» (docs/15 §2.5 T1 and §6.2; the old teacher home listed today and the
  * next five days): the class running now or the next one as a large card (student, both times,
  * where the student stands in hifz, «ابدأ الحصة» / «أنهِ الحصة» / «اكتب التقرير»), reports still
- * due, the rest of today, then the next five days collapsed (no check-in: D154, pay is the class
- * hours). From
- * `GET /teacher-portal/week` (this week, and the next one when the five days cross into it).
+ * due, the rest of today (with a «تبدأ بعد» countdown), then the next five days collapsed (no
+ * check-in: D154, pay is the class hours). D155: the month's hours and expected pay join the facts
+ * (`GET /teacher-portal/month`, an estimate; the payslip is final), and at lg the hero sits beside
+ * the rest of today. From `GET /teacher-portal/week` (this week, and the next one when the five
+ * days cross into it).
  */
 export function TeacherHomeView() {
   const t = useTranslations('teacherPortal.home');
@@ -229,6 +239,13 @@ export function TeacherHomeView() {
     queryFn: ({ signal }) => fetchTeacherWeek(undefined, signal),
     refetchInterval: 60_000,
   });
+  // D155: the month so far; the tiles simply wait for it (the day's facts do not).
+  const month = useQuery({
+    queryKey: teachingKeys.myMonth,
+    queryFn: ({ signal }) => fetchTeacherMonth(signal),
+    refetchInterval: 5 * 60_000,
+  });
+  const m = month.data;
   const w = week.data;
   const daysLeft = w ? w.days.filter((d) => d.date > w.today).length : 0;
   const nextWeek = useQuery({
@@ -287,11 +304,47 @@ export function TeacherHomeView() {
     <div className="flex flex-col gap-5">
       {header}
       <KeyFacts
+        columns={3}
         items={[
           { label: t('facts.today'), value: count((s) => s.stage !== 'moved_out') },
           { label: tm('facts.taken'), value: count((s) => s.stage === 'taken') },
           { label: tm('facts.remaining'), value: count((s) => s.stage === 'scheduled') },
           { label: TEACHER_PORTAL_LABELS.needsReport[locale], value: w.summary.needsReport },
+          {
+            label: t('facts.monthHours'),
+            value: m ? (
+              <Hours value={m.hours} />
+            ) : month.isError ? (
+              '—'
+            ) : (
+              <Skeleton className="h-7 w-16" />
+            ),
+            hint: m ? t('facts.monthClasses', { count: m.classesHeld }) : null,
+          },
+          ...(m?.expectedPay
+            ? [
+                {
+                  label: t('facts.expectedPay'),
+                  value: <Money amount={m.expectedPay.amount} currency={m.expectedPay.currency} />,
+                  hint: (
+                    <>
+                      {t('facts.expectedPayNote')}
+                      {can(me, 'payroll.view') && (
+                        <>
+                          {' · '}
+                          <Link
+                            href="/payroll"
+                            className="rounded-sm text-primary underline underline-offset-4 outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                          >
+                            {t('facts.openSalary')}
+                          </Link>
+                        </>
+                      )}
+                    </>
+                  ),
+                },
+              ]
+            : []),
         ]}
       />
       {w.summary.needsReport > 0 && (
@@ -311,41 +364,48 @@ export function TeacherHomeView() {
           </AlertDescription>
         </Alert>
       )}
-      {hero ? (
-        <HeroClass key={hero.id} session={hero} now={now} />
-      ) : (
-        <EmptyState icon={CalendarDaysIcon} title={t('noNext')} description={t('noNextHint')} />
-      )}
+      {/* D155: at lg the class now/next sits beside the rest of today; stacked below that. */}
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-3">
+        <div className="lg:col-span-1">
+          {hero ? (
+            <HeroClass key={hero.id} session={hero} now={now} />
+          ) : (
+            <EmptyState icon={CalendarDaysIcon} title={t('noNext')} description={t('noNextHint')} />
+          )}
+        </div>
+        <section aria-labelledby="home-today" className="flex min-w-0 flex-col gap-2 lg:col-span-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="home-today" className="text-lg font-bold">
+              {t('restOfToday')}
+            </h2>
+            <Button variant="ghost" asChild className="px-0 text-primary">
+              <Link href="/my-classes">
+                {t('openWeek')}
+                <ChevronLeftIcon className="ltr:rotate-180" />
+              </Link>
+            </Button>
+          </div>
+          {restOfToday.length === 0 ? (
+            <p className="text-muted-foreground">{t('noMoreToday')}</p>
+          ) : (
+            <Card className="gap-0 py-0 shadow-none">
+              <ClassTable
+                rows={restOfToday}
+                now={now}
+                onOpen={(s) => open(s.id)}
+                label={t('restOfToday')}
+                hideTeacher
+                primaryActions
+                countdown
+                compact
+              />
+            </Card>
+          )}
+        </section>
+      </div>
       {/* T3: trials offered to this teacher (accept / volunteer / decline). */}
       <TrialOffersCard />
       <MyZoomLinkCard />
-      <section aria-labelledby="home-today" className="flex flex-col gap-2">
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <h2 id="home-today" className="text-lg font-bold">
-            {t('restOfToday')}
-          </h2>
-          <Button variant="ghost" asChild className="px-0 text-primary">
-            <Link href="/my-classes">
-              {t('openWeek')}
-              <ChevronLeftIcon className="ltr:rotate-180" />
-            </Link>
-          </Button>
-        </div>
-        {restOfToday.length === 0 ? (
-          <p className="text-muted-foreground">{t('noMoreToday')}</p>
-        ) : (
-          <Card className="gap-0 py-0 shadow-none">
-            <ClassTable
-              rows={restOfToday}
-              now={now}
-              onOpen={(s) => open(s.id)}
-              label={t('restOfToday')}
-              hideTeacher
-              primaryActions
-            />
-          </Card>
-        )}
-      </section>
       <section aria-labelledby="home-upcoming" className="flex flex-col gap-2">
         <h2 id="home-upcoming" className="text-lg font-bold">
           {t('upcoming')}

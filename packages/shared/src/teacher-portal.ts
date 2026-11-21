@@ -42,6 +42,24 @@ export const teacherWeekSchema = z.object({
 });
 export type TeacherWeekDto = z.infer<typeof teacherWeekSchema>;
 
+/**
+ * D155: «ساعاتي هذا الشهر» on the teacher home (`GET /teacher-portal/month`, own data only). The
+ * month is the payroll month (academy zone) so `hours` matches the payroll run to the minute;
+ * `expectedPay` is the payroll calculator's net for the month so far (null with no active salary
+ * profile or rate). Never final: the payslip is.
+ */
+export const teacherMonthSchema = z.object({
+  /** `YYYY-MM`. */
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/),
+  /** Classes with paid hours (decided, `pay_hours` > 0). */
+  classesHeld: z.number().int(),
+  /** Sum of the per-class `pay_hours` (rounded per class, as payroll), decimal string. */
+  hours: z.string(),
+  expectedPay: z.object({ amount: z.string(), currency: z.string() }).nullable(),
+  final: z.literal(false),
+});
+export type TeacherMonthDto = z.infer<typeof teacherMonthSchema>;
+
 /** One of the teacher's students: no contact or family data (D138). */
 export const teacherStudentSchema = z.object({
   id: z.number().int(),

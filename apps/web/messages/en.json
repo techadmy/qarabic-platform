@@ -716,7 +716,8 @@
       "duration": "Length",
       "meeting": "Meeting",
       "actions": "Actions",
-      "academyTime": "Time (\u2068{city}\u2069)"
+      "academyTime": "Time (\u2068{city}\u2069)",
+      "startsIn": "Starts in"
     },
     "meeting": {
       "open": "Open the meeting",
@@ -862,7 +863,12 @@
       "courseTaken": "The student already has a live enrollment in this course.",
       "zoomOff": "Zoom meetings are off. Use a fixed external link."
     },
-    "yourTime": "Your time: \u2068{time}\u2069 (\u2068{city}\u2069)"
+    "yourTime": "Your time: \u2068{time}\u2069 (\u2068{city}\u2069)",
+    "countdown": {
+      "hoursMinutes": "{hours} h {minutes} min",
+      "minutes": "{minutes} min",
+      "startsIn": "Starts in \u2068{value}\u2069"
+    }
   },
   "today": {
     "title": "Today's classes",
@@ -1721,7 +1727,12 @@
       "openWeek": "Open “My classes”",
       "upcoming": "Next five days",
       "facts": {
-        "today": "Today's classes"
+        "today": "Today's classes",
+        "monthHours": "My hours this month",
+        "monthClasses": "{count, plural, one {# class} other {# classes}}",
+        "expectedPay": "Expected pay this month",
+        "expectedPayNote": "An estimate; the payslip is final",
+        "openSalary": "My salary"
       },
       "openMissing": "Open classes without a report"
     },

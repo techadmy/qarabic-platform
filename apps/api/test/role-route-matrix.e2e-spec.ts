@@ -58,6 +58,7 @@ async function call(client: Client, route: string, params: Record<string, number
  */
 const KIND_ONLY: Record<string, Role> = {
   'GET parent/home': 'parent',
+  'GET teacher-portal/month': 'teacher',
   'GET teacher-portal/students': 'teacher',
   'GET teacher-portal/week': 'teacher',
   'GET teacher-portal/zoom-link': 'teacher',
@@ -223,6 +224,7 @@ const TEACHER_ROUTES = [
   'GET students/:id',
   'GET students/:id/progress',
   'GET support/mine',
+  'GET teacher-portal/month',
   'GET teacher-portal/students',
   'GET teacher-portal/week',
   'GET teacher-portal/zoom-link',
@@ -584,6 +586,7 @@ const TEACHER_LISTS = [
   'GET sessions/board',
   'GET students',
   'GET support/mine',
+  'GET teacher-portal/month',
   'GET teacher-portal/students',
   'GET teacher-portal/week',
   'GET teacher-portal/zoom-link',

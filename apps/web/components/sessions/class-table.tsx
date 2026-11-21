@@ -48,6 +48,27 @@ function Progress({ s, now }: { s: SessionDto; now: Date }) {
   return <span>{t('minutes', { count: s.durationMinutes })}</span>;
 }
 
+/**
+ * D155: time left before a class that has not started («٢ س ١٥ د»), from the page's `now` tick;
+ * nothing once it has started or is decided.
+ */
+function StartsIn({ s, now, labelled }: { s: SessionDto; now: Date; labelled?: boolean }) {
+  const t = useTranslations('classes');
+  const left = Math.ceil(minutesBetween(now, s.startsAt));
+  if (s.stage !== 'scheduled' || left <= 0) return null;
+  const hours = Math.floor(left / 60);
+  const minutes = left % 60;
+  const value =
+    hours > 0
+      ? t('countdown.hoursMinutes', { hours, minutes })
+      : t('countdown.minutes', { minutes });
+  return (
+    <span className="text-sm font-semibold text-primary">
+      {labelled ? t('countdown.startsIn', { value }) : value}
+    </span>
+  );
+}
+
 function Joined({ at, label }: { at: string | null; label: string }) {
   const t = useTranslations('classes.detail');
   return (
@@ -158,6 +179,8 @@ export function ClassTable({
   primaryActions,
   academyTz,
   scrollToNow,
+  countdown,
+  compact,
 }: {
   rows: SessionDto[];
   loading?: boolean;
@@ -177,6 +200,13 @@ export function ClassTable({
   academyTz?: string;
   /** Scroll the «الآن» line into view once the rows first show (the board on today). */
   scrollToNow?: boolean;
+  /** D155 (teacher home): a «تبدأ بعد» column, filled for classes not started yet. */
+  countdown?: boolean;
+  /**
+   * D155 (teacher home beside the hero): no course and kind columns; the course goes under the
+   * student and a non-regular kind under the stage.
+   */
+  compact?: boolean;
 }) {
   const t = useTranslations('classes');
   const locale = useUiLocale();
@@ -271,6 +301,7 @@ export function ClassTable({
                   {when(s)}
                   <StageBadge session={s} />
                 </div>
+                {countdown && <StartsIn s={s} now={now} labelled />}
                 {name(s)}
                 <OtherTime at={s.startsAt} tz={s.student.timezone} party="student" />
                 {!hideTeacher && (
@@ -303,7 +334,7 @@ export function ClassTable({
     );
   }
 
-  const columns = hideTeacher ? 8 : 9;
+  const columns = (hideTeacher ? 8 : 9) + (countdown ? 1 : 0) - (compact ? 2 : 0);
   return (
     <div className="overflow-x-auto">
       <Table aria-label={label} className="tabular-nums">
@@ -312,10 +343,10 @@ export function ClassTable({
             {(
               [
                 'time',
+                ...(countdown ? ['startsIn'] : []),
                 'student',
                 ...(hideTeacher ? [] : ['teacher']),
-                'course',
-                'kind',
+                ...(compact ? [] : (['course', 'kind'] as const)),
                 'stage',
                 'duration',
                 'meeting',
@@ -364,6 +395,11 @@ export function ClassTable({
                 >
                   {when(s)}
                 </TableCell>
+                {countdown && (
+                  <TableCell className="px-3 py-1.5 whitespace-nowrap">
+                    <StartsIn s={s} now={now} />
+                  </TableCell>
+                )}
                 <TableCell className="px-3 py-1.5">
                   <span className="flex flex-col">
                     {name(s)}
@@ -373,6 +409,7 @@ export function ClassTable({
                       party="student"
                       showParty={false}
                     />
+                    {compact && <span className="text-xs text-muted-foreground">{course(s)}</span>}
                   </span>
                 </TableCell>
                 {!hideTeacher && (
@@ -388,15 +425,20 @@ export function ClassTable({
                     </span>
                   </TableCell>
                 )}
-                <TableCell className="max-w-44 truncate px-3 py-1.5" title={course(s)}>
-                  {course(s)}
-                </TableCell>
-                <TableCell className="px-3 py-1.5">
-                  <KindBadge kind={s.kind} showRegular />
-                </TableCell>
+                {!compact && (
+                  <>
+                    <TableCell className="max-w-44 truncate px-3 py-1.5" title={course(s)}>
+                      {course(s)}
+                    </TableCell>
+                    <TableCell className="px-3 py-1.5">
+                      <KindBadge kind={s.kind} showRegular />
+                    </TableCell>
+                  </>
+                )}
                 <TableCell className="px-3 py-1.5">
                   <span className="flex flex-col items-start gap-1">
                     <StageBadge session={s} />
+                    {compact && <KindBadge kind={s.kind} />}
                     {s.attention
                       .filter((a) => a !== 'late')
                       .map((a) => (

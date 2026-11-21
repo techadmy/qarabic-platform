@@ -36,16 +36,39 @@ export function ProfileAvatar({ name }: { name: string }) {
   );
 }
 
-/** Key facts under the header (docs/28 §5): up to four shadcn Cards with a value and its label. */
-export function KeyFacts({ items }: { items: { label: string; value: ReactNode }[] }) {
+/**
+ * Key facts under the header (docs/28 §5): shadcn Cards with a value and its label, plus an
+ * optional small `hint` line under the label (D155). Four columns on desktop; `columns={3}` for a
+ * row of five or six (the teacher home, D155).
+ */
+export function KeyFacts({
+  items,
+  columns = 4,
+}: {
+  items: { label: string; value: ReactNode; hint?: ReactNode }[];
+  columns?: 3 | 4;
+}) {
   // Inside the split view's pane the facts follow the pane's width (D141 §1).
   const pane = useRecordPane();
+  const three = columns === 3;
   return (
-    <dl className={cn('grid grid-cols-2 gap-3', pane ? '@3xl:grid-cols-4' : 'lg:grid-cols-4')}>
+    <dl
+      className={cn(
+        'grid grid-cols-2 gap-3',
+        pane
+          ? three
+            ? '@3xl:grid-cols-3'
+            : '@3xl:grid-cols-4'
+          : three
+            ? 'lg:grid-cols-3'
+            : 'lg:grid-cols-4',
+      )}
+    >
       {items.map((item) => (
         <Card key={item.label} size="sm" className="gap-1 px-4 shadow-none">
           <dt className="order-2 text-sm text-muted-foreground">{item.label}</dt>
           <dd className="order-1 text-lg font-bold tabular-nums">{item.value}</dd>
+          {item.hint && <dd className="order-3 text-xs text-muted-foreground">{item.hint}</dd>}
         </Card>
       ))}
     </dl>

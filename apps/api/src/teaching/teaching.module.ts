@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
+import { PayrollModule } from '../payroll/payroll.module.js';
 import { ScheduleModule } from '../schedule/schedule.module.js';
 import { ProgressService } from './progress.service.js';
 import { TeacherPortalService } from './teacher-portal.service.js';
@@ -16,7 +17,7 @@ import { TestsService } from './tests.service.js';
  * with the classes (`ScheduleModule`).
  */
 @Module({
-  imports: [AuthModule, ScheduleModule],
+  imports: [AuthModule, ScheduleModule, PayrollModule],
   controllers: [ProgressController, TestsController, TeacherPortalController],
   providers: [ProgressService, TestsService, TeacherPortalService],
 })
