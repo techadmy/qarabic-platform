@@ -135,7 +135,7 @@ jobs:
         id: playwright
         run: echo "version=$(pnpm --filter @qarabic/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
       - name: Cache the Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -174,7 +174,7 @@ jobs:
         id: playwright
         run: echo "version=$(pnpm --filter @qarabic/web exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
       - name: Cache the Playwright browsers
-        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4.3.0
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
@@ -202,7 +202,7 @@ jobs:
           path: apps/web/playwright-report
       # The visual baselines as rendered here (Linux): written when one is missing or with
       # --update-snapshots; download and commit them after an intended change (e2e/visual.spec.ts).
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ !cancelled() }}
         with:
           name: visual-baselines-${{ matrix.shard }}
