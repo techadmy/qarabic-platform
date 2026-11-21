@@ -9,7 +9,7 @@ import {
 /**
  * N7 payroll on the mock API (no money ever moves: «تسجيل الصرف» only records). Steps that change
  * data stay in one page (client navigation and sign-out / sign-in), since a reload rebuilds the
- * mocks. Covers: check-in → check-out; a teacher's leave request → a manager approves it; a fine
+ * mocks. Covers: staff check-in → check-out (teachers have none, D154); a teacher's leave request → a manager approves it; a fine
  * proposed by a monitor → approved by a manager; the month's run created → reviewed → approved →
  * a payment recorded → the payslip is paid; a teacher sees only their own payslips and wallet on a
  * phone; axe on every screen.
@@ -30,19 +30,13 @@ async function switchUser(page: Page, email: string) {
 
 const sidebar = (page: Page) => page.locator('[data-slot="sidebar"]').first();
 
-test('teacher on a phone: check in → check out, then request leave', async ({ page }) => {
+test('teacher on a phone: no check-in (D154), request leave', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 812 });
   await signIn(page, 'teacher@qarabic.test', '/attendance');
-  await expect(page.getByRole('heading', { level: 1, name: 'حضوري وإجازاتي' })).toBeVisible();
-  await expect(page.getByText('لم تسجّل حضورك اليوم بعد.')).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'إجازاتي' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /تسجيل الحضور|تسجيل الانصراف/ })).toHaveCount(0);
   await expectNoHorizontalScroll(page);
   await expectNoSeriousA11yViolations(page);
-
-  await page.getByRole('button', { name: 'تسجيل الحضور' }).click();
-  await expect(page.getByText(/سُجّل الحضور الساعة/)).toBeVisible();
-  await page.getByRole('button', { name: 'تسجيل الانصراف' }).click();
-  await expect(page.getByText(/اكتمل يوم العمل/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'تسجيل الانصراف' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'طلب إجازة' }).click();
   const dialog = page.getByRole('dialog', { name: 'طلب إجازة' });
@@ -51,6 +45,20 @@ test('teacher on a phone: check in → check out, then request leave', async ({ 
   await expect(page.getByText('أُرسل طلب الإجازة.')).toBeVisible();
   await expect(page.getByText('قيد المراجعة').first()).toBeVisible();
   await expectNoHorizontalScroll(page);
+});
+
+test('staff on a phone: check in → check out', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await signIn(page, 'accounts@qarabic.test', '/attendance');
+  await expect(page.getByRole('heading', { level: 1, name: 'حضوري وإجازاتي' })).toBeVisible();
+  await expect(page.getByText('لم تسجّل حضورك اليوم بعد.')).toBeVisible();
+  await page.getByRole('button', { name: 'تسجيل الحضور' }).click();
+  await expect(page.getByText(/سُجّل الحضور الساعة/)).toBeVisible();
+  await page.getByRole('button', { name: 'تسجيل الانصراف' }).click();
+  await expect(page.getByText(/اكتمل يوم العمل/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'تسجيل الانصراف' })).toHaveCount(0);
+  await expectNoHorizontalScroll(page);
+  await expectNoSeriousA11yViolations(page);
 });
 
 test('leave: the teacher requests, a manager approves (days go to attendance)', async ({

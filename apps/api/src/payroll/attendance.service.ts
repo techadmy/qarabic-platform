@@ -12,7 +12,7 @@ import type { AuthUser } from '../auth/auth.types.js';
 import { Clock } from '../common/clock.js';
 import { notFound } from '../common/errors.js';
 import { Prisma } from '../generated/prisma/client.js';
-import { lockRow, type Tx } from '../people/people.common.js';
+import { isTeacherViewer, lockRow, type Tx } from '../people/people.common.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { DAY, isValidZone, localDate, MINUTE, toDbDate } from '../schedule/time.js';
 import { SettingsService } from '../settings/settings.service.js';
@@ -67,6 +67,7 @@ export class AttendanceService {
   }
 
   async checkIn(viewer: AuthUser): Promise<AttendanceDto> {
+    refuseTeacherClock(viewer);
     const zone = await this.zoneOf(viewer.id);
     const now = this.clock.now();
     const date = localDate(now.getTime(), zone);
@@ -105,6 +106,7 @@ export class AttendanceService {
 
   /** Closes the latest open day (a shift that crosses midnight still closes), within 24 h. */
   async checkOut(viewer: AuthUser): Promise<AttendanceDto> {
+    refuseTeacherClock(viewer);
     const now = this.clock.now();
     const id = await this.prisma.$transaction(async (tx) => {
       await lockRow(tx, 'users', viewer.id);
@@ -258,4 +260,13 @@ export class AttendanceService {
       }),
     );
   }
+}
+
+/**
+ * D154: teachers do not check in or out; their pay is the hours of their classes. Only a login
+ * whose role is the teacher role is refused: a staff member who also teaches (e.g. a monitor with a
+ * teacher profile) keeps the clock.
+ */
+function refuseTeacherClock(viewer: AuthUser): void {
+  if (isTeacherViewer(viewer)) throw payrollError(HttpStatus.FORBIDDEN, 'teacher_no_clock');
 }

@@ -120,7 +120,7 @@
     "billingSettings": "إعدادات الفوترة",
     "myInvoices": "فواتيري",
     "attendance": "الحضور والإجازات",
-    "myAttendance": "حضوري وإجازاتي",
+    "myAttendance": "إجازاتي",
     "fines": "الغرامات والبنود",
     "payrollRuns": "مسيّرات الرواتب",
     "salaryProfiles": "ملفات الرواتب",
@@ -3399,6 +3399,7 @@
     "attendance": {
       "title": "الحضور والإجازات",
       "myTitle": "حضوري وإجازاتي",
+      "myLeaveTitle": "إجازاتي",
       "tabs": "عرض الحضور",
       "tabDays": "سجل الحضور",
       "tabLeave": "طلبات الإجازة",

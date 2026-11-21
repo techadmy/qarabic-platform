@@ -73,7 +73,7 @@ describe('Teacher home «يومي»', () => {
     expect(screen.queryByText('لا توجد بيانات بعد')).toBeNull();
   });
 
-  it('shows the next class with its start button, both times, reports due and check-in', async () => {
+  it('shows the next class with its start button, both times and reports due; no check-in (D154)', async () => {
     renderPage(<TeacherHomeView />, { as: TEACHER, path: '/' });
     const hero = await screen.findByRole('region', { name: /الحصة التالية|الحصة الجارية الآن/ });
     expect(within(hero).getByRole('link')).toHaveAttribute(
@@ -92,9 +92,9 @@ describe('Teacher home «يومي»', () => {
     const n = Number(fact);
     const words: Record<number, RegExp> = { 1: /حصة واحدة/, 2: /حصتان/ };
     expect(alert.textContent).toMatch(words[n] ?? new RegExp(`${n} `));
-    expect(await screen.findByRole('button', { name: 'تسجيل الحضور' })).toBeInTheDocument();
     const upcoming = screen.getByRole('region', { name: 'الأيام الخمسة القادمة' });
     expect(await within(upcoming).findAllByRole('heading', { level: 3 })).toHaveLength(5);
+    expect(screen.queryByRole('button', { name: 'تسجيل الحضور' })).toBeNull();
   });
 });
 

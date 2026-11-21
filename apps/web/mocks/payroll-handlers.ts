@@ -432,6 +432,10 @@ export const payrollHandlers: HttpHandler[] = [
   http.post(`${API}/attendance/check-in`, ({ request }) => {
     const g = guard(request, 'attendance.request');
     if ('error' in g) return g.error;
+    // D154: a teacher login has no check-in / check-out.
+    if (g.me.role?.kind === 'teacher') {
+      return apiError(403, 'teacher_no_clock', 'Teachers do not check in or out.');
+    }
     const tz = g.me.timezone ?? 'Africa/Cairo';
     const date = dateKeyIn(tz);
     const onLeave = pdb.leave.some(
@@ -465,6 +469,10 @@ export const payrollHandlers: HttpHandler[] = [
   http.post(`${API}/attendance/check-out`, ({ request }) => {
     const g = guard(request, 'attendance.request');
     if ('error' in g) return g.error;
+    // D154: a teacher login has no check-in / check-out.
+    if (g.me.role?.kind === 'teacher') {
+      return apiError(403, 'teacher_no_clock', 'Teachers do not check in or out.');
+    }
     const now = Date.now();
     const open = pdb.attendance
       .filter((r) => r.userId === g.me.id && r.checkInAt && !r.checkOutAt)
