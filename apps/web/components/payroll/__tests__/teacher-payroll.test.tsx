@@ -10,11 +10,13 @@ import { pdb } from '@/mocks/payroll-db';
 import { renderPage } from '@/test/people';
 
 const TEACHER = 'teacher@qarabic.test';
+/** D154: staff without `attendance.manage` keep the clock; teachers do not. */
+const STAFF = 'accounts@qarabic.test';
 
-describe('Teacher: my attendance and leave', () => {
-  it('checks in, then out (server clock); the day shows both times', async () => {
+describe('My attendance and leave', () => {
+  it('staff check in, then out (server clock); the day shows both times', async () => {
     const user = userEvent.setup();
-    renderPage(<MyAttendanceView />, { as: TEACHER, path: '/attendance' });
+    renderPage(<MyAttendanceView />, { as: STAFF, path: '/attendance' });
     expect(await screen.findByText('لم تسجّل حضورك اليوم بعد.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'تسجيل الحضور' }));
     expect(await screen.findByText('سُجّل حضورك.')).toBeInTheDocument();
@@ -35,7 +37,7 @@ describe('Teacher: my attendance and leave', () => {
         ),
       ),
     );
-    renderPage(<MyAttendanceView />, { as: TEACHER, path: '/attendance' });
+    renderPage(<MyAttendanceView />, { as: STAFF, path: '/attendance' });
     await user.click(await screen.findByRole('button', { name: 'تسجيل الحضور' }));
     expect(await screen.findByText('سجّلت حضورك اليوم بالفعل.')).toBeInTheDocument();
   });
@@ -60,11 +62,12 @@ describe('Teacher: my attendance and leave', () => {
     expect(pdb.leave.at(-1)).toMatchObject({ userId: 2, status: 'pending' });
   });
 
-  it('the /attendance route gives a teacher «حضوري وإجازاتي»', async () => {
+  it('the /attendance route gives a teacher «إجازاتي»: leave only, no check-in (D154)', async () => {
     renderPage(<AttendanceRoute />, { as: TEACHER, path: '/attendance' });
-    expect(
-      await screen.findByRole('heading', { level: 1, name: 'حضوري وإجازاتي' }),
-    ).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'إجازاتي' })).toBeInTheDocument();
+    expect(await screen.findByRole('table', { name: 'طلبات الإجازة' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /تسجيل الحضور|تسجيل الانصراف/ })).toBeNull();
+    expect(screen.queryByText('لم تسجّل حضورك اليوم بعد.')).toBeNull();
   });
 });
 

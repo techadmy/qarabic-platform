@@ -120,7 +120,7 @@
     "billingSettings": "Billing settings",
     "myInvoices": "My invoices",
     "attendance": "Attendance & leave",
-    "myAttendance": "My attendance & leave",
+    "myAttendance": "My leave",
     "fines": "Fines & pay items",
     "payrollRuns": "Payroll runs",
     "salaryProfiles": "Salary profiles",
@@ -3399,6 +3399,7 @@
     "attendance": {
       "title": "Attendance & leave",
       "myTitle": "My attendance & leave",
+      "myLeaveTitle": "My leave",
       "tabs": "Attendance view",
       "tabDays": "Attendance",
       "tabLeave": "Leave requests",

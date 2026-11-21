@@ -28,7 +28,6 @@ import { TrialOffersCard } from '@/components/portal/trial-offers-card';
 import { KeyFacts } from '@/components/people/detail';
 import { MyZoomLinkCard } from '@/components/people/zoom-link';
 import { PageHeader } from '@/components/page-header';
-import { TodayCard } from '@/components/payroll/attendance-view';
 import { StageBadge } from '@/components/sessions/badges';
 import { ClassTable } from '@/components/sessions/class-table';
 import { RowActions } from '@/components/sessions/row-actions';
@@ -39,7 +38,6 @@ import { useCurrentUser } from '@/components/shell/app-shell';
 import { EmptyState, ErrorState, ForbiddenState } from '@/components/states';
 import { isApiError } from '@/lib/api/client';
 import { fetchTeacherStudents, fetchTeacherWeek, teachingKeys } from '@/lib/api/teaching';
-import { can } from '@/lib/auth/use-me';
 import { rangeText, shortLabel } from '@/lib/reports/format';
 import { dayLabel, relativeTime } from '@/lib/schedule-time';
 import {
@@ -213,7 +211,8 @@ function UpcomingDay({ day, now }: { day: Day; now: Date }) {
  * The teacher's home «يومي» (docs/15 §2.5 T1 and §6.2; the old teacher home listed today and the
  * next five days): the class running now or the next one as a large card (student, both times,
  * where the student stands in hifz, «ابدأ الحصة» / «أنهِ الحصة» / «اكتب التقرير»), reports still
- * due, today's check-in, the rest of today, then the next five days collapsed. From
+ * due, the rest of today, then the next five days collapsed (no check-in: D154, pay is the class
+ * hours). From
  * `GET /teacher-portal/week` (this week, and the next one when the five days cross into it).
  */
 export function TeacherHomeView() {
@@ -319,7 +318,6 @@ export function TeacherHomeView() {
       )}
       {/* T3: trials offered to this teacher (accept / volunteer / decline). */}
       <TrialOffersCard />
-      {can(me, 'attendance.request') && <TodayCard />}
       <MyZoomLinkCard />
       <section aria-labelledby="home-today" className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">

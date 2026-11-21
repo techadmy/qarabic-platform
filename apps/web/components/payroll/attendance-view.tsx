@@ -817,12 +817,17 @@ function SummaryTable({
 
 // ------------------------------------------------------------------ my attendance
 
-/** «حضوري وإجازاتي» (teacher portal, mobile-first): my day, my month, my leave. */
+/**
+ * «حضوري وإجازاتي» (staff without `attendance.manage`, mobile-first): my day, my month, my leave.
+ * A teacher gets «إجازاتي», the leave part only (D154: no check-in for teachers).
+ */
 export function MyAttendanceView() {
   const t = useTranslations('payroll');
   const me = useCurrentUser();
   const params = useListParams();
   const allowed = can(me, 'attendance.request');
+  // D154: teachers have no clock (pay is the class hours): their page is their leave only.
+  const clockless = me.role?.kind === 'teacher';
   const monthParam = params.get('month');
   const month = isPeriod(monthParam) ? monthParam : periodIn(ACADEMY_TZ);
   const [requesting, setRequesting] = useState(false);
@@ -831,12 +836,12 @@ export function MyAttendanceView() {
     queryKey: payrollKeys.attendance(query),
     queryFn: ({ signal }) => fetchAttendance(query, signal),
     placeholderData: keepPreviousData,
-    enabled: allowed,
+    enabled: allowed && !clockless,
   });
   if (!allowed) {
     return (
       <>
-        <PageHeader title={t('attendance.myTitle')} />
+        <PageHeader title={t(clockless ? 'attendance.myLeaveTitle' : 'attendance.myTitle')} />
         <ForbiddenState />
       </>
     );
@@ -845,7 +850,7 @@ export function MyAttendanceView() {
   return (
     <>
       <PageHeader
-        title={t('attendance.myTitle')}
+        title={t(clockless ? 'attendance.myLeaveTitle' : 'attendance.myTitle')}
         actions={
           <Button className="h-10" onClick={() => setRequesting(true)}>
             <PlaneIcon />
@@ -853,37 +858,41 @@ export function MyAttendanceView() {
           </Button>
         }
       />
-      <TodayCard />
-      <section aria-labelledby="my-month" className="flex flex-col gap-3">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 id="my-month" className="text-base font-bold">
-            {t('attendance.summary')}
-          </h2>
-          <MonthInput value={month} onChange={(v) => params.set({ month: v })} />
-        </div>
-        {mine && (
-          <KeyFacts
-            items={[
-              { label: t('attendance.present'), value: <bdi>{mine.present}</bdi> },
-              { label: t('attendance.absent'), value: <bdi>{mine.absent}</bdi> },
-              { label: t('attendance.leave'), value: <bdi>{mine.leave}</bdi> },
-              {
-                label: t('attendance.worked'),
-                value: <bdi dir="ltr">{durationLabel(mine.workedMinutes)}</bdi>,
-              },
-            ]}
-          />
-        )}
-        <Card className="gap-0 py-0 shadow-none">
-          {list.isError ? (
-            <div className="p-4">
-              <ErrorState onRetry={() => void list.refetch()} />
+      {!clockless && (
+        <>
+          <TodayCard />
+          <section aria-labelledby="my-month" className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <h2 id="my-month" className="text-base font-bold">
+                {t('attendance.summary')}
+              </h2>
+              <MonthInput value={month} onChange={(v) => params.set({ month: v })} />
             </div>
-          ) : (
-            <DaysTable rows={list.data?.data ?? []} loading={list.isPending} />
-          )}
-        </Card>
-      </section>
+            {mine && (
+              <KeyFacts
+                items={[
+                  { label: t('attendance.present'), value: <bdi>{mine.present}</bdi> },
+                  { label: t('attendance.absent'), value: <bdi>{mine.absent}</bdi> },
+                  { label: t('attendance.leave'), value: <bdi>{mine.leave}</bdi> },
+                  {
+                    label: t('attendance.worked'),
+                    value: <bdi dir="ltr">{durationLabel(mine.workedMinutes)}</bdi>,
+                  },
+                ]}
+              />
+            )}
+            <Card className="gap-0 py-0 shadow-none">
+              {list.isError ? (
+                <div className="p-4">
+                  <ErrorState onRetry={() => void list.refetch()} />
+                </div>
+              ) : (
+                <DaysTable rows={list.data?.data ?? []} loading={list.isPending} />
+              )}
+            </Card>
+          </section>
+        </>
+      )}
       <LeaveList mine />
       {requesting && <LeaveRequestDialog open onOpenChange={setRequesting} />}
     </>

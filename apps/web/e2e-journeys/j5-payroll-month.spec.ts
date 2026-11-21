@@ -2,15 +2,15 @@ import { expect, test, type Browser, type Locator, type Page } from '@playwright
 import { api, localParts, NAMES, shot, signIn } from './helpers';
 
 /**
- * J5 «شهر الرواتب» (payroll month), on the real stack: the hourly-paid QA teacher checks in,
- * teaches a 30-minute class and writes its report, then checks out → the owner creates this
+ * J5 «شهر الرواتب» (payroll month), on the real stack: the hourly-paid QA teacher (no check-in,
+ * D154: pay is the class hours) teaches a 30-minute class and writes its report → the owner creates this
  * month's payroll run (preview first) → it cannot be approved before review → the accountant
  * reviews it (P0-3: the reviewer is not the approver) → the owner approves it and records the
  * teacher's payment → the teacher reads the paid payslip, with no staff names (D142).
  */
 const STEPS = [
-  'The hourly-paid teacher checks in on the home page',
-  'The teacher teaches a 30-minute class, writes its report and checks out',
+  'The hourly-paid teacher signs in; the home page has no check-in (D154)',
+  'The teacher teaches a 30-minute class and writes its report',
   'The owner creates this month’s payroll run from its preview → «draft»',
   'The run cannot be approved before review (separation of duties)',
   'The accountant reviews the run → «reviewed»',
@@ -71,9 +71,11 @@ test(
 
     await step(1, async () => {
       await signIn(teacher, 'qa-teacher3');
-      await teacher.getByRole('button', { name: 'تسجيل الحضور' }).click();
-      await expect(teacher.getByRole('status').filter({ hasText: 'سُجّل الحضور' })).toBeVisible();
-      await shot(teacher, testInfo, 1, 'checked-in');
+      await expect(teacher.getByRole('heading', { level: 1 })).toBeVisible();
+      await expect(
+        teacher.getByRole('button', { name: /تسجيل الحضور|تسجيل الانصراف/ }),
+      ).toHaveCount(0);
+      await shot(teacher, testInfo, 1, 'home-no-check-in');
     });
 
     await step(2, async () => {
@@ -123,14 +125,12 @@ test(
       // Back to the home page (the sheet is in the URL; its close button missed under load).
       await teacher.goto('/');
       await expect(sheet).toBeHidden();
-      await teacher.getByRole('button', { name: 'تسجيل الانصراف' }).click();
-      await expect(teacher.getByRole('status').filter({ hasText: 'الانصراف' })).toBeVisible();
       const sessions = (await people.get(`/sessions?enrollmentId=${created.body.data.id}`)).body
         .data as Array<{ occurrenceDate: string; stage: string; pay: { hours: string | null } }>;
       const today = sessions.find((s) => s.occurrenceDate === start.date)!;
       // Hours are rounded per class: a 30-minute class pays half an hour.
       expect(today).toMatchObject({ stage: 'taken', pay: { hours: '0.50' } });
-      await shot(teacher, testInfo, 2, 'class-and-checkout');
+      await shot(teacher, testInfo, 2, 'class-and-report');
     });
 
     await step(3, async () => {

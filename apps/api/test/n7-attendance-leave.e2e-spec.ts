@@ -1,7 +1,21 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { AttendanceService } from '../src/payroll/attendance.service.js';
-import { createTestApp, resetState, signInAs, type TestContext } from './helpers.js';
-import { m6At, m6Enrollment, m6Session, m6Teacher, userWithRole } from './payroll-helpers.js';
+import {
+  Client,
+  createTestApp,
+  resetState,
+  roleId,
+  signInAs,
+  type TestContext,
+} from './helpers.js';
+import {
+  type ProfileAttrs,
+  m6At,
+  m6Enrollment,
+  m6Session,
+  m6Teacher,
+  userWithRole,
+} from './payroll-helpers.js';
 
 /*
 | Port of Laravel tests/Feature/M6/AttendanceLeaveTest.php (D94): check-in/out on the server clock
@@ -28,8 +42,21 @@ const monthly = {
   currency: 'EGP',
 } as const;
 
+/**
+ * D154: teachers no longer check in, so the clock cases use a staff member who also teaches (a
+ * monitor with a teacher profile): their work day still follows the teacher zone.
+ */
+async function teachingStaff(attrs: ProfileAttrs, zone: string) {
+  const teacher = await m6Teacher(ctx, attrs, zone);
+  await ctx.prisma.user.update({
+    where: { id: teacher.userId },
+    data: { roleId: await roleId(ctx, 'csr') },
+  });
+  return teacher;
+}
+
 async function karachiTeacher() {
-  const teacher = await m6Teacher(ctx, monthly, 'Asia/Karachi');
+  const teacher = await teachingStaff(monthly, 'Asia/Karachi');
   return { teacher, client: await signInAs(ctx, teacher.user) };
 }
 
@@ -64,7 +91,7 @@ describe('attendance check-in / check-out (D94)', () => {
   });
 
   it('counts real minutes over the autumn DST change (New York) and keeps the evening work date', async () => {
-    const teacher = await m6Teacher(ctx, {}, 'America/New_York');
+    const teacher = await teachingStaff({}, 'America/New_York');
     const client = await signInAs(ctx, teacher.user);
     m6At(ctx, '2026-11-01T03:30:00Z'); // 23:30 EDT on 31 Oct
     const res = await client.post('/attendance/check-in');
@@ -74,7 +101,7 @@ describe('attendance check-in / check-out (D94)', () => {
   });
 
   it('counts real minutes over the spring DST change (London) across midnight', async () => {
-    const teacher = await m6Teacher(ctx, {}, 'Europe/London');
+    const teacher = await teachingStaff({}, 'Europe/London');
     const client = await signInAs(ctx, teacher.user);
     m6At(ctx, '2026-03-28T23:30:00Z'); // 23:30 GMT on 28 Mar
     expect((await client.post('/attendance/check-in')).body.data.workDate).toBe('2026-03-28');
@@ -131,6 +158,36 @@ describe('attendance check-in / check-out (D94)', () => {
       },
     });
     expect(await svc.isOnShift(teacher.userId, new Date('2026-11-10T06:00:00Z'))).toBe(false);
+  });
+});
+
+describe('teachers do not check in (D154)', () => {
+  it('refuses check-in and check-out to a teacher login with 403 teacher_no_clock, writing nothing', async () => {
+    const teacher = await m6Teacher(ctx, monthly, 'Asia/Karachi');
+    const client = await signInAs(ctx, teacher.user);
+    m6At(ctx, '2026-11-09T20:30:00Z');
+    for (const path of ['/attendance/check-in', '/attendance/check-out']) {
+      const res = await client.post(path);
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('teacher_no_clock');
+    }
+    expect(await ctx.prisma.staffAttendance.count()).toBe(0);
+    // Leave requests stay open to teachers.
+    expect((await client.get('/attendance/today')).status).toBe(200);
+  });
+
+  it('keeps the clock for a staff member who also teaches (customer service + teacher profile)', async () => {
+    const { client } = await karachiTeacher();
+    m6At(ctx, '2026-11-09T20:30:00Z');
+    expect((await client.post('/attendance/check-in')).status).toBe(200);
+    m6At(ctx, '2026-11-09T22:30:00Z');
+    expect((await client.post('/attendance/check-out')).body.data.workedMinutes).toBe(120);
+  });
+
+  it('answers 401 without a session', async () => {
+    const anon = await new Client(ctx.app).init();
+    expect((await anon.post('/attendance/check-in')).status).toBe(401);
+    expect((await anon.post('/attendance/check-out')).status).toBe(401);
   });
 });
 

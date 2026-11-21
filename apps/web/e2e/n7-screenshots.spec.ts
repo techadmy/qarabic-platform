@@ -111,15 +111,12 @@ for (const [size, viewport] of Object.entries(sizes)) {
     await page.setViewportSize(viewport);
     await page.goto('/login?next=%2Fattendance');
     await login(page, 'teacher@qarabic.test');
-    await expect(page.getByRole('heading', { level: 1, name: 'حضوري وإجازاتي' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: 'إجازاتي' })).toBeVisible();
     await shot(page, 'my-attendance', size, true);
     await page.getByRole('button', { name: 'طلب إجازة' }).click();
     await expect(page.getByRole('dialog', { name: 'طلب إجازة' })).toBeVisible();
     await shot(page, 'leave-dialog', size);
     await page.keyboard.press('Escape');
-    await page.getByRole('button', { name: 'تسجيل الحضور' }).click();
-    await expect(page.getByText(/سُجّل الحضور الساعة/)).toBeVisible();
-    await shot(page, 'my-attendance-checked-in', size);
 
     await open(page, '/payroll');
     await shot(page, 'my-salary', size, true);

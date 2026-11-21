@@ -269,6 +269,10 @@ export const PAYROLL_ERROR_MESSAGES = {
     en: 'You have already checked in today.',
   },
   not_checked_in: { ar: 'لم تسجّل حضورك بعد.', en: 'You have not checked in.' },
+  teacher_no_clock: {
+    ar: 'لا يسجّل المعلمون الحضور والانصراف؛ يُحتسب الأجر من ساعات الحصص.',
+    en: 'Teachers do not check in or out; pay comes from class hours.',
+  },
   on_leave: { ar: 'لديك إجازة معتمدة اليوم.', en: 'You are on approved leave today.' },
   leave_overlap: {
     ar: 'تتداخل هذه الإجازة مع إجازة أخرى قيد المراجعة أو معتمدة.',
